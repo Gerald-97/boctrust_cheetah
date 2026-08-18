@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../module/app_flow/app_flow_navigator.dart';
+import 'auth_navigation_provider.dart';
+import 'route_arguments.dart';
 
 class AppRoutes {
   const AppRoutes._();
 
-  static const initial = onboarding;
+  static const initial = bootstrap;
+  static const bootstrap = '/bootstrap';
   static const onboarding = '/onboarding';
   static const verificationMethod = '/onboarding/verification-method';
   static const otp = '/onboarding/otp';
@@ -14,6 +18,7 @@ class AppRoutes {
   static const biometricLogin = '/login/biometric';
   static const passwordReset = '/login/password-reset';
   static const newDeviceOtp = '/login/new-device-otp';
+  static const createFirstPin = '/onboarding/create-pin';
   static const home = '/home';
   static const savingsHub = '/savings';
   static const newSavingsChooser = '/savings/new';
@@ -83,6 +88,7 @@ class AppRoutes {
   static const paymentWebView = '/payment/webview';
 
   static const allRoutes = <String>{
+    bootstrap,
     onboarding,
     verificationMethod,
     otp,
@@ -91,6 +97,7 @@ class AppRoutes {
     biometricLogin,
     passwordReset,
     newDeviceOtp,
+    createFirstPin,
     home,
     savingsHub,
     newSavingsChooser,
@@ -208,9 +215,16 @@ class AppRouter {
   }
 
   static Widget _pageFor(RouteSettings settings) {
+    if (settings.name == AppRoutes.biometricLogin) {
+      return const _BiometricCompatibilityRedirect();
+    }
     if (settings.name != null && AppRoutes.allRoutes.contains(settings.name)) {
+      final arguments = settings.arguments;
       return AppFlowRouteScreen(
         initialScreen: appScreenForRoute(settings.name),
+        routeArguments: arguments is AppRouteArguments
+            ? arguments
+            : const AppRouteArguments(),
       );
     }
 
@@ -231,6 +245,36 @@ class AppRouter {
       description: 'This route is not registered in the app route map.',
     );
   }
+}
+
+class _BiometricCompatibilityRedirect extends ConsumerStatefulWidget {
+  const _BiometricCompatibilityRedirect();
+
+  @override
+  ConsumerState<_BiometricCompatibilityRedirect> createState() =>
+      _BiometricCompatibilityRedirectState();
+}
+
+class _BiometricCompatibilityRedirectState
+    extends ConsumerState<_BiometricCompatibilityRedirect> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(authNavigationProvider.notifier)
+          .publish(
+            AuthDestination.login,
+            mode: AuthNavigationMode.replace,
+            message: 'Biometric login is not available yet.',
+          );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
 }
 
 class _RouteFallbackScreen extends StatelessWidget {

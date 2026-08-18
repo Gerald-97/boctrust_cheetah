@@ -1,18 +1,17 @@
 import 'package:equatable/equatable.dart';
 
+import 'response_handler.dart';
+
 abstract final class Env {
-  static const environment = String.fromEnvironment('ENV', defaultValue: 'dev');
-  static const baseUrl = String.fromEnvironment(
-    'BASE_URL',
-    defaultValue: 'https://dev-api.boctrustmfb.com/api',
+  static const environment = String.fromEnvironment('ENV');
+  static const baseUrl = String.fromEnvironment('BASE_URL');
+  static const secureStorageNamespace = String.fromEnvironment(
+    'SECURE_STORAGE_NAMESPACE',
   );
-  static const secureStorageKey = String.fromEnvironment('SECURE_STORAGE_KEY');
-  static const secureStorageIv = String.fromEnvironment('SECURE_STORAGE_IV');
   static const paystackPublicKey = String.fromEnvironment(
     'PAYSTACK_PUBLIC_KEY',
   );
 
-  static bool get isDev => environment == 'dev';
   static bool get isStaging => environment == 'staging';
   static bool get isProd => environment == 'prod';
 }
@@ -25,11 +24,56 @@ class AppBootstrap {
   static bool initialized = false;
 
   static void initialize() {
+    _validateEnvironment();
     initialized = true;
+  }
+
+  static void _validateEnvironment() {
+    if (!Env.isStaging && !Env.isProd) {
+      throw const FormatException('Invalid ENV configuration.');
+    }
+
+    final uri = Uri.tryParse(Env.baseUrl);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        Env.baseUrl.endsWith('/v1') ||
+        Env.baseUrl.contains('/api/api/v1')) {
+      throw const FormatException('Invalid BASE_URL configuration.');
+    }
+
+    if (Env.secureStorageNamespace.trim().isEmpty) {
+      throw const FormatException(
+        'Invalid SECURE_STORAGE_NAMESPACE configuration.',
+      );
+    }
   }
 }
 
 enum ServiceStatus { idle, loading, success, empty, error, blocked }
+
+class ApiMeta extends Equatable {
+  const ApiMeta({this.requestId, this.correlationId, this.extra = const {}});
+
+  factory ApiMeta.fromJson(Object? json) {
+    if (json is! Map) return const ApiMeta();
+    final map = Map<String, Object?>.from(json);
+    final requestId = map.remove('requestId') as String?;
+    final correlationId = map.remove('correlationId') as String?;
+    return ApiMeta(
+      requestId: requestId,
+      correlationId: correlationId,
+      extra: Map.unmodifiable(map),
+    );
+  }
+
+  final String? requestId;
+  final String? correlationId;
+  final Map<String, Object?> extra;
+
+  @override
+  List<Object?> get props => [requestId, correlationId, extra];
+}
 
 class ServiceResponse<T> extends Equatable {
   const ServiceResponse({
@@ -37,29 +81,49 @@ class ServiceResponse<T> extends Equatable {
     this.data,
     this.message,
     this.statusCode,
+    this.errorCode,
+    this.errors = const [],
+    this.meta,
+    this.noAuth = false,
   });
 
-  const ServiceResponse.success(T data, {String? message, int? statusCode})
-    : this(
-        status: ServiceStatus.success,
-        data: data,
-        message: message,
-        statusCode: statusCode,
-      );
+  const ServiceResponse.success(
+    T data, {
+    String? message,
+    int? statusCode,
+    ApiMeta? meta,
+  }) : this(
+         status: ServiceStatus.success,
+         data: data,
+         message: message,
+         statusCode: statusCode,
+         meta: meta,
+       );
 
-  const ServiceResponse.empty({String? message, int? statusCode})
+  const ServiceResponse.empty({String? message, int? statusCode, ApiMeta? meta})
     : this(
         status: ServiceStatus.empty,
         message: message,
         statusCode: statusCode,
+        meta: meta,
       );
 
-  const ServiceResponse.error(String message, {int? statusCode})
-    : this(
-        status: ServiceStatus.error,
-        message: message,
-        statusCode: statusCode,
-      );
+  const ServiceResponse.error(
+    String message, {
+    int? statusCode,
+    String? errorCode,
+    List<Object?> errors = const [],
+    ApiMeta? meta,
+    bool noAuth = false,
+  }) : this(
+         status: ServiceStatus.error,
+         message: message,
+         statusCode: statusCode,
+         errorCode: errorCode,
+         errors: errors,
+         meta: meta,
+         noAuth: noAuth,
+       );
 
   const ServiceResponse.blocked(String message)
     : this(status: ServiceStatus.blocked, message: message);
@@ -68,31 +132,135 @@ class ServiceResponse<T> extends Equatable {
   final T? data;
   final String? message;
   final int? statusCode;
+  final String? errorCode;
+  final List<Object?> errors;
+  final ApiMeta? meta;
+  final bool noAuth;
 
   bool get isSuccess => status == ServiceStatus.success;
   bool get isBlocked => status == ServiceStatus.blocked;
 
   @override
-  List<Object?> get props => [status, data, message, statusCode];
+  List<Object?> get props => [
+    status,
+    data,
+    message,
+    statusCode,
+    errorCode,
+    errors,
+    meta,
+    noAuth,
+  ];
 }
 
 class NotifierState<T> extends Equatable {
-  const NotifierState._({required this.status, this.data, this.message});
+  const NotifierState({
+    required this.status,
+    this.data,
+    this.message,
+    this.statusCode,
+    this.errorCode,
+    this.errors = const [],
+    this.meta,
+    this.noAuth = false,
+  });
 
-  const NotifierState.idle() : this._(status: ServiceStatus.idle);
-  const NotifierState.loading() : this._(status: ServiceStatus.loading);
-  const NotifierState.done(T data)
-    : this._(status: ServiceStatus.success, data: data);
-  const NotifierState.empty([String? message])
-    : this._(status: ServiceStatus.empty, message: message);
-  const NotifierState.error(String message)
-    : this._(status: ServiceStatus.error, message: message);
-  const NotifierState.blocked(String message)
-    : this._(status: ServiceStatus.blocked, message: message);
+  const NotifierState.idle({T? data})
+    : this(status: ServiceStatus.idle, data: data);
+  const NotifierState.loading({T? data})
+    : this(status: ServiceStatus.loading, data: data);
+  const NotifierState.done(
+    T data, {
+    String? message,
+    int? statusCode,
+    ApiMeta? meta,
+  }) : this(
+         status: ServiceStatus.success,
+         data: data,
+         message: message,
+         statusCode: statusCode,
+         meta: meta,
+       );
+  const NotifierState.empty({String? message, int? statusCode})
+    : this(
+        status: ServiceStatus.empty,
+        message: message,
+        statusCode: statusCode,
+      );
+  const NotifierState.error(
+    String message, {
+    T? data,
+    int? statusCode,
+    String? errorCode,
+    List<Object?> errors = const [],
+    ApiMeta? meta,
+    bool noAuth = false,
+  }) : this(
+         status: ServiceStatus.error,
+         data: data,
+         message: message,
+         statusCode: statusCode,
+         errorCode: errorCode,
+         errors: errors,
+         meta: meta,
+         noAuth: noAuth,
+       );
+  const NotifierState.blocked(String message, {T? data})
+    : this(status: ServiceStatus.blocked, data: data, message: message);
+
+  static const _unset = Object();
 
   final ServiceStatus status;
   final T? data;
   final String? message;
+  final int? statusCode;
+  final String? errorCode;
+  final List<Object?> errors;
+  final ApiMeta? meta;
+  final bool noAuth;
+
+  bool get isLoading => status == ServiceStatus.loading;
+  bool get isDone => status == ServiceStatus.success;
+  bool get isError => status == ServiceStatus.error;
+
+  NotifierState<T> copyWith({
+    ServiceStatus? status,
+    Object? data = _unset,
+    Object? message = _unset,
+    Object? statusCode = _unset,
+    Object? errorCode = _unset,
+    List<Object?>? errors,
+    Object? meta = _unset,
+    bool? noAuth,
+  }) {
+    return NotifierState<T>(
+      status: status ?? this.status,
+      data: identical(data, _unset) ? this.data : data as T?,
+      message: identical(message, _unset) ? this.message : message as String?,
+      statusCode: identical(statusCode, _unset)
+          ? this.statusCode
+          : statusCode as int?,
+      errorCode: identical(errorCode, _unset)
+          ? this.errorCode
+          : errorCode as String?,
+      errors: errors ?? this.errors,
+      meta: identical(meta, _unset) ? this.meta : meta as ApiMeta?,
+      noAuth: noAuth ?? this.noAuth,
+    );
+  }
+
+  NotifierState<R> mapData<R>(R? Function(T? data) transform) {
+    return NotifierState<R>(
+      status: status,
+      data: transform(data),
+      message: message,
+      statusCode: statusCode,
+      errorCode: errorCode,
+      errors: errors,
+      meta: meta,
+      noAuth: noAuth,
+    );
+  }
 
   R when<R>({
     required R Function() loading,
@@ -105,7 +273,7 @@ class NotifierState<T> extends Equatable {
     return switch (status) {
       ServiceStatus.loading => loading(),
       ServiceStatus.success => done(data as T),
-      ServiceStatus.empty => empty?.call(message) ?? done(data as T),
+      ServiceStatus.empty => empty?.call(message) ?? loading(),
       ServiceStatus.error =>
         error?.call(message ?? 'Something went wrong') ?? loading(),
       ServiceStatus.blocked =>
@@ -115,23 +283,60 @@ class NotifierState<T> extends Equatable {
   }
 
   static NotifierState<T> fromResponse<T>(ServiceResponse<T> response) {
-    return switch (response.status) {
-      ServiceStatus.success =>
-        response.data == null
-            ? NotifierState<T>.empty(response.message)
-            : NotifierState<T>.done(response.data as T),
-      ServiceStatus.empty => NotifierState<T>.empty(response.message),
-      ServiceStatus.blocked => NotifierState<T>.blocked(
-        response.message ?? 'Integration unavailable',
-      ),
-      ServiceStatus.error => NotifierState<T>.error(
-        response.message ?? 'Something went wrong',
-      ),
-      ServiceStatus.idle => NotifierState<T>.idle(),
-      ServiceStatus.loading => NotifierState<T>.loading(),
-    };
+    return NotifierState<T>(
+      status: response.status,
+      data: response.data,
+      message: response.message,
+      statusCode: response.statusCode,
+      errorCode: response.errorCode,
+      errors: response.errors,
+      meta: response.meta,
+      noAuth: response.noAuth,
+    );
   }
 
   @override
-  List<Object?> get props => [status, data, message];
+  List<Object?> get props => [
+    status,
+    data,
+    message,
+    statusCode,
+    errorCode,
+    errors,
+    meta,
+    noAuth,
+  ];
+}
+
+abstract final class ProcessProvider {
+  static void run<T>(
+    NotifierState<T> state, {
+    void Function(T data)? doneCb,
+    void Function(NotifierState<T> state)? errorCb,
+    bool showSuccess = false,
+    bool showError = true,
+  }) {
+    switch (state.status) {
+      case ServiceStatus.success:
+        final data = state.data;
+        if (data != null) doneCb?.call(data);
+        if (showSuccess && state.message?.isNotEmpty == true) {
+          ResponseHandler.showSuccess(state.message!);
+        }
+      case ServiceStatus.error:
+        errorCb?.call(state);
+        if (showError && !state.noAuth && state.message?.isNotEmpty == true) {
+          ResponseHandler.showError(state.message!);
+        }
+      case ServiceStatus.blocked:
+        errorCb?.call(state);
+        if (showError && state.message?.isNotEmpty == true) {
+          ResponseHandler.showError(state.message!);
+        }
+      case ServiceStatus.idle:
+      case ServiceStatus.loading:
+      case ServiceStatus.empty:
+        break;
+    }
+  }
 }

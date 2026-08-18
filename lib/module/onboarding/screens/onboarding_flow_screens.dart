@@ -1,6 +1,61 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
 extension OnboardingFlowScreens on AppFlowNavigatorState {
+  Widget _bootstrapScreen() {
+    final state = ref.watch(startupGateProvider);
+    if (state.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(startupGateProvider.notifier).start);
+    }
+    final hasError = state.status == ServiceStatus.error;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const BocLogo(height: 52),
+                const SizedBox(height: 28),
+                if (!hasError) ...[
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 18),
+                  Text(
+                    state.data?.stage == StartupGateStage.loadingProfile
+                        ? 'Loading your account…'
+                        : 'Starting securely…',
+                  ),
+                ] else ...[
+                  const Icon(
+                    Icons.cloud_off_rounded,
+                    size: 48,
+                    color: BocColors.gold,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    state.message ?? 'Unable to load your account.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  PrimaryButton(
+                    label: 'Retry',
+                    onPressed: () =>
+                        ref.read(startupGateProvider.notifier).retryProfile(),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _confirmSignOut,
+                    child: const Text('Sign out'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _onboardingScreen() {
     const slides = <({IconData icon, String title, String description})>[
       (
@@ -32,7 +87,8 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => _go(AppScreen.verifyMethod),
+                  onPressed: () =>
+                      _openAuthDestination(AuthDestination.verificationMethod),
                   child: const Text('Skip'),
                 ),
               ),
@@ -88,7 +144,10 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
                 onPressed: _advanceOnboarding,
               ),
               TextButton(
-                onPressed: () => _go(AppScreen.login),
+                onPressed: () => _openAuthDestination(
+                  AuthDestination.login,
+                  mode: AuthNavigationMode.clearStack,
+                ),
                 child: const Text('I already have an account'),
               ),
             ],
@@ -105,13 +164,17 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     required String buttonLabel,
     required VoidCallback onButtonPressed,
     Widget? footer,
+    bool showBack = true,
   }) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
-          onPressed: _back,
-        ),
+        automaticallyImplyLeading: false,
+        leading: showBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+                onPressed: _back,
+              )
+            : null,
       ),
       body: SafeArea(
         top: false,
@@ -166,7 +229,54 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     );
   }
 
+  Widget _stateMessage<T>(NotifierState<T> state) {
+    if (state.message == null ||
+        (!state.isError && state.status != ServiceStatus.blocked)) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Text(
+        state.message!,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: BocColors.red, fontSize: 12),
+      ),
+    );
+  }
+
+  bool _validIdentifier(String value) {
+    if (_verifyByPhone) {
+      return RegExp(r'^\+234\d{10}$').hasMatch(normalizeNigerianPhone(value));
+    }
+    return validators.isEmail(value);
+  }
+
+  Widget _phoneChannelSelector() {
+    return Row(
+      children: [
+        Expanded(
+          child: ChoiceChip(
+            label: const Text('SMS'),
+            selected: _phoneChannel == PhoneVerificationChannel.sms,
+            onSelected: (_) =>
+                _selectPhoneChannel(PhoneVerificationChannel.sms),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ChoiceChip(
+            label: const Text('WhatsApp'),
+            selected: _phoneChannel == PhoneVerificationChannel.whatsapp,
+            onSelected: (_) =>
+                _selectPhoneChannel(PhoneVerificationChannel.whatsapp),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _verifyMethodScreen() {
+    final state = ref.watch(signupFlowProvider);
     return _authPage(
       title: 'How should we verify you?',
       subtitle:
@@ -191,139 +301,407 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           const SizedBox(height: 20),
           AppTextField(
             label: _verifyByPhone ? 'Phone number' : 'Email address',
-            initialValue: _verifyByPhone
-                ? '+234 803 214 7756'
-                : 'adaeze@example.com',
+            controller: _identifierController,
+            hintText: _verifyByPhone ? '0803 000 0000' : 'you@example.com',
             keyboardType: _verifyByPhone
                 ? TextInputType.phone
                 : TextInputType.emailAddress,
           ),
           if (_verifyByPhone) ...[
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Text('SMS'),
-                    selected: true,
-                    onSelected: (_) {},
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Text('WhatsApp'),
-                    selected: false,
-                    onSelected: (_) {},
-                  ),
-                ),
-              ],
-            ),
+            _phoneChannelSelector(),
           ],
+          _stateMessage(state),
         ],
       ),
-      buttonLabel: 'Send code',
-      onButtonPressed: () => _go(AppScreen.otp),
+      buttonLabel: state.isLoading ? 'Sending code…' : 'Send code',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        final identifier = _identifierController.text;
+        if (!_validIdentifier(identifier)) {
+          _showMessage(
+            _verifyByPhone
+                ? 'Enter a valid Nigerian phone number.'
+                : 'Enter a valid email address.',
+          );
+          return;
+        }
+        final notifier = ref.read(signupFlowProvider.notifier);
+        if (_verifyByPhone) {
+          await notifier.startPhone(identifier, _phoneChannel);
+        } else {
+          await notifier.startEmail(identifier);
+        }
+      },
     );
   }
 
   Widget _otpScreen() {
+    final state = ref.watch(signupFlowProvider);
+    final data = state.data;
     return _authPage(
       title: 'Enter the code',
       subtitle: "We sent a 6-digit code to verify it's really you.",
       content: Column(
         children: [
           Text(
-            _verifyByPhone
-                ? 'Sent via SMS to +234 803 214 7756'
-                : 'Sent to adaeze@example.com',
+            data?.identifier.isNotEmpty == true
+                ? 'Sent to ${data!.identifier}'
+                : 'Enter the code sent to your account.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 20),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OtpBox(value: '4'),
-              OtpBox(value: '2'),
-              OtpBox(value: '8'),
-              OtpBox(value: '1'),
-              OtpBox(value: '•'),
-              OtpBox(value: '•'),
-            ],
+          PinInputField(
+            pinCtrl: _otpController,
+            isActive: !state.isLoading,
+            onChanged: (_) {},
           ),
+          const SizedBox(height: 10),
+          OtpExpiryLabel(expiresAt: data?.otpExpiresAt),
           const SizedBox(height: 18),
           TextButton(
-            onPressed: () => _showMessage('A new verification code was sent.'),
-            child: const Text("Didn't get it? Resend code · 0:42"),
+            onPressed: state.isLoading
+                ? null
+                : () async {
+                    await ref.read(signupFlowProvider.notifier).resendOtp();
+                    final latest = ref.read(signupFlowProvider);
+                    if (latest.isDone) {
+                      _showSuccessMessage(
+                        latest.message ?? 'A new code was sent.',
+                      );
+                    }
+                  },
+            child: const Text("Didn't get it? Resend code"),
           ),
+          _stateMessage(state),
         ],
       ),
-      buttonLabel: 'Verify',
-      onButtonPressed: () => _go(AppScreen.createPassword),
+      buttonLabel: state.isLoading ? 'Verifying…' : 'Verify',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        if (validators.otp(_otpController.text) != null) {
+          _showMessage('Enter the 6-digit code.');
+          return;
+        }
+        await ref
+            .read(signupFlowProvider.notifier)
+            .verifyAccount(_otpController.text);
+      },
     );
   }
 
   Widget _createPasswordScreen() {
+    final state = ref.watch(signupFlowProvider);
     return _authPage(
       title: 'Create a password',
       subtitle:
-          "This is the last step before you're in — tier verification (BVN, NIN, address) happens later, inside the app.",
-      content: const Column(
+          "This is the last signup step. You'll sign in after creating it.",
+      content: Column(
         children: [
           AppTextField(
             label: 'Password',
-            hintText: 'Enter at least 8 characters',
+            controller: _passwordController,
+            hintText: 'At least 8 characters',
             obscureText: true,
           ),
-          SizedBox(height: 14),
+          const SizedBox(height: 14),
           AppTextField(
             label: 'Confirm password',
+            controller: _confirmPasswordController,
             hintText: 'Re-enter your password',
             obscureText: true,
           ),
-          SizedBox(height: 12),
-          PasswordStrengthCard(),
+          const SizedBox(height: 12),
+          const PasswordStrengthCard(),
+          _stateMessage(state),
         ],
       ),
-      buttonLabel: 'Create account & continue',
-      onButtonPressed: () => _go(AppScreen.home),
+      buttonLabel: state.isLoading ? 'Creating password…' : 'Create password',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        final password = _passwordController.text;
+        final validation = validators.isPasswordValid(password);
+        if (validation != null) {
+          _showMessage(validation);
+          return;
+        }
+        if (_confirmPasswordController.text != password) {
+          _showMessage('Passwords do not match.');
+          return;
+        }
+        await ref.read(signupFlowProvider.notifier).createPassword(password);
+      },
     );
   }
 
   Widget _loginScreen() {
+    final state = ref.watch(loginFlowProvider);
     return _authPage(
       title: 'Welcome back',
-      subtitle: 'Log in with your registered phone number and PIN.',
+      subtitle: 'Log in with your registered email or phone and password.',
+      showBack: false,
       content: Column(
         children: [
-          const AppTextField(
-            label: 'Phone number',
-            initialValue: '+234 803 214 7756',
-            keyboardType: TextInputType.phone,
+          AppTextField(
+            label: 'Email or phone number',
+            controller: _identifierController,
+            keyboardType: TextInputType.emailAddress,
           ),
-          const SizedBox(height: 18),
-          Text(
-            'Enter your 4-digit PIN',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
+          const SizedBox(height: 14),
+          AppTextField(
+            label: 'Password',
+            controller: _passwordController,
+            obscureText: true,
           ),
           const SizedBox(height: 12),
-          const PinDots(filled: 4),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: () => _showMessage('Face ID authentication requested.'),
-            icon: const Icon(Icons.face_rounded),
-            label: const Text('Use Face ID instead'),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () =>
+                  _openAuthDestination(AuthDestination.passwordReset),
+              child: const Text('Forgot password?'),
+            ),
           ),
-          TextButton(
-            onPressed: () => _showMessage('PIN reset flow opened.'),
-            child: const Text('Forgot PIN? Reset it'),
-          ),
+          _stateMessage(state),
         ],
       ),
-      buttonLabel: 'Log in',
-      onButtonPressed: () => _go(AppScreen.home),
+      buttonLabel: state.isLoading ? 'Logging in…' : 'Log in',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        final identifier = _identifierController.text.trim();
+        if (identifier.isEmpty || _passwordController.text.isEmpty) {
+          _showMessage('Enter your email or phone number and password.');
+          return;
+        }
+        await ref
+            .read(loginFlowProvider.notifier)
+            .login(identifier, _passwordController.text);
+      },
+      footer: TextButton(
+        onPressed: () => _openAuthDestination(
+          AuthDestination.verificationMethod,
+          mode: AuthNavigationMode.clearStack,
+        ),
+        child: const Text('Create an account'),
+      ),
+    );
+  }
+
+  Widget _passwordResetScreen() {
+    final state = ref.watch(passwordRecoveryProvider);
+    final stage = state.data?.stage ?? RecoveryFlowStage.idle;
+    final awaitingOtp = stage == RecoveryFlowStage.awaitingOtp;
+    final awaitingPassword = stage == RecoveryFlowStage.awaitingNewSecret;
+    final title = awaitingOtp
+        ? 'Verify your account'
+        : awaitingPassword
+        ? 'Choose a new password'
+        : 'Reset your password';
+    final subtitle = awaitingOtp
+        ? 'Enter the 6-digit code sent to ${state.data?.identifier ?? ''}.'
+        : awaitingPassword
+        ? 'Use a strong password you have not used before.'
+        : 'We will send a verification code to your email or phone.';
+
+    Widget content;
+    if (awaitingOtp) {
+      content = Column(
+        children: [
+          PinInputField(
+            pinCtrl: _otpController,
+            isActive: !state.isLoading,
+            onChanged: (_) {},
+          ),
+          const SizedBox(height: 10),
+          OtpExpiryLabel(expiresAt: state.data?.otpExpiresAt),
+          _stateMessage(state),
+        ],
+      );
+    } else if (awaitingPassword) {
+      content = Column(
+        children: [
+          AppTextField(
+            label: 'New password',
+            controller: _passwordController,
+            obscureText: true,
+          ),
+          const SizedBox(height: 14),
+          AppTextField(
+            label: 'Confirm new password',
+            controller: _confirmPasswordController,
+            obscureText: true,
+          ),
+          const SizedBox(height: 12),
+          const PasswordStrengthCard(),
+          _stateMessage(state),
+        ],
+      );
+    } else {
+      content = Column(
+        children: [
+          AppTextField(
+            label: 'Email or phone number',
+            controller: _identifierController,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'For phone numbers, choose where the code should be sent.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          _phoneChannelSelector(),
+          _stateMessage(state),
+        ],
+      );
+    }
+
+    return _authPage(
+      title: title,
+      subtitle: subtitle,
+      content: content,
+      buttonLabel: state.isLoading
+          ? 'Please wait…'
+          : awaitingOtp
+          ? 'Verify code'
+          : awaitingPassword
+          ? 'Reset password'
+          : 'Send code',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        final notifier = ref.read(passwordRecoveryProvider.notifier);
+        if (awaitingOtp) {
+          if (validators.otp(_otpController.text) != null) {
+            _showMessage('Enter the 6-digit code.');
+            return;
+          }
+          await notifier.verifyOtp(_otpController.text);
+          return;
+        }
+        if (awaitingPassword) {
+          final password = _passwordController.text;
+          final validation = validators.isPasswordValid(password);
+          if (validation != null) {
+            _showMessage(validation);
+            return;
+          }
+          if (_confirmPasswordController.text != password) {
+            _showMessage('Passwords do not match.');
+            return;
+          }
+          await notifier.reset(password);
+          return;
+        }
+        final identifier = _identifierController.text.trim();
+        if (identifier.isEmpty) {
+          _showMessage('Enter your email or phone number.');
+          return;
+        }
+        await notifier.start(
+          identifier,
+          channel: identifier.contains('@') ? null : _phoneChannel,
+        );
+      },
+    );
+  }
+
+  Widget _newDeviceOtpScreen() {
+    final state = ref.watch(loginFlowProvider);
+    final data = state.data;
+    final choosing = data?.stage == LoginFlowStage.choosingNewDeviceChannel;
+    return _authPage(
+      title: choosing ? 'Verify this device' : 'Enter the device code',
+      subtitle: choosing
+          ? 'Choose where we should send the security code.'
+          : 'A 6-digit code was sent to ${data?.identifier ?? 'your account'}.',
+      content: Column(
+        children: [
+          if (choosing)
+            _phoneChannelSelector()
+          else ...[
+            PinInputField(
+              pinCtrl: _otpController,
+              isActive: !state.isLoading,
+              onChanged: (_) {},
+            ),
+            const SizedBox(height: 10),
+            OtpExpiryLabel(expiresAt: data?.otpExpiresAt),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: state.isLoading
+                  ? null
+                  : ref.read(loginFlowProvider.notifier).resendNewDeviceOtp,
+              child: const Text('Resend code'),
+            ),
+          ],
+          _stateMessage(state),
+        ],
+      ),
+      buttonLabel: state.isLoading
+          ? 'Please wait…'
+          : choosing
+          ? 'Send code'
+          : 'Verify device',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        final notifier = ref.read(loginFlowProvider.notifier);
+        if (choosing) {
+          await notifier.chooseNewDeviceChannel(_phoneChannel);
+          return;
+        }
+        if (validators.otp(_otpController.text) != null) {
+          _showMessage('Enter the 6-digit code.');
+          return;
+        }
+        await notifier.verifyNewDevice(_otpController.text);
+      },
+    );
+  }
+
+  Widget _createFirstPinScreen() {
+    final state = ref.watch(createFirstPinProvider);
+    return _authPage(
+      title: 'Create your transaction PIN',
+      subtitle: 'Use this 4-digit PIN to authorize transactions.',
+      showBack: false,
+      content: Column(
+        children: [
+          const Text('Enter PIN'),
+          const SizedBox(height: 10),
+          PinInputField(
+            pinLength: 4,
+            pinCtrl: _pinController,
+            obscureText: true,
+            isActive: !state.isLoading,
+            onChanged: (_) {},
+          ),
+          const SizedBox(height: 18),
+          const Text('Confirm PIN'),
+          const SizedBox(height: 10),
+          PinInputField(
+            pinLength: 4,
+            pinCtrl: _confirmPinController,
+            obscureText: true,
+            isActive: !state.isLoading,
+            onChanged: (_) {},
+          ),
+          _stateMessage(state),
+        ],
+      ),
+      buttonLabel: state.isLoading ? 'Saving PIN…' : 'Create PIN',
+      onButtonPressed: () async {
+        if (state.isLoading) return;
+        if (validators.transactionPin(_pinController.text) != null) {
+          _showMessage('Enter a 4-digit PIN.');
+          return;
+        }
+        if (_confirmPinController.text != _pinController.text) {
+          _showMessage('PINs do not match.');
+          return;
+        }
+        await ref
+            .read(createFirstPinProvider.notifier)
+            .submit(_pinController.text);
+      },
     );
   }
 }

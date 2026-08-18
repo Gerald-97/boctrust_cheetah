@@ -3,11 +3,35 @@ part of '../../app_flow/app_flow_navigator.dart';
 extension HomeScreen on AppFlowNavigatorState {
   Widget _homeScreen() {
     final currentThemeMode = ref.watch(themeControllerProvider).mode;
+    final profileState = ref.watch(userProfileProvider);
+    final tierState = ref.watch(userTierProvider);
+    final session = ref.watch(authSessionProvider);
+    final profile = profileState.data;
+    final tier = tierState.data;
+
+    if (profileState.status == ServiceStatus.idle && session != null) {
+      Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
+    }
+    if (tierState.status == ServiceStatus.idle && session != null) {
+      Future<void>.microtask(ref.read(userTierProvider.notifier).load);
+    }
+
     final themeIcon = switch (currentThemeMode) {
       AppThemeMode.light => Icons.light_mode_outlined,
       AppThemeMode.dark => Icons.dark_mode_outlined,
       AppThemeMode.system => Icons.settings_brightness_outlined,
     };
+    final displayName = profile?.firstName?.trim().isNotEmpty == true
+        ? profile!.firstName!.trim()
+        : 'there';
+    final identifier =
+        profile?.email ??
+        profile?.phoneNumber ??
+        session?.email ??
+        session?.phoneNumber ??
+        'Account details unavailable';
+    final tierSummary = tier?.currentTierSummary;
+
     return AppScaffold(
       titleWidget: const BocLogo(height: 26),
       activeSection: AppSection.home,
@@ -28,198 +52,189 @@ extension HomeScreen on AppFlowNavigatorState {
             backgroundColor: Theme.of(context).cardColor,
             foregroundColor: BocColors.navy,
           ),
-          tooltip: 'Notifications',
-          onPressed: () => _go(AppScreen.notifications),
-          icon: const Badge(
-            smallSize: 8,
-            child: Icon(Icons.notifications_none_rounded),
+          tooltip: 'Notifications unavailable',
+          onPressed: () => _showMessage(
+            'Notifications are not available in the current User API.',
           ),
+          icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          BalanceCard(hidden: _balanceHidden, onToggle: _toggleBalanceHidden),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => _go(AppScreen.tier2),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: context.bocColors.goldPale,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.white,
-                      foregroundColor: BocColors.gold,
-                      child: Icon(Icons.shield_outlined),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Unlock higher limits',
-                            style: TextStyle(
-                              color: Color(0xFF7A5F08),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Finish Tier 2 — verify NIN & add next of kin',
-                            style: TextStyle(
-                              color: Color(0xFF8A6A08),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: Color(0xFF8A6A08)),
-                  ],
-                ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            ref.read(userProfileProvider.notifier).load(),
+            ref.read(userTierProvider.notifier).load(),
+          ]);
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Text(
+              'Welcome, $displayName',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              identifier,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: QuickAction(
-                    icon: Icons.add_rounded,
-                    label: 'Add money',
-                    background: context.bocColors.goldPale,
-                    foreground: BocColors.gold,
-                    onTap: () => _go(AppScreen.addMoney),
+            const SizedBox(height: 18),
+            if (profileState.isError || tierState.isError) ...[
+              MaterialBanner(
+                content: Text(
+                  profileState.message ??
+                      tierState.message ??
+                      'Unable to refresh your account details.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      await Future.wait([
+                        ref.read(userProfileProvider.notifier).load(),
+                        ref.read(userTierProvider.notifier).load(),
+                      ]);
+                    },
+                    child: const Text('Retry'),
                   ),
-                ),
-                Expanded(
-                  child: QuickAction(
-                    icon: Icons.send_rounded,
-                    label: 'Send',
-                    background: context.bocColors.bluePale,
-                    foreground: BocColors.blue,
-                    onTap: () => _go(AppScreen.sendHub),
-                  ),
-                ),
-                Expanded(
-                  child: QuickAction(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Payments',
-                    background: context.bocColors.purplePale,
-                    foreground: BocColors.purple,
-                    onTap: () => _go(AppScreen.payments),
-                  ),
-                ),
-                Expanded(
-                  child: QuickAction(
-                    icon: Icons.track_changes_rounded,
-                    label: 'New target',
-                    background: context.bocColors.goldPale,
-                    foreground: BocColors.gold,
-                    onTap: () => _go(AppScreen.target),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          SectionHeader(
-            title: 'Your savings',
-            action: 'See all',
-            onAction: () => _go(AppScreen.saveHub),
-          ),
-          SizedBox(
-            height: 184,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                SavingsOverviewCard(
-                  category: 'Flex',
-                  name: 'Everyday Flex',
-                  metric: '12.5%',
-                  amount: '₦420,180.10',
-                  icon: Icons.savings_outlined,
-                  color: BocColors.gold,
-                  onTap: () => _go(AppScreen.flex),
-                ),
-                const SizedBox(width: 12),
-                SavingsOverviewCard(
-                  category: 'Target',
-                  name: 'Rent — Dec 2026',
-                  metric: '57%',
-                  amount: '₦570,000',
-                  icon: Icons.track_changes_rounded,
-                  color: BocColors.purple,
-                  onTap: () => _go(AppScreen.target),
-                ),
-                const SizedBox(width: 12),
-                SavingsOverviewCard(
-                  category: 'Fixed',
-                  name: '18-month lock',
-                  metric: '35%',
-                  amount: '₦300,000',
-                  icon: Icons.lock_outline_rounded,
-                  color: BocColors.purple,
-                  onTap: () => _go(AppScreen.lock),
-                ),
-                const SizedBox(width: 12),
-                SavingsOverviewCard(
-                  category: 'Group',
-                  name: 'Owambe Squad',
-                  metric: '46%',
-                  amount: '₦460,000',
-                  icon: Icons.groups_outlined,
-                  color: BocColors.green,
-                  onTap: () => _go(AppScreen.group),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          SectionHeader(title: 'Recent activity', action: 'See all'),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: SurfaceCard(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              child: Column(
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
+            SurfaceCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TransactionTile(
-                    icon: Icons.savings_outlined,
-                    name: 'Boc Flex Savings daily interest',
-                    date: 'Today, 12:01 AM',
-                    amount: '+₦412.60',
-                    incoming: true,
+                  RoundedIcon(
+                    icon: profile?.isVerifiedAccount == true
+                        ? Icons.verified_user_outlined
+                        : Icons.person_outline_rounded,
+                    color: profile?.isVerifiedAccount == true
+                        ? BocColors.green
+                        : BocColors.gold,
                   ),
-                  Divider(height: 1),
-                  TransactionTile(
-                    icon: Icons.send_rounded,
-                    name: 'Sent to Ifeoma Nwachukwu',
-                    date: 'Yesterday, 4:20 PM',
-                    amount: '−₦35,000.00',
-                  ),
-                  Divider(height: 1),
-                  TransactionTile(
-                    icon: Icons.south_west_rounded,
-                    name: 'Bank transfer received — GTBank',
-                    date: 'Mon, 9:02 AM',
-                    amount: '+₦150,000.00',
-                    incoming: true,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          profile?.displayName ?? 'Your account',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          profile == null
+                              ? 'Loading verified profile details…'
+                              : 'Tier ${profile.tier} · '
+                                    '${profile.isVerifiedAccount ? 'Verified' : 'Verification pending'}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () => _go(AppScreen.account),
+                          icon: const Icon(Icons.manage_accounts_outlined),
+                          label: const Text('Manage account'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      RoundedIcon(
+                        icon: Icons.account_balance_wallet_outlined,
+                        color: BocColors.gold,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Financial overview unavailable',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'The current User API does not provide balances, savings, '
+                    'transfers, payments, or transaction history. No placeholder '
+                    'financial data is shown.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const RoundedIcon(
+                        icon: Icons.shield_outlined,
+                        color: BocColors.blue,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tierSummary?.tierLabel ?? 'Account tier',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (tierSummary != null) ...[
+                    LimitRow(
+                      label: 'Daily transfer limit',
+                      value: tierSummary.dailyTransferLimit.displayValue,
+                    ),
+                    LimitRow(
+                      label: 'Max wallet balance',
+                      value: tierSummary.maxWalletBalance.displayValue,
+                    ),
+                  ] else
+                    Text(
+                      tierState.isLoading
+                          ? 'Loading tier details…'
+                          : 'Tier details are unavailable.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () => _go(AppScreen.tiers),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('View account tiers'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

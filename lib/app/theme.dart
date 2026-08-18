@@ -96,6 +96,7 @@ class BOCTrustTheme {
           horizontal: 14,
           vertical: 14,
         ),
+        hintStyle: TextStyle(color: bodySoft),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: border),

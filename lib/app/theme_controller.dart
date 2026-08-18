@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app.dart';
+import 'preferences.dart';
 
 const themePreferenceKey = 'boctrust.theme_mode';
 

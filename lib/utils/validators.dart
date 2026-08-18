@@ -32,14 +32,14 @@ String? nigerianPhone(String? value) {
 bool isPasswordValidValue(String? value) {
   if (value == null) return false;
   return value.length >= 8 &&
-      RegExp(r'[A-Z]').hasMatch(value) &&
-      RegExp(r'[a-z]').hasMatch(value) &&
-      RegExp(r'\d').hasMatch(value);
+      RegExp(r'[A-Za-z]').hasMatch(value) &&
+      RegExp(r'\d').hasMatch(value) &&
+      RegExp(r'[^A-Za-z0-9]').hasMatch(value);
 }
 
 String? isPasswordValid(String? value) => isPasswordValidValue(value)
     ? null
-    : 'Password must include upper, lower, number, and at least 8 characters';
+    : 'Use at least 8 characters with a letter, number, and special character';
 
 String? confirmPassword(String? value, String password) =>
     value == password ? null : 'Passwords do not match';

@@ -43,6 +43,9 @@ class PinInputField extends StatelessWidget {
       animationType: AnimationType.fade,
       textStyle: Theme.of(context).textTheme.bodyLarge,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      cursorColor: Theme.of(context).brightness == Brightness.dark
+          ? kPrimaryGoldLight
+          : kPrimaryColor,
       pinTheme: PinTheme(
         shape: PinCodeFieldShape.box,
         borderRadius: BorderRadius.circular(8),

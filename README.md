@@ -6,8 +6,20 @@ BOCTrust is a Flutter savings and payments application shell implementing the UX
 
 ```sh
 flutter pub get
-flutter run --dart-define=ENV=dev --dart-define=BASE_URL=https://dev-api.boctrustmfb.com/api
+flutter run --dart-define-from-file=.env.stage
 ```
+
+The staging configuration must define `ENV=staging`,
+`BASE_URL=https://user-dev-api.centurysoftware.dev/api`, and an environment-
+specific `SECURE_STORAGE_NAMESPACE`. `PAYSTACK_PUBLIC_KEY` is reserved for the
+future card-funding integration. Copy `.env.example` for a new local setup;
+environment files remain gitignored.
+
+API traffic is printed through the `logger` package with structured request,
+response, error, and duration details. Staging logs intentionally include raw
+headers and payloads, including authentication values, and must only be
+captured on controlled development devices. Production logs recursively redact
+sensitive fields.
 
 ## Verify
 
@@ -39,22 +51,23 @@ stabilized. Pull requests currently enforce formatting and static analysis.
 - Reusable cards, buttons, fields, spacing, and bottom navigation live in the
   shared component layer; feature screens should compose those primitives.
 
-## Prototype routing
+## Routing and authentication
 
-The route table keeps design-spec deep links discoverable. Related routes may
-currently resolve to the same prototype screen—for example, Flex Save actions
-share the Flex screen and support routes share Account. These are explicit
-aliases, not silently missing pages. Unknown routes use the app's dedicated
-fallback route.
+The app starts at a session bootstrap route. It restores a valid namespaced
+secure-storage session, loads the authenticated profile, and then routes to
+first-PIN creation or Home. Expired and malformed sessions are cleared locally.
+Signup, password recovery, new-device approval, logout, profile, tier, and
+security-secret flows use the staging User API.
 
 ## Backend-contract blockers
 
-The first implementation keeps production calls behind service boundaries and route shells where endpoint contracts are not confirmed.
+The User API is wired for its documented mobile endpoints. Product areas with
+no contract in that API remain explicitly unavailable.
 
 | Area | Missing contract | Current behavior | Replacement steps |
 |---|---|---|---|
-| WhatsApp OTP | Delivery endpoint and response shape | Route shell only, mock-capable service boundary expected | Add endpoint to onboarding service and map provider state. |
-| Liveness, NIN, next of kin, utility bill upload | Payload, upload, and status response contracts | KYC route shells marked as backend-blocked | Replace blocked service response with typed API calls. |
+| Firebase native setup | Staging Android and iOS Firebase application files | FCM initialization fails closed; login and the rest of bootstrap continue | Supply `google-services.json` and `GoogleService-Info.plist` for the staging Firebase project. |
+| Liveness, BVN, NIN, next of kin, utility bill upload | Submission endpoints and upload contracts | Tier data is read from the API; submission actions are clearly unavailable | Add typed submission endpoints when the backend publishes them. |
 | Group Save invitations and schedules | Invitation, contribution schedule, roles, missed-payment endpoints | Group routes show blocked integration state where needed | Add typed models and service methods. |
 | Card funding | Paystack/provider handoff and callback contract | Card funding route shell marked blocked | Wire WebView URL creation and callback parser. |
 | Bills and scan-to-pay | Biller catalogue, customer lookup, payment, QR payload contracts | Payment routes render UI shell and blocked integration states | Add biller models, lookup service, and receipt mapping. |

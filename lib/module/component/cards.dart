@@ -42,7 +42,6 @@ class BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
@@ -68,83 +67,92 @@ class BalanceCard extends StatelessWidget {
               ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Total savings balance',
-                style: TextStyle(color: Color(0xFFC7D3E0), fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: Text(
-                        hidden ? '••••••••••' : '₦1,248,530.75',
-                        key: ValueKey(hidden),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Total savings balance',
+                  style: TextStyle(color: Color(0xFFC7D3E0), fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Text(
+                          hidden ? '••••••••••' : '₦1,248,530.75',
+                          key: ValueKey(hidden),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  IconButton.filledTonal(
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.16),
-                      foregroundColor: Colors.white,
+                    IconButton.filledTonal(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.16),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: onToggle,
+                      icon: Icon(
+                        hidden
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
                     ),
-                    onPressed: onToggle,
-                    icon: Icon(
-                      hidden
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                  ),
-                ],
-              ),
-              const Row(
-                children: [
-                  Icon(
-                    Icons.trending_up_rounded,
-                    color: BocColors.goldLight,
-                    size: 15,
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    '+₦412.60 interest earned today',
-                    style: TextStyle(
+                  ],
+                ),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.trending_up_rounded,
                       color: BocColors.goldLight,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                      size: 15,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(height: 1, color: Colors.white.withValues(alpha: 0.15)),
-              const SizedBox(height: 13),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Account no.  0142 337 705',
-                    style: TextStyle(color: Color(0xFFC7D3E0), fontSize: 11.5),
-                  ),
-                  Text(
-                    'Tier 1 · Verified',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                    SizedBox(width: 5),
+                    Text(
+                      '+₦412.60 interest earned today',
+                      style: TextStyle(
+                        color: BocColors.goldLight,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 13),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Account no.  0142 337 705',
+                      style: TextStyle(
+                        color: Color(0xFFC7D3E0),
+                        fontSize: 11.5,
+                      ),
+                    ),
+                    Text(
+                      'Tier 1 · Verified',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

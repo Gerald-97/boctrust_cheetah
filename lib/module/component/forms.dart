@@ -58,20 +58,24 @@ class LabeledField extends StatelessWidget {
 class AppTextField extends StatelessWidget {
   const AppTextField({
     required this.label,
+    this.controller,
     this.initialValue,
     this.hintText,
     this.keyboardType,
     this.obscureText = false,
     this.maxLines = 1,
+    this.onChanged,
     super.key,
   });
 
   final String label;
+  final TextEditingController? controller;
   final String? initialValue;
   final String? hintText;
   final TextInputType? keyboardType;
   final bool obscureText;
   final int maxLines;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -89,10 +93,12 @@ class AppTextField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextFormField(
-          initialValue: initialValue,
+          controller: controller,
+          initialValue: controller == null ? initialValue : null,
           keyboardType: keyboardType,
           obscureText: obscureText,
           maxLines: obscureText ? 1 : maxLines,
+          onChanged: onChanged,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           decoration: InputDecoration(hintText: hintText, isDense: true),
         ),
@@ -206,6 +212,71 @@ class OtpBox extends StatelessWidget {
         value,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
       ),
+    );
+  }
+}
+
+class OtpExpiryLabel extends StatefulWidget {
+  const OtpExpiryLabel({required this.expiresAt, super.key});
+
+  final DateTime? expiresAt;
+
+  @override
+  State<OtpExpiryLabel> createState() => _OtpExpiryLabelState();
+}
+
+class _OtpExpiryLabelState extends State<OtpExpiryLabel> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant OtpExpiryLabel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.expiresAt != widget.expiresAt) _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (widget.expiresAt == null) return;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      if (_remaining.inSeconds <= 0) _timer?.cancel();
+    });
+  }
+
+  Duration get _remaining {
+    final expiresAt = widget.expiresAt;
+    if (expiresAt == null) return Duration.zero;
+    final remaining = expiresAt.toUtc().difference(DateTime.now().toUtc());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.expiresAt == null) return const SizedBox.shrink();
+    final remaining = _remaining;
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    return Text(
+      remaining == Duration.zero
+          ? 'Code expired'
+          : 'Code expires in $minutes:$seconds',
+      style: Theme.of(context).textTheme.bodySmall,
     );
   }
 }

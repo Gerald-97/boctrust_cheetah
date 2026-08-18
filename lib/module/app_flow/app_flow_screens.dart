@@ -1,14 +1,19 @@
 part of 'app_flow_navigator.dart';
 
 enum AppScreen {
+  bootstrap,
   onboarding,
   verifyMethod,
   otp,
   createPassword,
   login,
+  passwordReset,
+  newDeviceOtp,
+  createFirstPin,
   tiers,
   tier1,
   tier2,
+  nextOfKin,
   tier3,
   home,
   saveHub,
@@ -39,6 +44,8 @@ enum AppSection { home, save, send, payments, account }
 
 AppScreen appScreenForRoute(String? routeName) {
   switch (routeName) {
+    case '/bootstrap':
+      return AppScreen.bootstrap;
     case '/onboarding':
       return AppScreen.onboarding;
     case '/onboarding/verification-method':
@@ -49,9 +56,13 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.createPassword;
     case '/login':
     case '/login/biometric':
-    case '/login/password-reset':
-    case '/login/new-device-otp':
       return AppScreen.login;
+    case '/login/password-reset':
+      return AppScreen.passwordReset;
+    case '/login/new-device-otp':
+      return AppScreen.newDeviceOtp;
+    case '/onboarding/create-pin':
+      return AppScreen.createFirstPin;
     case '/home':
       return AppScreen.home;
     case '/savings':
@@ -127,8 +138,9 @@ AppScreen appScreenForRoute(String? routeName) {
     case '/account/tier/bvn':
       return AppScreen.tier1;
     case '/account/tier/nin':
-    case '/account/tier/next-of-kin':
       return AppScreen.tier2;
+    case '/account/tier/next-of-kin':
+      return AppScreen.nextOfKin;
     case '/account/tier/address':
       return AppScreen.tier3;
     case '/account/loans':

@@ -2,6 +2,42 @@ part of '../../app_flow/app_flow_navigator.dart';
 
 extension KycScreens on AppFlowNavigatorState {
   Widget _tiersScreen() {
+    final state = ref.watch(userTierProvider);
+    if (state.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(userTierProvider.notifier).load);
+    }
+    final data = state.data;
+    if (data == null) {
+      return AppScaffold(
+        title: 'Account tiers',
+        activeSection: AppSection.account,
+        onBack: _back,
+        onSectionSelected: _goSection,
+        body: Center(
+          child: state.isError
+              ? Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        state.message ?? 'Unable to load account tiers.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 14),
+                      FilledButton(
+                        onPressed: () =>
+                            ref.read(userTierProvider.notifier).load(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : const CircularProgressIndicator(),
+        ),
+      );
+    }
+    final summary = data.currentTierSummary;
     return AppScaffold(
       title: 'Account tiers',
       activeSection: AppSection.account,
@@ -16,10 +52,10 @@ extension KycScreens on AppFlowNavigatorState {
               color: BocColors.navy,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'YOUR CURRENT TIER',
                   style: TextStyle(
                     color: BocColors.goldLight,
@@ -28,46 +64,50 @@ extension KycScreens on AppFlowNavigatorState {
                     letterSpacing: 0.8,
                   ),
                 ),
-                SizedBox(height: 14),
-                LimitRow(label: 'Tier', value: 'Tier 1'),
-                LimitRow(label: 'Daily transfer limit', value: '₦50,000'),
-                LimitRow(label: 'Max wallet balance', value: '₦300,000'),
+                const SizedBox(height: 14),
+                LimitRow(label: 'Tier', value: summary.tierLabel),
+                LimitRow(
+                  label: 'Daily transfer limit',
+                  value: summary.dailyTransferLimit.displayValue,
+                ),
+                LimitRow(
+                  label: 'Max wallet balance',
+                  value: summary.maxWalletBalance.displayValue,
+                ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          TierCard(
-            tier: 1,
-            title: 'Tier 1',
-            subtitle: 'Verify your BVN and complete a live selfie check.',
-            requirements: const ['BVN', 'Liveness'],
-            status: 'Verified',
-            statusColor: BocColors.green,
-            leadingColor: BocColors.green,
-            onTap: () => _go(AppScreen.tier1),
-          ),
-          const SizedBox(height: 12),
-          TierCard(
-            tier: 2,
-            title: 'Tier 2',
-            subtitle: 'Verify your NIN and add at least one next of kin.',
-            requirements: const ['NIN', 'Next of kin'],
-            status: 'In progress · Continue',
-            statusColor: BocColors.gold,
-            leadingColor: BocColors.gold,
-            onTap: () => _go(AppScreen.tier2),
-          ),
-          const SizedBox(height: 12),
-          TierCard(
-            tier: 3,
-            title: 'Tier 3',
-            subtitle: 'Verify your address and upload a recent utility bill.',
-            requirements: const ['Address', 'Utility bill'],
-            status: 'Locked until Tier 2 is complete',
-            statusColor: BocColors.grey,
-            leadingColor: BocColors.grey,
-            onTap: () => _go(AppScreen.tier3),
-          ),
+          for (var index = 0; index < data.tiers.length; index++) ...[
+            if (index > 0) const SizedBox(height: 12),
+            TierCard(
+              tier: data.tiers[index].tier,
+              title: data.tiers[index].title,
+              subtitle:
+                  data.tiers[index].description ??
+                  data.tiers[index].lockReason ??
+                  'Tier requirements and account limits.',
+              requirements: data.tiers[index].requirements
+                  .map((requirement) => requirement.label)
+                  .toList(growable: false),
+              status: data.tiers[index].statusLabel,
+              statusColor: switch (data.tiers[index].status) {
+                TierCardStatus.verified => BocColors.green,
+                TierCardStatus.inProgress => BocColors.gold,
+                TierCardStatus.locked ||
+                TierCardStatus.unknown => BocColors.grey,
+              },
+              leadingColor: switch (data.tiers[index].status) {
+                TierCardStatus.verified => BocColors.green,
+                TierCardStatus.inProgress => BocColors.gold,
+                TierCardStatus.locked ||
+                TierCardStatus.unknown => BocColors.grey,
+              },
+              onTap: () => _showMessage(
+                'Tier verification submission is not available in the current API.',
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -82,6 +122,7 @@ extension KycScreens on AppFlowNavigatorState {
     required VoidCallback onPressed,
     String? stepLabel,
     String? secondaryButtonLabel,
+    VoidCallback? onSecondaryPressed,
   }) {
     return AppScaffold(
       title: title,
@@ -98,6 +139,21 @@ extension KycScreens on AppFlowNavigatorState {
               color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
+          const SizedBox(height: 12),
+          const SurfaceCard(
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: BocColors.gold),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Preview only — the current API does not expose a tier-verification submission endpoint.',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           StepIndicator(activeStep: activeStep, label: stepLabel),
           const SizedBox(height: 18),
@@ -108,7 +164,9 @@ extension KycScreens on AppFlowNavigatorState {
             const SizedBox(height: 10),
             SecondaryButton(
               label: secondaryButtonLabel,
-              onPressed: () => _showMessage('Next of kin form opened.'),
+              onPressed:
+                  onSecondaryPressed ??
+                  () => _showMessage('Next of kin form opened.'),
             ),
           ],
         ],
@@ -184,8 +242,10 @@ extension KycScreens on AppFlowNavigatorState {
           ),
         ],
       ),
-      buttonLabel: 'Capture selfie & unlock Tier 1',
-      onPressed: () => _showMessage('Tier 1 verification completed.'),
+      buttonLabel: 'Submission unavailable',
+      onPressed: () => _showMessage(
+        'Tier verification submission is not available in the current API.',
+      ),
     );
   }
 
@@ -194,8 +254,8 @@ extension KycScreens on AppFlowNavigatorState {
       title: 'Tier 2 verification',
       subtitle:
           'Your NIN plus at least one next of kin unlocks higher limits and Target/Lock Save.',
-      activeStep: 2,
-      stepLabel: 'Next of kin',
+      activeStep: 1,
+      stepLabel: 'NIN verification',
       body: Column(
         children: [
           const VerificationCard(
@@ -209,31 +269,83 @@ extension KycScreens on AppFlowNavigatorState {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Next of kin',
+                  'Confirm your NIN',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Add someone we can contact if we cannot reach you.',
+                  'Enter the NIN linked to your legal name. This demo keeps the value local.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(height: 1.5),
                 ),
                 const SizedBox(height: 14),
-                const LabeledField(label: 'Full name', value: 'Chioma Okonkwo'),
-                const SizedBox(height: 12),
                 const LabeledField(
-                  label: 'Relationship',
-                  value: 'Sister · 0810 223 9981',
+                  label: 'Legal name',
+                  value: 'Adaeze Okonkwo',
+                ),
+                const SizedBox(height: 12),
+                const AppTextField(
+                  label: 'National Identification Number',
+                  initialValue: '•••• •••• 8830',
+                  keyboardType: TextInputType.number,
                 ),
               ],
             ),
           ),
         ],
       ),
-      buttonLabel: 'Save & unlock Tier 2',
+      buttonLabel: 'Continue to next of kin',
+      onPressed: () => _go(AppScreen.nextOfKin),
+    );
+  }
+
+  Widget _nextOfKinScreen() {
+    return _kycScaffold(
+      title: 'Next of kin',
+      subtitle:
+          'Add someone BOCTrust can contact if we cannot reach you. This completes Tier 2.',
+      activeStep: 2,
+      stepLabel: 'Next of kin',
+      body: SurfaceCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Contact details',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Use a trusted family member or close contact.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            const AppTextField(
+              label: 'Full name',
+              initialValue: 'Chioma Okonkwo',
+              keyboardType: TextInputType.name,
+            ),
+            const SizedBox(height: 12),
+            const AppTextField(label: 'Relationship', initialValue: 'Sister'),
+            const SizedBox(height: 12),
+            const AppTextField(
+              label: 'Phone number',
+              initialValue: '0810 223 9981',
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+      ),
+      buttonLabel: 'Submission unavailable',
       secondaryButtonLabel: '+ Add another next of kin',
-      onPressed: () => _showMessage('Tier 2 verification submitted.'),
+      onPressed: () => _showMessage(
+        'Tier verification submission is not available in the current API.',
+      ),
+      onSecondaryPressed: () =>
+          _showMessage('Another next of kin can be added.'),
     );
   }
 
@@ -289,8 +401,10 @@ extension KycScreens on AppFlowNavigatorState {
           ],
         ),
       ),
-      buttonLabel: 'Submit & unlock Tier 3',
-      onPressed: () => _showMessage('Tier 3 verification submitted.'),
+      buttonLabel: 'Submission unavailable',
+      onPressed: () => _showMessage(
+        'Tier verification submission is not available in the current API.',
+      ),
     );
   }
 }

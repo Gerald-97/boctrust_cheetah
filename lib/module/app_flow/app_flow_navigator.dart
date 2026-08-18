@@ -1,8 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/auth_navigation_provider.dart';
+import '../../app/bootstrap_provider.dart';
+import '../../app/preferences.dart';
+import '../../app/response_handler.dart';
+import '../../app/route_arguments.dart';
+import '../../app/services.dart';
 import '../../app/theme.dart';
 import '../../app/theme_controller.dart';
+import '../../utils/auth_input.dart';
+import '../../utils/validators.dart' as validators;
+import '../account/model/user_tier_model.dart';
+import '../account/provider/user_providers.dart';
+import '../component/text_fields.dart';
+import '../onboarding/model/auth_enums.dart';
+import '../onboarding/model/auth_flow_models.dart';
+import '../onboarding/provider/auth_session_provider.dart';
+import '../onboarding/provider/identifier_verification_provider.dart';
+import '../onboarding/provider/login_flow_provider.dart';
+import '../onboarding/provider/recovery_providers.dart';
+import '../onboarding/provider/security_action_providers.dart';
+import '../onboarding/provider/signup_flow_provider.dart';
 
 part 'app_flow_screens.dart';
 
@@ -51,23 +72,33 @@ part '../notifications/screens/notifications_screen.dart';
 part '../account/screens/account_screens.dart';
 
 class AppFlowRouteScreen extends StatelessWidget {
-  const AppFlowRouteScreen({super.key, required this.initialScreen});
+  const AppFlowRouteScreen({
+    super.key,
+    required this.initialScreen,
+    this.routeArguments = const AppRouteArguments(),
+  });
 
   final AppScreen initialScreen;
+  final AppRouteArguments routeArguments;
 
   @override
   Widget build(BuildContext context) {
-    return AppFlowNavigator(initialScreen: initialScreen);
+    return AppFlowNavigator(
+      initialScreen: initialScreen,
+      routeArguments: routeArguments,
+    );
   }
 }
 
 class AppFlowNavigator extends ConsumerStatefulWidget {
   const AppFlowNavigator({
-    this.initialScreen = AppScreen.onboarding,
+    this.initialScreen = AppScreen.bootstrap,
+    this.routeArguments = const AppRouteArguments(),
     super.key,
   });
 
   final AppScreen initialScreen;
+  final AppRouteArguments routeArguments;
 
   @override
   ConsumerState<AppFlowNavigator> createState() => AppFlowNavigatorState();
@@ -78,7 +109,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final List<AppScreen> _history = <AppScreen>[];
   int _onboardingIndex = 0;
   bool _verifyByPhone = true;
-  bool _balanceHidden = false;
+  PhoneVerificationChannel _phoneChannel = PhoneVerificationChannel.sms;
   int _authPinCount = 0;
   String _selectedBillerCategory = 'electricity';
   BillerItem _selectedBiller = const BillerItem(
@@ -95,6 +126,45 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     row2Value: '0198 220 341',
   );
 
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _currentSecretController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final message = widget.routeArguments.message;
+    if (message != null && message.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        switch (widget.routeArguments.messageTone) {
+          case AppMessageTone.info:
+            _showMessage(message);
+          case AppMessageTone.success:
+            _showSuccessMessage(message);
+          case AppMessageTone.error:
+            _showErrorMessage(message);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _otpController.dispose();
+    _currentSecretController.dispose();
+    _pinController.dispose();
+    _confirmPinController.dispose();
+    super.dispose();
+  }
+
   void _go(AppScreen next, {bool replace = false}) {
     setState(() {
       if (!replace) _history.add(_screen);
@@ -104,16 +174,32 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   }
 
   void _back() {
+    _cancelFlowForScreen(_screen);
+    if (_history.isEmpty) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) navigator.pop();
+      return;
+    }
     setState(() {
-      if (_history.isNotEmpty) {
-        _screen = _history.removeLast();
-      } else {
-        _screen = AppScreen.home;
-      }
+      _screen = _history.removeLast();
     });
   }
 
+  void _cancelFlowForScreen(AppScreen screen) {
+    if (screen == AppScreen.passwordReset) {
+      ref.read(passwordRecoveryProvider.notifier).cancel();
+    }
+  }
+
   void _goSection(AppSection section) {
+    if (section == AppSection.save ||
+        section == AppSection.send ||
+        section == AppSection.payments) {
+      _showMessage(
+        'This financial feature is not available in the current User API.',
+      );
+      return;
+    }
     final target = switch (section) {
       AppSection.home => AppScreen.home,
       AppSection.save => AppScreen.saveHub,
@@ -125,9 +211,41 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    ResponseHandler.showInfo(message);
+  }
+
+  void _showSuccessMessage(String message) {
+    ResponseHandler.showSuccess(message);
+  }
+
+  void _showErrorMessage(String message) {
+    ResponseHandler.showError(message);
+  }
+
+  Future<void> _confirmSignOut() async {
+    if (ref.read(logoutProvider).isLoading) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'You will need to log in again to access your account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await ref.read(logoutProvider.notifier).logout();
+    }
   }
 
   void _openAuth(TransactionContext transaction) {
@@ -153,10 +271,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     }
   }
 
-  void _toggleBalanceHidden() {
-    setState(() => _balanceHidden = !_balanceHidden);
-  }
-
   void _selectOnboardingIndex(int index) {
     setState(() => _onboardingIndex = index);
   }
@@ -166,11 +280,30 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       setState(() => _onboardingIndex += 1);
       return;
     }
-    _go(AppScreen.verifyMethod);
+    _openAuthDestination(AuthDestination.verificationMethod);
   }
 
   void _selectVerificationMethod({required bool phone}) {
-    setState(() => _verifyByPhone = phone);
+    setState(() {
+      _verifyByPhone = phone;
+      _identifierController.clear();
+    });
+  }
+
+  Future<void> _openAuthDestination(
+    AuthDestination destination, {
+    AuthNavigationMode mode = AuthNavigationMode.push,
+  }) async {
+    if (destination != AuthDestination.onboarding) {
+      await ref
+          .read(sharedPreferencesProvider)
+          .setBool(hasSeenOnboardingKey, true);
+    }
+    ref.read(authNavigationProvider.notifier).publish(destination, mode: mode);
+  }
+
+  void _selectPhoneChannel(PhoneVerificationChannel channel) {
+    setState(() => _phoneChannel = channel);
   }
 
   void _openBillerCategory(String categoryKey) {
@@ -186,12 +319,19 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   Widget build(BuildContext context) {
     final canExit =
+        Navigator.of(context).canPop() ||
+        _screen == AppScreen.bootstrap ||
         _screen == AppScreen.onboarding ||
+        _screen == AppScreen.login ||
         (_screen == AppScreen.home && _history.isEmpty);
     return PopScope(
       canPop: canExit,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _back();
+        if (didPop) {
+          _cancelFlowForScreen(_screen);
+        } else {
+          _back();
+        }
       },
       child: _buildScreen(_screen),
     );
@@ -199,6 +339,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   Widget _buildScreen(AppScreen screen) {
     switch (screen) {
+      case AppScreen.bootstrap:
+        return _bootstrapScreen();
       case AppScreen.onboarding:
         return _onboardingScreen();
       case AppScreen.verifyMethod:
@@ -209,12 +351,20 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _createPasswordScreen();
       case AppScreen.login:
         return _loginScreen();
+      case AppScreen.passwordReset:
+        return _passwordResetScreen();
+      case AppScreen.newDeviceOtp:
+        return _newDeviceOtpScreen();
+      case AppScreen.createFirstPin:
+        return _createFirstPinScreen();
       case AppScreen.tiers:
         return _tiersScreen();
       case AppScreen.tier1:
         return _tier1Screen();
       case AppScreen.tier2:
         return _tier2Screen();
+      case AppScreen.nextOfKin:
+        return _nextOfKinScreen();
       case AppScreen.tier3:
         return _tier3Screen();
       case AppScreen.home:

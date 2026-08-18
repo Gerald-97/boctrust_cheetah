@@ -1,5 +1,6 @@
 import '../app/app_router.dart';
 import '../app/navigators.dart';
+import '../app/route_arguments.dart';
 
 class NotificationIntent {
   const NotificationIntent({required this.routeName, this.entityId});
@@ -23,6 +24,9 @@ class NotificationNavigator {
 
   static Future<void> dispatch(Map<String, dynamic> payload) async {
     final intent = parse(payload);
-    await pushTo(intent.routeName, arguments: intent.entityId);
+    await pushTo(
+      intent.routeName,
+      arguments: AppRouteArguments(entityId: intent.entityId),
+    );
   }
 }
