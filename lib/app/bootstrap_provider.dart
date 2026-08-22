@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helper/secure_storage.dart';
 import '../module/onboarding/model/auth_flow_models.dart';
+import '../module/account/provider/user_providers.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
+import '../module/onboarding/provider/fcm_token_provider.dart';
 import '../module/onboarding/provider/post_login_bootstrap_provider.dart';
 import 'auth_navigation_provider.dart';
 import 'preferences.dart';
@@ -45,6 +47,22 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
       return;
     }
 
+    await _loadProfile();
+  }
+
+  Future<void> startAfterLogin() async {
+    _started = true;
+    _publishedTerminalIntent = false;
+    ref.read(userProfileProvider.notifier).clear();
+    ref.read(userTierProvider.notifier).clear();
+    ref.invalidate(postLoginBootstrapProvider);
+    ref.invalidate(fcmTokenProvider);
+    ref
+        .read(authNavigationProvider.notifier)
+        .publish(
+          AuthDestination.bootstrap,
+          mode: AuthNavigationMode.clearStack,
+        );
     await _loadProfile();
   }
 

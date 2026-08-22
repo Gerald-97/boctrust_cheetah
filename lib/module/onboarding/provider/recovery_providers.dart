@@ -8,6 +8,7 @@ import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
 import '../service/auth_service.dart';
+import 'test_otp_provider.dart';
 
 final passwordRecoveryProvider =
     NotifierProvider<
@@ -62,6 +63,7 @@ class PasswordRecoveryNotifier
       state = _failure(response, context);
       return;
     }
+    ref.read(testOtpProvider.notifier).show(TestOtpFlow.passwordRecovery, dto);
     state = NotifierState.done(
       context.copyWith(
         stage: RecoveryFlowStage.awaitingOtp,
@@ -84,6 +86,7 @@ class PasswordRecoveryNotifier
       _error('Enter a valid 6-digit code.');
       return;
     }
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.passwordRecovery);
     final operationId = ++_operationId;
     state = NotifierState.loading(data: context);
     final response = await ref
@@ -134,6 +137,7 @@ class PasswordRecoveryNotifier
       return;
     }
     _resetToken = null;
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.passwordRecovery);
     state = NotifierState.done(
       context.copyWith(stage: RecoveryFlowStage.completed),
       message: response.message,
@@ -153,6 +157,7 @@ class PasswordRecoveryNotifier
   void cancel() {
     _operationId += 1;
     _resetToken = null;
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.passwordRecovery);
     state = const NotifierState.idle(data: PasswordRecoveryFlowData());
   }
 
@@ -222,6 +227,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
       state = _failure(response, context);
       return;
     }
+    ref.read(testOtpProvider.notifier).show(TestOtpFlow.pinRecovery, dto);
     state = NotifierState.done(
       context.copyWith(
         stage: RecoveryFlowStage.awaitingOtp,
@@ -244,6 +250,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
       _error('Enter a valid 6-digit code.');
       return;
     }
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.pinRecovery);
     final operationId = ++_operationId;
     state = NotifierState.loading(data: context);
     final response = await ref
@@ -275,8 +282,8 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
       _error('The PIN reset session is no longer available.');
       return;
     }
-    if (!isValidTransactionPin(newPin)) {
-      _error('Enter a valid 4-digit PIN.');
+    if (!isStrongTransactionPin(newPin)) {
+      _error('Choose a PIN that is hard to guess.');
       return;
     }
     final operationId = ++_operationId;
@@ -290,6 +297,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
       return;
     }
     _resetToken = null;
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.pinRecovery);
     state = NotifierState.done(
       context.copyWith(stage: RecoveryFlowStage.completed),
       message: response.message,
@@ -301,6 +309,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
   void cancel() {
     _operationId += 1;
     _resetToken = null;
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.pinRecovery);
     state = const NotifierState.idle(data: PinRecoveryFlowData());
   }
 

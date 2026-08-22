@@ -39,8 +39,10 @@ extension HomeScreen on AppFlowNavigatorState {
       actions: [
         IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).cardColor,
-            foregroundColor: BocColors.navy,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           tooltip: 'Change theme',
           onPressed: () =>
@@ -49,8 +51,10 @@ extension HomeScreen on AppFlowNavigatorState {
         ),
         IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).cardColor,
-            foregroundColor: BocColors.navy,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           tooltip: 'Notifications unavailable',
           onPressed: () => _showMessage(

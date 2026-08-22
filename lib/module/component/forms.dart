@@ -65,6 +65,14 @@ class AppTextField extends StatelessWidget {
     this.obscureText = false,
     this.maxLines = 1,
     this.onChanged,
+    this.validator,
+    this.focusNode,
+    this.enabled = true,
+    this.textInputAction,
+    this.autovalidateMode,
+    this.autofillHints,
+    this.inputFormatters,
+    this.suffix,
     super.key,
   });
 
@@ -76,6 +84,14 @@ class AppTextField extends StatelessWidget {
   final bool obscureText;
   final int maxLines;
   final ValueChanged<String>? onChanged;
+  final String? Function(String?)? validator;
+  final FocusNode? focusNode;
+  final bool enabled;
+  final TextInputAction? textInputAction;
+  final AutovalidateMode? autovalidateMode;
+  final Iterable<String>? autofillHints;
+  final List<TextInputFormatter>? inputFormatters;
+  final Widget? suffix;
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +111,97 @@ class AppTextField extends StatelessWidget {
         TextFormField(
           controller: controller,
           initialValue: controller == null ? initialValue : null,
+          focusNode: focusNode,
+          enabled: enabled,
           keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          autofillHints: autofillHints,
+          inputFormatters: inputFormatters,
           obscureText: obscureText,
           maxLines: obscureText ? 1 : maxLines,
           onChanged: onChanged,
+          validator: validator,
+          autovalidateMode: autovalidateMode,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          decoration: InputDecoration(hintText: hintText, isDense: true),
+          decoration: InputDecoration(
+            hintText: hintText,
+            suffixIcon: suffix,
+            isDense: true,
+          ),
         ),
       ],
+    );
+  }
+}
+
+class AppPasswordField extends StatefulWidget {
+  const AppPasswordField({
+    required this.label,
+    this.controller,
+    this.initialValue,
+    this.hintText,
+    this.validator,
+    this.focusNode,
+    this.enabled = true,
+    this.textInputAction,
+    this.autovalidateMode,
+    this.autofillHints,
+    this.onChanged,
+    super.key,
+  });
+
+  final String label;
+  final TextEditingController? controller;
+  final String? initialValue;
+  final String? hintText;
+  final String? Function(String?)? validator;
+  final FocusNode? focusNode;
+  final bool enabled;
+  final TextInputAction? textInputAction;
+  final AutovalidateMode? autovalidateMode;
+  final Iterable<String>? autofillHints;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  State<AppPasswordField> createState() => _AppPasswordFieldState();
+}
+
+class _AppPasswordFieldState extends State<AppPasswordField> {
+  bool _hidden = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _hidden ? 'Show password' : 'Hide password';
+    return AppTextField(
+      label: widget.label,
+      controller: widget.controller,
+      initialValue: widget.initialValue,
+      hintText: widget.hintText,
+      validator: widget.validator,
+      focusNode: widget.focusNode,
+      enabled: widget.enabled,
+      textInputAction: widget.textInputAction,
+      autovalidateMode: widget.autovalidateMode,
+      autofillHints: widget.autofillHints,
+      onChanged: widget.onChanged,
+      obscureText: _hidden,
+      suffix: Semantics(
+        button: true,
+        label: label,
+        child: Tooltip(
+          message: label,
+          child: IconButton(
+            onPressed: widget.enabled
+                ? () => setState(() => _hidden = !_hidden)
+                : null,
+            icon: Icon(
+              _hidden
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -281,33 +380,98 @@ class _OtpExpiryLabelState extends State<OtpExpiryLabel> {
   }
 }
 
-class PasswordStrengthCard extends StatelessWidget {
-  const PasswordStrengthCard({super.key});
+class TestOtpBanner extends ConsumerWidget {
+  const TestOtpBanner({
+    required this.flow,
+    required this.controller,
+    super.key,
+  });
+
+  final TestOtpFlow flow;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(stagingModeProvider)) return const SizedBox.shrink();
+    final hint = ref.watch(testOtpProvider.select((codes) => codes[flow]));
+    if (hint == null || hint.isExpired) return const SizedBox.shrink();
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.tertiary),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.science_outlined, color: colorScheme.onTertiaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TEST MODE',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onTertiaryContainer,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'OTP code: ${hint.code}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onTertiaryContainer,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                OtpExpiryLabel(expiresAt: hint.expiresAt),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              controller.text = hint.code;
+              controller.selection = TextSelection.collapsed(
+                offset: controller.text.length,
+              );
+            },
+            child: const Text('Use code'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PinSecurityWarningBox extends StatelessWidget {
+  const PinSecurityWarningBox({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: context.bocColors.greenPale,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: const Row(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.check_circle_outline_rounded, color: BocColors.green),
-          SizedBox(width: 10),
+          Icon(Icons.info_outline_rounded, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'At least 8 characters, 1 number, 1 symbol',
-              style: TextStyle(fontSize: 11.5),
-            ),
-          ),
-          Text(
-            'Strong password',
-            style: TextStyle(
-              color: BocColors.green,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
+              'Choose a PIN that is hard to guess. Avoid repeated digits (1111), sequences (1234), and personal dates.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
             ),
           ),
         ],

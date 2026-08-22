@@ -16,26 +16,44 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('app launches into the live prototype onboarding flow', (tester) async {
+  testWidgets('app launches into the live prototype onboarding flow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final preferences = await SharedPreferences.getInstance();
-    await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      BOCTrustTestApp(
+        preferences: preferences,
+        initialRoute: AppRoutes.onboarding,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Save without thinking about it'), findsOneWidget);
     expect(find.text('0'), findsNothing);
     expect(find.byIcon(Icons.add), findsNothing);
   });
 
-  testWidgets('login route shows the live prototype PIN login screen', (tester) async {
+  testWidgets('login route shows the live prototype PIN login screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final preferences = await SharedPreferences.getInstance();
-    await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('I already have an account'));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      BOCTrustTestApp(preferences: preferences, initialRoute: AppRoutes.login),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Enter your 4-digit PIN'), findsOneWidget);
+    expect(find.text('PASSWORD'), findsOneWidget);
     expect(find.text('Log in'), findsOneWidget);
   });
 
@@ -43,31 +61,38 @@ void main() {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'dark'});
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 250));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
   });
 
-  testWidgets('theme mode invalid saved value falls back to system', (tester) async {
+  testWidgets('theme mode invalid saved value falls back to system', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'invalid'});
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 250));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.system);
   });
 
   testWidgets('PhoneNumberInput forwards autovalidate mode', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Form(
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: PhoneNumberInput(autoValidateMode: AutovalidateMode.onUserInteraction, validator: validators.nigerianPhone),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Form(
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: PhoneNumberInput(
+              autoValidateMode: AutovalidateMode.onUserInteraction,
+              validator: validators.nigerianPhone,
+            ),
+          ),
         ),
       ),
-    ));
+    );
 
     await tester.enterText(find.byType(TextFormField), '123');
     await tester.pump();
@@ -76,18 +101,20 @@ void main() {
 
   testWidgets('FormDropdown participates in validation', (tester) async {
     final key = GlobalKey<FormState>();
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Form(
-          key: key,
-          child: FormDropdown<String>(
-            items: const [DropdownMenuItem(value: 'one', child: Text('One'))],
-            onChanged: (_) {},
-            validator: (value) => validators.requiredPicker(value),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Form(
+            key: key,
+            child: FormDropdown<String>(
+              items: const [DropdownMenuItem(value: 'one', child: Text('One'))],
+              onChanged: (_) {},
+              validator: (value) => validators.requiredPicker(value),
+            ),
           ),
         ),
       ),
-    ));
+    );
 
     expect(key.currentState!.validate(), isFalse);
     await tester.pump();
@@ -99,10 +126,14 @@ void main() {
     expect(validators.optionalName('A'), isNotNull);
     expect(validators.email('user@example.com'), isNull);
     expect(validators.nigerianPhone('0800-000-0000'), isNull);
-    expect(validators.isPasswordValid('Password1'), isNull);
-    expect(validators.confirmPassword('Password1', 'Password1'), isNull);
+    expect(validators.isPasswordValid('Password1'), isNotNull);
+    expect(validators.isPasswordValid('Password1!'), isNull);
+    expect(validators.confirmPassword('Password1!', 'Password1!'), isNull);
     expect(validators.otp('123456'), isNull);
-    expect(validators.transactionPin('1234'), isNull);
+    expect(validators.transactionPin('1357'), isNull);
+    expect(validators.strongTransactionPin('1234'), isNotNull);
+    expect(validators.strongTransactionPin('1111'), isNotNull);
+    expect(validators.strongTransactionPin('7890'), isNull);
     expect(validators.bvn('12345678901'), isNull);
     expect(validators.nin('12345678901'), isNull);
     expect(validators.bankAccountNumber('1234567890'), isNull);
@@ -112,37 +143,61 @@ void main() {
   });
 
   test('input formatters normalize constrained input', () {
-    final phone = PhoneDashFormatter().formatEditUpdate(const TextEditingValue(), const TextEditingValue(text: '08000000000'));
+    final phone = PhoneDashFormatter().formatEditUpdate(
+      const TextEditingValue(),
+      const TextEditingValue(text: '08000000000'),
+    );
     expect(phone.text, '0800-000-0000');
-    final amount = NairaThousandsFormatter().formatEditUpdate(const TextEditingValue(), const TextEditingValue(text: '1000000'));
+    final amount = NairaThousandsFormatter().formatEditUpdate(
+      const TextEditingValue(),
+      const TextEditingValue(text: '1000000'),
+    );
     expect(amount.text, '1,000,000');
-    final upper = UppercaseTrimFormatter().formatEditUpdate(const TextEditingValue(), const TextEditingValue(text: ' abc123 '));
+    final upper = UppercaseTrimFormatter().formatEditUpdate(
+      const TextEditingValue(),
+      const TextEditingValue(text: ' abc123 '),
+    );
     expect(upper.text, 'ABC123 ');
-    final max = MaxLengthDigitsFormatter(4).formatEditUpdate(const TextEditingValue(), const TextEditingValue(text: '123456'));
+    final max = MaxLengthDigitsFormatter(4).formatEditUpdate(
+      const TextEditingValue(),
+      const TextEditingValue(text: '123456'),
+    );
     expect(max.text, '1234');
   });
 
-  testWidgets('validateAndSave calls success or failure guardrails', (tester) async {
+  testWidgets('validateAndSave calls success or failure guardrails', (
+    tester,
+  ) async {
     final key = GlobalKey<FormState>();
     var success = false;
     AutovalidateMode? failureMode;
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Form(
-          key: key,
-          child: TextFormField(validator: validators.requiredText),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Form(
+            key: key,
+            child: TextFormField(validator: validators.requiredText),
+          ),
         ),
       ),
-    ));
+    );
 
-    final failed = validateAndSave(formKey: key, onSuccess: () => success = true, onFailure: (mode) => failureMode = mode);
+    final failed = validateAndSave(
+      formKey: key,
+      onSuccess: () => success = true,
+      onFailure: (mode) => failureMode = mode,
+    );
     expect(failed, isFalse);
     expect(success, isFalse);
     expect(failureMode, AutovalidateMode.onUserInteraction);
 
     await tester.enterText(find.byType(TextFormField), 'Ada');
-    final passed = validateAndSave(formKey: key, onSuccess: () => success = true, onFailure: (mode) => failureMode = mode);
+    final passed = validateAndSave(
+      formKey: key,
+      onSuccess: () => success = true,
+      onFailure: (mode) => failureMode = mode,
+    );
     expect(passed, isTrue);
     expect(success, isTrue);
   });

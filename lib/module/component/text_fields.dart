@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
-import '../../app/theme.dart';
 import '../../utils/input_formatters.dart';
 
 class PinInputField extends StatelessWidget {
@@ -13,9 +12,11 @@ class PinInputField extends StatelessWidget {
     this.autofocus = false,
     this.isActive = true,
     this.obscureText = false,
-    required this.onChanged,
+    this.onChanged,
     this.onCompleteCode,
     this.pinCtrl,
+    this.validator,
+    this.autovalidateMode,
   });
 
   final int pinLength;
@@ -23,12 +24,15 @@ class PinInputField extends StatelessWidget {
   final bool autofocus;
   final bool isActive;
   final bool obscureText;
-  final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onCompleteCode;
   final TextEditingController? pinCtrl;
+  final String? Function(String?)? validator;
+  final AutovalidateMode? autovalidateMode;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PinCodeTextField(
       appContext: context,
       length: pinLength,
@@ -41,27 +45,30 @@ class PinInputField extends StatelessWidget {
       keyboardType: TextInputType.number,
       obscureText: obscureText,
       animationType: AnimationType.fade,
-      textStyle: Theme.of(context).textTheme.bodyLarge,
+      validator: validator,
+      autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
+      textStyle: Theme.of(
+        context,
+      ).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      cursorColor: Theme.of(context).brightness == Brightness.dark
-          ? kPrimaryGoldLight
-          : kPrimaryColor,
+      cursorColor: colorScheme.primary,
       pinTheme: PinTheme(
         shape: PinCodeFieldShape.box,
         borderRadius: BorderRadius.circular(8),
         fieldHeight: 50,
         fieldWidth: 50,
-        inactiveColor: kGreyMedium,
-        activeColor: kYellowBorder,
-        selectedColor: kPrimaryColor,
-        disabledColor: kGreyMedium,
-        inactiveFillColor: kGreyBg,
-        activeFillColor: kGreyBg,
-        selectedFillColor: kGreyBg,
+        inactiveColor: Theme.of(context).dividerColor,
+        activeColor: colorScheme.primary,
+        selectedColor: colorScheme.primary,
+        errorBorderColor: colorScheme.error,
+        disabledColor: colorScheme.outlineVariant,
+        inactiveFillColor: colorScheme.surface,
+        activeFillColor: colorScheme.surface,
+        selectedFillColor: colorScheme.surface,
         borderWidth: 1.3,
       ),
       separatorBuilder: (context, index) => const SizedBox(width: 3),
-      onChanged: onChanged,
+      onChanged: onChanged ?? (_) {},
       onCompleted: onCompleteCode,
       beforeTextPaste: (_) => true,
     );
@@ -141,54 +148,6 @@ class TextInputWidget extends StatelessWidget {
         const SizedBox(height: 8),
         field,
       ],
-    );
-  }
-}
-
-class PasswordInputWidget extends StatefulWidget {
-  const PasswordInputWidget({
-    super.key,
-    this.controller,
-    this.label,
-    this.hint,
-    this.validator,
-    this.onSaved,
-    this.onChanged,
-    this.textInputAction,
-  });
-
-  final TextEditingController? controller;
-  final String? label;
-  final String? hint;
-  final String? Function(String?)? validator;
-  final void Function(String?)? onSaved;
-  final void Function(String)? onChanged;
-  final TextInputAction? textInputAction;
-
-  @override
-  State<PasswordInputWidget> createState() => _PasswordInputWidgetState();
-}
-
-class _PasswordInputWidgetState extends State<PasswordInputWidget> {
-  bool _hidden = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextInputWidget(
-      controller: widget.controller,
-      label: widget.label,
-      hint: widget.hint,
-      validator: widget.validator,
-      onSaved: widget.onSaved,
-      onChanged: widget.onChanged,
-      obscureText: _hidden,
-      textInputAction: widget.textInputAction,
-      suffix: IconButton(
-        onPressed: () => setState(() => _hidden = !_hidden),
-        icon: Icon(
-          _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-        ),
-      ),
     );
   }
 }

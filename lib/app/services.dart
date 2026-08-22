@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'response_handler.dart';
 
@@ -15,6 +16,8 @@ abstract final class Env {
   static bool get isStaging => environment == 'staging';
   static bool get isProd => environment == 'prod';
 }
+
+final stagingModeProvider = Provider<bool>((ref) => Env.isStaging);
 
 String baseUrl({int version = 1}) => '${Env.baseUrl}/v$version';
 

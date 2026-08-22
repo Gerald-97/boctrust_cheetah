@@ -351,13 +351,11 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 20),
-          PinInputField(
-            pinCtrl: _otpController,
-            isActive: !state.isLoading,
-            onChanged: (_) {},
-          ),
+          PinInputField(pinCtrl: _otpController, isActive: !state.isLoading),
           const SizedBox(height: 10),
           OtpExpiryLabel(expiresAt: data?.otpExpiresAt),
+          const SizedBox(height: 10),
+          TestOtpBanner(flow: TestOtpFlow.signup, controller: _otpController),
           const SizedBox(height: 18),
           TextButton(
             onPressed: state.isLoading
@@ -398,21 +396,36 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           "This is the last signup step. You'll sign in after creating it.",
       content: Column(
         children: [
-          AppTextField(
-            label: 'Password',
-            controller: _passwordController,
-            hintText: 'At least 8 characters',
-            obscureText: true,
+          Form(
+            key: _createPasswordFormKey,
+            child: Column(
+              children: [
+                AppPasswordField(
+                  label: 'Password',
+                  controller: _passwordController,
+                  hintText: 'At least 8 characters',
+                  validator: validators.isPasswordValid,
+                  autovalidateMode: _createPasswordAutovalidate,
+                  autofillHints: const [AutofillHints.newPassword],
+                  onChanged: (_) => refreshAuthFormState(() {}),
+                ),
+                const SizedBox(height: 14),
+                AppPasswordField(
+                  label: 'Confirm password',
+                  controller: _confirmPasswordController,
+                  hintText: 'Re-enter your password',
+                  validator: (value) => validators.confirmPassword(
+                    value,
+                    _passwordController.text,
+                  ),
+                  autovalidateMode: _createPasswordAutovalidate,
+                  autofillHints: const [AutofillHints.newPassword],
+                ),
+                const SizedBox(height: 12),
+                PasswordStrengthWidget(password: _passwordController.text),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          AppTextField(
-            label: 'Confirm password',
-            controller: _confirmPasswordController,
-            hintText: 'Re-enter your password',
-            obscureText: true,
-          ),
-          const SizedBox(height: 12),
-          const PasswordStrengthCard(),
           _stateMessage(state),
         ],
       ),
@@ -420,13 +433,10 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
       onButtonPressed: () async {
         if (state.isLoading) return;
         final password = _passwordController.text;
-        final validation = validators.isPasswordValid(password);
-        if (validation != null) {
-          _showMessage(validation);
-          return;
-        }
-        if (_confirmPasswordController.text != password) {
-          _showMessage('Passwords do not match.');
+        if (_createPasswordFormKey.currentState?.validate() != true) {
+          refreshAuthFormState(() {
+            _createPasswordAutovalidate = AutovalidateMode.onUserInteraction;
+          });
           return;
         }
         await ref.read(signupFlowProvider.notifier).createPassword(password);
@@ -448,10 +458,10 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 14),
-          AppTextField(
+          AppPasswordField(
             label: 'Password',
             controller: _passwordController,
-            obscureText: true,
+            autofillHints: const [AutofillHints.password],
           ),
           const SizedBox(height: 12),
           Align(
@@ -507,32 +517,48 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     if (awaitingOtp) {
       content = Column(
         children: [
-          PinInputField(
-            pinCtrl: _otpController,
-            isActive: !state.isLoading,
-            onChanged: (_) {},
-          ),
+          PinInputField(pinCtrl: _otpController, isActive: !state.isLoading),
           const SizedBox(height: 10),
           OtpExpiryLabel(expiresAt: state.data?.otpExpiresAt),
+          const SizedBox(height: 10),
+          TestOtpBanner(
+            flow: TestOtpFlow.passwordRecovery,
+            controller: _otpController,
+          ),
           _stateMessage(state),
         ],
       );
     } else if (awaitingPassword) {
       content = Column(
         children: [
-          AppTextField(
-            label: 'New password',
-            controller: _passwordController,
-            obscureText: true,
+          Form(
+            key: _passwordResetFormKey,
+            child: Column(
+              children: [
+                AppPasswordField(
+                  label: 'New password',
+                  controller: _passwordController,
+                  validator: validators.isPasswordValid,
+                  autovalidateMode: _passwordResetAutovalidate,
+                  autofillHints: const [AutofillHints.newPassword],
+                  onChanged: (_) => refreshAuthFormState(() {}),
+                ),
+                const SizedBox(height: 14),
+                AppPasswordField(
+                  label: 'Confirm new password',
+                  controller: _confirmPasswordController,
+                  validator: (value) => validators.confirmPassword(
+                    value,
+                    _passwordController.text,
+                  ),
+                  autovalidateMode: _passwordResetAutovalidate,
+                  autofillHints: const [AutofillHints.newPassword],
+                ),
+                const SizedBox(height: 12),
+                PasswordStrengthWidget(password: _passwordController.text),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          AppTextField(
-            label: 'Confirm new password',
-            controller: _confirmPasswordController,
-            obscureText: true,
-          ),
-          const SizedBox(height: 12),
-          const PasswordStrengthCard(),
           _stateMessage(state),
         ],
       );
@@ -578,17 +604,13 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           return;
         }
         if (awaitingPassword) {
-          final password = _passwordController.text;
-          final validation = validators.isPasswordValid(password);
-          if (validation != null) {
-            _showMessage(validation);
+          if (_passwordResetFormKey.currentState?.validate() != true) {
+            refreshAuthFormState(() {
+              _passwordResetAutovalidate = AutovalidateMode.onUserInteraction;
+            });
             return;
           }
-          if (_confirmPasswordController.text != password) {
-            _showMessage('Passwords do not match.');
-            return;
-          }
-          await notifier.reset(password);
+          await notifier.reset(_passwordController.text);
           return;
         }
         final identifier = _identifierController.text.trim();
@@ -618,13 +640,14 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           if (choosing)
             _phoneChannelSelector()
           else ...[
-            PinInputField(
-              pinCtrl: _otpController,
-              isActive: !state.isLoading,
-              onChanged: (_) {},
-            ),
+            PinInputField(pinCtrl: _otpController, isActive: !state.isLoading),
             const SizedBox(height: 10),
             OtpExpiryLabel(expiresAt: data?.otpExpiresAt),
+            const SizedBox(height: 10),
+            TestOtpBanner(
+              flow: TestOtpFlow.newDeviceLogin,
+              controller: _otpController,
+            ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: state.isLoading
@@ -665,24 +688,36 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
       showBack: false,
       content: Column(
         children: [
-          const Text('Enter PIN'),
-          const SizedBox(height: 10),
-          PinInputField(
-            pinLength: 4,
-            pinCtrl: _pinController,
-            obscureText: true,
-            isActive: !state.isLoading,
-            onChanged: (_) {},
-          ),
+          const PinSecurityWarningBox(),
           const SizedBox(height: 18),
-          const Text('Confirm PIN'),
-          const SizedBox(height: 10),
-          PinInputField(
-            pinLength: 4,
-            pinCtrl: _confirmPinController,
-            obscureText: true,
-            isActive: !state.isLoading,
-            onChanged: (_) {},
+          Form(
+            key: _createFirstPinFormKey,
+            child: Column(
+              children: [
+                const Text('Enter PIN'),
+                const SizedBox(height: 10),
+                PinInputField(
+                  pinLength: 4,
+                  pinCtrl: _pinController,
+                  obscureText: true,
+                  isActive: !state.isLoading,
+                  validator: validators.strongTransactionPin,
+                  autovalidateMode: _createFirstPinAutovalidate,
+                ),
+                const SizedBox(height: 18),
+                const Text('Confirm PIN'),
+                const SizedBox(height: 10),
+                PinInputField(
+                  pinLength: 4,
+                  pinCtrl: _confirmPinController,
+                  obscureText: true,
+                  isActive: !state.isLoading,
+                  validator: (value) =>
+                      value == _pinController.text ? null : 'PINs do not match',
+                  autovalidateMode: _createFirstPinAutovalidate,
+                ),
+              ],
+            ),
           ),
           _stateMessage(state),
         ],
@@ -690,12 +725,10 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
       buttonLabel: state.isLoading ? 'Saving PIN…' : 'Create PIN',
       onButtonPressed: () async {
         if (state.isLoading) return;
-        if (validators.transactionPin(_pinController.text) != null) {
-          _showMessage('Enter a 4-digit PIN.');
-          return;
-        }
-        if (_confirmPinController.text != _pinController.text) {
-          _showMessage('PINs do not match.');
+        if (_createFirstPinFormKey.currentState?.validate() != true) {
+          refreshAuthFormState(() {
+            _createFirstPinAutovalidate = AutovalidateMode.onUserInteraction;
+          });
           return;
         }
         await ref

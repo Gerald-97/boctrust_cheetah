@@ -35,8 +35,45 @@ bool isValidOtpCode(String value) => RegExp(r'^\d{6}$').hasMatch(value);
 
 bool isValidTransactionPin(String value) => RegExp(r'^\d{4}$').hasMatch(value);
 
+bool hasPasswordMinLength(String value) => value.length >= 8;
+
+bool hasPasswordLetter(String value) => RegExp(r'[A-Za-z]').hasMatch(value);
+
+bool hasPasswordDigit(String value) => RegExp(r'\d').hasMatch(value);
+
+bool hasPasswordSymbol(String value) => RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+
+int passwordCriteriaMet(String value) => [
+  hasPasswordMinLength(value),
+  hasPasswordLetter(value),
+  hasPasswordDigit(value),
+  hasPasswordSymbol(value),
+].where((met) => met).length;
+
 bool isValidApiPassword(String value) =>
-    value.length >= 8 &&
-    RegExp(r'[A-Za-z]').hasMatch(value) &&
-    RegExp(r'\d').hasMatch(value) &&
-    RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+    hasPasswordMinLength(value) &&
+    hasPasswordLetter(value) &&
+    hasPasswordDigit(value) &&
+    hasPasswordSymbol(value);
+
+bool isRepeatedTransactionPin(String value) =>
+    isValidTransactionPin(value) && value.split('').toSet().length == 1;
+
+bool isSequentialTransactionPin(String value) {
+  if (!isValidTransactionPin(value)) return false;
+  final digits = value.split('').map(int.parse).toList(growable: false);
+  final ascending = List.generate(
+    digits.length - 1,
+    (index) => digits[index + 1] - digits[index],
+  ).every((difference) => difference == 1);
+  final descending = List.generate(
+    digits.length - 1,
+    (index) => digits[index] - digits[index + 1],
+  ).every((difference) => difference == 1);
+  return ascending || descending;
+}
+
+bool isStrongTransactionPin(String value) =>
+    isValidTransactionPin(value) &&
+    !isRepeatedTransactionPin(value) &&
+    !isSequentialTransactionPin(value);

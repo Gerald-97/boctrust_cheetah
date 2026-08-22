@@ -6,6 +6,7 @@ import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
 import '../service/auth_service.dart';
+import 'test_otp_provider.dart';
 
 final identifierVerificationProvider =
     NotifierProvider<
@@ -71,6 +72,9 @@ class IdentifierVerificationNotifier
       state = _failure(response, context);
       return;
     }
+    ref
+        .read(testOtpProvider.notifier)
+        .show(TestOtpFlow.identifierVerification, dto.otp);
     state = NotifierState.done(
       context.copyWith(
         stage: IdentifierVerificationStage.awaitingOtp,
@@ -96,6 +100,9 @@ class IdentifierVerificationNotifier
       state = NotifierState.error('Enter a valid 6-digit code.', data: context);
       return;
     }
+    ref
+        .read(testOtpProvider.notifier)
+        .clear(TestOtpFlow.identifierVerification);
     state = NotifierState.loading(data: context);
     final response = await ref
         .read(authServiceProvider)
@@ -112,6 +119,9 @@ class IdentifierVerificationNotifier
       statusCode: response.statusCode,
       meta: response.meta,
     );
+    ref
+        .read(testOtpProvider.notifier)
+        .clear(TestOtpFlow.identifierVerification);
   }
 
   NotifierState<IdentifierVerificationFlowData> _failure<T>(

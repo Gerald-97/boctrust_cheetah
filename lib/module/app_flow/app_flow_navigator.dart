@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/auth_navigation_provider.dart';
 import '../../app/bootstrap_provider.dart';
@@ -16,6 +17,7 @@ import '../../utils/validators.dart' as validators;
 import '../account/model/user_tier_model.dart';
 import '../account/provider/user_providers.dart';
 import '../component/text_fields.dart';
+import '../component/password_strength_component.dart';
 import '../onboarding/model/auth_enums.dart';
 import '../onboarding/model/auth_flow_models.dart';
 import '../onboarding/provider/auth_session_provider.dart';
@@ -24,6 +26,7 @@ import '../onboarding/provider/login_flow_provider.dart';
 import '../onboarding/provider/recovery_providers.dart';
 import '../onboarding/provider/security_action_providers.dart';
 import '../onboarding/provider/signup_flow_provider.dart';
+import '../onboarding/provider/test_otp_provider.dart';
 
 part 'app_flow_screens.dart';
 
@@ -133,6 +136,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _currentSecretController = TextEditingController();
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
+  final _createPasswordFormKey = GlobalKey<FormState>();
+  final _passwordResetFormKey = GlobalKey<FormState>();
+  final _createFirstPinFormKey = GlobalKey<FormState>();
+  AutovalidateMode _createPasswordAutovalidate = AutovalidateMode.disabled;
+  AutovalidateMode _passwordResetAutovalidate = AutovalidateMode.disabled;
+  AutovalidateMode _createFirstPinAutovalidate = AutovalidateMode.disabled;
 
   @override
   void initState() {
@@ -158,7 +167,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _identifierController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _otpController.dispose();
     _currentSecretController.dispose();
     _pinController.dispose();
     _confirmPinController.dispose();
@@ -220,6 +228,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   void _showErrorMessage(String message) {
     ResponseHandler.showError(message);
+  }
+
+  void refreshAuthFormState(VoidCallback update) {
+    setState(update);
   }
 
   Future<void> _confirmSignOut() async {

@@ -13,6 +13,7 @@ import '../model/auth_responses.dart';
 import '../model/auth_session.dart';
 import '../service/auth_service.dart';
 import 'auth_session_provider.dart';
+import 'test_otp_provider.dart';
 
 final loginFlowProvider =
     NotifierProvider<LoginFlowNotifier, NotifierState<LoginFlowData>>(
@@ -157,6 +158,9 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
       state = _failure(response, failureContext);
       return;
     }
+    ref
+        .read(testOtpProvider.notifier)
+        .show(TestOtpFlow.newDeviceLogin, dto.otp);
     state = NotifierState.done(
       context.copyWith(
         stage: LoginFlowStage.awaitingNewDeviceOtp,
@@ -182,6 +186,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
       _localError('Enter a valid 6-digit code.');
       return;
     }
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.newDeviceLogin);
     state = NotifierState.loading(
       data: context.copyWith(stage: LoginFlowStage.verifyingNewDevice),
     );
@@ -255,17 +260,12 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     state = NotifierState.done(
       context.copyWith(stage: LoginFlowStage.completed),
     );
-    ref.invalidate(startupGateProvider);
-    ref
-        .read(authNavigationProvider.notifier)
-        .publish(
-          AuthDestination.bootstrap,
-          mode: AuthNavigationMode.clearStack,
-        );
+    await ref.read(startupGateProvider.notifier).startAfterLogin();
   }
 
   void cancel() {
     _clearSecrets();
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.newDeviceLogin);
     _newDeviceScreenOpened = false;
     state = const NotifierState.idle(data: LoginFlowData());
   }

@@ -15,10 +15,14 @@ class BOCTrustApp extends StatelessWidget {
     super.key,
     required this.preferences,
     this.firebaseReady = false,
+    this.overrides = const [],
+    this.initialRoute = AppRoutes.initial,
   });
 
   final SharedPreferences preferences;
   final bool firebaseReady;
+  final List<dynamic> overrides;
+  final String initialRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -26,23 +30,39 @@ class BOCTrustApp extends StatelessWidget {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
         firebaseReadyProvider.overrideWithValue(firebaseReady),
+        ...overrides,
       ],
-      child: const AuthFlowListener(child: _BOCTrustMaterialApp()),
+      child: AuthFlowListener(
+        child: _BOCTrustMaterialApp(initialRoute: initialRoute),
+      ),
     );
   }
 }
 
 class BOCTrustTestApp extends StatelessWidget {
-  const BOCTrustTestApp({super.key, required this.preferences});
+  const BOCTrustTestApp({
+    super.key,
+    required this.preferences,
+    this.overrides = const [],
+    this.initialRoute = AppRoutes.initial,
+  });
 
   final SharedPreferences preferences;
+  final List<dynamic> overrides;
+  final String initialRoute;
 
   @override
-  Widget build(BuildContext context) => BOCTrustApp(preferences: preferences);
+  Widget build(BuildContext context) => BOCTrustApp(
+    preferences: preferences,
+    overrides: overrides,
+    initialRoute: initialRoute,
+  );
 }
 
 class _BOCTrustMaterialApp extends ConsumerWidget {
-  const _BOCTrustMaterialApp();
+  const _BOCTrustMaterialApp({required this.initialRoute});
+
+  final String initialRoute;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,7 +74,7 @@ class _BOCTrustMaterialApp extends ConsumerWidget {
       theme: BOCTrustTheme.lightTheme,
       darkTheme: BOCTrustTheme.darkTheme,
       themeMode: themeMode,
-      initialRoute: AppRoutes.initial,
+      initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
       onUnknownRoute: AppRouter.onUnknownRoute,
     );

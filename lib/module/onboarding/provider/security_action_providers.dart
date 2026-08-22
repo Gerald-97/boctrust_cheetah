@@ -14,6 +14,7 @@ import 'login_flow_provider.dart';
 import 'post_login_bootstrap_provider.dart';
 import 'recovery_providers.dart';
 import 'signup_flow_provider.dart';
+import 'test_otp_provider.dart';
 
 final createFirstPinProvider =
     NotifierProvider<CreateFirstPinNotifier, NotifierState<CreateFirstPinData>>(
@@ -26,8 +27,8 @@ class CreateFirstPinNotifier
   NotifierState<CreateFirstPinData> build() => const NotifierState.idle();
 
   Future<void> submit(String pin) async {
-    if (!isValidTransactionPin(pin)) {
-      state = const NotifierState.error('Enter a valid 4-digit PIN.');
+    if (!isStrongTransactionPin(pin)) {
+      state = const NotifierState.error('Choose a PIN that is hard to guess.');
       return;
     }
     state = const NotifierState.loading();
@@ -116,9 +117,9 @@ class ChangePinNotifier extends Notifier<NotifierState<EmptyData>> {
     final identifierType = identifierTypeFor(normalizedIdentifier);
     if (!isValidIdentifier(normalizedIdentifier, identifierType) ||
         !isValidTransactionPin(currentPin) ||
-        !isValidTransactionPin(newPin)) {
+        !isStrongTransactionPin(newPin)) {
       state = const NotifierState.error(
-        'Enter a valid identifier and 4-digit PINs.',
+        'Enter a valid identifier and choose a hard-to-guess new PIN.',
       );
       return;
     }
@@ -187,6 +188,7 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
       ref.invalidate(identifierVerificationProvider);
       ref.invalidate(postLoginBootstrapProvider);
       ref.invalidate(fcmTokenProvider);
+      ref.read(testOtpProvider.notifier).clearAll();
       ref
           .read(authNavigationProvider.notifier)
           .publish(AuthDestination.login, mode: AuthNavigationMode.clearStack);

@@ -1,3 +1,4 @@
+import 'auth_input.dart' as auth_input;
 import 'utils.dart';
 
 bool isEmail(String? value) =>
@@ -31,10 +32,7 @@ String? nigerianPhone(String? value) {
 
 bool isPasswordValidValue(String? value) {
   if (value == null) return false;
-  return value.length >= 8 &&
-      RegExp(r'[A-Za-z]').hasMatch(value) &&
-      RegExp(r'\d').hasMatch(value) &&
-      RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+  return auth_input.isValidApiPassword(value);
 }
 
 String? isPasswordValid(String? value) => isPasswordValidValue(value)
@@ -53,6 +51,20 @@ String? otp(String? value, {int length = 6}) =>
     fixedDigits(value, length, 'Input a valid OTP');
 String? transactionPin(String? value, {int length = 4}) =>
     fixedDigits(value, length, 'Input a valid transaction PIN');
+String? strongTransactionPin(String? value) {
+  final pin = value ?? '';
+  if (!auth_input.isValidTransactionPin(pin)) {
+    return 'Input a valid transaction PIN';
+  }
+  if (auth_input.isRepeatedTransactionPin(pin)) {
+    return 'Avoid using the same digit four times';
+  }
+  if (auth_input.isSequentialTransactionPin(pin)) {
+    return 'Avoid sequential PINs like 1234 or 4321';
+  }
+  return null;
+}
+
 String? bvn(String? value) => fixedDigits(value, 11, 'Input a valid BVN');
 String? nin(String? value) => fixedDigits(value, 11, 'Input a valid NIN');
 String? bankAccountNumber(String? value) =>

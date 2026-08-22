@@ -11,6 +11,7 @@ import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
 import '../service/auth_service.dart';
+import 'test_otp_provider.dart';
 
 final signupFlowProvider =
     NotifierProvider<SignupFlowNotifier, NotifierState<SignupFlowData>>(
@@ -79,6 +80,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
       otpExpiresAt: dto.otp.expiresAt,
       isSignupResumed: dto.isSignupResumed,
     );
+    ref.read(testOtpProvider.notifier).show(TestOtpFlow.signup, dto.otp);
     state = NotifierState.done(
       next,
       message: response.message,
@@ -118,6 +120,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
       state = _failure(response, context);
       return;
     }
+    ref.read(testOtpProvider.notifier).show(TestOtpFlow.signup, dto.otp);
     state = NotifierState.done(
       context.copyWith(
         verificationId: dto.otp.verificationId,
@@ -139,6 +142,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
       _localError('Enter a valid 6-digit code.');
       return;
     }
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.signup);
     state = NotifierState.loading(data: context);
     late final String deviceToken;
     try {
@@ -214,6 +218,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
       statusCode: response.statusCode,
       meta: response.meta,
     );
+    ref.read(testOtpProvider.notifier).clear(TestOtpFlow.signup);
     ref
         .read(authNavigationProvider.notifier)
         .publish(
