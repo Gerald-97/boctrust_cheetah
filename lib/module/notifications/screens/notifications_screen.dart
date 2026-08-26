@@ -15,7 +15,7 @@ extension NotificationsScreen on AppFlowNavigatorState {
             items: [
               NotificationItem(
                 icon: Icons.savings_outlined,
-                title: 'Boc Flex Savings interest credited',
+                title: 'Cheetah Flex Savings interest credited',
                 subtitle: '+₦412.60 added to your balance · 12:01 AM',
                 color: BocColors.green,
               ),
@@ -38,7 +38,7 @@ extension NotificationsScreen on AppFlowNavigatorState {
               ),
               NotificationItem(
                 icon: Icons.groups_outlined,
-                title: 'Boctrust Group Savings reminder',
+                title: 'Cheetah Group Savings reminder',
                 subtitle: 'Owambe Squad contribution due 28 Jul · 8:00 AM',
                 color: BocColors.purple,
               ),

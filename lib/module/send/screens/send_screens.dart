@@ -20,8 +20,8 @@ extension SendScreens on AppFlowNavigatorState {
           ),
           ProductTile(
             icon: Icons.person_outline_rounded,
-            title: 'To a BOCTrust beneficiary',
-            subtitle: 'Send free & instant to another BOCTrust user',
+            title: 'To a Cheetah beneficiary',
+            subtitle: 'Send free & instant to another Cheetah user',
             color: BocColors.blue,
             onTap: () => _go(AppScreen.sendBeneficiary),
           ),
@@ -41,7 +41,7 @@ extension SendScreens on AppFlowNavigatorState {
           const ContactCard(
             initials: 'IN',
             name: 'Ifeoma Nwachukwu',
-            subtitle: 'BOCTrust · 0198 220 341',
+            subtitle: 'Cheetah · 0198 220 341',
           ),
           const SizedBox(height: 10),
           const ContactCard(
@@ -81,14 +81,14 @@ extension SendScreens on AppFlowNavigatorState {
           const AccountSelectorCard(
             label: 'To',
             title: 'Rent — Dec 2026',
-            subtitle: 'Boctrust Target Savings',
+            subtitle: 'Cheetah Target Savings',
             icon: Icons.track_changes_rounded,
           ),
           const SizedBox(height: 20),
           const AmountDisplay(
             amount: '40,000',
             subtitle:
-                'Instant, no fees — moves stay within your BOCTrust account',
+                'Instant, no fees — moves stay within your Cheetah account',
           ),
           const SizedBox(height: 14),
           PrimaryButton(
@@ -129,19 +129,19 @@ extension SendScreens on AppFlowNavigatorState {
           const ContactCard(
             initials: 'IN',
             name: 'Ifeoma Nwachukwu',
-            subtitle: '0198 220 341 · BOCTrust',
+            subtitle: '0198 220 341 · Cheetah',
           ),
           const SizedBox(height: 10),
           const ContactCard(
             initials: 'CO',
             name: 'Chuka Obi',
-            subtitle: '0177 552 903 · BOCTrust',
+            subtitle: '0177 552 903 · Cheetah',
           ),
           const SizedBox(height: 10),
           const ContactCard(
             initials: 'HM',
             name: 'Hauwa Musa',
-            subtitle: '0134 908 227 · BOCTrust',
+            subtitle: '0134 908 227 · Cheetah',
           ),
           const SizedBox(height: 18),
           Text('Amount', style: Theme.of(context).textTheme.titleMedium),
@@ -149,7 +149,7 @@ extension SendScreens on AppFlowNavigatorState {
           const ContactCard(
             initials: 'IN',
             name: 'Ifeoma Nwachukwu',
-            subtitle: 'BOCTrust · 0198 220 341',
+            subtitle: 'Cheetah · 0198 220 341',
             trailing: Text(
               'Change',
               style: TextStyle(
@@ -162,7 +162,7 @@ extension SendScreens on AppFlowNavigatorState {
           const SizedBox(height: 14),
           const AmountDisplay(
             amount: '35,000',
-            subtitle: 'Transfers to other BOCTrust users are free & instant',
+            subtitle: 'Transfers to other Cheetah users are free & instant',
           ),
           const SizedBox(height: 14),
           PrimaryButton(
@@ -171,7 +171,7 @@ extension SendScreens on AppFlowNavigatorState {
               const TransactionContext(
                 amount: '₦35,000.00',
                 description:
-                    'Sent to Ifeoma Nwachukwu · BOCTrust. This receipt has been saved to your statement.',
+                    'Sent to Ifeoma Nwachukwu · Cheetah. This receipt has been saved to your statement.',
                 title: 'Transfer successful',
                 row1Label: 'Recipient',
                 row1Value: 'Ifeoma Nwachukwu',

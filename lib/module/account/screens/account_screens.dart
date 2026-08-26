@@ -1,6 +1,525 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
 extension AccountScreens on AppFlowNavigatorState {
+  Widget _routePreviewScreen() {
+    final preview = _previewContentForRoute(
+      appPreviewRouteForRoute(widget.initialRouteName),
+    );
+    final rows = preview.rows;
+    return AppScaffold(
+      title: preview.title,
+      activeSection: preview.section,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      showBottomNavigation: true,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        children: [
+          SurfaceCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RoundedIcon(icon: preview.icon, color: preview.color, size: 52),
+                const SizedBox(height: 14),
+                Text(
+                  preview.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  preview.summary,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.45,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SurfaceCard(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: Column(
+              children: [
+                for (var index = 0; index < rows.length; index++) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: RoundedIcon(
+                      icon: rows[index].$1,
+                      color: preview.color,
+                      size: 38,
+                    ),
+                    title: Text(
+                      rows[index].$2,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(rows[index].$3),
+                  ),
+                  if (index != rows.length - 1) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+            label: preview.actionLabel,
+            onPressed: () => _showMessage(
+              '${preview.title} is available as a UI preview. API integration is pending.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ({
+    String title,
+    IconData icon,
+    Color color,
+    AppSection section,
+    String summary,
+    String actionLabel,
+    List<(IconData, String, String)> rows,
+  })
+  _previewContentForRoute(AppPreviewRoute? route) {
+    switch (route) {
+      case AppPreviewRoute.savingsNew:
+        return (
+          title: 'Create savings plan',
+          icon: Icons.add_circle_outline_rounded,
+          color: BocColors.gold,
+          section: AppSection.save,
+          summary:
+              'Choose Flex, Target, Fixed Deposit, or Group Savings and preview the setup fields before the savings API is connected.',
+          actionLabel: 'Preview setup',
+          rows: [
+            (Icons.savings_outlined, 'Flex Savings', 'Withdraw anytime'),
+            (
+              Icons.track_changes_rounded,
+              'Target Savings',
+              'Save toward a goal',
+            ),
+            (
+              Icons.lock_outline_rounded,
+              'Fixed Deposit',
+              'Lock funds for higher yield',
+            ),
+          ],
+        );
+      case AppPreviewRoute.flexTopUp:
+        return (
+          title: 'Top up Flex Savings',
+          icon: Icons.add_card_rounded,
+          color: BocColors.gold,
+          section: AppSection.save,
+          summary:
+              'Preview the top-up amount, funding source, and confirmation flow for Flex Savings.',
+          actionLabel: 'Preview top up',
+          rows: [
+            (
+              Icons.account_balance_wallet_outlined,
+              'Destination',
+              'Everyday Flex',
+            ),
+            (Icons.payments_outlined, 'Amount', '₦50,000.00'),
+            (Icons.verified_user_outlined, 'Authorization', 'Transaction PIN'),
+          ],
+        );
+      case AppPreviewRoute.flexWithdraw:
+        return (
+          title: 'Withdraw from Flex',
+          icon: Icons.call_received_rounded,
+          color: BocColors.blue,
+          section: AppSection.save,
+          summary:
+              'Preview withdrawal details for moving money from Flex Savings to your wallet.',
+          actionLabel: 'Preview withdrawal',
+          rows: [
+            (Icons.savings_outlined, 'Source', 'Everyday Flex'),
+            (
+              Icons.account_balance_wallet_outlined,
+              'Destination',
+              'Cheetah wallet',
+            ),
+            (Icons.schedule_rounded, 'Delivery', 'Instant preview'),
+          ],
+        );
+      case AppPreviewRoute.flexStatement:
+        return (
+          title: 'Flex statement',
+          icon: Icons.receipt_long_outlined,
+          color: BocColors.green,
+          section: AppSection.save,
+          summary:
+              'Preview interest, deposits, and withdrawals for the selected Flex Savings account.',
+          actionLabel: 'Preview statement export',
+          rows: [
+            (Icons.trending_up_rounded, 'Daily interest', '+₦412.60'),
+            (Icons.add_rounded, 'Top up', '+₦50,000.00'),
+            (Icons.call_received_rounded, 'Withdrawal', '-₦20,000.00'),
+          ],
+        );
+      case AppPreviewRoute.flexSettings:
+        return (
+          title: 'Flex settings',
+          icon: Icons.tune_rounded,
+          color: BocColors.purple,
+          section: AppSection.save,
+          summary:
+              'Preview account preferences such as auto-save rules, withdrawal destination, and statement notifications.',
+          actionLabel: 'Preview settings',
+          rows: [
+            (Icons.autorenew_rounded, 'Auto-save', 'Weekly, ₦10,000'),
+            (Icons.notifications_none_rounded, 'Interest alerts', 'Enabled'),
+            (
+              Icons.account_balance_outlined,
+              'Withdrawal account',
+              'Primary wallet',
+            ),
+          ],
+        );
+      case AppPreviewRoute.targetCreate:
+        return (
+          title: 'Create target',
+          icon: Icons.track_changes_rounded,
+          color: BocColors.blue,
+          section: AppSection.save,
+          summary:
+              'Preview the target goal form, frequency selector, and auto-save confirmation.',
+          actionLabel: 'Preview target creation',
+          rows: [
+            (Icons.flag_outlined, 'Goal name', 'Rent - Dec 2026'),
+            (Icons.payments_outlined, 'Target amount', '₦1,000,000'),
+            (Icons.calendar_month_outlined, 'Frequency', 'Weekly'),
+          ],
+        );
+      case AppPreviewRoute.targetSort:
+        return (
+          title: 'Sort targets',
+          icon: Icons.sort_rounded,
+          color: BocColors.blue,
+          section: AppSection.save,
+          summary:
+              'Preview sorting target savings by progress, date created, maturity date, or amount.',
+          actionLabel: 'Preview sort',
+          rows: [
+            (Icons.trending_up_rounded, 'Progress', 'Highest first'),
+            (Icons.event_available_outlined, 'Maturity', 'Soonest first'),
+            (Icons.payments_outlined, 'Amount', 'Largest target first'),
+          ],
+        );
+      case AppPreviewRoute.lockCreate:
+        return (
+          title: 'Create fixed deposit',
+          icon: Icons.lock_outline_rounded,
+          color: BocColors.purple,
+          section: AppSection.save,
+          summary:
+              'Preview the fixed deposit setup for amount, tenor, rate, and payout account.',
+          actionLabel: 'Preview lock setup',
+          rows: [
+            (Icons.payments_outlined, 'Amount', '₦300,000.00'),
+            (Icons.timelapse_rounded, 'Tenor', '6 months'),
+            (Icons.percent_rounded, 'Rate', '18% p.a.'),
+          ],
+        );
+      case AppPreviewRoute.lockDetails:
+        return (
+          title: 'Fixed deposit details',
+          icon: Icons.lock_clock_rounded,
+          color: BocColors.purple,
+          section: AppSection.save,
+          summary:
+              'Preview maturity date, accrued interest, payout destination, and early-break terms.',
+          actionLabel: 'Preview details',
+          rows: [
+            (Icons.event_available_outlined, 'Maturity', '14 Oct 2026'),
+            (Icons.trending_up_rounded, 'Expected interest', '₦45,000'),
+            (Icons.warning_amber_rounded, 'Early exit', 'Interest forfeited'),
+          ],
+        );
+      case AppPreviewRoute.lockAddMoney:
+        return (
+          title: 'Add to fixed deposit',
+          icon: Icons.add_box_outlined,
+          color: BocColors.purple,
+          section: AppSection.save,
+          summary:
+              'Preview increasing an existing fixed deposit before maturity.',
+          actionLabel: 'Preview add money',
+          rows: [
+            (Icons.lock_outline_rounded, 'Active lock', '18-month lock'),
+            (Icons.payments_outlined, 'Additional amount', '₦50,000.00'),
+            (Icons.percent_rounded, 'Current rate', '18% p.a.'),
+          ],
+        );
+      case AppPreviewRoute.groupCreate:
+      case AppPreviewRoute.groupContribute:
+      case AppPreviewRoute.groupInvite:
+      case AppPreviewRoute.groupMembers:
+        return (
+          title: 'Group Savings',
+          icon: Icons.groups_outlined,
+          color: BocColors.green,
+          section: AppSection.save,
+          summary:
+              'Preview group setup, contributions, invites, and member status before group savings endpoints are available.',
+          actionLabel: 'Preview group action',
+          rows: [
+            (Icons.group_add_outlined, 'Members', '6 active members'),
+            (Icons.payments_outlined, 'Contribution', '₦20,000 weekly'),
+            (Icons.link_rounded, 'Invite', 'Shareable invite preview'),
+          ],
+        );
+      case AppPreviewRoute.bankTransferFunding:
+        return (
+          title: 'Bank transfer funding',
+          icon: Icons.account_balance_outlined,
+          color: BocColors.blue,
+          section: AppSection.payments,
+          summary:
+              'Preview virtual account funding instructions and reference details.',
+          actionLabel: 'Preview bank transfer',
+          rows: [
+            (Icons.account_balance_outlined, 'Bank', 'Cheetah MFB'),
+            (Icons.numbers_rounded, 'Account number', '0198 220 341'),
+            (Icons.person_outline_rounded, 'Account name', 'Adaeze Okonkwo'),
+          ],
+        );
+      case AppPreviewRoute.cardFunding:
+        return (
+          title: 'Card funding',
+          icon: Icons.credit_card_outlined,
+          color: BocColors.gold,
+          section: AppSection.payments,
+          summary:
+              'Preview adding money with a debit card while card processor integration is pending.',
+          actionLabel: 'Preview card funding',
+          rows: [
+            (Icons.credit_card_outlined, 'Card', 'Visa ending 4242'),
+            (Icons.payments_outlined, 'Amount', '₦50,000.00'),
+            (Icons.lock_outline_rounded, 'Security', '3DS authorization'),
+          ],
+        );
+      case AppPreviewRoute.accountBeneficiaries:
+        return (
+          title: 'Beneficiaries',
+          icon: Icons.people_alt_outlined,
+          color: BocColors.blue,
+          section: AppSection.account,
+          summary:
+              'Preview saved Cheetah and bank beneficiaries before beneficiary APIs are connected.',
+          actionLabel: 'Preview beneficiary setup',
+          rows: [
+            (
+              Icons.person_outline_rounded,
+              'Ifeoma Nwachukwu',
+              'Cheetah - 0198 220 341',
+            ),
+            (
+              Icons.account_balance_outlined,
+              'Chuka Obi',
+              'GTBank - 0123456789',
+            ),
+            (Icons.add_rounded, 'Add beneficiary', 'Local UI preview'),
+          ],
+        );
+      case AppPreviewRoute.accountLinkedBanks:
+        return (
+          title: 'Linked banks',
+          icon: Icons.account_balance_outlined,
+          color: BocColors.green,
+          section: AppSection.account,
+          summary:
+              'Preview connected bank accounts for withdrawals and funding.',
+          actionLabel: 'Preview linked banks',
+          rows: [
+            (Icons.account_balance_outlined, 'GTBank', '0123456789'),
+            (Icons.account_balance_outlined, 'Access Bank', '0987654321'),
+            (Icons.add_rounded, 'Link another bank', 'Secure setup preview'),
+          ],
+        );
+      case AppPreviewRoute.accountSecurity:
+        return (
+          title: 'Security settings',
+          icon: Icons.security_rounded,
+          color: BocColors.purple,
+          section: AppSection.account,
+          summary:
+              'Preview security controls that are not yet fully represented by the current API.',
+          actionLabel: 'Preview security options',
+          rows: [
+            (Icons.password_rounded, 'Password', 'Change password'),
+            (Icons.pin_outlined, 'Transaction PIN', 'Change or recover PIN'),
+            (Icons.face_rounded, 'Biometric login', 'Unavailable in API'),
+          ],
+        );
+      case AppPreviewRoute.accountSupport:
+      case AppPreviewRoute.supportChat:
+      case AppPreviewRoute.supportCall:
+      case AppPreviewRoute.supportEmail:
+        return (
+          title: 'Support',
+          icon: Icons.support_agent_rounded,
+          color: BocColors.gold,
+          section: AppSection.account,
+          summary: 'Preview customer support channels and escalation details.',
+          actionLabel: 'Preview support contact',
+          rows: [
+            (
+              Icons.chat_bubble_outline_rounded,
+              'Chat',
+              'Average reply: 2 minutes',
+            ),
+            (Icons.phone_outlined, 'Call', '+234 906 464 1439'),
+            (Icons.mail_outline_rounded, 'Email', 'info@cheetahmfb.com'),
+          ],
+        );
+      case AppPreviewRoute.privacyPolicy:
+        return (
+          title: 'Privacy Policy',
+          icon: Icons.privacy_tip_outlined,
+          color: BocColors.blue,
+          section: AppSection.account,
+          summary:
+              'Preview the policy page structure for data collection, usage, protection, and consent.',
+          actionLabel: 'Preview policy acknowledgement',
+          rows: [
+            (
+              Icons.dataset_outlined,
+              'Data collected',
+              'Identity and account data',
+            ),
+            (
+              Icons.shield_outlined,
+              'Protection',
+              'Encryption and access controls',
+            ),
+            (
+              Icons.manage_accounts_outlined,
+              'Your rights',
+              'Access, correction, deletion',
+            ),
+          ],
+        );
+      case AppPreviewRoute.terms:
+        return (
+          title: 'Terms & Conditions',
+          icon: Icons.description_outlined,
+          color: BocColors.blue,
+          section: AppSection.account,
+          summary:
+              'Preview the terms page structure for account usage, payments, savings, and limitations.',
+          actionLabel: 'Preview terms acknowledgement',
+          rows: [
+            (
+              Icons.account_circle_outlined,
+              'Account use',
+              'Customer responsibilities',
+            ),
+            (Icons.payments_outlined, 'Transactions', 'Limits and reversals'),
+            (Icons.savings_outlined, 'Savings', 'Interest and maturity terms'),
+          ],
+        );
+      case AppPreviewRoute.socialFacebook:
+      case AppPreviewRoute.socialX:
+      case AppPreviewRoute.socialLinkedIn:
+        return (
+          title: 'Social links',
+          icon: Icons.public_rounded,
+          color: BocColors.green,
+          section: AppSection.account,
+          summary:
+              'Preview outbound social profiles without launching an external app.',
+          actionLabel: 'Preview social link',
+          rows: [
+            (Icons.facebook_rounded, 'Facebook', '@cheetahmfb'),
+            (Icons.alternate_email_rounded, 'X', '@cheetahmfb'),
+            (Icons.business_center_outlined, 'LinkedIn', 'Cheetah MFB'),
+          ],
+        );
+      case AppPreviewRoute.themeSettings:
+        return (
+          title: 'Theme settings',
+          icon: Icons.palette_outlined,
+          color: BocColors.purple,
+          section: AppSection.account,
+          summary:
+              'Preview appearance preferences and switch between system, light, and dark themes from Account.',
+          actionLabel: 'Cycle theme',
+          rows: [
+            (Icons.settings_brightness_outlined, 'System', 'Follow device'),
+            (Icons.light_mode_outlined, 'Light', 'Bright interface'),
+            (Icons.dark_mode_outlined, 'Dark', 'Low-light interface'),
+          ],
+        );
+      case AppPreviewRoute.transactionHistory:
+        return (
+          title: 'Transactions',
+          icon: Icons.receipt_long_outlined,
+          color: BocColors.green,
+          section: AppSection.payments,
+          summary:
+              'Preview transaction history filters and receipt access while the transaction API is pending.',
+          actionLabel: 'Preview receipt',
+          rows: [
+            (Icons.phone_android_rounded, 'MTN Airtime', '-₦2,000.00'),
+            (Icons.bolt_outlined, 'EKEDC', '-₦15,000.00'),
+            (Icons.send_rounded, 'Sent to Ifeoma', '-₦35,000.00'),
+          ],
+        );
+      case AppPreviewRoute.paymentWebView:
+        return (
+          title: 'Payment webview',
+          icon: Icons.web_asset_outlined,
+          color: BocColors.gold,
+          section: AppSection.payments,
+          summary:
+              'Preview the hosted payment handoff screen and return states before the provider webview is connected.',
+          actionLabel: 'Preview return to app',
+          rows: [
+            (
+              Icons.open_in_browser_rounded,
+              'Provider page',
+              'Secure checkout preview',
+            ),
+            (Icons.lock_outline_rounded, 'Authorization', '3DS or OTP'),
+            (
+              Icons.check_circle_outline_rounded,
+              'Return state',
+              'Success, failed, cancelled',
+            ),
+          ],
+        );
+      case null:
+        return (
+          title: 'UI preview',
+          icon: Icons.preview_outlined,
+          color: BocColors.gold,
+          section: AppSection.home,
+          summary:
+              'This page is available as a local UI preview while backend integration is pending.',
+          actionLabel: 'Preview action',
+          rows: [
+            (
+              Icons.visibility_outlined,
+              'Visible route',
+              widget.initialRouteName ?? 'Unknown route',
+            ),
+            (Icons.api_outlined, 'API status', 'Integration pending'),
+            (
+              Icons.check_circle_outline_rounded,
+              'UI status',
+              'Ready for review',
+            ),
+          ],
+        );
+    }
+  }
+
   Widget _comingSoonScreen({
     required String title,
     required IconData icon,
@@ -70,7 +589,7 @@ extension AccountScreens on AppFlowNavigatorState {
       AppThemeMode.dark => Icons.dark_mode_outlined,
       AppThemeMode.system => Icons.settings_brightness_outlined,
     };
-    final displayName = profile?.displayName ?? 'BOCTrust customer';
+    final displayName = profile?.displayName ?? 'Cheetah customer';
     final identifier =
         profile?.email ??
         profile?.phoneNumber ??
@@ -239,7 +758,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 SettingsTile(
                   icon: Icons.account_balance_outlined,
                   title: 'Account provider',
-                  subtitle: 'BOCTrust MFB',
+                  subtitle: 'Cheetah MFB',
                 ),
               ],
             ),
@@ -264,7 +783,7 @@ extension AccountScreens on AppFlowNavigatorState {
             ),
             const SectionHeader(title: 'Appearance'),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 15),
               child: ThemeSelector(
                 value: currentThemeMode,
                 onChanged: (mode) =>
@@ -355,7 +874,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 SettingsTile(
                   icon: Icons.description_outlined,
                   title: 'Terms & Conditions',
-                  subtitle: 'Rules for using BOCTrust',
+                  subtitle: 'Rules for using Cheetah',
                 ),
               ],
             ),
@@ -626,7 +1145,7 @@ extension AccountScreens on AppFlowNavigatorState {
                     Text(
                       awaitingOtp
                           ? 'Enter the 6-digit code sent to ${state.data?.identifier}.'
-                          : 'BOCTrust will send a one-time verification code.',
+                          : 'Cheetah will send a one-time verification code.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 18),

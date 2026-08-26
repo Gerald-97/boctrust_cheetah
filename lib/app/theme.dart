@@ -25,8 +25,8 @@ SystemUiOverlayStyle kOverlayDark({Color? statusColor, Color? navColor}) =>
       systemNavigationBarContrastEnforced: true,
     );
 
-class BOCTrustTheme {
-  const BOCTrustTheme._();
+class CheetahTheme {
+  const CheetahTheme._();
 
   static ThemeData get lightTheme => _theme(
     brightness: Brightness.light,

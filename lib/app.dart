@@ -10,8 +10,8 @@ import 'app/theme.dart';
 import 'app/theme_controller.dart';
 import 'helper/fcm_service.dart';
 
-class BOCTrustApp extends StatelessWidget {
-  const BOCTrustApp({
+class CheetahApp extends StatelessWidget {
+  const CheetahApp({
     super.key,
     required this.preferences,
     this.firebaseReady = false,
@@ -33,14 +33,14 @@ class BOCTrustApp extends StatelessWidget {
         ...overrides,
       ],
       child: AuthFlowListener(
-        child: _BOCTrustMaterialApp(initialRoute: initialRoute),
+        child: _CheetahMaterialApp(initialRoute: initialRoute),
       ),
     );
   }
 }
 
-class BOCTrustTestApp extends StatelessWidget {
-  const BOCTrustTestApp({
+class CheetahTestApp extends StatelessWidget {
+  const CheetahTestApp({
     super.key,
     required this.preferences,
     this.overrides = const [],
@@ -52,15 +52,15 @@ class BOCTrustTestApp extends StatelessWidget {
   final String initialRoute;
 
   @override
-  Widget build(BuildContext context) => BOCTrustApp(
+  Widget build(BuildContext context) => CheetahApp(
     preferences: preferences,
     overrides: overrides,
     initialRoute: initialRoute,
   );
 }
 
-class _BOCTrustMaterialApp extends ConsumerWidget {
-  const _BOCTrustMaterialApp({required this.initialRoute});
+class _CheetahMaterialApp extends ConsumerWidget {
+  const _CheetahMaterialApp({required this.initialRoute});
 
   final String initialRoute;
 
@@ -68,11 +68,11 @@ class _BOCTrustMaterialApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeControllerProvider).themeMode;
     return MaterialApp(
-      title: 'BOCTrust',
+      title: 'Cheetah',
       debugShowCheckedModeBanner: false,
       navigatorKey: rootNavigatorKey,
-      theme: BOCTrustTheme.lightTheme,
-      darkTheme: BOCTrustTheme.darkTheme,
+      theme: CheetahTheme.lightTheme,
+      darkTheme: CheetahTheme.darkTheme,
       themeMode: themeMode,
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,

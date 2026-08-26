@@ -25,7 +25,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
-      BOCTrustTestApp(
+      CheetahTestApp(
         preferences: preferences,
         initialRoute: AppRoutes.onboarding,
       ),
@@ -47,7 +47,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
-      BOCTrustTestApp(preferences: preferences, initialRoute: AppRoutes.login),
+      CheetahTestApp(preferences: preferences, initialRoute: AppRoutes.login),
     );
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
@@ -60,7 +60,7 @@ void main() {
   testWidgets('theme mode restores saved dark value', (tester) async {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'dark'});
     final preferences = await SharedPreferences.getInstance();
-    await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
+    await tester.pumpWidget(CheetahTestApp(preferences: preferences));
     await tester.pump(const Duration(milliseconds: 250));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -72,7 +72,7 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'invalid'});
     final preferences = await SharedPreferences.getInstance();
-    await tester.pumpWidget(BOCTrustTestApp(preferences: preferences));
+    await tester.pumpWidget(CheetahTestApp(preferences: preferences));
     await tester.pump(const Duration(milliseconds: 250));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -121,7 +121,7 @@ void main() {
     expect(find.text('Please select an option'), findsOneWidget);
   });
 
-  test('validators cover common BOCTrust form rules', () {
+  test('validators cover common Cheetah form rules', () {
     expect(validators.requiredText('   '), isNotNull);
     expect(validators.optionalName('A'), isNotNull);
     expect(validators.email('user@example.com'), isNull);

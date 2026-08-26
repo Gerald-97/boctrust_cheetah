@@ -222,6 +222,7 @@ class AppRouter {
       final arguments = settings.arguments;
       return AppFlowRouteScreen(
         initialScreen: appScreenForRoute(settings.name),
+        initialRouteName: settings.name,
         routeArguments: arguments is AppRouteArguments
             ? arguments
             : const AppRouteArguments(),
@@ -241,7 +242,7 @@ class AppRouter {
         )
         .join(' • ');
     return _RouteFallbackScreen(
-      title: title.isEmpty ? 'BOCTrust' : title,
+      title: title.isEmpty ? 'Cheetah' : title,
       description: 'This route is not registered in the app route map.',
     );
   }

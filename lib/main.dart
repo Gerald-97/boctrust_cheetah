@@ -39,5 +39,5 @@ Future<void> main() async {
     },
   );
   final preferences = await SharedPreferences.getInstance();
-  runApp(BOCTrustApp(preferences: preferences, firebaseReady: firebaseReady));
+  runApp(CheetahApp(preferences: preferences, firebaseReady: firebaseReady));
 }

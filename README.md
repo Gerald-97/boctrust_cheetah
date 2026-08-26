@@ -1,6 +1,6 @@
-# BOCTrust Savings & Payments App
+# Cheetah Savings & Payments App
 
-BOCTrust is a Flutter savings and payments application shell implementing the UX reference in `agent_assets/source.html` through a modular Flutter architecture.
+Cheetah is a Flutter savings and payments application shell implementing the UX reference in `agent_assets/source.html` through a modular Flutter architecture.
 
 ## Run
 
@@ -79,7 +79,7 @@ no contract in that API remain explicitly unavailable.
 - Onboarding, verification, OTP, password, login, password reset, and new-device OTP routes are registered.
 - Savings product routes cover Flex, Target, Lock, and Group actions including statement, settings, sort, details, add-to-lock, invite, contribute, and full-member list.
 - Wallet funding routes cover Add Money, bank transfer, and card funding.
-- Send routes cover own account, BOCTrust beneficiary, and other-bank transfers.
+- Send routes cover own account, Cheetah beneficiary, and other-bank transfers.
 - Payments routes cover airtime, data, bill categories, bill pay, scan-to-pay, and recent transaction receipt drill-down route support.
 - Account routes cover tiers, beneficiaries, linked banks, security, support, legal, social, theme, loans, cards, and notify-me actions.
 - Notifications route supports grouping labels and deep-link helper parsing.

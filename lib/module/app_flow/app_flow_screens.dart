@@ -37,12 +37,119 @@ enum AppScreen {
   notifications,
   loans,
   cards,
+  routePreview,
   account,
 }
 
 enum AppSection { home, save, send, payments, account }
 
+enum AppPreviewRoute {
+  savingsNew,
+  flexTopUp,
+  flexWithdraw,
+  flexStatement,
+  flexSettings,
+  targetCreate,
+  targetSort,
+  lockCreate,
+  lockDetails,
+  lockAddMoney,
+  groupCreate,
+  groupContribute,
+  groupInvite,
+  groupMembers,
+  bankTransferFunding,
+  cardFunding,
+  accountBeneficiaries,
+  accountLinkedBanks,
+  accountSecurity,
+  accountSupport,
+  supportChat,
+  supportCall,
+  supportEmail,
+  privacyPolicy,
+  terms,
+  socialFacebook,
+  socialX,
+  socialLinkedIn,
+  themeSettings,
+  transactionHistory,
+  paymentWebView,
+}
+
+AppPreviewRoute? appPreviewRouteForRoute(String? routeName) {
+  switch (routeName) {
+    case '/savings/new':
+      return AppPreviewRoute.savingsNew;
+    case '/savings/flex/top-up':
+      return AppPreviewRoute.flexTopUp;
+    case '/savings/flex/withdraw':
+      return AppPreviewRoute.flexWithdraw;
+    case '/savings/flex/statement':
+      return AppPreviewRoute.flexStatement;
+    case '/savings/flex/settings':
+      return AppPreviewRoute.flexSettings;
+    case '/savings/target/create':
+      return AppPreviewRoute.targetCreate;
+    case '/savings/target/sort':
+      return AppPreviewRoute.targetSort;
+    case '/savings/lock/create':
+      return AppPreviewRoute.lockCreate;
+    case '/savings/lock/details':
+      return AppPreviewRoute.lockDetails;
+    case '/savings/lock/add-money':
+      return AppPreviewRoute.lockAddMoney;
+    case '/savings/group/create':
+      return AppPreviewRoute.groupCreate;
+    case '/savings/group/contribute':
+      return AppPreviewRoute.groupContribute;
+    case '/savings/group/invite':
+      return AppPreviewRoute.groupInvite;
+    case '/savings/group/members':
+      return AppPreviewRoute.groupMembers;
+    case '/wallet/bank-transfer':
+      return AppPreviewRoute.bankTransferFunding;
+    case '/wallet/card':
+      return AppPreviewRoute.cardFunding;
+    case '/account/beneficiaries':
+      return AppPreviewRoute.accountBeneficiaries;
+    case '/account/linked-banks':
+      return AppPreviewRoute.accountLinkedBanks;
+    case '/account/security':
+      return AppPreviewRoute.accountSecurity;
+    case '/account/support':
+      return AppPreviewRoute.accountSupport;
+    case '/account/support/chat':
+      return AppPreviewRoute.supportChat;
+    case '/account/support/call':
+      return AppPreviewRoute.supportCall;
+    case '/account/support/email':
+      return AppPreviewRoute.supportEmail;
+    case '/account/legal/privacy':
+      return AppPreviewRoute.privacyPolicy;
+    case '/account/legal/terms':
+      return AppPreviewRoute.terms;
+    case '/account/social/facebook':
+      return AppPreviewRoute.socialFacebook;
+    case '/account/social/x':
+      return AppPreviewRoute.socialX;
+    case '/account/social/linkedin':
+      return AppPreviewRoute.socialLinkedIn;
+    case '/account/theme':
+      return AppPreviewRoute.themeSettings;
+    case '/transactions':
+      return AppPreviewRoute.transactionHistory;
+    case '/payment/webview':
+      return AppPreviewRoute.paymentWebView;
+    default:
+      return null;
+  }
+}
+
 AppScreen appScreenForRoute(String? routeName) {
+  if (appPreviewRouteForRoute(routeName) != null) {
+    return AppScreen.routePreview;
+  }
   switch (routeName) {
     case '/bootstrap':
       return AppScreen.bootstrap;
@@ -66,32 +173,16 @@ AppScreen appScreenForRoute(String? routeName) {
     case '/home':
       return AppScreen.home;
     case '/savings':
-    case '/savings/new':
       return AppScreen.saveHub;
     case '/savings/flex':
-    case '/savings/flex/top-up':
-    case '/savings/flex/withdraw':
-    case '/savings/flex/statement':
-    case '/savings/flex/settings':
       return AppScreen.flex;
     case '/savings/target':
-    case '/savings/target/create':
-    case '/savings/target/sort':
       return AppScreen.target;
     case '/savings/lock':
-    case '/savings/lock/create':
-    case '/savings/lock/details':
-    case '/savings/lock/add-money':
       return AppScreen.lock;
     case '/savings/group':
-    case '/savings/group/create':
-    case '/savings/group/contribute':
-    case '/savings/group/invite':
-    case '/savings/group/members':
       return AppScreen.group;
     case '/wallet/add-money':
-    case '/wallet/bank-transfer':
-    case '/wallet/card':
       return AppScreen.addMoney;
     case '/send':
       return AppScreen.sendHub;
@@ -119,19 +210,6 @@ AppScreen appScreenForRoute(String? routeName) {
     case '/payments/scan-to-pay':
       return AppScreen.scan;
     case '/account':
-    case '/account/beneficiaries':
-    case '/account/linked-banks':
-    case '/account/security':
-    case '/account/support':
-    case '/account/support/chat':
-    case '/account/support/call':
-    case '/account/support/email':
-    case '/account/legal/privacy':
-    case '/account/legal/terms':
-    case '/account/social/facebook':
-    case '/account/social/x':
-    case '/account/social/linkedin':
-    case '/account/theme':
       return AppScreen.account;
     case '/account/tier':
       return AppScreen.tiers;
@@ -151,15 +229,11 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.cards;
     case '/notifications':
       return AppScreen.notifications;
-    case '/transactions':
-      return AppScreen.notifications;
     case '/transaction/authorize':
       return AppScreen.authPin;
     case '/transaction/receipt':
     case '/transaction/receipt/demo':
       return AppScreen.success;
-    case '/payment/webview':
-      return AppScreen.payments;
     default:
       return AppScreen.home;
   }

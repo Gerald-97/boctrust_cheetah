@@ -28,7 +28,7 @@ class BocLogo extends StatelessWidget {
           ),
           SizedBox(width: height * .22),
           Text(
-            'BOCTrust',
+            'Cheetah',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontSize: height * .45,
               fontWeight: FontWeight.w900,

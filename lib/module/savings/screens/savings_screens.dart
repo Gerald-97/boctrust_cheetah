@@ -26,28 +26,28 @@ extension SavingsScreens on AppFlowNavigatorState {
           const SizedBox(height: 12),
           ProductTile(
             icon: Icons.savings_outlined,
-            title: 'Boc Flex Savings',
+            title: 'Cheetah Flex Savings',
             subtitle: 'No lock-in — daily interest, withdraw anytime',
             color: BocColors.gold,
             onTap: () => _go(AppScreen.flex),
           ),
           ProductTile(
             icon: Icons.track_changes_rounded,
-            title: 'Boctrust Target Savings',
+            title: 'Cheetah Target Savings',
             subtitle: 'Daily, weekly or monthly auto-save toward a goal',
             color: BocColors.blue,
             onTap: () => _go(AppScreen.target),
           ),
           ProductTile(
             icon: Icons.lock_outline_rounded,
-            title: 'Boctrust Fixed Deposit',
+            title: 'Cheetah Fixed Deposit',
             subtitle: 'Fixed term, higher rate, locked until maturity',
             color: BocColors.purple,
             onTap: () => _go(AppScreen.lock),
           ),
           ProductTile(
             icon: Icons.groups_outlined,
-            title: 'Boctrust Group Savings',
+            title: 'Cheetah Group Savings',
             subtitle: 'Save together with friends, family or colleagues',
             color: BocColors.green,
             onTap: () => _go(AppScreen.group),
@@ -93,7 +93,7 @@ extension SavingsScreens on AppFlowNavigatorState {
           const SizedBox(height: 20),
           const AmountDisplay(
             amount: '50,000',
-            subtitle: 'To your Boc Flex Savings balance',
+            subtitle: 'To your Cheetah Flex Savings balance',
           ),
           const SizedBox(height: 10),
           MoneyKeypad(onKey: (_) {}, onBackspace: () {}),
@@ -136,7 +136,7 @@ extension SavingsScreens on AppFlowNavigatorState {
 
   Widget _flexScreen() {
     return AppScaffold(
-      title: 'Boc Flex Savings',
+      title: 'Cheetah Flex Savings',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,
@@ -223,7 +223,7 @@ extension SavingsScreens on AppFlowNavigatorState {
 
   Widget _targetScreen() {
     return AppScaffold(
-      title: 'Boctrust Target Savings',
+      title: 'Cheetah Target Savings',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,
@@ -312,7 +312,7 @@ extension SavingsScreens on AppFlowNavigatorState {
 
   Widget _lockScreen() {
     return AppScaffold(
-      title: 'Boctrust Fixed Deposit',
+      title: 'Cheetah Fixed Deposit',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,
@@ -395,7 +395,7 @@ extension SavingsScreens on AppFlowNavigatorState {
 
   Widget _groupScreen() {
     return AppScaffold(
-      title: 'Boctrust Group Savings',
+      title: 'Cheetah Group Savings',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,

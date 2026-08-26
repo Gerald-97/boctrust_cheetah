@@ -1,11 +1,11 @@
 {
-    "name": "boctrust_savings_loan",
-    "short_name": "boctrust_savings_loan",
+    "name": "Cheetah",
+    "short_name": "Cheetah",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Cheetah savings and payments app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

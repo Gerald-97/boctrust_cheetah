@@ -78,16 +78,19 @@ class AppFlowRouteScreen extends StatelessWidget {
   const AppFlowRouteScreen({
     super.key,
     required this.initialScreen,
+    this.initialRouteName,
     this.routeArguments = const AppRouteArguments(),
   });
 
   final AppScreen initialScreen;
+  final String? initialRouteName;
   final AppRouteArguments routeArguments;
 
   @override
   Widget build(BuildContext context) {
     return AppFlowNavigator(
       initialScreen: initialScreen,
+      initialRouteName: initialRouteName,
       routeArguments: routeArguments,
     );
   }
@@ -96,11 +99,13 @@ class AppFlowRouteScreen extends StatelessWidget {
 class AppFlowNavigator extends ConsumerStatefulWidget {
   const AppFlowNavigator({
     this.initialScreen = AppScreen.bootstrap,
+    this.initialRouteName,
     this.routeArguments = const AppRouteArguments(),
     super.key,
   });
 
   final AppScreen initialScreen;
+  final String? initialRouteName;
   final AppRouteArguments routeArguments;
 
   @override
@@ -121,7 +126,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   );
   TransactionContext _transaction = const TransactionContext(
     amount: '₦35,000.00',
-    description: 'Sent to Ifeoma Nwachukwu · BOCTrust.',
+    description: 'Sent to Ifeoma Nwachukwu · Cheetah.',
     title: 'Transfer successful',
     row1Label: 'Recipient',
     row1Value: 'Ifeoma Nwachukwu',
@@ -146,6 +151,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   void initState() {
     super.initState();
+    _selectedBillerCategory =
+        billerCategoryForRoute(widget.initialRouteName) ??
+        _selectedBillerCategory;
+    _selectedBiller =
+        billerCategories[_selectedBillerCategory]?.items.first ??
+        _selectedBiller;
     final message = widget.routeArguments.message;
     if (message != null && message.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -200,14 +211,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   }
 
   void _goSection(AppSection section) {
-    if (section == AppSection.save ||
-        section == AppSection.send ||
-        section == AppSection.payments) {
-      _showMessage(
-        'This financial feature is not available in the current User API.',
-      );
-      return;
-    }
     final target = switch (section) {
       AppSection.home => AppScreen.home,
       AppSection.save => AppScreen.saveHub,
@@ -424,15 +427,17 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
           title: 'Loans',
           icon: Icons.percent_rounded,
           message:
-              "Loans aren't part of BOCTrust's app yet — this release is focused on Savings and Payments. We'll let you know the moment borrowing is available.",
+              "Loans aren't part of Cheetah's app yet — this release is focused on Savings and Payments. We'll let you know the moment borrowing is available.",
         );
       case AppScreen.cards:
         return _comingSoonScreen(
           title: 'Cards',
           icon: Icons.credit_card_rounded,
           message:
-              "Virtual and physical debit cards aren't part of BOCTrust's app yet — this release is focused on Savings and Payments. We'll let you know the moment cards are available.",
+              "Virtual and physical debit cards aren't part of Cheetah's app yet. This release is focused on Savings and Payments previews. We'll let you know the moment cards are available.",
         );
+      case AppScreen.routePreview:
+        return _routePreviewScreen();
       case AppScreen.account:
         return _accountScreen();
     }

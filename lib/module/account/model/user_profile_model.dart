@@ -61,7 +61,7 @@ class UserOwnProfileData extends Equatable {
   static void _logDate(String field) {
     developer.log(
       'Unable to parse UserOwnProfileData.$field',
-      name: 'BOCTrust.Model',
+      name: 'Cheetah.Model',
     );
   }
 
@@ -91,7 +91,7 @@ class UserOwnProfileData extends Equatable {
       lastName,
     ].whereType<String>().where((part) => part.trim().isNotEmpty);
     final name = parts.join(' ');
-    return name.isEmpty ? 'BOCTrust customer' : name;
+    return name.isEmpty ? 'Cheetah customer' : name;
   }
 
   UserOwnProfileData copyWith({bool? isCreatedPin}) => UserOwnProfileData(

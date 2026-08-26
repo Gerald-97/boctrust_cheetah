@@ -304,7 +304,7 @@ extension KycScreens on AppFlowNavigatorState {
     return _kycScaffold(
       title: 'Next of kin',
       subtitle:
-          'Add someone BOCTrust can contact if we cannot reach you. This completes Tier 2.',
+          'Add someone Cheetah can contact if we cannot reach you. This completes Tier 2.',
       activeStep: 2,
       stepLabel: 'Next of kin',
       body: SurfaceCard(

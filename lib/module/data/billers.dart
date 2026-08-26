@@ -107,3 +107,22 @@ const billerCategories = <String, BillerCategory>{
     ],
   ),
 };
+
+String? billerCategoryForRoute(String? routeName) {
+  switch (routeName) {
+    case '/payments/billers/electricity':
+      return 'electricity';
+    case '/payments/billers/water':
+      return 'water';
+    case '/payments/billers/cable':
+      return 'cable';
+    case '/payments/billers/internet':
+      return 'internet';
+    case '/payments/billers/education':
+      return 'education';
+    case '/payments/billers/more':
+      return 'more';
+    default:
+      return null;
+  }
+}

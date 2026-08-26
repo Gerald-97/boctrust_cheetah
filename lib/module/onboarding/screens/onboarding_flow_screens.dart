@@ -74,7 +74,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
         icon: Icons.send_rounded,
         title: 'Send and pay, instantly',
         description:
-            'Move money between your BOCTrust accounts, send to friends and family, or pay bills — all in one place.',
+            'Move money between your Cheetah accounts, send to friends and family, or pay bills — all in one place.',
       ),
     ];
     final slide = slides[_onboardingIndex];

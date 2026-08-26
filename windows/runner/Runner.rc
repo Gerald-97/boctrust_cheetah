@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.boctrust" "\0"
-            VALUE "FileDescription", "boctrust_savings_loan" "\0"
+            VALUE "FileDescription", "Cheetah" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "boctrust_savings_loan" "\0"
+            VALUE "InternalName", "Cheetah" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.boctrust. All rights reserved." "\0"
-            VALUE "OriginalFilename", "boctrust_savings_loan.exe" "\0"
-            VALUE "ProductName", "boctrust_savings_loan" "\0"
+            VALUE "OriginalFilename", "Cheetah.exe" "\0"
+            VALUE "ProductName", "Cheetah" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

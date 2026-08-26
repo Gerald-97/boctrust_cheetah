@@ -56,10 +56,8 @@ extension HomeScreen on AppFlowNavigatorState {
             ).colorScheme.surfaceContainerHighest,
             foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          tooltip: 'Notifications unavailable',
-          onPressed: () => _showMessage(
-            'Notifications are not available in the current User API.',
-          ),
+          tooltip: 'Notifications',
+          onPressed: () => _go(AppScreen.notifications),
           icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
