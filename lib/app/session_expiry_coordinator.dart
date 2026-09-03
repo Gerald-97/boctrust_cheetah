@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../module/account/provider/user_providers.dart';
 import '../module/home/provider/home_provider.dart';
+import '../module/kyc/provider/kyc_providers.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
 import 'auth_navigation_provider.dart';
 
@@ -45,5 +46,7 @@ class SessionExpiryCoordinator {
     _ref.read(userTierProvider.notifier).clear();
     _ref.read(userHomeProvider.notifier).clear();
     _ref.read(profileImageSignedUrlProvider.notifier).clear();
+    _ref.read(identityVerificationProvider.notifier).clear();
+    _ref.read(governmentIdVerificationProvider.notifier).clear();
   }
 }

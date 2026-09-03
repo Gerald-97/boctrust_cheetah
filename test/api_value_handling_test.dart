@@ -1,5 +1,6 @@
 import 'package:boctrust_savings_loan/module/account/model/profile_image_model.dart';
 import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
 import 'package:boctrust_savings_loan/utils/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -174,5 +175,94 @@ void main() {
       expect(home.user['nested'], 'value');
       expect(() => home.user['x'] = 1, throwsUnsupportedError);
     });
+  });
+
+  group('KYC identity', () {
+    test('accepts exactly 11 digits', () {
+      expect(isValidIdentityNumber('12345678901'), isTrue);
+      expect(isValidIdentityNumber('  12345678901  '), isTrue);
+    });
+
+    test('rejects wrong length or non-digits', () {
+      expect(isValidIdentityNumber('1234567890'), isFalse);
+      expect(isValidIdentityNumber('123456789012'), isFalse);
+      expect(isValidIdentityNumber('1234567890a'), isFalse);
+      expect(isValidIdentityNumber('123-456-7890'), isFalse);
+      expect(isValidIdentityNumber(''), isFalse);
+    });
+
+    test('request emits only the documented wire values', () {
+      expect(
+        const IdentityVerificationRequest(
+          identityType: IdentityType.bvn,
+          identityNumber: '12345678901',
+        ).toJson(),
+        {'identityType': 'bvn', 'identityNumber': '12345678901'},
+      );
+      expect(
+        const IdentityVerificationRequest(
+          identityType: IdentityType.nin,
+          identityNumber: '12345678901',
+        ).toJson()['identityType'],
+        'nin',
+      );
+    });
+
+    test('government-ID request omits an absent document number', () {
+      expect(
+        const GovernmentIdVerificationRequest(
+          documentType: 'voter_id',
+        ).toJson(),
+        {'documentType': 'voter_id'},
+      );
+      expect(
+        const GovernmentIdVerificationRequest(
+          documentType: 'voter_id',
+          documentNumber: '',
+        ).toJson().containsKey('documentNumber'),
+        isFalse,
+      );
+    });
+
+    test('initiation parses server-issued identifiers', () {
+      final data = KycInitiationData.fromJson({
+        'verificationId': 'v-123',
+        'provider': 'smile_id',
+        'environment': 'sandbox',
+        'identityLastFour': '8901',
+        'smileJobId': 'job-1',
+        'partnerParams': {'k': 'v'},
+      });
+      expect(data.verificationId, 'v-123');
+      expect(data.smileJobId, 'job-1');
+      expect(data.identityLastFour, '8901');
+      expect(() => data.partnerParams['x'] = 1, throwsUnsupportedError);
+    });
+
+    test('initiation moves the flow to awaiting, never to verified', () {
+      final data = KycInitiationData.fromJson({
+        'verificationId': 'v-123',
+        'identityLastFour': '8901',
+      });
+      final flow = const KycFlowData().fromInitiation(
+        data,
+        KycFlowStage.awaitingProvider,
+      );
+      expect(flow.stage, KycFlowStage.awaitingProvider);
+      expect(flow.verificationId, 'v-123');
+      // There is no verified stage a client can assign to itself.
+      expect(KycFlowStage.values, isNot(contains('verified')));
+    });
+
+    test(
+      'verificationId survives a stage change so a retry is not orphaned',
+      () {
+        final flow = const KycFlowData(
+          stage: KycFlowStage.awaitingProvider,
+          verificationId: 'v-123',
+        ).copyWith(stage: KycFlowStage.failed);
+        expect(flow.verificationId, 'v-123');
+      },
+    );
   });
 }

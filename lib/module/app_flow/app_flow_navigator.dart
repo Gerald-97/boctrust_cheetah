@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/api_logger.dart';
+import '../../app/app_router.dart';
 import '../../app/auth_navigation_provider.dart';
 import '../../app/bootstrap_provider.dart';
 import '../../app/preferences.dart';
@@ -20,6 +21,8 @@ import '../account/model/user_tier_model.dart';
 import '../account/provider/user_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
+import '../kyc/model/kyc_models.dart';
+import '../kyc/provider/kyc_providers.dart';
 import '../component/text_fields.dart';
 import '../component/password_strength_component.dart';
 import '../onboarding/model/auth_enums.dart';
@@ -66,7 +69,7 @@ part '../component/api_state_widgets.dart';
 
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
-part '../account/screens/kyc_screens.dart';
+part '../kyc/screens/kyc_screens.dart';
 
 part '../home/screens/home_screen.dart';
 
@@ -147,12 +150,16 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _currentSecretController = TextEditingController();
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
+  final _identityNumberController = TextEditingController();
   final _createPasswordFormKey = GlobalKey<FormState>();
   final _passwordResetFormKey = GlobalKey<FormState>();
   final _createFirstPinFormKey = GlobalKey<FormState>();
+  final _identityFormKey = GlobalKey<FormState>();
   AutovalidateMode _createPasswordAutovalidate = AutovalidateMode.disabled;
   AutovalidateMode _passwordResetAutovalidate = AutovalidateMode.disabled;
   AutovalidateMode _createFirstPinAutovalidate = AutovalidateMode.disabled;
+  AutovalidateMode _identityAutovalidate = AutovalidateMode.disabled;
+  IdentityType _selectedIdentityType = IdentityType.bvn;
 
   @override
   void initState() {
@@ -163,6 +170,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _selectedBiller =
         billerCategories[_selectedBillerCategory]?.items.first ??
         _selectedBiller;
+    // `/account/tier/nin` preselects NIN; every other entry point defaults to
+    // BVN. Set once here so the user's own dropdown choice always wins after.
+    if (widget.initialRouteName == AppRoutes.tier2Nin) {
+      _selectedIdentityType = IdentityType.nin;
+    }
     final message = widget.routeArguments.message;
     if (message != null && message.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -187,6 +199,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _currentSecretController.dispose();
     _pinController.dispose();
     _confirmPinController.dispose();
+    _identityNumberController.dispose();
     super.dispose();
   }
 
@@ -380,14 +393,14 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _createFirstPinScreen();
       case AppScreen.tiers:
         return _tiersScreen();
-      case AppScreen.tier1:
-        return _tier1Screen();
-      case AppScreen.tier2:
-        return _tier2Screen();
+      case AppScreen.kycIdentity:
+        return _kycIdentityScreen();
+      case AppScreen.kycGovernmentId:
+        return _kycGovernmentIdScreen();
       case AppScreen.nextOfKin:
         return _nextOfKinScreen();
-      case AppScreen.tier3:
-        return _tier3Screen();
+      case AppScreen.kycUtilityBill:
+        return _kycUtilityBillScreen();
       case AppScreen.home:
         return _homeScreen();
       case AppScreen.saveHub:

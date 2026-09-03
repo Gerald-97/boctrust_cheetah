@@ -11,10 +11,10 @@ enum AppScreen {
   newDeviceOtp,
   createFirstPin,
   tiers,
-  tier1,
-  tier2,
+  kycIdentity,
+  kycGovernmentId,
+  kycUtilityBill,
   nextOfKin,
-  tier3,
   home,
   saveHub,
   addMoney,
@@ -213,14 +213,17 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.account;
     case '/account/tier':
       return AppScreen.tiers;
+    // Compatibility routes: both open the identity screen, preselecting the
+    // identity type rather than standing for a whole tier.
     case '/account/tier/bvn':
-      return AppScreen.tier1;
     case '/account/tier/nin':
-      return AppScreen.tier2;
+      return AppScreen.kycIdentity;
+    case '/account/tier/government-id':
+      return AppScreen.kycGovernmentId;
     case '/account/tier/next-of-kin':
       return AppScreen.nextOfKin;
     case '/account/tier/address':
-      return AppScreen.tier3;
+      return AppScreen.kycUtilityBill;
     case '/account/loans':
     case '/account/loans/notify-me':
       return AppScreen.loans;

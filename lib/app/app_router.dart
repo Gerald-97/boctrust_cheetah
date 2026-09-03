@@ -61,6 +61,7 @@ class AppRoutes {
   static const tierOverview = '/account/tier';
   static const tier1Bvn = '/account/tier/bvn';
   static const tier2Nin = '/account/tier/nin';
+  static const governmentIdVerification = '/account/tier/government-id';
   static const nextOfKin = '/account/tier/next-of-kin';
   static const tier3Address = '/account/tier/address';
   static const manageBeneficiaries = '/account/beneficiaries';
@@ -140,6 +141,7 @@ class AppRoutes {
     tierOverview,
     tier1Bvn,
     tier2Nin,
+    governmentIdVerification,
     nextOfKin,
     tier3Address,
     manageBeneficiaries,

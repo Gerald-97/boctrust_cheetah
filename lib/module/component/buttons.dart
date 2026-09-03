@@ -9,7 +9,10 @@ class PrimaryButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+
+  /// Null renders the button disabled, which is how a screen blocks a second
+  /// submission while a mutation is in flight.
+  final VoidCallback? onPressed;
   final IconData? icon;
 
   @override
