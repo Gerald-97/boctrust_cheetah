@@ -116,13 +116,10 @@ extension HomeScreen on AppFlowNavigatorState {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RoundedIcon(
-                    icon: profile?.isVerifiedAccount == true
-                        ? Icons.verified_user_outlined
-                        : Icons.person_outline_rounded,
-                    color: profile?.isVerifiedAccount == true
-                        ? BocColors.green
-                        : BocColors.gold,
+                  ProfileAvatar(
+                    displayName: profile?.displayName ?? 'Your account',
+                    hasImage: profile?.imageUrl?.isNotEmpty ?? false,
+                    radius: 22,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

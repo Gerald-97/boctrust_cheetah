@@ -87,6 +87,107 @@ class SmallPill extends StatelessWidget {
   }
 }
 
+/// Avatar backed by a short-lived signed URL for a private profile image.
+///
+/// Falls back to initials while loading, when no image exists, and on any load
+/// failure. An image problem is always local to the avatar — it never surfaces
+/// as a page-level error.
+class ProfileAvatar extends ConsumerStatefulWidget {
+  const ProfileAvatar({
+    required this.displayName,
+    required this.hasImage,
+    this.radius = 28,
+    super.key,
+  });
+
+  final String displayName;
+
+  /// Whether the profile reports an image; the signed URL is only requested
+  /// when there is something to fetch.
+  final bool hasImage;
+  final double radius;
+
+  @override
+  ConsumerState<ProfileAvatar> createState() => _ProfileAvatarState();
+}
+
+class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
+  /// Guards against a refresh loop: at most one replacement URL is requested
+  /// per widget lifetime after a forbidden image load.
+  bool _retriedAfterForbidden = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final signedState = ref.watch(profileImageSignedUrlProvider);
+    final signed = signedState.data;
+
+    if (widget.hasImage) {
+      // Scheduled rather than called during build: ensureLoaded mutates
+      // provider state.
+      Future<void>.microtask(
+        ref.read(profileImageSignedUrlProvider.notifier).ensureLoaded,
+      );
+    }
+
+    final initials = _initialsOf(widget.displayName);
+    final fallback = CircleAvatar(
+      radius: widget.radius,
+      backgroundColor: BocColors.navy,
+      foregroundColor: BocColors.goldLight,
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: widget.radius * 0.55,
+        ),
+      ),
+    );
+
+    if (!widget.hasImage || signed == null || signed.isExpired) {
+      return Semantics(label: 'Profile photo', child: fallback);
+    }
+
+    return Semantics(
+      label: 'Profile photo',
+      child: ClipOval(
+        child: Image.network(
+          signed.imageUrl,
+          width: widget.radius * 2,
+          height: widget.radius * 2,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) =>
+              progress == null ? child : fallback,
+          errorBuilder: (context, error, stackTrace) {
+            // A lapsed signed URL is recoverable exactly once; anything else
+            // stays on initials.
+            if (error is NetworkImageLoadException &&
+                error.statusCode == 403 &&
+                !_retriedAfterForbidden) {
+              _retriedAfterForbidden = true;
+              Future<void>.microtask(
+                ref
+                    .read(profileImageSignedUrlProvider.notifier)
+                    .refreshAfterForbidden,
+              );
+            }
+            return fallback;
+          },
+        ),
+      ),
+    );
+  }
+
+  static String _initialsOf(String name) {
+    final words = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .take(2);
+    final result = words.map((word) => word[0].toUpperCase()).join();
+    return result.isEmpty ? 'BC' : result;
+  }
+}
+
 class ThemeSelector extends StatelessWidget {
   const ThemeSelector({
     required this.value,

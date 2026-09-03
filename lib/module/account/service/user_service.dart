@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/api_endpoints.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
+import '../model/profile_image_model.dart';
 import '../model/user_profile_model.dart';
 import '../model/user_tier_model.dart';
 
@@ -29,4 +30,12 @@ class UserService {
           parser: UserTierInfoData.fromJson,
         ),
       );
+
+  Future<NotifierState<ProfileImageSignedUrlData>>
+  getProfileImageSignedUrl() async => NotifierState.fromResponse(
+    await _api.getData<ProfileImageSignedUrlData>(
+      ApiEndpoints.profileImageSignedUrl,
+      parser: ProfileImageSignedUrlData.fromJson,
+    ),
+  );
 }

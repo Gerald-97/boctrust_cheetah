@@ -566,16 +566,6 @@ extension AccountScreens on AppFlowNavigatorState {
     );
   }
 
-  String _initials(String name) {
-    final words = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .take(2);
-    final result = words.map((word) => word[0].toUpperCase()).join();
-    return result.isEmpty ? 'BC' : result;
-  }
-
   /// Read-only mirror of the dedicated virtual account already loaded by Home.
   ///
   /// Copying the number stays on Home, where the full account details are
@@ -686,19 +676,9 @@ extension AccountScreens on AppFlowNavigatorState {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: BocColors.navy,
-                    foregroundColor: BocColors.goldLight,
-                    backgroundImage: profile?.imageUrl == null
-                        ? null
-                        : NetworkImage(profile!.imageUrl!),
-                    child: profile?.imageUrl == null
-                        ? Text(
-                            _initials(displayName),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          )
-                        : null,
+                  ProfileAvatar(
+                    displayName: displayName,
+                    hasImage: profile?.imageUrl?.isNotEmpty ?? false,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
