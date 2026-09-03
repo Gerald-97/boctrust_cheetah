@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -151,6 +152,14 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   final _identityNumberController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _addressStateController = TextEditingController();
+  final _lgaController = TextEditingController();
+  final _utilityProviderController = TextEditingController();
+  final _utilityNumberController = TextEditingController();
+  final _utilityBillFormKey = GlobalKey<FormState>();
+  AutovalidateMode _utilityBillAutovalidate = AutovalidateMode.disabled;
+  UtilityType? _selectedUtilityType;
   final _createPasswordFormKey = GlobalKey<FormState>();
   final _passwordResetFormKey = GlobalKey<FormState>();
   final _createFirstPinFormKey = GlobalKey<FormState>();
@@ -200,6 +209,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _pinController.dispose();
     _confirmPinController.dispose();
     _identityNumberController.dispose();
+    _addressController.dispose();
+    _addressStateController.dispose();
+    _lgaController.dispose();
+    _utilityProviderController.dispose();
+    _utilityNumberController.dispose();
     super.dispose();
   }
 

@@ -265,4 +265,101 @@ void main() {
       },
     );
   });
+
+  group('Utility bill upload', () {
+    test('maps only the accepted extensions to a content type', () {
+      expect(contentTypeForExtension('pdf'), 'application/pdf');
+      expect(contentTypeForExtension('PDF'), 'application/pdf');
+      expect(contentTypeForExtension('jpg'), 'image/jpeg');
+      expect(contentTypeForExtension('jpeg'), 'image/jpeg');
+      expect(contentTypeForExtension('png'), 'image/png');
+      expect(contentTypeForExtension('docx'), isNull);
+      expect(contentTypeForExtension(null), isNull);
+      // Every mapped type must be one the API accepts.
+      for (final extension in kUtilityBillExtensions) {
+        expect(
+          kUtilityBillContentTypes,
+          contains(contentTypeForExtension(extension)),
+        );
+      }
+    });
+
+    test('meter type emits the exact documented casing', () {
+      expect(UtilityType.prePaid.wireValue, 'PrePaid');
+      expect(UtilityType.postPaid.wireValue, 'PostPaid');
+    });
+
+    test('initiation request omits blank optional fields', () {
+      final json = const UtilityBillInitiationRequest(
+        residentialAddress: '1 Example Street',
+        contentType: 'application/pdf',
+        state: '   ',
+        lga: '',
+        utilityNumber: 'M-1',
+        utilityType: UtilityType.prePaid,
+      ).toJson();
+
+      expect(json['residentialAddress'], '1 Example Street');
+      expect(json['contentType'], 'application/pdf');
+      expect(json['utilityType'], 'PrePaid');
+      expect(json['utilityNumber'], 'M-1');
+      expect(json.containsKey('state'), isFalse);
+      expect(json.containsKey('lga'), isFalse);
+    });
+
+    test('upload target requires an HTTPS URL', () {
+      expect(
+        () => UtilityBillUploadTarget.fromJson({
+          'verificationId': 'v-1',
+          'uploadUrl': 'http://storage.test/key',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('always sends content type and server-side encryption headers', () {
+      final target = UtilityBillUploadTarget.fromJson({
+        'verificationId': 'v-1',
+        'uploadUrl': 'https://storage.test/key?sig=abc',
+        'expiresInSeconds': 600,
+      });
+      final headers = target.headersFor('image/png');
+      expect(headers['Content-Type'], 'image/png');
+      expect(headers['x-amz-server-side-encryption'], 'AES256');
+    });
+
+    test('API-supplied headers win over the defaults', () {
+      final target = UtilityBillUploadTarget.fromJson({
+        'verificationId': 'v-1',
+        'uploadUrl': 'https://storage.test/key',
+        'requiredHeaders': {
+          'Content-Type': 'application/pdf',
+          'x-amz-server-side-encryption': 'aws:kms',
+        },
+      });
+      final headers = target.headersFor('image/png');
+      expect(headers['Content-Type'], 'application/pdf');
+      expect(headers['x-amz-server-side-encryption'], 'aws:kms');
+    });
+
+    test('dropping the upload target forces a fresh initiation', () {
+      final flow = const KycFlowData(
+        stage: KycFlowStage.uploading,
+        verificationId: 'v-1',
+      ).withoutUploadTarget();
+      // A lapsed signed link must never be reused for a retry.
+      expect(flow.verificationId, isNull);
+      expect(flow.uploadCompleted, isFalse);
+    });
+
+    test('a selected bill reports its own size', () {
+      const bill = SelectedUtilityBill(
+        fileName: 'bill.pdf',
+        contentType: 'application/pdf',
+        bytes: [1, 2, 3],
+      );
+      expect(bill.sizeInBytes, 3);
+      expect(kUtilityBillMaxBytes, 10485760);
+    });
+  });
 }

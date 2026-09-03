@@ -386,35 +386,260 @@ extension KycScreens on AppFlowNavigatorState {
 
   /// Address and utility-bill verification.
   ///
-  /// The initiate/upload/complete sequence lands in a later change; until then
-  /// the screen does not collect an address it cannot submit.
+  /// Runs initiate → signed PUT → complete. The terminal state is pending
+  /// review, never verified.
   Widget _kycUtilityBillScreen() {
+    final uploadState = ref.watch(utilityBillUploadProvider);
+    final flow = uploadState.data ?? const KycFlowData();
+    final busy = uploadState.isLoading;
+
     return AppScaffold(
       title: 'Address verification',
+      // Keep the user in the flow while bytes are moving.
+      showBottomNavigation: !busy,
       activeSection: AppSection.account,
-      onBack: _back,
+      onBack: busy ? null : _back,
       onSectionSelected: _goSection,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
           Text(
-            'Confirming your address with a recent utility bill raises your '
-            'account tier.',
+            'Confirm your address with a recent utility bill — not older than '
+            'three months.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               height: 1.5,
               color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
           const SizedBox(height: 16),
-          const ApiStateCard(
-            title: 'Address verification is not connected yet',
-            message:
-                'Uploading a utility bill is not available in this release. '
-                'We will enable it here once it is ready.',
-            tone: ApiStateTone.blocked,
-          ),
+          if (flow.stage == KycFlowStage.pendingReview)
+            ApiStateCard(
+              title: 'Submitted for review',
+              message:
+                  uploadState.message ??
+                  'We have received your utility bill. Your tier updates once '
+                      'the review completes.',
+              tone: ApiStateTone.info,
+              actionLabel: 'Back to tiers',
+              onAction: () => _go(AppScreen.tiers),
+            )
+          else ...[
+            _utilityBillForm(flow, busy),
+            if (uploadState.isError && uploadState.message != null) ...[
+              const SizedBox(height: 14),
+              ApiStateCard(
+                title: flow.uploadCompleted
+                    ? 'Upload received, submission incomplete'
+                    : 'Submission failed',
+                message: uploadState.message!,
+                tone: ApiStateTone.error,
+                // A successful PUT means the bytes are already stored; only
+                // the completion call needs repeating.
+                actionLabel: flow.uploadCompleted ? 'Retry submission' : null,
+                onAction: flow.uploadCompleted
+                    ? () => ref
+                          .read(utilityBillUploadProvider.notifier)
+                          .retryCompletion()
+                    : null,
+              ),
+            ],
+          ],
         ],
       ),
     );
+  }
+
+  Widget _utilityBillForm(KycFlowData flow, bool busy) {
+    final bill = flow.selectedBill;
+    return SurfaceCard(
+      child: Form(
+        key: _utilityBillFormKey,
+        autovalidateMode: _utilityBillAutovalidate,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Residential address',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Enter your address exactly as it appears on the bill.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            AppTextField(
+              label: 'Residential address',
+              controller: _addressController,
+              maxLines: 2,
+              enabled: !busy,
+              validator: (value) => (value ?? '').trim().isEmpty
+                  ? 'Enter your residential address.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              label: 'State (optional)',
+              controller: _addressStateController,
+              enabled: !busy,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              label: 'LGA (optional)',
+              controller: _lgaController,
+              enabled: !busy,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              label: 'Utility provider (optional)',
+              controller: _utilityProviderController,
+              enabled: !busy,
+            ),
+            const SizedBox(height: 12),
+            FormDropdown<UtilityType?>(
+              label: 'Meter type (optional)',
+              value: _selectedUtilityType,
+              items: [
+                const DropdownMenuItem(child: Text('Not specified')),
+                ...UtilityType.values.map(
+                  (type) =>
+                      DropdownMenuItem(value: type, child: Text(type.label)),
+                ),
+              ],
+              onChanged: busy
+                  ? null
+                  : (value) => setState(() => _selectedUtilityType = value),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              label: 'Meter / account number (optional)',
+              controller: _utilityNumberController,
+              enabled: !busy,
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Upload utility bill',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'A recent NEPA/PHCN, water, or waste bill.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 12),
+            DashedLikeUpload(
+              title: bill == null ? 'Choose document' : 'Change document',
+              helperText: 'PDF, JPEG or PNG, maximum 10 MB',
+              selectedFileName: bill?.fileName,
+              enabled: !busy,
+              loading: busy && flow.stage == KycFlowStage.uploading,
+              onTap: _pickUtilityBill,
+            ),
+            if (busy) ...[
+              const SizedBox(height: 12),
+              ApiLoadingSection(
+                label: _uploadStageLabel(flow.stage),
+                compact: true,
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  _uploadStageLabel(flow.stage),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: busy ? _uploadStageLabel(flow.stage) : 'Submit for review',
+              onPressed: busy || bill == null ? null : _submitUtilityBill,
+            ),
+            // Cancelling is only offered before bytes start moving.
+            if (bill != null && !busy) ...[
+              const SizedBox(height: 10),
+              SecondaryButton(
+                label: 'Remove selected file',
+                onPressed: () => ref
+                    .read(utilityBillUploadProvider.notifier)
+                    .clearSelection(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _uploadStageLabel(KycFlowStage stage) => switch (stage) {
+    KycFlowStage.requestingUpload => 'Preparing upload…',
+    KycFlowStage.uploading => 'Uploading your document…',
+    KycFlowStage.completing => 'Finishing submission…',
+    _ => 'Working…',
+  };
+
+  Future<void> _pickUtilityBill() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: kUtilityBillExtensions,
+      withData: true,
+    );
+    if (!mounted) return;
+
+    final picked = result?.files.singleOrNull;
+    if (picked == null) return;
+
+    final bytes = picked.bytes;
+    final contentType = contentTypeForExtension(picked.extension);
+    if (bytes == null || contentType == null) {
+      _showErrorMessage('Choose a PDF, JPEG, or PNG file.');
+      return;
+    }
+
+    ref
+        .read(utilityBillUploadProvider.notifier)
+        .selectBill(
+          SelectedUtilityBill(
+            fileName: picked.name,
+            contentType: contentType,
+            bytes: bytes,
+          ),
+        );
+    if (!mounted) return;
+    final state = ref.read(utilityBillUploadProvider);
+    if (state.isError && state.message != null) {
+      _showErrorMessage(state.message!);
+    }
+  }
+
+  Future<void> _submitUtilityBill() async {
+    if (_utilityBillFormKey.currentState?.validate() != true) {
+      setState(
+        () => _utilityBillAutovalidate = AutovalidateMode.onUserInteraction,
+      );
+      return;
+    }
+
+    await ref
+        .read(utilityBillUploadProvider.notifier)
+        .submit(
+          residentialAddress: _addressController.text,
+          state_: _addressStateController.text,
+          lga: _lgaController.text,
+          utilityProvider: _utilityProviderController.text,
+          utilityType: _selectedUtilityType,
+          utilityNumber: _utilityNumberController.text,
+        );
+    if (!mounted) return;
+
+    final result = ref.read(utilityBillUploadProvider);
+    if (result.isDone) {
+      _showSuccessMessage(result.message ?? 'Utility bill submitted.');
+    } else if (result.isError) {
+      _showErrorMessage(result.message ?? 'Submission failed.');
+    }
   }
 }

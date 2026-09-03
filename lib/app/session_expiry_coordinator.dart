@@ -48,5 +48,6 @@ class SessionExpiryCoordinator {
     _ref.read(profileImageSignedUrlProvider.notifier).clear();
     _ref.read(identityVerificationProvider.notifier).clear();
     _ref.read(governmentIdVerificationProvider.notifier).clear();
+    _ref.read(utilityBillUploadProvider.notifier).clear();
   }
 }

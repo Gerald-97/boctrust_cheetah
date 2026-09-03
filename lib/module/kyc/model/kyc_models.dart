@@ -139,6 +139,172 @@ class KycInitiationData extends Equatable {
   ];
 }
 
+/// Metering arrangement on a utility bill.
+enum UtilityType {
+  prePaid('PrePaid', 'Prepaid'),
+  postPaid('PostPaid', 'Postpaid');
+
+  const UtilityType(this.wireValue, this.label);
+
+  /// Emitted exactly as documented — the API is case-sensitive here.
+  final String wireValue;
+  final String label;
+}
+
+/// Maximum accepted utility-bill size, enforced before an upload URL is
+/// requested so an oversized file never consumes a signed link.
+const kUtilityBillMaxBytes = 10485760; // 10 MiB
+
+const kUtilityBillContentTypes = <String>{
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+};
+
+const kUtilityBillExtensions = <String>['pdf', 'jpg', 'jpeg', 'png'];
+
+/// Maps a file extension to the content type the API expects.
+String? contentTypeForExtension(String? extension) =>
+    switch (extension?.toLowerCase()) {
+      'pdf' => 'application/pdf',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      _ => null,
+    };
+
+/// A user-selected utility bill, held in memory until it is uploaded.
+class SelectedUtilityBill extends Equatable {
+  const SelectedUtilityBill({
+    required this.fileName,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String fileName;
+  final String contentType;
+  final List<int> bytes;
+
+  int get sizeInBytes => bytes.length;
+
+  @override
+  List<Object?> get props => [fileName, contentType, sizeInBytes];
+}
+
+class UtilityBillInitiationRequest {
+  const UtilityBillInitiationRequest({
+    required this.residentialAddress,
+    required this.contentType,
+    this.state,
+    this.lga,
+    this.utilityProvider,
+    this.utilityType,
+    this.utilityNumber,
+    this.billIssueDate,
+    this.originalFileName,
+    this.fileSizeBytes,
+  });
+
+  final String residentialAddress;
+  final String contentType;
+  final String? state;
+  final String? lga;
+  final String? utilityProvider;
+  final UtilityType? utilityType;
+  final String? utilityNumber;
+  final DateTime? billIssueDate;
+  final String? originalFileName;
+  final int? fileSizeBytes;
+
+  Map<String, Object?> toJson() => {
+    'residentialAddress': residentialAddress,
+    'contentType': contentType,
+    if (_has(state)) 'state': state,
+    if (_has(lga)) 'lga': lga,
+    if (_has(utilityProvider)) 'utilityProvider': utilityProvider,
+    if (utilityType != null) 'utilityType': utilityType!.wireValue,
+    if (_has(utilityNumber)) 'utilityNumber': utilityNumber,
+    if (billIssueDate != null)
+      'billIssueDate': billIssueDate!.toUtc().toIso8601String(),
+    if (_has(originalFileName)) 'originalFileName': originalFileName,
+    if (fileSizeBytes != null) 'fileSizeBytes': fileSizeBytes,
+  };
+
+  static bool _has(String? value) => value != null && value.trim().isNotEmpty;
+}
+
+/// Response to a utility-bill upload initiation.
+///
+/// Carries the short-lived signed URL and the exact headers the storage
+/// endpoint requires. Both headers must be sent verbatim or the PUT is
+/// rejected.
+class UtilityBillUploadTarget extends Equatable {
+  const UtilityBillUploadTarget({
+    required this.verificationId,
+    required this.uploadUrl,
+    required this.requiredHeaders,
+    this.status,
+    this.storageKey,
+    this.expiresInSeconds,
+  });
+
+  factory UtilityBillUploadTarget.fromJson(Object? value) {
+    final json = _map(value);
+    final uploadUrl = json['uploadUrl']! as String;
+    final parsed = Uri.tryParse(uploadUrl);
+    if (parsed == null || parsed.scheme != 'https' || !parsed.hasAuthority) {
+      throw const FormatException('Upload URL must be HTTPS.');
+    }
+
+    final headers = <String, String>{};
+    final rawHeaders = json['requiredHeaders'];
+    if (rawHeaders is Map) {
+      rawHeaders.forEach((key, dynamic value) {
+        if (value != null) headers['$key'] = '$value';
+      });
+    }
+
+    return UtilityBillUploadTarget(
+      verificationId: json['verificationId']! as String,
+      uploadUrl: uploadUrl,
+      requiredHeaders: Map<String, String>.unmodifiable(headers),
+      status: json['status'] as String?,
+      storageKey: json['key'] as String? ?? json['storageKey'] as String?,
+      expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt(),
+    );
+  }
+
+  final String verificationId;
+  final String uploadUrl;
+  final Map<String, String> requiredHeaders;
+  final String? status;
+
+  /// Storage object key. Diagnostic only — never shown to the user.
+  final String? storageKey;
+  final int? expiresInSeconds;
+
+  Uri get uri => Uri.parse(uploadUrl);
+
+  /// Headers actually sent with the PUT.
+  ///
+  /// Server-side encryption is required by the storage bucket policy; it is
+  /// added when the API did not already specify it.
+  Map<String, String> headersFor(String contentType) => {
+    'Content-Type': contentType,
+    'x-amz-server-side-encryption': 'AES256',
+    ...requiredHeaders,
+  };
+
+  @override
+  List<Object?> get props => [
+    verificationId,
+    uploadUrl,
+    requiredHeaders,
+    status,
+    storageKey,
+    expiresInSeconds,
+  ];
+}
+
 /// Client-side flow state for one KYC journey.
 ///
 /// [verificationId] is preserved across a provider handoff and a resumed
@@ -151,6 +317,8 @@ class KycFlowData extends Equatable {
     this.providerEnvironment,
     this.identityLastFour,
     this.uploadExpiresAt,
+    this.selectedBill,
+    this.uploadCompleted = false,
   });
 
   final KycFlowStage stage;
@@ -160,6 +328,14 @@ class KycFlowData extends Equatable {
   final String? identityLastFour;
   final DateTime? uploadExpiresAt;
 
+  /// Retained while the screen is mounted so a failed completion can be
+  /// retried without asking the user to pick the file again.
+  final SelectedUtilityBill? selectedBill;
+
+  /// True once the signed PUT succeeded. Completion may only be retried —
+  /// rather than restarted — while this holds.
+  final bool uploadCompleted;
+
   KycFlowData copyWith({
     KycFlowStage? stage,
     String? verificationId,
@@ -167,6 +343,8 @@ class KycFlowData extends Equatable {
     String? providerEnvironment,
     String? identityLastFour,
     DateTime? uploadExpiresAt,
+    SelectedUtilityBill? selectedBill,
+    bool? uploadCompleted,
   }) => KycFlowData(
     stage: stage ?? this.stage,
     verificationId: verificationId ?? this.verificationId,
@@ -174,6 +352,18 @@ class KycFlowData extends Equatable {
     providerEnvironment: providerEnvironment ?? this.providerEnvironment,
     identityLastFour: identityLastFour ?? this.identityLastFour,
     uploadExpiresAt: uploadExpiresAt ?? this.uploadExpiresAt,
+    selectedBill: selectedBill ?? this.selectedBill,
+    uploadCompleted: uploadCompleted ?? this.uploadCompleted,
+  );
+
+  /// Clears the verification context so a lapsed link is replaced by a fresh
+  /// initiation rather than reused.
+  KycFlowData withoutUploadTarget() => KycFlowData(
+    stage: stage,
+    provider: provider,
+    providerEnvironment: providerEnvironment,
+    identityLastFour: identityLastFour,
+    selectedBill: selectedBill,
   );
 
   KycFlowData fromInitiation(KycInitiationData data, KycFlowStage stage) =>
@@ -193,5 +383,7 @@ class KycFlowData extends Equatable {
     providerEnvironment,
     identityLastFour,
     uploadExpiresAt,
+    selectedBill,
+    uploadCompleted,
   ];
 }

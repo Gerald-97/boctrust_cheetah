@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
+import '../../../helper/signed_upload_client.dart';
 import '../../account/provider/user_providers.dart';
 import '../../home/provider/home_provider.dart';
 import '../model/kyc_models.dart';
@@ -108,6 +109,232 @@ class IdentityVerificationNotifier
 
   /// Re-checks status after an app resume or an explicit user refresh.
   Future<void> refreshStatus() => _refreshAuthoritativeState();
+
+  void clear() {
+    _inFlight = false;
+    state = const NotifierState.idle(data: KycFlowData());
+  }
+}
+
+final utilityBillUploadProvider =
+    NotifierProvider<UtilityBillUploadNotifier, NotifierState<KycFlowData>>(
+      UtilityBillUploadNotifier.new,
+    );
+
+/// Runs the resumable initiate → signed PUT → complete sequence.
+///
+/// Completion is never called after a failed or expired upload, and a lapsed
+/// signed link is replaced by a fresh initiation rather than retried.
+class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
+  @override
+  NotifierState<KycFlowData> build() =>
+      const NotifierState.idle(data: KycFlowData());
+
+  bool _inFlight = false;
+
+  KycFlowData get _flow => state.data ?? const KycFlowData();
+
+  /// Records a picked file after local validation.
+  void selectBill(SelectedUtilityBill bill) {
+    if (_inFlight) return;
+    if (!kUtilityBillContentTypes.contains(bill.contentType)) {
+      state = NotifierState.error(
+        'Choose a PDF, JPEG, or PNG file.',
+        data: _flow,
+      );
+      return;
+    }
+    // Checked before any network call so an oversized file never burns a
+    // signed upload link.
+    if (bill.sizeInBytes > kUtilityBillMaxBytes) {
+      state = NotifierState.error(
+        'That file is larger than 10 MB. Choose a smaller file.',
+        data: _flow,
+      );
+      return;
+    }
+    state = NotifierState.done(
+      _flow.copyWith(stage: KycFlowStage.selectingFile, selectedBill: bill),
+    );
+  }
+
+  void clearSelection() {
+    if (_inFlight) return;
+    state = NotifierState.done(
+      KycFlowData(
+        stage: KycFlowStage.idle,
+        verificationId: _flow.verificationId,
+      ),
+    );
+  }
+
+  /// Executes the full sequence for the currently selected file.
+  Future<void> submit({
+    required String residentialAddress,
+    String? state_,
+    String? lga,
+    String? utilityProvider,
+    UtilityType? utilityType,
+    String? utilityNumber,
+    DateTime? billIssueDate,
+  }) async {
+    if (_inFlight) return;
+
+    final flow = _flow;
+    final bill = flow.selectedBill;
+    if (bill == null) {
+      state = NotifierState.error(
+        'Choose your utility bill first.',
+        data: flow,
+      );
+      return;
+    }
+    if (residentialAddress.trim().isEmpty) {
+      state = NotifierState.error(
+        'Enter your residential address.',
+        data: flow,
+      );
+      return;
+    }
+
+    _inFlight = true;
+    try {
+      // Stage 1 — ask the API for a signed upload target.
+      state = NotifierState.loading(
+        data: flow.copyWith(stage: KycFlowStage.requestingUpload),
+      );
+      final initiation = await ref
+          .read(kycServiceProvider)
+          .initiateUtilityBillUpload(
+            UtilityBillInitiationRequest(
+              residentialAddress: residentialAddress.trim(),
+              contentType: bill.contentType,
+              state: state_,
+              lga: lga,
+              utilityProvider: utilityProvider,
+              utilityType: utilityType,
+              utilityNumber: utilityNumber,
+              billIssueDate: billIssueDate,
+              originalFileName: bill.fileName,
+              fileSizeBytes: bill.sizeInBytes,
+            ),
+          );
+
+      final target = initiation.data;
+      if (!initiation.isDone || target == null) {
+        state = NotifierState.error(
+          initiation.message ?? 'We could not start your upload.',
+          data: flow.copyWith(stage: KycFlowStage.failed),
+          statusCode: initiation.statusCode,
+          errorCode: initiation.errorCode,
+          errors: initiation.errors,
+          meta: initiation.meta,
+          noAuth: initiation.noAuth,
+        );
+        return;
+      }
+
+      final withTarget = flow.copyWith(
+        stage: KycFlowStage.uploading,
+        verificationId: target.verificationId,
+        uploadExpiresAt: target.expiresInSeconds == null
+            ? null
+            : DateTime.now().toUtc().add(
+                Duration(seconds: target.expiresInSeconds!),
+              ),
+      );
+      state = NotifierState.loading(data: withTarget);
+
+      // Stage 2 — PUT the bytes through the no-auth upload client.
+      final upload = await ref
+          .read(signedUploadClientProvider)
+          .putBytes(
+            url: target.uri,
+            bytes: bill.bytes,
+            headers: target.headersFor(bill.contentType),
+          );
+
+      if (!upload.isDone) {
+        // Completion must not run for bytes that never landed. Drop the
+        // verification context so a retry re-initiates rather than reusing a
+        // link that may have lapsed.
+        state = NotifierState.error(
+          upload.message ?? 'The upload failed. Please try again.',
+          data: withTarget
+              .copyWith(stage: KycFlowStage.failed)
+              .withoutUploadTarget(),
+          statusCode: upload.statusCode,
+        );
+        return;
+      }
+
+      // Stage 3 — tell the API the bytes are in place.
+      state = NotifierState.loading(
+        data: withTarget.copyWith(
+          stage: KycFlowStage.completing,
+          uploadCompleted: true,
+        ),
+      );
+      await _complete(withTarget.copyWith(uploadCompleted: true));
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// Retries only the completion POST after a successful upload.
+  ///
+  /// Re-uploading is unnecessary and would waste a fresh signed link, so this
+  /// is offered only while the PUT is known to have succeeded.
+  Future<void> retryCompletion() async {
+    if (_inFlight) return;
+    final flow = _flow;
+    if (!flow.uploadCompleted || flow.verificationId == null) return;
+
+    _inFlight = true;
+    try {
+      state = NotifierState.loading(
+        data: flow.copyWith(stage: KycFlowStage.completing),
+      );
+      await _complete(flow);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<void> _complete(KycFlowData flow) async {
+    final result = await ref
+        .read(kycServiceProvider)
+        .completeUtilityBillUpload(flow.verificationId!);
+
+    if (result.isDone) {
+      state = NotifierState.done(
+        flow.copyWith(stage: KycFlowStage.pendingReview),
+        message: result.message,
+        statusCode: result.statusCode,
+        meta: result.meta,
+      );
+      // Pending review is not verified: only the refreshed aggregates can
+      // move the tier checklist.
+      await Future.wait([
+        ref.read(userProfileProvider.notifier).load(),
+        ref.read(userTierProvider.notifier).load(),
+        ref.read(userHomeProvider.notifier).load(),
+      ]);
+      return;
+    }
+
+    state = NotifierState.error(
+      result.message ?? 'We could not finish your submission.',
+      // uploadCompleted stays true so the screen can offer a completion-only
+      // retry instead of a full re-upload.
+      data: flow.copyWith(stage: KycFlowStage.failed),
+      statusCode: result.statusCode,
+      errorCode: result.errorCode,
+      errors: result.errors,
+      meta: result.meta,
+      noAuth: result.noAuth,
+    );
+  }
 
   void clear() {
     _inFlight = false;

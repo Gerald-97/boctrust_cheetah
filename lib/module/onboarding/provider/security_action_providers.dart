@@ -170,6 +170,7 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
       ref.read(profileImageSignedUrlProvider.notifier).clear();
       ref.read(identityVerificationProvider.notifier).clear();
       ref.read(governmentIdVerificationProvider.notifier).clear();
+      ref.read(utilityBillUploadProvider.notifier).clear();
       ref.invalidate(signupFlowProvider);
       ref.invalidate(loginFlowProvider);
       ref.invalidate(passwordRecoveryProvider);
