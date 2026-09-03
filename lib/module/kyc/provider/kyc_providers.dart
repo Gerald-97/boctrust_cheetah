@@ -17,11 +17,13 @@ final identityVerificationProvider =
 /// A successful initiation moves the flow to [KycFlowStage.awaitingProvider].
 /// It never asserts verification success — only refreshed profile/tier data
 /// can do that.
-class IdentityVerificationNotifier
-    extends Notifier<NotifierState<KycFlowData>> {
+class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
+    with StaleResultGuard<NotifierState<KycFlowData>> {
   @override
-  NotifierState<KycFlowData> build() =>
-      const NotifierState.idle(data: KycFlowData());
+  NotifierState<KycFlowData> build() {
+    trackDisposal();
+    return const NotifierState.idle(data: KycFlowData());
+  }
 
   bool _inFlight = false;
 
@@ -43,6 +45,7 @@ class IdentityVerificationNotifier
     }
 
     _inFlight = true;
+    final token = beginRequest();
     final previous = state.data ?? const KycFlowData();
     state = NotifierState.loading(
       data: previous.copyWith(stage: KycFlowStage.initiating),
@@ -57,6 +60,9 @@ class IdentityVerificationNotifier
               identityNumber: number,
             ),
           );
+      // A response that lands after the user left, or after a newer
+      // submission started, must not overwrite the current flow state.
+      if (!isCurrent(token)) return;
 
       final data = result.data;
       if (result.isDone && data != null) {
@@ -125,10 +131,13 @@ final utilityBillUploadProvider =
 ///
 /// Completion is never called after a failed or expired upload, and a lapsed
 /// signed link is replaced by a fresh initiation rather than retried.
-class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
+class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
+    with StaleResultGuard<NotifierState<KycFlowData>> {
   @override
-  NotifierState<KycFlowData> build() =>
-      const NotifierState.idle(data: KycFlowData());
+  NotifierState<KycFlowData> build() {
+    trackDisposal();
+    return const NotifierState.idle(data: KycFlowData());
+  }
 
   bool _inFlight = false;
 
@@ -198,6 +207,7 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
     }
 
     _inFlight = true;
+    final token = beginRequest();
     try {
       // Stage 1 — ask the API for a signed upload target.
       state = NotifierState.loading(
@@ -219,6 +229,9 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
               fileSizeBytes: bill.sizeInBytes,
             ),
           );
+
+      // Abandoning here is safe: no bytes have moved yet.
+      if (!isCurrent(token)) return;
 
       final target = initiation.data;
       if (!initiation.isDone || target == null) {
@@ -254,6 +267,11 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
             headers: target.headersFor(bill.contentType),
           );
 
+      // The session ended or a newer submission started while bytes were in
+      // flight. Stop before completion: confirming an upload for a flow that
+      // is no longer the user's would be wrong even if the PUT succeeded.
+      if (!isCurrent(token)) return;
+
       if (!upload.isDone) {
         // Completion must not run for bytes that never landed. Drop the
         // verification context so a retry re-initiates rather than reusing a
@@ -275,7 +293,7 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
           uploadCompleted: true,
         ),
       );
-      await _complete(withTarget.copyWith(uploadCompleted: true));
+      await _complete(withTarget.copyWith(uploadCompleted: true), token);
     } finally {
       _inFlight = false;
     }
@@ -291,20 +309,22 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>> {
     if (!flow.uploadCompleted || flow.verificationId == null) return;
 
     _inFlight = true;
+    final token = beginRequest();
     try {
       state = NotifierState.loading(
         data: flow.copyWith(stage: KycFlowStage.completing),
       );
-      await _complete(flow);
+      await _complete(flow, token);
     } finally {
       _inFlight = false;
     }
   }
 
-  Future<void> _complete(KycFlowData flow) async {
+  Future<void> _complete(KycFlowData flow, int token) async {
     final result = await ref
         .read(kycServiceProvider)
         .completeUtilityBillUpload(flow.verificationId!);
+    if (!isCurrent(token)) return;
 
     if (result.isDone) {
       state = NotifierState.done(
@@ -354,10 +374,13 @@ final governmentIdVerificationProvider =
 /// keeps document selection blocked. This notifier is ready for the moment
 /// those values are documented, and accepts only a caller-supplied wire value.
 class GovernmentIdVerificationNotifier
-    extends Notifier<NotifierState<KycFlowData>> {
+    extends Notifier<NotifierState<KycFlowData>>
+    with StaleResultGuard<NotifierState<KycFlowData>> {
   @override
-  NotifierState<KycFlowData> build() =>
-      const NotifierState.idle(data: KycFlowData());
+  NotifierState<KycFlowData> build() {
+    trackDisposal();
+    return const NotifierState.idle(data: KycFlowData());
+  }
 
   bool _inFlight = false;
 
@@ -372,6 +395,7 @@ class GovernmentIdVerificationNotifier
     }
 
     _inFlight = true;
+    final token = beginRequest();
     final previous = state.data ?? const KycFlowData();
     state = NotifierState.loading(
       data: previous.copyWith(stage: KycFlowStage.initiating),
@@ -386,6 +410,7 @@ class GovernmentIdVerificationNotifier
               documentNumber: documentNumber?.trim(),
             ),
           );
+      if (!isCurrent(token)) return;
 
       final data = result.data;
       if (result.isDone && data != null) {

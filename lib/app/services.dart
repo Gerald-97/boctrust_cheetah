@@ -343,3 +343,29 @@ abstract final class ProcessProvider {
     }
   }
 }
+
+/// Discards results from superseded or disposed async requests.
+///
+/// Two things can make an in-flight response wrong by the time it lands: a
+/// newer request for the same data has already started, or the notifier has
+/// been disposed (logout, session expiry, provider invalidation). Writing
+/// either result would show stale data or throw.
+///
+/// Call [trackDisposal] once from `build()`, take a token from [beginRequest]
+/// before awaiting, and check [isCurrent] before assigning to `state`.
+mixin StaleResultGuard<T> on Notifier<T> {
+  int _generation = 0;
+  bool _disposed = false;
+
+  /// Registers disposal tracking. Call once from `build()`.
+  void trackDisposal() {
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
+  }
+
+  /// Opens a new logical request, superseding any older one still in flight.
+  int beginRequest() => ++_generation;
+
+  /// Whether [token] is still the newest request and this notifier is alive.
+  bool isCurrent(int token) => !_disposed && token == _generation;
+}

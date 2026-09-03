@@ -9,15 +9,21 @@ final userHomeProvider =
       UserHomeNotifier.new,
     );
 
-class UserHomeNotifier extends Notifier<NotifierState<UserHomeData>> {
+class UserHomeNotifier extends Notifier<NotifierState<UserHomeData>>
+    with StaleResultGuard<NotifierState<UserHomeData>> {
   @override
-  NotifierState<UserHomeData> build() => const NotifierState.idle();
+  NotifierState<UserHomeData> build() {
+    trackDisposal();
+    return const NotifierState.idle();
+  }
 
   /// Loads the Home aggregate, keeping any previously loaded data visible
   /// while the request is in flight so a refresh never blanks the screen.
   Future<NotifierState<UserHomeData>> load() async {
+    final token = beginRequest();
     state = NotifierState.loading(data: state.data);
     final result = await ref.read(homeServiceProvider).getOwnHome();
+    if (!isCurrent(token)) return result;
     // Preserve stale data on failure so the section can show it beside an
     // inline retry rather than collapsing to an empty card.
     state = result.isError && result.data == null && state.data != null

@@ -865,20 +865,42 @@ extension AccountScreens on AppFlowNavigatorState {
                 ),
               ],
             ),
-            const SectionHeader(title: 'Support'),
-            const SettingsGroup(
+            const SectionHeader(title: 'Notifications'),
+            SettingsGroup(
               children: [
+                SettingsTile(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Notification settings',
+                  subtitle: 'Not supported by the current API',
+                  trailing: SmallPill.unavailable('Unavailable'),
+                  onTap: () => _showMessage(
+                    'Notification preferences are unavailable in this API '
+                    'release.',
+                  ),
+                ),
+              ],
+            ),
+            const SectionHeader(title: 'Support'),
+            SettingsGroup(
+              children: [
+                // No support API exists, so there is no ticket state or reply
+                // time to report. Only the published contact details are shown.
                 SettingsTile(
                   icon: Icons.chat_bubble_outline_rounded,
                   title: 'Chat with support',
-                  subtitle: 'Average reply time: 2 minutes',
+                  subtitle: 'Not supported by the current API',
+                  trailing: SmallPill.unavailable('Unavailable'),
+                  onTap: () => _showMessage(
+                    'In-app chat is unavailable in this API release. Please '
+                    'call or email support.',
+                  ),
                 ),
-                SettingsTile(
+                const SettingsTile(
                   icon: Icons.phone_outlined,
                   title: 'Call customer care',
                   subtitle: '+234 906 464 1439 · 0703 973 9086',
                 ),
-                SettingsTile(
+                const SettingsTile(
                   icon: Icons.mail_outline_rounded,
                   title: 'Email support',
                   subtitle: 'info@boctrustmfb.com',
@@ -886,17 +908,27 @@ extension AccountScreens on AppFlowNavigatorState {
               ],
             ),
             const SectionHeader(title: 'Legal'),
-            const SettingsGroup(
+            SettingsGroup(
               children: [
+                // No policy-content endpoint and no bundled copy, so these
+                // cannot open anything yet.
                 SettingsTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Policy',
-                  subtitle: 'How we handle your data',
+                  subtitle: 'Not available in the app yet',
+                  trailing: SmallPill.unavailable('Unavailable'),
+                  onTap: () => _showMessage(
+                    'The privacy policy is not available in the app yet.',
+                  ),
                 ),
                 SettingsTile(
                   icon: Icons.description_outlined,
                   title: 'Terms & Conditions',
-                  subtitle: 'Rules for using Cheetah',
+                  subtitle: 'Not available in the app yet',
+                  trailing: SmallPill.unavailable('Unavailable'),
+                  onTap: () => _showMessage(
+                    'The terms and conditions are not available in the app yet.',
+                  ),
                 ),
               ],
             ),

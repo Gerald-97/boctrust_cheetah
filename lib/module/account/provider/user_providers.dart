@@ -11,13 +11,28 @@ final userProfileProvider =
       UserProfileNotifier.new,
     );
 
-class UserProfileNotifier extends Notifier<NotifierState<UserOwnProfileData>> {
+class UserProfileNotifier extends Notifier<NotifierState<UserOwnProfileData>>
+    with StaleResultGuard<NotifierState<UserOwnProfileData>> {
   @override
-  NotifierState<UserOwnProfileData> build() => const NotifierState.idle();
+  NotifierState<UserOwnProfileData> build() {
+    trackDisposal();
+    return const NotifierState.idle();
+  }
 
   Future<NotifierState<UserOwnProfileData>> load() async {
+    final previousImageUrl = state.data?.imageUrl;
+    final token = beginRequest();
     state = NotifierState.loading(data: state.data);
-    state = await ref.read(userServiceProvider).getOwnProfile();
+    final result = await ref.read(userServiceProvider).getOwnProfile();
+    if (!isCurrent(token)) return result;
+    state = result;
+
+    // The signed URL points at whichever object the profile referenced when it
+    // was issued. If the profile now names a different image — or none — that
+    // URL is stale, so drop it and let the avatar request a fresh one.
+    if (result.isDone && result.data?.imageUrl != previousImageUrl) {
+      ref.read(profileImageSignedUrlProvider.notifier).clear();
+    }
     return state;
   }
 
@@ -36,13 +51,20 @@ final userTierProvider =
       UserTierNotifier.new,
     );
 
-class UserTierNotifier extends Notifier<NotifierState<UserTierInfoData>> {
+class UserTierNotifier extends Notifier<NotifierState<UserTierInfoData>>
+    with StaleResultGuard<NotifierState<UserTierInfoData>> {
   @override
-  NotifierState<UserTierInfoData> build() => const NotifierState.idle();
+  NotifierState<UserTierInfoData> build() {
+    trackDisposal();
+    return const NotifierState.idle();
+  }
 
   Future<NotifierState<UserTierInfoData>> load() async {
+    final token = beginRequest();
     state = NotifierState.loading(data: state.data);
-    state = await ref.read(userServiceProvider).getOwnTier();
+    final result = await ref.read(userServiceProvider).getOwnTier();
+    if (!isCurrent(token)) return result;
+    state = result;
     return state;
   }
 
@@ -62,10 +84,13 @@ final profileImageSignedUrlProvider =
 /// time. A missing image is an empty state, not an error: it must never raise
 /// a page-level failure.
 class ProfileImageSignedUrlNotifier
-    extends Notifier<NotifierState<ProfileImageSignedUrlData>> {
+    extends Notifier<NotifierState<ProfileImageSignedUrlData>>
+    with StaleResultGuard<NotifierState<ProfileImageSignedUrlData>> {
   @override
-  NotifierState<ProfileImageSignedUrlData> build() =>
-      const NotifierState.idle();
+  NotifierState<ProfileImageSignedUrlData> build() {
+    trackDisposal();
+    return const NotifierState.idle();
+  }
 
   bool _inFlight = false;
 
@@ -86,11 +111,13 @@ class ProfileImageSignedUrlNotifier
 
     _inFlight = true;
     _attempted = true;
+    final token = beginRequest();
     state = NotifierState.loading(data: force ? null : state.data);
     try {
       final result = await ref
           .read(userServiceProvider)
           .getProfileImageSignedUrl();
+      if (!isCurrent(token)) return;
       // A missing image is an empty avatar state, never a screen error.
       state = result.isError && result.statusCode == 404
           ? const NotifierState.empty()
