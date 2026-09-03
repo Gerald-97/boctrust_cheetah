@@ -155,25 +155,50 @@ class ContactCard extends StatelessWidget {
 }
 
 class BankRow extends StatelessWidget {
-  const BankRow({required this.name, required this.subtitle, super.key});
+  const BankRow({
+    required this.name,
+    required this.subtitle,
+    this.onTap,
+    this.trailing,
+    this.semanticsLabel,
+    this.enabled = true,
+    super.key,
+  });
+
   final String name;
   final String subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final String? semanticsLabel;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const RoundedIcon(
-        icon: Icons.account_balance_outlined,
-        color: BocColors.blue,
-        size: 38,
+    final interactive = enabled && onTap != null;
+    return Semantics(
+      button: interactive,
+      enabled: interactive,
+      label: semanticsLabel ?? '$name. $subtitle',
+      excludeSemantics: true,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        minTileHeight: 48,
+        enabled: interactive,
+        onTap: interactive ? onTap : null,
+        leading: RoundedIcon(
+          icon: Icons.account_balance_outlined,
+          color: interactive ? BocColors.blue : BocColors.grey,
+          size: 38,
+        ),
+        title: Text(
+          name,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(subtitle),
+        trailing:
+            trailing ??
+            (interactive ? const Icon(Icons.chevron_right_rounded) : null),
       ),
-      title: Text(
-        name,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-      ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }

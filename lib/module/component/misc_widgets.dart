@@ -26,24 +26,61 @@ class RoundedIcon extends StatelessWidget {
   }
 }
 
+/// Compact status chip.
+///
+/// Defaults to the brand gold so existing callers are unchanged. Pass
+/// [foreground]/[background] for semantic states. The chip always carries its
+/// own text, so colour is never the only status signal.
 class SmallPill extends StatelessWidget {
-  const SmallPill({required this.text, super.key});
+  const SmallPill({
+    required this.text,
+    this.foreground,
+    this.background,
+    super.key,
+  });
+
   final String text;
+  final Color? foreground;
+  final Color? background;
+
+  /// Verified, active, or otherwise complete.
+  factory SmallPill.success(String text) => SmallPill(
+    text: text,
+    foreground: BocColors.green,
+    background: BocColors.greenPale,
+  );
+
+  /// Pending, in progress, or awaiting review.
+  factory SmallPill.pending(String text) => SmallPill(text: text);
+
+  /// Failed or rejected.
+  factory SmallPill.failed(String text) => SmallPill(
+    text: text,
+    foreground: BocColors.red,
+    background: BocColors.red.withValues(alpha: 0.12),
+  );
+
+  /// Unavailable, locked, or blocked by a missing backend contract.
+  factory SmallPill.unavailable(String text) => SmallPill(
+    text: text,
+    foreground: BocColors.grey,
+    background: BocColors.greyPale,
+  );
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: context.bocColors.goldPale,
+        color: background ?? context.bocColors.goldPale,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w800,
-          color: BocColors.gold,
+          color: foreground ?? BocColors.gold,
         ),
       ),
     );

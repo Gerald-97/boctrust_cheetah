@@ -58,6 +58,8 @@ part '../component/notification_widgets.dart';
 
 part '../component/misc_widgets.dart';
 
+part '../component/api_state_widgets.dart';
+
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
 part '../account/screens/kyc_screens.dart';

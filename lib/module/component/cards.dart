@@ -32,14 +32,46 @@ class SurfaceCard extends StatelessWidget {
   }
 }
 
+/// Displays an API-supplied balance.
+///
+/// This widget renders values only. It never parses money, derives a balance,
+/// or supplies a placeholder amount — [balance] must already be formatted by
+/// the screen or view model. While [loading] with no balance yet, it shows a
+/// neutral placeholder rather than inventing a number.
 class BalanceCard extends StatelessWidget {
-  const BalanceCard({required this.hidden, required this.onToggle, super.key});
+  const BalanceCard({
+    required this.label,
+    required this.balance,
+    required this.hidden,
+    required this.onToggle,
+    this.secondaryLabel,
+    this.secondaryValue,
+    this.statusLabel,
+    this.footer,
+    this.loading = false,
+    super.key,
+  });
 
+  final String label;
+
+  /// Preformatted display balance, or null when none has been returned yet.
+  final String? balance;
   final bool hidden;
   final VoidCallback onToggle;
+  final String? secondaryLabel;
+  final String? secondaryValue;
+  final String? statusLabel;
+  final Widget? footer;
+  final bool loading;
+
+  static const _mutedText = Color(0xFFC7D3E0);
 
   @override
   Widget build(BuildContext context) {
+    final secondary = secondaryValue;
+    final status = statusLabel;
+    final footerWidget = footer;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
       decoration: BoxDecoration(
@@ -72,34 +104,37 @@ class BalanceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Total savings balance',
-                  style: TextStyle(color: Color(0xFFC7D3E0), fontSize: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(color: _mutedText, fontSize: 12),
+                      ),
+                    ),
+                    if (loading)
+                      const SizedBox(
+                        width: 13,
+                        height: 13,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _mutedText,
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          hidden ? '••••••••••' : '₦1,248,530.75',
-                          key: ValueKey(hidden),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                    ),
+                    Expanded(child: _balanceText(context)),
                     IconButton.filledTonal(
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: 0.16),
                         foregroundColor: Colors.white,
+                        minimumSize: const Size(48, 48),
                       ),
-                      onPressed: onToggle,
+                      onPressed: balance == null ? null : onToggle,
+                      tooltip: hidden ? 'Show balance' : 'Hide balance',
                       icon: Icon(
                         hidden
                             ? Icons.visibility_off_outlined
@@ -108,53 +143,80 @@ class BalanceCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.trending_up_rounded,
+                if (status != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    status,
+                    style: const TextStyle(
                       color: BocColors.goldLight,
-                      size: 15,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
                     ),
-                    SizedBox(width: 5),
-                    Text(
-                      '+₦412.60 interest earned today',
-                      style: TextStyle(
-                        color: BocColors.goldLight,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
+                  ),
+                ],
+                if (secondary != null || footerWidget != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  const SizedBox(height: 13),
+                ],
+                if (secondary != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        secondaryLabel ?? '',
+                        style: const TextStyle(
+                          color: _mutedText,
+                          fontSize: 11.5,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-                const SizedBox(height: 13),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Account no.  0142 337 705',
-                      style: TextStyle(
-                        color: Color(0xFFC7D3E0),
-                        fontSize: 11.5,
+                      Text(
+                        hidden ? '••••••' : secondary,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Tier 1 · Verified',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ?footerWidget,
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _balanceText(BuildContext context) {
+    final value = balance;
+    final text = value == null
+        ? '—'
+        : hidden
+        ? '••••••••••'
+        : value;
+    return Semantics(
+      label: value == null
+          ? '$label unavailable'
+          : hidden
+          ? '$label hidden'
+          : '$label $value',
+      excludeSemantics: true,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        child: Text(
+          text,
+          key: ValueKey('$text-$hidden'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+          ),
+        ),
       ),
     );
   }

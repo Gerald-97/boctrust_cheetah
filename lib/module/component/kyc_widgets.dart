@@ -39,6 +39,8 @@ class TierCard extends StatelessWidget {
     required this.statusColor,
     required this.leadingColor,
     required this.onTap,
+    this.actionLabel,
+    this.lockReason,
     super.key,
   });
 
@@ -49,10 +51,39 @@ class TierCard extends StatelessWidget {
   final String status;
   final Color statusColor;
   final Color leadingColor;
-  final VoidCallback onTap;
+
+  /// Null for a locked card or an unknown backend status: the card renders as
+  /// disabled rather than navigating somewhere it cannot act.
+  final VoidCallback? onTap;
+  final String? actionLabel;
+
+  /// Backend-supplied explanation shown inside a locked card.
+  final String? lockReason;
 
   @override
   Widget build(BuildContext context) {
+    final reason = lockReason;
+    final action = actionLabel;
+    final enabled = onTap != null;
+
+    return Semantics(
+      button: enabled,
+      enabled: enabled,
+      label: '$title. $status${reason == null ? '' : '. $reason'}',
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.62,
+        child: _card(context, reason: reason, action: action, enabled: enabled),
+      ),
+    );
+  }
+
+  Widget _card(
+    BuildContext context, {
+    required String? reason,
+    required String? action,
+    required bool enabled,
+  }) {
     return SurfaceCard(
       onTap: onTap,
       child: Row(
@@ -122,18 +153,60 @@ class TierCard extends StatelessWidget {
                       .toList(),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                    if (action != null) ...[
+                      Text(
+                        '  ·  ',
+                        style: TextStyle(color: context.bocColors.textMain),
+                      ),
+                      Text(
+                        action,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+                if (reason != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 12,
+                        color: BocColors.grey,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          reason,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontSize: 10.5,
+                                color: context.bocColors.textMain,
+                                height: 1.35,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, size: 18),
+          if (enabled) const Icon(Icons.chevron_right_rounded, size: 18),
         ],
       ),
     );
@@ -203,20 +276,34 @@ class StepIndicator extends StatelessWidget {
   }
 }
 
+/// Shows the status of one verification requirement.
+///
+/// The status is always supplied by the caller from backend state. This widget
+/// never asserts that something is verified — an initiation response means the
+/// job was submitted, not that it succeeded.
 class VerificationCard extends StatelessWidget {
   const VerificationCard({
     required this.title,
     required this.description,
-    required this.value,
+    required this.statusLabel,
+    required this.statusColor,
+    this.value,
+    this.icon = Icons.badge_outlined,
     super.key,
   });
 
   final String title;
   final String description;
-  final String value;
+  final String statusLabel;
+  final Color statusColor;
+
+  /// Masked identifier, when one has been submitted.
+  final String? value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
+    final displayValue = value;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,32 +324,37 @@ class VerificationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(13),
               border: Border.all(color: Theme.of(context).dividerColor),
             ),
-            child: Row(
-              children: [
-                const RoundedIcon(
-                  icon: Icons.badge_outlined,
-                  color: BocColors.green,
-                  size: 36,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+            child: Semantics(
+              label: '$title $statusLabel',
+              child: Row(
+                children: [
+                  RoundedIcon(icon: icon, color: statusColor, size: 36),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      displayValue ?? description,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: displayValue == null
+                            ? context.bocColors.textMain
+                            : null,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-                const Text(
-                  'Verified',
-                  style: TextStyle(
-                    color: BocColors.green,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(width: 8),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -271,47 +363,107 @@ class VerificationCard extends StatelessWidget {
   }
 }
 
+/// File picker affordance for document upload.
+///
+/// The accepted types and size limit are supplied through [helperText] so they
+/// track the API contract rather than being fixed in the component.
 class DashedLikeUpload extends StatelessWidget {
-  const DashedLikeUpload({required this.onTap, super.key});
+  const DashedLikeUpload({
+    required this.title,
+    required this.helperText,
+    required this.onTap,
+    this.selectedFileName,
+    this.enabled = true,
+    this.loading = false,
+    super.key,
+  });
+
+  final String title;
+  final String helperText;
   final VoidCallback onTap;
+  final String? selectedFileName;
+  final bool enabled;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: BocColors.blue, width: 1.4),
-        ),
-        child: const Row(
-          children: [
-            RoundedIcon(
-              icon: Icons.upload_file_outlined,
-              color: BocColors.blue,
-              size: 40,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Upload document',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+    final theme = Theme.of(context);
+    final selected = selectedFileName;
+    final interactive = enabled && !loading;
+    final accent = interactive ? BocColors.blue : BocColors.grey;
+    final subtitle = selected ?? helperText;
+
+    return Semantics(
+      button: true,
+      enabled: interactive,
+      label: selected == null
+          ? '$title. $helperText'
+          : '$title. Selected file $selected',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: interactive ? onTap : null,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: accent, width: 1.4),
+          ),
+          child: Row(
+            children: [
+              if (loading)
+                const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'PDF or JPEG, max 5MB',
-                    style: TextStyle(color: BocColors.inkSoft, fontSize: 11),
-                  ),
-                ],
+                )
+              else
+                RoundedIcon(
+                  icon: selected == null
+                      ? Icons.upload_file_outlined
+                      : Icons.description_outlined,
+                  color: accent,
+                  size: 40,
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: interactive ? null : BocColors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: context.bocColors.textMain,
+                        fontSize: 11,
+                        fontWeight: selected == null
+                            ? FontWeight.w400
+                            : FontWeight.w700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

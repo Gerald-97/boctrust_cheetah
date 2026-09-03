@@ -187,7 +187,8 @@ extension KycScreens on AppFlowNavigatorState {
             title: 'BVN verification',
             description:
                 'Matched against CBN records automatically — no documents to upload.',
-            value: 'BVN — •••• •••• 2214',
+            statusLabel: 'Not started',
+            statusColor: BocColors.grey,
           ),
           const SizedBox(height: 14),
           SurfaceCard(
@@ -261,7 +262,8 @@ extension KycScreens on AppFlowNavigatorState {
           const VerificationCard(
             title: 'NIN verification',
             description: 'Matched against NIMC records automatically.',
-            value: 'NIN — •••• •••• 8830',
+            statusLabel: 'Not started',
+            statusColor: BocColors.grey,
           ),
           const SizedBox(height: 14),
           SurfaceCard(
@@ -396,6 +398,8 @@ extension KycScreens on AppFlowNavigatorState {
             ),
             const SizedBox(height: 12),
             DashedLikeUpload(
+              title: 'Upload document',
+              helperText: 'PDF, JPEG or PNG, maximum 10 MB',
               onTap: () => _showMessage('Document picker opened.'),
             ),
           ],
