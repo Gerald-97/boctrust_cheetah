@@ -23,6 +23,21 @@ abstract final class ApiEndpoints {
   static const verifyIdentifier = '/auth/identifier-verification/verify';
   static const ownProfile = '/users/me/profile';
   static const ownTier = '/users/me/tier';
+  static const ownHome = '/users/me/home';
+  static const profileImageSignedUrl = '/users/me/profile-image/signed-url';
+
+  static const withdrawalBankAccounts = '/users/me/withdrawal-bank-accounts';
+  static String withdrawalBankAccount(String bankAccountId) =>
+      '$withdrawalBankAccounts/${Uri.encodeComponent(bankAccountId)}';
+
+  static const initiateIdentityVerification = '/users/me/kyc/identity/initiate';
+  static const initiateGovernmentIdVerification =
+      '/users/me/kyc/government-id/initiate';
+  static const initiateUtilityBillUpload =
+      '/users/me/kyc/utility-bill/initiate';
+  static String completeUtilityBillUpload(String verificationId) =>
+      '/users/me/kyc/utility-bill/'
+      '${Uri.encodeComponent(verificationId)}/complete';
 
   static const publicOperations = <({String method, String path})>{
     (method: 'POST', path: signup),

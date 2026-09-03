@@ -86,6 +86,20 @@ class ApiService {
     parser,
   );
 
+  Future<ServiceResponse<T>> deleteData<T>(
+    String path, {
+    Object? data,
+    required ApiDataParser<T> parser,
+    Map<String, Object?>? requestExtra,
+  }) => _request(
+    () => _dio.delete<Object?>(
+      path,
+      data: data,
+      options: Options(extra: requestExtra),
+    ),
+    parser,
+  );
+
   Future<ServiceResponse<T>> _request<T>(
     Future<Response<Object?>> Function() call,
     ApiDataParser<T> parser,
