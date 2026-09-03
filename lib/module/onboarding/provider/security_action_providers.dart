@@ -4,6 +4,7 @@ import '../../../app/auth_navigation_provider.dart';
 import '../../../app/services.dart';
 import '../../../utils/auth_input.dart';
 import '../../account/provider/user_providers.dart';
+import '../../home/provider/home_provider.dart';
 import '../model/auth_requests.dart';
 import '../model/auth_responses.dart';
 import '../service/auth_service.dart';
@@ -164,6 +165,7 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
       }
       ref.read(userProfileProvider.notifier).clear();
       ref.read(userTierProvider.notifier).clear();
+      ref.read(userHomeProvider.notifier).clear();
       ref.invalidate(signupFlowProvider);
       ref.invalidate(loginFlowProvider);
       ref.invalidate(passwordRecoveryProvider);

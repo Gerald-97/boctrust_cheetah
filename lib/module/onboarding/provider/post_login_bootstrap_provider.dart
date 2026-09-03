@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/auth_navigation_provider.dart';
 import '../../../app/services.dart';
 import '../../account/provider/user_providers.dart';
+import '../../home/provider/home_provider.dart';
 import '../model/auth_flow_models.dart';
 import 'fcm_token_provider.dart';
 
@@ -52,7 +53,11 @@ class PostLoginBootstrapNotifier
       statusCode: profileState.statusCode,
       meta: profileState.meta,
     );
+    // Profile is the only blocking bootstrap request. Tier, Home, and FCM
+    // hydrate independently so a slow or failing one cannot hold the user on
+    // the bootstrap screen.
     unawaited(ref.read(userTierProvider.notifier).load());
+    unawaited(ref.read(userHomeProvider.notifier).load());
     unawaited(ref.read(fcmTokenProvider.notifier).registerAfterBootstrap());
     return profile.isCreatedPin
         ? AuthDestination.home

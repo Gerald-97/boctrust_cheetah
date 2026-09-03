@@ -46,3 +46,51 @@ String notificationDateGroup(DateTime date, {DateTime? now}) {
 
 String stripAmountFormatting(String value) =>
     value.replaceAll(',', '').replaceAll('₦', '').trim();
+
+const _currencySymbols = <String, String>{'NGN': '₦'};
+
+/// Formats an API-authoritative decimal amount string for display.
+///
+/// The amount is grouped and prefixed by pure string manipulation so the
+/// server's exact precision is preserved. It is deliberately never parsed to
+/// `double` — binary floating point cannot represent decimal money exactly,
+/// and the client must not restate a balance the API did not send.
+///
+/// Returns null when [amount] is absent or is not a plain decimal number, so
+/// callers render an explicit unavailable state instead of a wrong figure.
+String? formatApiAmount(String? amount, {String? currency}) {
+  final raw = amount?.trim();
+  if (raw == null || raw.isEmpty) return null;
+
+  final match = RegExp(r'^(-?)(\d+)(?:\.(\d+))?$').firstMatch(raw);
+  if (match == null) return null;
+
+  final sign = match.group(1)!;
+  final whole = match.group(2)!;
+  final fraction = match.group(3);
+
+  final grouped = StringBuffer();
+  for (var i = 0; i < whole.length; i++) {
+    if (i > 0 && (whole.length - i) % 3 == 0) grouped.write(',');
+    grouped.write(whole[i]);
+  }
+
+  final symbol = _currencySymbols[currency?.toUpperCase()] ?? '';
+  final suffix = symbol.isEmpty && currency != null && currency.isNotEmpty
+      ? ' $currency'
+      : '';
+  return '$sign$symbol$grouped${fraction == null ? '' : '.$fraction'}$suffix';
+}
+
+/// Masks all but the last [visible] characters of an identifier.
+String maskTrailing(String value, {int visible = 4, int groupSize = 4}) {
+  final trimmed = value.trim();
+  if (trimmed.length <= visible) return trimmed;
+  final hiddenCount = trimmed.length - visible;
+  final buffer = StringBuffer();
+  for (var i = 0; i < hiddenCount; i++) {
+    if (i > 0 && i % groupSize == 0) buffer.write(' ');
+    buffer.write('•');
+  }
+  return '$buffer ${trimmed.substring(hiddenCount)}';
+}

@@ -576,11 +576,56 @@ extension AccountScreens on AppFlowNavigatorState {
     return result.isEmpty ? 'BC' : result;
   }
 
+  /// Read-only mirror of the dedicated virtual account already loaded by Home.
+  ///
+  /// Copying the number stays on Home, where the full account details are
+  /// shown; this tile only reports status.
+  Widget _virtualAccountTile(DedicatedVirtualAccountData? account) {
+    final (subtitle, pill) = switch (account?.status) {
+      DedicatedVirtualAccountStatus.available => (
+        account?.bankName == null
+            ? 'Ready for bank transfers'
+            : 'Ready · ${account!.bankName}',
+        SmallPill.success('Active'),
+      ),
+      DedicatedVirtualAccountStatus.pending => (
+        'Being set up for bank transfers',
+        SmallPill.pending('Pending'),
+      ),
+      DedicatedVirtualAccountStatus.failed => (
+        account?.failureReason ?? 'Setup did not complete',
+        SmallPill.failed('Failed'),
+      ),
+      DedicatedVirtualAccountStatus.notRequested => (
+        'Not set up for your profile yet',
+        SmallPill.unavailable('Not set up'),
+      ),
+      DedicatedVirtualAccountStatus.unknown => (
+        'Status could not be confirmed',
+        SmallPill.unavailable('Unknown'),
+      ),
+      null => ('Open Home to load your funding details', null),
+    };
+
+    return SettingsTile(
+      icon: Icons.account_balance_outlined,
+      title: 'Dedicated virtual account',
+      subtitle: subtitle,
+      trailing: pill,
+    );
+  }
+
   Widget _accountScreen() {
     final currentThemeMode = ref.watch(themeControllerProvider).mode;
     final profileState = ref.watch(userProfileProvider);
     final profile = profileState.data;
     final session = ref.watch(authSessionProvider);
+    // Read-only: Account reflects whatever Home already loaded and never
+    // starts its own Home request.
+    final virtualAccount = ref
+        .watch(userHomeProvider)
+        .data
+        ?.dedicatedVirtualAccount;
     if (profileState.status == ServiceStatus.idle && session != null) {
       Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
     }
@@ -755,13 +800,10 @@ extension AccountScreens on AppFlowNavigatorState {
                             initialIdentifier: profile.phoneNumber,
                           ),
                   ),
-                SettingsTile(
-                  icon: Icons.account_balance_outlined,
-                  title: 'Account provider',
-                  subtitle: 'Cheetah MFB',
-                ),
               ],
             ),
+            const SectionHeader(title: 'Wallet'),
+            SettingsGroup(children: [_virtualAccountTile(virtualAccount)]),
             const SectionHeader(title: 'More services'),
             SettingsGroup(
               children: [
