@@ -146,17 +146,14 @@ class ResetPasswordRequest implements JsonRequest {
 
 class ChangePasswordRequest implements JsonRequest {
   const ChangePasswordRequest({
-    required this.identifier,
     required this.currentPassword,
     required this.newPassword,
   });
-  final String identifier;
   final String currentPassword;
   final String newPassword;
 
   @override
   Map<String, Object?> toJson() => {
-    'identifier': identifier,
     'currentPassword': currentPassword,
     'newPassword': newPassword,
   };
@@ -180,21 +177,12 @@ class CreateFirstPinRequest implements JsonRequest {
 }
 
 class ChangePinRequest implements JsonRequest {
-  const ChangePinRequest({
-    required this.identifier,
-    required this.currentPin,
-    required this.newPin,
-  });
-  final String identifier;
+  const ChangePinRequest({required this.currentPin, required this.newPin});
   final String currentPin;
   final String newPin;
 
   @override
-  Map<String, Object?> toJson() => {
-    'identifier': identifier,
-    'currentPin': currentPin,
-    'newPin': newPin,
-  };
+  Map<String, Object?> toJson() => {'currentPin': currentPin, 'newPin': newPin};
 }
 
 class LoginRequest implements JsonRequest {

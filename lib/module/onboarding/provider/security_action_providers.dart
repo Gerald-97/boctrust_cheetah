@@ -53,17 +53,12 @@ class ChangePasswordNotifier extends Notifier<NotifierState<EmptyData>> {
   @override
   NotifierState<EmptyData> build() => const NotifierState.idle();
   Future<void> submit({
-    required String identifier,
     required String currentPassword,
     required String newPassword,
   }) async {
-    final normalizedIdentifier = normalizeIdentifier(identifier);
-    final identifierType = identifierTypeFor(normalizedIdentifier);
-    if (!isValidIdentifier(normalizedIdentifier, identifierType) ||
-        currentPassword.isEmpty ||
-        !isValidApiPassword(newPassword)) {
+    if (currentPassword.isEmpty || !isValidApiPassword(newPassword)) {
       state = const NotifierState.error(
-        'Enter valid credentials and a compliant new password.',
+        'Enter your current password and a compliant new password.',
       );
       return;
     }
@@ -72,7 +67,6 @@ class ChangePasswordNotifier extends Notifier<NotifierState<EmptyData>> {
         .read(authServiceProvider)
         .changePassword(
           ChangePasswordRequest(
-            identifier: normalizedIdentifier,
             currentPassword: currentPassword,
             newPassword: newPassword,
           ),
@@ -109,30 +103,19 @@ class ChangePinNotifier extends Notifier<NotifierState<EmptyData>> {
   @override
   NotifierState<EmptyData> build() => const NotifierState.idle();
   Future<void> submit({
-    required String identifier,
     required String currentPin,
     required String newPin,
   }) async {
-    final normalizedIdentifier = normalizeIdentifier(identifier);
-    final identifierType = identifierTypeFor(normalizedIdentifier);
-    if (!isValidIdentifier(normalizedIdentifier, identifierType) ||
-        !isValidTransactionPin(currentPin) ||
-        !isStrongTransactionPin(newPin)) {
+    if (!isValidTransactionPin(currentPin) || !isStrongTransactionPin(newPin)) {
       state = const NotifierState.error(
-        'Enter a valid identifier and choose a hard-to-guess new PIN.',
+        'Enter your current PIN and choose a hard-to-guess new PIN.',
       );
       return;
     }
     state = const NotifierState.loading();
     state = await ref
         .read(authServiceProvider)
-        .changePin(
-          ChangePinRequest(
-            identifier: normalizedIdentifier,
-            currentPin: currentPin,
-            newPin: newPin,
-          ),
-        );
+        .changePin(ChangePinRequest(currentPin: currentPin, newPin: newPin));
   }
 }
 

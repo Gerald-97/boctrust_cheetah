@@ -906,12 +906,6 @@ extension AccountScreens on AppFlowNavigatorState {
     _currentSecretController.clear();
     _passwordController.clear();
     _confirmPasswordController.clear();
-    final session = ref.read(authSessionProvider);
-    final identifier = session?.email ?? session?.phoneNumber;
-    if (identifier == null) {
-      _showMessage('Your session does not include a login identifier.');
-      return;
-    }
     final formKey = GlobalKey<FormState>();
     var autovalidateMode = AutovalidateMode.disabled;
     await showDialog<void>(
@@ -976,7 +970,6 @@ extension AccountScreens on AppFlowNavigatorState {
                 await ref
                     .read(changePasswordProvider.notifier)
                     .submit(
-                      identifier: identifier,
                       currentPassword: _currentSecretController.text,
                       newPassword: _passwordController.text,
                     );
@@ -1006,12 +999,6 @@ extension AccountScreens on AppFlowNavigatorState {
     _currentSecretController.clear();
     _pinController.clear();
     _confirmPinController.clear();
-    final session = ref.read(authSessionProvider);
-    final identifier = session?.email ?? session?.phoneNumber;
-    if (identifier == null) {
-      _showMessage('Your session does not include a login identifier.');
-      return;
-    }
     final formKey = GlobalKey<FormState>();
     var autovalidateMode = AutovalidateMode.disabled;
     await showDialog<void>(
@@ -1078,7 +1065,6 @@ extension AccountScreens on AppFlowNavigatorState {
                 await ref
                     .read(changePinProvider.notifier)
                     .submit(
-                      identifier: identifier,
                       currentPin: _currentSecretController.text,
                       newPin: _pinController.text,
                     );

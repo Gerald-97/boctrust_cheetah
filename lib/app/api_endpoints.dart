@@ -32,11 +32,9 @@ abstract final class ApiEndpoints {
     (method: 'POST', path: forgotPassword),
     (method: 'POST', path: verifyPasswordOtp),
     (method: 'POST', path: resetPassword),
-    (method: 'POST', path: changePassword),
     (method: 'POST', path: forgotPin),
     (method: 'POST', path: verifyPinOtp),
     (method: 'POST', path: resetPin),
-    (method: 'POST', path: changePin),
     (method: 'POST', path: login),
     (method: 'POST', path: verifyDevice),
   };
