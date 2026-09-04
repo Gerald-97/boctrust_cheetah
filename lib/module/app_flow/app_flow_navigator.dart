@@ -152,6 +152,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   final _identityNumberController = TextEditingController();
+  final _documentNumberController = TextEditingController();
+  final _governmentIdFormKey = GlobalKey<FormState>();
+  GovernmentIdDocumentType _selectedDocumentType =
+      GovernmentIdDocumentType.driversLicense;
   final _addressController = TextEditingController();
   final _addressStateController = TextEditingController();
   final _lgaController = TextEditingController();
@@ -209,6 +213,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _pinController.dispose();
     _confirmPinController.dispose();
     _identityNumberController.dispose();
+    _documentNumberController.dispose();
     _addressController.dispose();
     _addressStateController.dispose();
     _lgaController.dispose();

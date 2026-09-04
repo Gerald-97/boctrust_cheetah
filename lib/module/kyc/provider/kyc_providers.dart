@@ -370,9 +370,8 @@ final governmentIdVerificationProvider =
 
 /// Drives government-ID initiation.
 ///
-/// The canonical `documentType` wire values are not published, so the screen
-/// keeps document selection blocked. This notifier is ready for the moment
-/// those values are documented, and accepts only a caller-supplied wire value.
+/// Document types are a closed set confirmed by the backend, so the screen can
+/// offer them directly.
 class GovernmentIdVerificationNotifier
     extends Notifier<NotifierState<KycFlowData>>
     with StaleResultGuard<NotifierState<KycFlowData>> {
@@ -385,14 +384,10 @@ class GovernmentIdVerificationNotifier
   bool _inFlight = false;
 
   Future<void> submit({
-    required String documentType,
+    required GovernmentIdDocumentType documentType,
     String? documentNumber,
   }) async {
     if (_inFlight) return;
-    if (documentType.trim().isEmpty) {
-      state = NotifierState.error('Select a document type.', data: state.data);
-      return;
-    }
 
     _inFlight = true;
     final token = beginRequest();
@@ -406,7 +401,7 @@ class GovernmentIdVerificationNotifier
           .read(kycServiceProvider)
           .initiateGovernmentId(
             GovernmentIdVerificationRequest(
-              documentType: documentType.trim(),
+              documentType: documentType,
               documentNumber: documentNumber?.trim(),
             ),
           );

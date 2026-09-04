@@ -55,21 +55,40 @@ class IdentityVerificationRequest {
   };
 }
 
+/// Government-issued document accepted for Tier 2 verification.
+///
+/// Wire values are backend-confirmed. They are lower snake case and must be
+/// emitted exactly.
+enum GovernmentIdDocumentType {
+  voterId('voter_id', "Voter's card"),
+  driversLicense('drivers_license', "Driver's licence"),
+  internationalPassport('international_passport', 'International passport'),
+  ninSlip('nin_slip', 'NIN slip');
+
+  const GovernmentIdDocumentType(this.wireValue, this.label);
+  final String wireValue;
+  final String label;
+}
+
+/// ISO 3166-1 alpha-2 country of issue. Nigeria is the only market today.
+const kDefaultDocumentCountry = 'NG';
+
 class GovernmentIdVerificationRequest {
   const GovernmentIdVerificationRequest({
     required this.documentType,
     this.documentNumber,
+    this.country = kDefaultDocumentCountry,
   });
 
-  /// Backend-confirmed wire value. Never assembled from a product label — the
-  /// canonical set is not published yet, so values must come from the API.
-  final String documentType;
+  final GovernmentIdDocumentType documentType;
   final String? documentNumber;
+  final String country;
 
   Map<String, Object?> toJson() => {
-    'documentType': documentType,
-    if (documentNumber != null && documentNumber!.isNotEmpty)
-      'documentNumber': documentNumber,
+    'documentType': documentType.wireValue,
+    'country': country,
+    if (documentNumber != null && documentNumber!.trim().isNotEmpty)
+      'documentNumber': documentNumber!.trim(),
   };
 }
 
@@ -82,6 +101,7 @@ class KycInitiationData extends Equatable {
     required this.verificationId,
     this.provider,
     this.product,
+    this.sdkJobType,
     this.environment,
     this.identityType,
     this.identityLastFour,
@@ -98,6 +118,8 @@ class KycInitiationData extends Equatable {
       verificationId: json['verificationId']! as String,
       provider: json['provider'] as String?,
       product: json['product'] as String?,
+      // `jobType` is the documented alias; either may carry the value.
+      sdkJobType: json['sdkJobType'] as String? ?? json['jobType'] as String?,
       environment: json['environment'] as String?,
       identityType: json['identityType'] as String?,
       identityLastFour: json['identityLastFour'] as String?,
@@ -112,6 +134,12 @@ class KycInitiationData extends Equatable {
   final String verificationId;
   final String? provider;
   final String? product;
+
+  /// Smile ID job type for this verification, chosen by the backend.
+  ///
+  /// The client passes it through to the SDK rather than hard-coding a job
+  /// type, so a backend product change does not require an app release.
+  final String? sdkJobType;
   final String? environment;
   final String? identityType;
   final String? identityLastFour;
@@ -128,6 +156,7 @@ class KycInitiationData extends Equatable {
     verificationId,
     provider,
     product,
+    sdkJobType,
     environment,
     identityType,
     identityLastFour,

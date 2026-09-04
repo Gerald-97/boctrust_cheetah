@@ -208,19 +208,53 @@ void main() {
       );
     });
 
-    test('government-ID request omits an absent document number', () {
+    test('government-ID document types emit the backend wire values', () {
+      expect(GovernmentIdDocumentType.values.map((t) => t.wireValue).toList(), [
+        'voter_id',
+        'drivers_license',
+        'international_passport',
+        'nin_slip',
+      ]);
+    });
+
+    test('government-ID request defaults country and omits a blank number', () {
       expect(
         const GovernmentIdVerificationRequest(
-          documentType: 'voter_id',
+          documentType: GovernmentIdDocumentType.driversLicense,
         ).toJson(),
-        {'documentType': 'voter_id'},
+        {'documentType': 'drivers_license', 'country': 'NG'},
       );
       expect(
         const GovernmentIdVerificationRequest(
-          documentType: 'voter_id',
-          documentNumber: '',
+          documentType: GovernmentIdDocumentType.voterId,
+          documentNumber: '   ',
         ).toJson().containsKey('documentNumber'),
         isFalse,
+      );
+      expect(
+        const GovernmentIdVerificationRequest(
+          documentType: GovernmentIdDocumentType.ninSlip,
+          documentNumber: ' ABC123 ',
+        ).toJson()['documentNumber'],
+        'ABC123',
+      );
+    });
+
+    test('initiation reads the job type the backend chose', () {
+      expect(
+        KycInitiationData.fromJson({
+          'verificationId': 'v-1',
+          'sdkJobType': 'enhancedKyc',
+        }).sdkJobType,
+        'enhancedKyc',
+      );
+      // `jobType` is the documented alias for the same value.
+      expect(
+        KycInitiationData.fromJson({
+          'verificationId': 'v-1',
+          'jobType': 'enhancedDocumentVerification',
+        }).sdkJobType,
+        'enhancedDocumentVerification',
       );
     });
 

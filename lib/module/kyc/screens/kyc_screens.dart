@@ -309,10 +309,14 @@ extension KycScreens on AppFlowNavigatorState {
 
   /// Government-ID verification.
   ///
-  /// Blocked: the canonical `documentType` wire values are not published, so
-  /// the app cannot offer a document list without guessing values the API
-  /// would reject.
+  /// Collects the document type and optional number, then initiates. Document
+  /// capture itself runs in the provider SDK, which is not connected yet.
   Widget _kycGovernmentIdScreen() {
+    final flowState = ref.watch(governmentIdVerificationProvider);
+    final flow = flowState.data ?? const KycFlowData();
+    final submitting = flowState.isLoading;
+    final initiated = flow.stage == KycFlowStage.awaitingProvider;
+
     return AppScaffold(
       title: 'Government ID',
       activeSection: AppSection.account,
@@ -322,33 +326,126 @@ extension KycScreens on AppFlowNavigatorState {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
           Text(
-            'Government ID verification raises your tier once it is connected.',
+            'Verify a government-issued ID to raise your account tier.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               height: 1.5,
               color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
           const SizedBox(height: 16),
-          const ApiStateCard(
-            title: 'Government ID is not available yet',
-            message:
-                'We are waiting on the list of accepted document types. '
-                'Submitting one now could be rejected, so this step stays '
-                'closed until it is ready.',
-            tone: ApiStateTone.blocked,
+          VerificationCard(
+            title: 'Government ID',
+            description: initiated
+                ? 'We have received your details and are checking them.'
+                : "Driver's licence, international passport, voter's card, or "
+                      'NIN slip.',
+            statusLabel: initiated ? 'Pending' : 'Not started',
+            statusColor: initiated ? BocColors.gold : BocColors.grey,
+            icon: Icons.badge_outlined,
+            value: initiated ? _selectedDocumentType.label : null,
           ),
           const SizedBox(height: 14),
-          const VerificationCard(
-            title: 'Government ID',
-            description:
-                "Driver's licence, international passport, voter's card, or "
-                'NIN slip.',
-            statusLabel: 'Unavailable',
-            statusColor: BocColors.grey,
-          ),
+          if (initiated) ...[
+            const ApiStateCard(
+              title: 'Verification in progress',
+              message:
+                  'Your document details have been submitted. Your tier '
+                  'updates automatically once the check completes.',
+              tone: ApiStateTone.info,
+            ),
+            const SizedBox(height: 14),
+            // Photographing the document and taking the matching selfie both
+            // happen inside the provider SDK, which is not wired up yet.
+            const ApiStateCard(
+              title: 'Document capture not available yet',
+              message:
+                  'Photographing your ID is not connected in this release. '
+                  'We will let you know when you can finish this step.',
+              tone: ApiStateTone.blocked,
+            ),
+          ] else
+            _governmentIdForm(submitting),
+          if (flowState.isError && flowState.message != null) ...[
+            const SizedBox(height: 14),
+            ApiStateCard(
+              title: 'Verification could not start',
+              message: flowState.message!,
+              tone: ApiStateTone.error,
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _governmentIdForm(bool submitting) {
+    return SurfaceCard(
+      child: Form(
+        key: _governmentIdFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose your document',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Use a document that is current and matches your legal name.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            FormDropdown<GovernmentIdDocumentType>(
+              label: 'Document type',
+              value: _selectedDocumentType,
+              items: GovernmentIdDocumentType.values
+                  .map(
+                    (type) =>
+                        DropdownMenuItem(value: type, child: Text(type.label)),
+                  )
+                  .toList(growable: false),
+              onChanged: submitting
+                  ? null
+                  : (value) => setState(() {
+                      if (value != null) _selectedDocumentType = value;
+                    }),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              label: 'Document number (optional)',
+              controller: _documentNumberController,
+              enabled: !submitting,
+              hintText: 'As printed on the document',
+            ),
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: submitting ? 'Submitting…' : 'Submit for verification',
+              onPressed: submitting ? null : _submitGovernmentId,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitGovernmentId() async {
+    await ref
+        .read(governmentIdVerificationProvider.notifier)
+        .submit(
+          documentType: _selectedDocumentType,
+          documentNumber: _documentNumberController.text,
+        );
+    if (!mounted) return;
+
+    final result = ref.read(governmentIdVerificationProvider);
+    if (result.isDone) {
+      _documentNumberController.clear();
+      _showSuccessMessage(result.message ?? 'Verification submitted.');
+    } else if (result.isError) {
+      _showErrorMessage(result.message ?? 'Verification could not start.');
+    }
   }
 
   /// Next of kin.
