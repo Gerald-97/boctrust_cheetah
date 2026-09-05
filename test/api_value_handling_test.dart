@@ -263,20 +263,20 @@ void main() {
         'verificationId': 'v-123',
         'provider': 'smile_id',
         'environment': 'sandbox',
-        'identityLastFour': '8901',
+        'identityLast4': '8901',
         'smileJobId': 'job-1',
         'partnerParams': {'k': 'v'},
       });
       expect(data.verificationId, 'v-123');
       expect(data.smileJobId, 'job-1');
-      expect(data.identityLastFour, '8901');
+      expect(data.identityLast4, '8901');
       expect(() => data.partnerParams['x'] = 1, throwsUnsupportedError);
     });
 
     test('initiation moves the flow to awaiting, never to verified', () {
       final data = KycInitiationData.fromJson({
         'verificationId': 'v-123',
-        'identityLastFour': '8901',
+        'identityLast4': '8901',
       });
       final flow = const KycFlowData().fromInitiation(
         data,
@@ -298,6 +298,24 @@ void main() {
         expect(flow.verificationId, 'v-123');
       },
     );
+    test('identity initiation reads identityLast4', () {
+      final data = KycInitiationData.fromJson({
+        'verificationId': 'verification-1',
+        'identityLast4': '8901',
+      });
+      expect(data.identityLast4, '8901');
+    });
+
+    test('government initiation preserves country and masked number', () {
+      final data = KycInitiationData.fromJson({
+        'verificationId': 'verification-2',
+        'country': 'NG',
+        'documentType': 'drivers_license',
+        'documentNumberLast4': '3456',
+      });
+      expect(data.country, 'NG');
+      expect(data.documentNumberLast4, '3456');
+    });
   });
 
   group('Utility bill upload', () {
@@ -327,8 +345,8 @@ void main() {
       final json = const UtilityBillInitiationRequest(
         residentialAddress: '1 Example Street',
         contentType: 'application/pdf',
-        state: '   ',
-        lga: '',
+        residentialState: '   ',
+        residentialLga: '',
         utilityNumber: 'M-1',
         utilityType: UtilityType.prePaid,
       ).toJson();
@@ -337,8 +355,8 @@ void main() {
       expect(json['contentType'], 'application/pdf');
       expect(json['utilityType'], 'PrePaid');
       expect(json['utilityNumber'], 'M-1');
-      expect(json.containsKey('state'), isFalse);
-      expect(json.containsKey('lga'), isFalse);
+      expect(json.containsKey('residentialState'), isFalse);
+      expect(json.containsKey('residentialLga'), isFalse);
     });
 
     test('upload target requires an HTTPS URL', () {
@@ -394,6 +412,30 @@ void main() {
       );
       expect(bill.sizeInBytes, 3);
       expect(kUtilityBillMaxBytes, 10485760);
+    });
+    test('utility request emits the published address keys', () {
+      final json = UtilityBillInitiationRequest(
+        residentialAddress: '1 Broad Street',
+        residentialState: 'Lagos',
+        residentialLga: 'Lagos Island',
+        billIssuedAt: DateTime.utc(2026, 8, 31),
+        contentType: 'application/pdf',
+      ).toJson();
+      expect(json['residentialState'], 'Lagos');
+      expect(json['residentialLga'], 'Lagos Island');
+      expect(json['billIssuedAt'], '2026-08-31T00:00:00.000Z');
+      expect(json.containsKey('state'), isFalse);
+      expect(json.containsKey('lga'), isFalse);
+      expect(json.containsKey('billIssueDate'), isFalse);
+    });
+
+    test('utility completion parses verification and pending status', () {
+      final data = UtilityBillCompletionData.fromJson({
+        'verificationId': 'verification-3',
+        'status': 'pending_review',
+      });
+      expect(data.verificationId, 'verification-3');
+      expect(data.status, 'pending_review');
     });
   });
 }

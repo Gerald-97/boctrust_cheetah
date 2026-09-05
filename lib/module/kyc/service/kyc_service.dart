@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/api_endpoints.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
-import '../../onboarding/model/auth_responses.dart' show EmptyData;
 import '../model/kyc_models.dart';
 
 final kycServiceProvider = Provider<KycService>(
@@ -45,12 +44,12 @@ class KycService {
   );
 
   /// Confirms the bytes were uploaded, moving the verification to review.
-  Future<NotifierState<EmptyData>> completeUtilityBillUpload(
+  Future<NotifierState<UtilityBillCompletionData>> completeUtilityBillUpload(
     String verificationId,
   ) async => NotifierState.fromResponse(
-    await _api.postData<EmptyData>(
+    await _api.postData<UtilityBillCompletionData>(
       ApiEndpoints.completeUtilityBillUpload(verificationId),
-      parser: (_) => const EmptyData(),
+      parser: UtilityBillCompletionData.fromJson,
     ),
   );
 }

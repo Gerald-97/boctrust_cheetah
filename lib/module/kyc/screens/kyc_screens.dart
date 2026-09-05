@@ -177,10 +177,10 @@ extension KycScreens on AppFlowNavigatorState {
                 : 'Matched against the issuing register automatically.',
             statusLabel: initiated ? 'Pending' : 'Not started',
             statusColor: initiated ? BocColors.gold : BocColors.grey,
-            value: flow.identityLastFour == null
+            value: flow.identityLast4 == null
                 ? null
                 : '${_selectedIdentityType.label} — '
-                      '•••• ••• ${flow.identityLastFour}',
+                      '•••• ••• ${flow.identityLast4}',
           ),
           const SizedBox(height: 14),
           if (initiated) ...[
@@ -724,8 +724,8 @@ extension KycScreens on AppFlowNavigatorState {
         .read(utilityBillUploadProvider.notifier)
         .submit(
           residentialAddress: _addressController.text,
-          state_: _addressStateController.text,
-          lga: _lgaController.text,
+          residentialState: _addressStateController.text,
+          residentialLga: _lgaController.text,
           utilityProvider: _utilityProviderController.text,
           utilityType: _selectedUtilityType,
           utilityNumber: _utilityNumberController.text,

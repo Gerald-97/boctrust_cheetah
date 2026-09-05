@@ -104,8 +104,10 @@ class KycInitiationData extends Equatable {
     this.sdkJobType,
     this.environment,
     this.identityType,
-    this.identityLastFour,
+    this.identityLast4,
     this.documentType,
+    this.country,
+    this.documentNumberLast4,
     this.smileUserId,
     this.smileJobId,
     this.callbackUrl,
@@ -122,8 +124,10 @@ class KycInitiationData extends Equatable {
       sdkJobType: json['sdkJobType'] as String? ?? json['jobType'] as String?,
       environment: json['environment'] as String?,
       identityType: json['identityType'] as String?,
-      identityLastFour: json['identityLastFour'] as String?,
+      identityLast4: json['identityLast4'] as String?,
       documentType: json['documentType'] as String?,
+      country: json['country'] as String?,
+      documentNumberLast4: json['documentNumberLast4'] as String?,
       smileUserId: json['smileUserId'] as String?,
       smileJobId: json['smileJobId'] as String?,
       callbackUrl: json['callbackUrl'] as String?,
@@ -142,8 +146,17 @@ class KycInitiationData extends Equatable {
   final String? sdkJobType;
   final String? environment;
   final String? identityType;
-  final String? identityLastFour;
+
+  /// Last four digits of the BVN/NIN, already masked by the server. The client
+  /// never holds the full identity number.
+  final String? identityLast4;
   final String? documentType;
+
+  /// ISO 3166-1 alpha-2 country the backend issued the document job for.
+  final String? country;
+
+  /// Last four characters of the document number, already masked by the server.
+  final String? documentNumberLast4;
 
   /// Server-issued. Never constructed on the client.
   final String? smileUserId;
@@ -159,8 +172,10 @@ class KycInitiationData extends Equatable {
     sdkJobType,
     environment,
     identityType,
-    identityLastFour,
+    identityLast4,
     documentType,
+    country,
+    documentNumberLast4,
     smileUserId,
     smileJobId,
     callbackUrl,
@@ -223,42 +238,68 @@ class UtilityBillInitiationRequest {
   const UtilityBillInitiationRequest({
     required this.residentialAddress,
     required this.contentType,
-    this.state,
-    this.lga,
+    this.residentialState,
+    this.residentialLga,
     this.utilityProvider,
     this.utilityType,
     this.utilityNumber,
-    this.billIssueDate,
+    this.billIssuedAt,
     this.originalFileName,
     this.fileSizeBytes,
   });
 
   final String residentialAddress;
   final String contentType;
-  final String? state;
-  final String? lga;
+  final String? residentialState;
+  final String? residentialLga;
   final String? utilityProvider;
   final UtilityType? utilityType;
   final String? utilityNumber;
-  final DateTime? billIssueDate;
+  final DateTime? billIssuedAt;
   final String? originalFileName;
   final int? fileSizeBytes;
 
   Map<String, Object?> toJson() => {
     'residentialAddress': residentialAddress,
     'contentType': contentType,
-    if (_has(state)) 'state': state,
-    if (_has(lga)) 'lga': lga,
+    if (_has(residentialState)) 'residentialState': residentialState,
+    if (_has(residentialLga)) 'residentialLga': residentialLga,
     if (_has(utilityProvider)) 'utilityProvider': utilityProvider,
     if (utilityType != null) 'utilityType': utilityType!.wireValue,
     if (_has(utilityNumber)) 'utilityNumber': utilityNumber,
-    if (billIssueDate != null)
-      'billIssueDate': billIssueDate!.toUtc().toIso8601String(),
+    if (billIssuedAt != null)
+      'billIssuedAt': billIssuedAt!.toUtc().toIso8601String(),
     if (_has(originalFileName)) 'originalFileName': originalFileName,
     if (fileSizeBytes != null) 'fileSizeBytes': fileSizeBytes,
   };
 
   static bool _has(String? value) => value != null && value.trim().isNotEmpty;
+}
+
+/// Response to completing a utility-bill upload.
+///
+/// The server echoes the verification it advanced and the status it moved to.
+/// The client must not synthesize either value: a completion that does not name
+/// the active verification is not proof this user's bill was accepted.
+class UtilityBillCompletionData extends Equatable {
+  const UtilityBillCompletionData({
+    required this.verificationId,
+    required this.status,
+  });
+
+  factory UtilityBillCompletionData.fromJson(Object? value) {
+    final json = _map(value);
+    return UtilityBillCompletionData(
+      verificationId: json['verificationId']! as String,
+      status: json['status']! as String,
+    );
+  }
+
+  final String verificationId;
+  final String status;
+
+  @override
+  List<Object?> get props => [verificationId, status];
 }
 
 /// Response to a utility-bill upload initiation.
@@ -344,7 +385,7 @@ class KycFlowData extends Equatable {
     this.verificationId,
     this.provider,
     this.providerEnvironment,
-    this.identityLastFour,
+    this.identityLast4,
     this.uploadExpiresAt,
     this.selectedBill,
     this.uploadCompleted = false,
@@ -354,7 +395,7 @@ class KycFlowData extends Equatable {
   final String? verificationId;
   final String? provider;
   final String? providerEnvironment;
-  final String? identityLastFour;
+  final String? identityLast4;
   final DateTime? uploadExpiresAt;
 
   /// Retained while the screen is mounted so a failed completion can be
@@ -370,7 +411,7 @@ class KycFlowData extends Equatable {
     String? verificationId,
     String? provider,
     String? providerEnvironment,
-    String? identityLastFour,
+    String? identityLast4,
     DateTime? uploadExpiresAt,
     SelectedUtilityBill? selectedBill,
     bool? uploadCompleted,
@@ -379,7 +420,7 @@ class KycFlowData extends Equatable {
     verificationId: verificationId ?? this.verificationId,
     provider: provider ?? this.provider,
     providerEnvironment: providerEnvironment ?? this.providerEnvironment,
-    identityLastFour: identityLastFour ?? this.identityLastFour,
+    identityLast4: identityLast4 ?? this.identityLast4,
     uploadExpiresAt: uploadExpiresAt ?? this.uploadExpiresAt,
     selectedBill: selectedBill ?? this.selectedBill,
     uploadCompleted: uploadCompleted ?? this.uploadCompleted,
@@ -391,7 +432,7 @@ class KycFlowData extends Equatable {
     stage: stage,
     provider: provider,
     providerEnvironment: providerEnvironment,
-    identityLastFour: identityLastFour,
+    identityLast4: identityLast4,
     selectedBill: selectedBill,
   );
 
@@ -401,7 +442,7 @@ class KycFlowData extends Equatable {
         verificationId: data.verificationId,
         provider: data.provider,
         providerEnvironment: data.environment,
-        identityLastFour: data.identityLastFour,
+        identityLast4: data.identityLast4,
       );
 
   @override
@@ -410,7 +451,7 @@ class KycFlowData extends Equatable {
     verificationId,
     provider,
     providerEnvironment,
-    identityLastFour,
+    identityLast4,
     uploadExpiresAt,
     selectedBill,
     uploadCompleted,

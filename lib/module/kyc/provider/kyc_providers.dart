@@ -180,12 +180,12 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
   /// Executes the full sequence for the currently selected file.
   Future<void> submit({
     required String residentialAddress,
-    String? state_,
-    String? lga,
+    String? residentialState,
+    String? residentialLga,
     String? utilityProvider,
     UtilityType? utilityType,
     String? utilityNumber,
-    DateTime? billIssueDate,
+    DateTime? billIssuedAt,
   }) async {
     if (_inFlight) return;
 
@@ -219,12 +219,12 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
             UtilityBillInitiationRequest(
               residentialAddress: residentialAddress.trim(),
               contentType: bill.contentType,
-              state: state_,
-              lga: lga,
+              residentialState: residentialState,
+              residentialLga: residentialLga,
               utilityProvider: utilityProvider,
               utilityType: utilityType,
               utilityNumber: utilityNumber,
-              billIssueDate: billIssueDate,
+              billIssuedAt: billIssuedAt,
               originalFileName: bill.fileName,
               fileSizeBytes: bill.sizeInBytes,
             ),
@@ -326,7 +326,16 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
         .completeUtilityBillUpload(flow.verificationId!);
     if (!isCurrent(token)) return;
 
-    if (result.isDone) {
+    final completion = result.data;
+    // A completion that does not name the active verification, or that carries
+    // no status, is not evidence this user's bill was accepted. Treat it as a
+    // failure the user can retry rather than silently showing pending review.
+    final confirmsActiveFlow =
+        completion != null &&
+        completion.verificationId == flow.verificationId &&
+        completion.status.trim().isNotEmpty;
+
+    if (result.isDone && confirmsActiveFlow) {
       state = NotifierState.done(
         flow.copyWith(stage: KycFlowStage.pendingReview),
         message: result.message,
@@ -344,7 +353,9 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
     }
 
     state = NotifierState.error(
-      result.message ?? 'We could not finish your submission.',
+      result.isDone
+          ? 'We could not confirm your submission. Please try again.'
+          : result.message ?? 'We could not finish your submission.',
       // uploadCompleted stays true so the screen can offer a completion-only
       // retry instead of a full re-upload.
       data: flow.copyWith(stage: KycFlowStage.failed),
