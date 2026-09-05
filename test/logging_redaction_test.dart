@@ -37,6 +37,31 @@ void main() {
     expect(output.lines.join(), contains('123456'));
   });
 
+  test('server-masked Last4 fragments stay visible, full numbers do not', () {
+    // Both are the masked display form the app renders on screen, so they must
+    // behave identically. Before this, documentNumberLast4 was redacted only
+    // because "documentnumber" is a substring of it, while identityLast4 was
+    // visible because "identitynumber" is not.
+    interceptor.onResponse(
+      Response<Object?>(
+        requestOptions: RequestOptions(path: '/users/me/kyc/status'),
+        data: {
+          'identityLast4': '2222',
+          'documentNumberLast4': '4567',
+          'documentNumber': 'AB1234567',
+          'identityNumber': '12345678901',
+        },
+      ),
+      ResponseInterceptorHandler(),
+    );
+    final logged = output.lines.join();
+    expect(logged, contains('2222'));
+    expect(logged, contains('4567'));
+    // The full identifiers are still caught.
+    expect(logged, isNot(contains('AB1234567')));
+    expect(logged, isNot(contains('12345678901')));
+  });
+
   test('a serialized payload string does not leak its contents', () {
     // Found by a live staging check: the recursive redaction walked Map and
     // Iterable only, so a JSON-encoded string field printed every value inside

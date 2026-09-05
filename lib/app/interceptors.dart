@@ -117,6 +117,18 @@ class LoggingInterceptor extends Interceptor {
   static String _normalize(Object? value) =>
       value.toString().toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
 
+  /// Whether a key names a value the server already truncated.
+  ///
+  /// `identityLast4` and `documentNumberLast4` are the masked display form the
+  /// app renders on screen; they are not the identifier their name contains.
+  /// Without this, `documentNumberLast4` would be redacted because
+  /// `documentnumber` is a substring of it, while `identityLast4` stayed
+  /// visible because `identitynumber` is not — an arbitrary split that cost
+  /// support diagnostics and protected nothing. The full identifiers are still
+  /// caught: this exempts the `*Last4` fragment only.
+  static bool _isServerMaskedFragment(String normalizedKey) =>
+      normalizedKey.endsWith('last4');
+
   static Object? _redact(Object? value, {required bool includeSensitiveData}) {
     // A String can itself be a serialized payload. Recursing only through Map
     // and Iterable would print every value inside it verbatim, which is how a
@@ -132,7 +144,9 @@ class LoggingInterceptor extends Interceptor {
     if (value is Map) {
       return value.map<Object?, Object?>((key, nested) {
         final keyString = _normalize(key);
-        final alwaysRedacted = _alwaysRedactedKeyParts.any(keyString.contains);
+        final alwaysRedacted =
+            !_isServerMaskedFragment(keyString) &&
+            _alwaysRedactedKeyParts.any(keyString.contains);
         final environmentRedacted =
             !includeSensitiveData && _sensitiveKeyParts.any(keyString.contains);
         return MapEntry(
