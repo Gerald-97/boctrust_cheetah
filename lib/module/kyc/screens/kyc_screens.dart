@@ -31,6 +31,38 @@ extension KycScreens on AppFlowNavigatorState {
     KycVerificationStatus.unknown => BocColors.grey,
   };
 
+  /// What the backend says to do next, or null when there is nothing to say.
+  ///
+  /// An unrecognized action returns null rather than inventing guidance, and
+  /// never reads as a finished journey.
+  String? _nextActionMessage(KycNextAction? action) => switch (action) {
+    KycNextAction.verifyIdentity => 'Verify your BVN or NIN to reach Tier 1.',
+    KycNextAction.verifyGovernmentId =>
+      'Verify a government-issued ID to reach Tier 2.',
+    KycNextAction.uploadUtilityBill =>
+      'Upload a recent utility bill to reach Tier 3.',
+    KycNextAction.complete => 'All verification steps are complete.',
+    KycNextAction.unknown || null => null,
+  };
+
+  String _identityDescription(KycVerificationStatus status) => switch (status) {
+    KycVerificationStatus.success => 'Your identity has been verified.',
+    KycVerificationStatus.pending =>
+      'We have received your details and are checking them.',
+    KycVerificationStatus.failed =>
+      'The last attempt did not pass. You can try again.',
+    _ => 'Matched against the issuing register automatically.',
+  };
+
+  String _utilityBillDescription(KycVerificationStatus status) =>
+      switch (status) {
+        KycVerificationStatus.success => 'Your address has been verified.',
+        KycVerificationStatus.pending => 'Your bill is being reviewed.',
+        KycVerificationStatus.failed =>
+          'The last bill was not accepted. You can upload another.',
+        _ => 'Upload a recent utility bill showing your address.',
+      };
+
   String _governmentIdDescription(KycVerificationStatus status) =>
       switch (status) {
         KycVerificationStatus.success => 'Your document has been verified.',
@@ -72,6 +104,9 @@ extension KycScreens on AppFlowNavigatorState {
     if (state.status == ServiceStatus.idle) {
       Future<void>.microtask(ref.read(userTierProvider.notifier).load);
     }
+    // Warm the authoritative status here too, so the step screens opened from
+    // this list already have it and the next action can be shown.
+    final statusState = _watchKycStatus();
     final data = state.data;
     if (data == null) {
       return AppScaffold(
@@ -112,6 +147,16 @@ extension KycScreens on AppFlowNavigatorState {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         children: [
+          _kycRefreshAction(statusState),
+          if (_nextActionMessage(statusState.data?.nextAction) case final next?)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: ApiStateCard(
+                title: 'Next step',
+                message: next,
+                tone: ApiStateTone.info,
+              ),
+            ),
           Container(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
             decoration: BoxDecoration(
@@ -217,7 +262,16 @@ extension KycScreens on AppFlowNavigatorState {
     final flowState = ref.watch(identityVerificationProvider);
     final flow = flowState.data ?? const KycFlowData();
     final submitting = flowState.isLoading;
-    final initiated = flow.stage == KycFlowStage.awaitingProvider;
+    final statusState = _watchKycStatus();
+    final status = statusState.data?.identity;
+
+    // The backend owns verification. The local stage only decides whether the
+    // form is still usable.
+    final serverStatus = status?.status ?? KycVerificationStatus.unknown;
+    final initiated =
+        serverStatus == KycVerificationStatus.pending ||
+        serverStatus == KycVerificationStatus.success ||
+        flow.stage == KycFlowStage.awaitingProvider;
 
     return AppScaffold(
       title: 'Identity verification',
@@ -238,33 +292,43 @@ extension KycScreens on AppFlowNavigatorState {
           const SizedBox(height: 16),
           VerificationCard(
             title: '${_selectedIdentityType.label} verification',
-            description: initiated
-                ? 'We have received your details and are checking them.'
-                : 'Matched against the issuing register automatically.',
-            statusLabel: initiated ? 'Pending' : 'Not started',
-            statusColor: initiated ? BocColors.gold : BocColors.grey,
-            value: flow.identityLast4 == null
+            description: _identityDescription(serverStatus),
+            statusLabel: _statusLabel(serverStatus),
+            statusColor: _statusColor(serverStatus),
+            value: (status?.identityLast4 ?? flow.identityLast4) == null
                 ? null
                 : '${_selectedIdentityType.label} — '
-                      '•••• ••• ${flow.identityLast4}',
+                      '•••• ••• ${status?.identityLast4 ?? flow.identityLast4}',
           ),
           const SizedBox(height: 14),
-          if (initiated) ...[
+          _kycRefreshAction(statusState),
+          if (status?.failureReason != null) ...[
+            const SizedBox(height: 14),
             ApiStateCard(
+              title: 'Verification failed',
+              message: status!.failureReason!,
+              tone: ApiStateTone.blocked,
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (serverStatus == KycVerificationStatus.success)
+            const ApiStateCard(
+              title: 'Identity verified',
+              message: 'Your identity has been verified.',
+              tone: ApiStateTone.info,
+            )
+          else if (initiated &&
+              serverStatus != KycVerificationStatus.failed) ...[
+            const ApiStateCard(
               title: 'Verification in progress',
               message:
-                  'Your ${_selectedIdentityType.label} has been submitted. '
-                  'Your tier updates automatically once the check completes.',
+                  'Your details have been submitted. Your tier updates '
+                  'automatically once the check completes.',
               tone: ApiStateTone.info,
-              actionLabel: 'Refresh status',
-              onAction: () => ref
-                  .read(identityVerificationProvider.notifier)
-                  .refreshStatus(),
             ),
             const SizedBox(height: 14),
-            // Identity capture beyond initiation is not wired yet: the
-            // provider SDK needs dashboard configuration and a short-lived
-            // token the API does not yet return.
+            // Tier 1 liveness needs a separate Smile product the backend has
+            // not named yet; Enhanced KYC job 5 captures no selfie.
             const ApiStateCard(
               title: 'Identity capture not available yet',
               message:
@@ -647,6 +711,17 @@ extension KycScreens on AppFlowNavigatorState {
     final uploadState = ref.watch(utilityBillUploadProvider);
     final flow = uploadState.data ?? const KycFlowData();
     final busy = uploadState.isLoading;
+    final statusState = _watchKycStatus();
+    final status = statusState.data?.utilityBill;
+    final serverStatus = status?.status ?? KycVerificationStatus.unknown;
+
+    // A local pendingReview stage means this process submitted. The backend
+    // may already know more than that, so the server status wins.
+    final underReview =
+        serverStatus == KycVerificationStatus.pending ||
+        (flow.stage == KycFlowStage.pendingReview &&
+            serverStatus != KycVerificationStatus.failed &&
+            serverStatus != KycVerificationStatus.success);
 
     return AppScaffold(
       title: 'Address verification',
@@ -667,7 +742,41 @@ extension KycScreens on AppFlowNavigatorState {
             ),
           ),
           const SizedBox(height: 16),
-          if (flow.stage == KycFlowStage.pendingReview)
+          VerificationCard(
+            title: 'Address verification',
+            description: _utilityBillDescription(serverStatus),
+            statusLabel: _statusLabel(serverStatus),
+            statusColor: _statusColor(serverStatus),
+            icon: Icons.home_outlined,
+          ),
+          const SizedBox(height: 14),
+          _kycRefreshAction(statusState),
+          if (status?.failureReason != null) ...[
+            const SizedBox(height: 14),
+            ApiStateCard(
+              title: 'Bill not accepted',
+              message: status!.failureReason!,
+              tone: ApiStateTone.blocked,
+            ),
+          ],
+          // Free text from a manual reviewer; shown as written so the user
+          // knows exactly what to change.
+          if (status?.reviewNotes != null) ...[
+            const SizedBox(height: 14),
+            ApiStateCard(
+              title: 'Reviewer notes',
+              message: status!.reviewNotes!,
+              tone: ApiStateTone.warning,
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (serverStatus == KycVerificationStatus.success)
+            const ApiStateCard(
+              title: 'Address verified',
+              message: 'Your address has been verified.',
+              tone: ApiStateTone.info,
+            )
+          else if (underReview)
             ApiStateCard(
               title: 'Submitted for review',
               message:

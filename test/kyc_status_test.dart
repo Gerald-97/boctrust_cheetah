@@ -57,6 +57,8 @@ void main() {
     });
   });
 
+  _statusDrivenCardRules();
+
   group('refreshKycAuthoritativeState', () {
     late _FakeKycService kyc;
     late _FakeUserService user;
@@ -168,4 +170,100 @@ class _FakeHomeService implements HomeService {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
+}
+
+/// Status-driven card rules the four KYC screens rely on.
+///
+/// These pin the decisions the screens make from KycStatusData rather than
+/// from local flow stage: a failed step must surface its reason, a manual
+/// reviewer's notes must reach the user, and an unrecognized value must never
+/// read as progress or completion.
+void _statusDrivenCardRules() {
+  group('status-driven cards', () {
+    KycStatusData statusWith({
+      required String identity,
+      required String governmentId,
+      required String utilityBill,
+      String? identityFailure,
+      String? utilityFailure,
+      String? reviewNotes,
+      String nextAction = 'verify_identity',
+    }) => KycStatusData.fromJson({
+      'userId': 'user-1',
+      'tier': 0,
+      'identity': {'status': identity, 'failureReason': identityFailure},
+      'governmentId': {'status': governmentId},
+      'utilityBill': {
+        'status': utilityBill,
+        'failureReason': utilityFailure,
+        'reviewNotes': reviewNotes,
+      },
+      'nextAction': nextAction,
+    });
+
+    test('a failed step carries the reason the screen must render', () {
+      final data = statusWith(
+        identity: 'failed',
+        governmentId: 'not_started',
+        utilityBill: 'not_started',
+        identityFailure: 'The BVN did not match your profile name.',
+      );
+      expect(data.identity.status, KycVerificationStatus.failed);
+      expect(
+        data.identity.failureReason,
+        'The BVN did not match your profile name.',
+      );
+    });
+
+    test('reviewer notes on a rejected bill reach the model', () {
+      final data = statusWith(
+        identity: 'success',
+        governmentId: 'success',
+        utilityBill: 'failed',
+        utilityFailure: 'The bill is older than three months.',
+        reviewNotes: 'Please upload a bill issued after 1 August.',
+        nextAction: 'upload_utility_bill',
+      );
+      expect(data.utilityBill.status, KycVerificationStatus.failed);
+      expect(
+        data.utilityBill.reviewNotes,
+        'Please upload a bill issued after 1 August.',
+      );
+      expect(data.nextAction, KycNextAction.uploadUtilityBill);
+    });
+
+    test('only success is a verified state', () {
+      for (final wire in ['not_started', 'pending', 'failed', 'brand_new']) {
+        final data = statusWith(
+          identity: wire,
+          governmentId: wire,
+          utilityBill: wire,
+        );
+        expect(
+          data.identity.status.isVerified,
+          isFalse,
+          reason: '"$wire" must never render as verified',
+        );
+      }
+      final verified = statusWith(
+        identity: 'success',
+        governmentId: 'success',
+        utilityBill: 'success',
+        nextAction: 'complete',
+      );
+      expect(verified.identity.status.isVerified, isTrue);
+      expect(verified.nextAction, KycNextAction.complete);
+    });
+
+    test('an unrecognized next action is not treated as complete', () {
+      final data = statusWith(
+        identity: 'pending',
+        governmentId: 'not_started',
+        utilityBill: 'not_started',
+        nextAction: 'do_something_new',
+      );
+      expect(data.nextAction, KycNextAction.unknown);
+      expect(data.nextAction, isNot(KycNextAction.complete));
+    });
+  });
 }
