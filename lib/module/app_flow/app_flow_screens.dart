@@ -15,6 +15,7 @@ enum AppScreen {
   kycGovernmentId,
   kycUtilityBill,
   nextOfKin,
+  linkedBanks,
   home,
   saveHub,
   addMoney,
@@ -61,7 +62,6 @@ enum AppPreviewRoute {
   bankTransferFunding,
   cardFunding,
   accountBeneficiaries,
-  accountLinkedBanks,
   accountSecurity,
   accountSupport,
   supportChat,
@@ -113,8 +113,6 @@ AppPreviewRoute? appPreviewRouteForRoute(String? routeName) {
       return AppPreviewRoute.cardFunding;
     case '/account/beneficiaries':
       return AppPreviewRoute.accountBeneficiaries;
-    case '/account/linked-banks':
-      return AppPreviewRoute.accountLinkedBanks;
     case '/account/security':
       return AppPreviewRoute.accountSecurity;
     case '/account/support':
@@ -224,6 +222,8 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.nextOfKin;
     case '/account/tier/address':
       return AppScreen.kycUtilityBill;
+    case '/account/linked-banks':
+      return AppScreen.linkedBanks;
     case '/account/loans':
     case '/account/loans/notify-me':
       return AppScreen.loans;

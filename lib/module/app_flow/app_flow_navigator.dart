@@ -20,6 +20,8 @@ import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
 import '../account/model/user_tier_model.dart';
 import '../account/provider/user_providers.dart';
+import '../account/model/withdrawal_bank_models.dart';
+import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
 import '../kyc/model/kyc_models.dart';
@@ -87,6 +89,7 @@ part '../payments/screens/payments_screens.dart';
 part '../notifications/screens/notifications_screen.dart';
 
 part '../account/screens/account_screens.dart';
+part '../account/screens/linked_bank_accounts_screen.dart';
 
 class AppFlowRouteScreen extends StatelessWidget {
   const AppFlowRouteScreen({
@@ -452,6 +455,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _nextOfKinScreen();
       case AppScreen.kycUtilityBill:
         return _kycUtilityBillScreen();
+      case AppScreen.linkedBanks:
+        return _linkedBankAccountsScreen();
       case AppScreen.home:
         return _homeScreen();
       case AppScreen.saveHub:

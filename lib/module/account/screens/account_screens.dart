@@ -327,21 +327,6 @@ extension AccountScreens on AppFlowNavigatorState {
             (Icons.add_rounded, 'Add beneficiary', 'Local UI preview'),
           ],
         );
-      case AppPreviewRoute.accountLinkedBanks:
-        return (
-          title: 'Linked banks',
-          icon: Icons.account_balance_outlined,
-          color: BocColors.green,
-          section: AppSection.account,
-          summary:
-              'Preview connected bank accounts for withdrawals and funding.',
-          actionLabel: 'Preview linked banks',
-          rows: [
-            (Icons.account_balance_outlined, 'GTBank', '0123456789'),
-            (Icons.account_balance_outlined, 'Access Bank', '0987654321'),
-            (Icons.add_rounded, 'Link another bank', 'Secure setup preview'),
-          ],
-        );
       case AppPreviewRoute.accountSecurity:
         return (
           title: 'Security settings',

@@ -1,6 +1,7 @@
 import 'package:boctrust_savings_loan/app.dart';
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/theme_controller.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/component/text_fields.dart';
 import 'package:boctrust_savings_loan/utils/form_helpers.dart';
 import 'package:boctrust_savings_loan/utils/input_formatters.dart';
@@ -207,5 +208,15 @@ void main() {
     expect(AppRoutes.allRoutes, contains(AppRoutes.notifications));
     expect(AppRoutes.allRoutes, contains(AppRoutes.loansNotifyMe));
     expect(AppRoutes.allRoutes, contains(AppRoutes.cardsNotifyMe));
+  });
+
+  test('linked banks resolves to the live screen, not a preview', () {
+    expect(appScreenForRoute(AppRoutes.linkedBanks), AppScreen.linkedBanks);
+    // The preview route is gone, so no fabricated bank rows can be rendered.
+    expect(
+      AppPreviewRoute.values.map((route) => route.name),
+      isNot(contains('accountLinkedBanks')),
+    );
+    expect(appPreviewRouteForRoute(AppRoutes.linkedBanks), isNull);
   });
 }
