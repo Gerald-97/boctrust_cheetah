@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/services.dart';
 import '../../../helper/signed_upload_client.dart';
 import '../../account/provider/user_providers.dart';
-import '../../home/provider/home_provider.dart';
 import '../model/kyc_models.dart';
 import '../service/kyc_service.dart';
+import 'kyc_status_provider.dart';
 
 final identityVerificationProvider =
     NotifierProvider<IdentityVerificationNotifier, NotifierState<KycFlowData>>(
@@ -105,13 +105,11 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
   }
 
   /// Reloads the aggregates that actually carry verification status.
-  Future<void> _refreshAuthoritativeState() async {
-    await Future.wait([
-      ref.read(userProfileProvider.notifier).load(),
-      ref.read(userTierProvider.notifier).load(),
-      ref.read(userHomeProvider.notifier).load(),
-    ]);
-  }
+  ///
+  /// Delegates to the shared fan-out so a resume, a manual Refresh, and a
+  /// post-submission refresh share one in-flight round of requests.
+  Future<void> _refreshAuthoritativeState() =>
+      refreshKycAuthoritativeState(ref);
 
   /// Re-checks status after an app resume or an explicit user refresh.
   Future<void> refreshStatus() => _refreshAuthoritativeState();
@@ -344,11 +342,7 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
       );
       // Pending review is not verified: only the refreshed aggregates can
       // move the tier checklist.
-      await Future.wait([
-        ref.read(userProfileProvider.notifier).load(),
-        ref.read(userTierProvider.notifier).load(),
-        ref.read(userHomeProvider.notifier).load(),
-      ]);
+      await refreshKycAuthoritativeState(ref);
       return;
     }
 

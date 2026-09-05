@@ -30,6 +30,8 @@ abstract final class ApiEndpoints {
   static String withdrawalBankAccount(String bankAccountId) =>
       '$withdrawalBankAccounts/${Uri.encodeComponent(bankAccountId)}';
 
+  static const ownKycStatus = '/users/me/kyc/status';
+
   static const initiateIdentityVerification = '/users/me/kyc/identity/initiate';
   static const initiateGovernmentIdVerification =
       '/users/me/kyc/government-id/initiate';

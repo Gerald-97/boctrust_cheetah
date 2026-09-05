@@ -4,6 +4,7 @@ import '../../../app/api_endpoints.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/kyc_models.dart';
+import '../model/kyc_status_models.dart';
 
 final kycServiceProvider = Provider<KycService>(
   (ref) => KycService(ref.watch(apiServiceProvider)),
@@ -12,6 +13,18 @@ final kycServiceProvider = Provider<KycService>(
 class KycService {
   const KycService(this._api);
   final ApiService _api;
+
+  /// The authoritative view of this user's verification state.
+  ///
+  /// Initiation and SDK submission never mean verified; this operation and the
+  /// refreshed tier/profile/Home aggregates do.
+  Future<NotifierState<KycStatusData>> getStatus() async =>
+      NotifierState.fromResponse(
+        await _api.getData<KycStatusData>(
+          ApiEndpoints.ownKycStatus,
+          parser: KycStatusData.fromJson,
+        ),
+      );
 
   Future<NotifierState<KycInitiationData>> initiateIdentity(
     IdentityVerificationRequest request,
