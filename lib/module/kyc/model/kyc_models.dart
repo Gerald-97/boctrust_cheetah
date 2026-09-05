@@ -80,6 +80,16 @@ enum GovernmentIdDocumentType {
     GovernmentIdDocumentType.ninSlip => 'NIN_SLIP',
   };
 
+  /// Whether this type is cleared for Enhanced Document Verification.
+  ///
+  /// Smile's published matrix currently lists only Nigerian `VOTER_ID` for this
+  /// product. Each other type stays disabled until a sandbox submission
+  /// succeeds for this partner on both platforms and its document webhook
+  /// reaches pending or success. Never substitute job 6 or Biometric KYC to
+  /// work around a disabled type; that needs a backend contract change.
+  bool get isEnhancedDocumentVerificationEnabled =>
+      this == GovernmentIdDocumentType.voterId;
+
   bool get smileIdCaptureBothSides => switch (this) {
     GovernmentIdDocumentType.driversLicense ||
     GovernmentIdDocumentType.voterId => true,
@@ -407,6 +417,7 @@ class KycFlowData extends Equatable {
     this.uploadExpiresAt,
     this.selectedBill,
     this.uploadCompleted = false,
+    this.initiation,
   });
 
   final KycFlowStage stage;
@@ -415,6 +426,14 @@ class KycFlowData extends Equatable {
   final String? providerEnvironment;
   final String? identityLast4;
   final DateTime? uploadExpiresAt;
+
+  /// The initiation this flow is currently working through.
+  ///
+  /// Held in memory so a cancelled capture can be reopened without a second
+  /// initiation request, which the backend answers with 409. It is dropped on
+  /// [clear], on logout, and on session expiry, so it does not survive a
+  /// process restart.
+  final KycInitiationData? initiation;
 
   /// Retained while the screen is mounted so a failed completion can be
   /// retried without asking the user to pick the file again.
@@ -433,6 +452,7 @@ class KycFlowData extends Equatable {
     DateTime? uploadExpiresAt,
     SelectedUtilityBill? selectedBill,
     bool? uploadCompleted,
+    KycInitiationData? initiation,
   }) => KycFlowData(
     stage: stage ?? this.stage,
     verificationId: verificationId ?? this.verificationId,
@@ -442,6 +462,7 @@ class KycFlowData extends Equatable {
     uploadExpiresAt: uploadExpiresAt ?? this.uploadExpiresAt,
     selectedBill: selectedBill ?? this.selectedBill,
     uploadCompleted: uploadCompleted ?? this.uploadCompleted,
+    initiation: initiation ?? this.initiation,
   );
 
   /// Clears the verification context so a lapsed link is replaced by a fresh
@@ -461,6 +482,7 @@ class KycFlowData extends Equatable {
         provider: data.provider,
         providerEnvironment: data.environment,
         identityLast4: data.identityLast4,
+        initiation: data,
       );
 
   @override
@@ -473,5 +495,6 @@ class KycFlowData extends Equatable {
     uploadExpiresAt,
     selectedBill,
     uploadCompleted,
+    initiation,
   ];
 }

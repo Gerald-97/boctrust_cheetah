@@ -1,6 +1,72 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
 extension KycScreens on AppFlowNavigatorState {
+  /// Watches the authoritative status, loading it the first time a KYC screen
+  /// opens.
+  ///
+  /// The backend is the only source that may show verification; local flow
+  /// stages describe what this process has attempted, nothing more.
+  NotifierState<KycStatusData> _watchKycStatus() {
+    final state = ref.watch(kycStatusProvider);
+    if (state.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(kycStatusProvider.notifier).load);
+    }
+    return state;
+  }
+
+  String _statusLabel(KycVerificationStatus status) => switch (status) {
+    KycVerificationStatus.success => 'Verified',
+    KycVerificationStatus.pending => 'Pending',
+    KycVerificationStatus.failed => 'Failed',
+    KycVerificationStatus.notStarted => 'Not started',
+    // An unrecognized status is never presented as progress.
+    KycVerificationStatus.unknown => 'Not started',
+  };
+
+  Color _statusColor(KycVerificationStatus status) => switch (status) {
+    KycVerificationStatus.success => BocColors.green,
+    KycVerificationStatus.pending => BocColors.gold,
+    KycVerificationStatus.failed => BocColors.red,
+    KycVerificationStatus.notStarted ||
+    KycVerificationStatus.unknown => BocColors.grey,
+  };
+
+  String _governmentIdDescription(KycVerificationStatus status) =>
+      switch (status) {
+        KycVerificationStatus.success => 'Your document has been verified.',
+        KycVerificationStatus.pending =>
+          'We have received your document and are checking it.',
+        KycVerificationStatus.failed =>
+          'The last attempt did not pass. You can try again.',
+        _ =>
+          "Driver's licence, international passport, voter's card, or NIN "
+              'slip.',
+      };
+
+  /// Manual refresh, beside an inline error when the last load failed.
+  Widget _kycRefreshAction(NotifierState<KycStatusData> statusState) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: statusState.isError
+              ? Text(
+                  statusState.message ?? 'Unable to load your latest status.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                )
+              : const SizedBox.shrink(),
+        ),
+        TextButton.icon(
+          onPressed: statusState.isLoading
+              ? null
+              : () => ref.read(kycAuthoritativeRefreshProvider)(),
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Refresh'),
+        ),
+      ],
+    );
+  }
+
   Widget _tiersScreen() {
     final state = ref.watch(userTierProvider);
     if (state.status == ServiceStatus.idle) {
@@ -252,7 +318,7 @@ extension KycScreens on AppFlowNavigatorState {
                   .toList(growable: false),
               onChanged: submitting
                   ? null
-                  : (value) => setState(() {
+                  : (value) => refreshKycFormState(() {
                       if (value != null) _selectedIdentityType = value;
                     }),
             ),
@@ -284,7 +350,7 @@ extension KycScreens on AppFlowNavigatorState {
 
   Future<void> _submitIdentityVerification() async {
     if (_identityFormKey.currentState?.validate() != true) {
-      setState(
+      refreshKycFormState(
         () => _identityAutovalidate = AutovalidateMode.onUserInteraction,
       );
       return;
@@ -315,7 +381,17 @@ extension KycScreens on AppFlowNavigatorState {
     final flowState = ref.watch(governmentIdVerificationProvider);
     final flow = flowState.data ?? const KycFlowData();
     final submitting = flowState.isLoading;
-    final initiated = flow.stage == KycFlowStage.awaitingProvider;
+    final statusState = _watchKycStatus();
+    final status = statusState.data?.governmentId;
+
+    // The backend is authoritative. The local flow stage only decides whether
+    // the form is still usable; it never renders a verified state.
+    final serverStatus = status?.status ?? KycVerificationStatus.unknown;
+    final initiated =
+        serverStatus == KycVerificationStatus.pending ||
+        serverStatus == KycVerificationStatus.success ||
+        flow.stage == KycFlowStage.awaitingProvider ||
+        flow.stage == KycFlowStage.pendingReview;
 
     return AppScaffold(
       title: 'Government ID',
@@ -335,34 +411,42 @@ extension KycScreens on AppFlowNavigatorState {
           const SizedBox(height: 16),
           VerificationCard(
             title: 'Government ID',
-            description: initiated
-                ? 'We have received your details and are checking them.'
-                : "Driver's licence, international passport, voter's card, or "
-                      'NIN slip.',
-            statusLabel: initiated ? 'Pending' : 'Not started',
-            statusColor: initiated ? BocColors.gold : BocColors.grey,
+            description: _governmentIdDescription(serverStatus),
+            statusLabel: _statusLabel(serverStatus),
+            statusColor: _statusColor(serverStatus),
             icon: Icons.badge_outlined,
-            value: initiated ? _selectedDocumentType.label : null,
+            value: status?.documentNumberLast4 != null
+                ? '•••• ${status!.documentNumberLast4}'
+                : (initiated ? _selectedDocumentType.label : null),
           ),
           const SizedBox(height: 14),
-          if (initiated) ...[
+          _kycRefreshAction(statusState),
+          if (status?.failureReason != null) ...[
+            const SizedBox(height: 14),
+            ApiStateCard(
+              title: 'Verification failed',
+              message: status!.failureReason!,
+              tone: ApiStateTone.blocked,
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (serverStatus == KycVerificationStatus.success)
+            const ApiStateCard(
+              title: 'Document verified',
+              message: 'Your government ID has been verified.',
+              tone: ApiStateTone.info,
+            )
+          else if (initiated &&
+              serverStatus != KycVerificationStatus.failed) ...[
             const ApiStateCard(
               title: 'Verification in progress',
               message:
-                  'Your document details have been submitted. Your tier '
-                  'updates automatically once the check completes.',
+                  'Your document has been submitted. Your tier updates '
+                  'automatically once the check completes.',
               tone: ApiStateTone.info,
             ),
             const SizedBox(height: 14),
-            // Photographing the document and taking the matching selfie both
-            // happen inside the provider SDK, which is not wired up yet.
-            const ApiStateCard(
-              title: 'Document capture not available yet',
-              message:
-                  'Photographing your ID is not connected in this release. '
-                  'We will let you know when you can finish this step.',
-              tone: ApiStateTone.blocked,
-            ),
+            _governmentIdForm(submitting),
           ] else
             _governmentIdForm(submitting),
           if (flowState.isError && flowState.message != null) ...[
@@ -402,14 +486,28 @@ extension KycScreens on AppFlowNavigatorState {
               value: _selectedDocumentType,
               items: GovernmentIdDocumentType.values
                   .map(
-                    (type) =>
-                        DropdownMenuItem(value: type, child: Text(type.label)),
+                    (type) => DropdownMenuItem(
+                      value: type,
+                      enabled: type.isEnhancedDocumentVerificationEnabled,
+                      child: Text(
+                        type.isEnhancedDocumentVerificationEnabled
+                            ? type.label
+                            : '${type.label} — not supported for this '
+                                  'verification method',
+                        style: type.isEnhancedDocumentVerificationEnabled
+                            ? null
+                            : TextStyle(color: Theme.of(context).disabledColor),
+                      ),
+                    ),
                   )
                   .toList(growable: false),
               onChanged: submitting
                   ? null
-                  : (value) => setState(() {
-                      if (value != null) _selectedDocumentType = value;
+                  : (value) => refreshKycFormState(() {
+                      if (value != null &&
+                          value.isEnhancedDocumentVerificationEnabled) {
+                        _selectedDocumentType = value;
+                      }
                     }),
             ),
             const SizedBox(height: 12),
@@ -431,20 +529,80 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitGovernmentId() async {
-    await ref
-        .read(governmentIdVerificationProvider.notifier)
-        .submit(
-          documentType: _selectedDocumentType,
-          documentNumber: _documentNumberController.text,
-        );
+    final notifier = ref.read(governmentIdVerificationProvider.notifier);
+    final initiation = await notifier.submit(
+      documentType: _selectedDocumentType,
+      documentNumber: _documentNumberController.text,
+    );
     if (!mounted) return;
 
     final result = ref.read(governmentIdVerificationProvider);
-    if (result.isDone) {
-      _documentNumberController.clear();
-      _showSuccessMessage(result.message ?? 'Verification submitted.');
-    } else if (result.isError) {
+    if (result.isError) {
       _showErrorMessage(result.message ?? 'Verification could not start.');
+      return;
+    }
+
+    // The document number is never held while the camera is open.
+    _documentNumberController.clear();
+
+    if (initiation == null) {
+      // A verification is already running and this process cannot reopen it.
+      // Refresh is the only honest action; retrying would orphan the job.
+      _showSuccessMessage(
+        result.message ??
+            'A verification is already in progress. Pull to refresh for its '
+                'latest status.',
+      );
+      return;
+    }
+
+    await _openDocumentCapture(notifier, initiation);
+  }
+
+  Future<void> _openDocumentCapture(
+    GovernmentIdVerificationNotifier notifier,
+    KycInitiationData initiation,
+  ) async {
+    final SmileIdDocumentJob job;
+    try {
+      job = SmileIdDocumentJob.fromInitiation(
+        initiation,
+        useSandbox: Env.isStaging,
+      );
+    } on SmileIdConfigurationException {
+      // The backend created a job this build cannot launch. Never guess at the
+      // missing values; the message deliberately omits the mismatch detail.
+      notifier.markProviderFailure();
+      _showErrorMessage(
+        'We could not start document capture. Please contact support.',
+      );
+      return;
+    }
+
+    final outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
+      MaterialPageRoute(
+        builder: (_) => SmileIdEnhancedDocumentScreen(job: job),
+      ),
+    );
+    if (!mounted) return;
+
+    switch (outcome ?? SmileIdFlowOutcome.cancelled) {
+      case SmileIdFlowOutcome.submitted:
+        notifier.markPendingReview();
+        // Submitted means the job reached Smile, never verified. Only the
+        // refreshed aggregates may move this card forward.
+        // WidgetRef, not Ref, so the refresh object is read directly; the
+        // refreshKycAuthoritativeState helper is for notifier call sites.
+        await ref.read(kycAuthoritativeRefreshProvider)();
+        if (!mounted) return;
+        _showSuccessMessage(
+          'Document submitted. We will update you once it is reviewed.',
+        );
+      case SmileIdFlowOutcome.cancelled:
+        notifier.markAwaitingProvider();
+      case SmileIdFlowOutcome.failed:
+        notifier.markProviderFailure();
+        _showErrorMessage('Document capture failed. You can try again.');
     }
   }
 
@@ -607,7 +765,8 @@ extension KycScreens on AppFlowNavigatorState {
               ],
               onChanged: busy
                   ? null
-                  : (value) => setState(() => _selectedUtilityType = value),
+                  : (value) =>
+                        refreshKycFormState(() => _selectedUtilityType = value),
             ),
             const SizedBox(height: 12),
             AppTextField(
@@ -714,7 +873,7 @@ extension KycScreens on AppFlowNavigatorState {
 
   Future<void> _submitUtilityBill() async {
     if (_utilityBillFormKey.currentState?.validate() != true) {
-      setState(
+      refreshKycFormState(
         () => _utilityBillAutovalidate = AutovalidateMode.onUserInteraction,
       );
       return;

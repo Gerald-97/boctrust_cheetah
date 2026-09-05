@@ -388,15 +388,32 @@ class GovernmentIdVerificationNotifier
 
   bool _inFlight = false;
 
-  Future<void> submit({
+  /// Starts (or resumes) a government-ID verification.
+  ///
+  /// Returns the initiation to launch capture with, or null when capture cannot
+  /// be opened. Null is not necessarily an error: a 409 with no recoverable job
+  /// context leaves an existing verification in progress.
+  Future<KycInitiationData?> submit({
     required GovernmentIdDocumentType documentType,
     String? documentNumber,
   }) async {
-    if (_inFlight) return;
+    if (_inFlight) return null;
+
+    final previous = state.data ?? const KycFlowData();
+
+    // Case 1: this process still holds the job the user backed out of. Reopen
+    // capture against it directly. Initiating again would only earn a 409, so
+    // the request is skipped rather than made and recovered from.
+    final cached = previous.initiation;
+    if (cached != null && cached.documentType == documentType.wireValue) {
+      state = NotifierState.done(
+        previous.copyWith(stage: KycFlowStage.awaitingProvider),
+      );
+      return cached;
+    }
 
     _inFlight = true;
     final token = beginRequest();
-    final previous = state.data ?? const KycFlowData();
     state = NotifierState.loading(
       data: previous.copyWith(stage: KycFlowStage.initiating),
     );
@@ -410,7 +427,7 @@ class GovernmentIdVerificationNotifier
               documentNumber: documentNumber?.trim(),
             ),
           );
-      if (!isCurrent(token)) return;
+      if (!isCurrent(token)) return null;
 
       final data = result.data;
       if (result.isDone && data != null) {
@@ -420,18 +437,34 @@ class GovernmentIdVerificationNotifier
           statusCode: result.statusCode,
           meta: result.meta,
         );
+        // Initiation creates a job; it cannot change verification state, so the
+        // full four-provider refresh is deliberately not run here.
         await ref.read(userTierProvider.notifier).load();
-        return;
+        return data;
       }
 
       if (result.statusCode == 409) {
+        // A verification is already running server-side. Re-initiating would
+        // orphan it, so capture may only reopen against the existing job.
+        //
+        // 1. The cached initiation, if this process still holds it. This is the
+        //    ordinary cancel-and-retry case.
+        // 2. Otherwise the 409 body, if the backend returned the job context.
+        // 3. Otherwise nothing can reopen capture. See the named backend
+        //    blocker in the plan: after a process restart this is currently the
+        //    only reachable outcome, and it stays blocked until the job expires
+        //    or its webhook fails.
+        final resumable = previous.initiation ?? _resumableFrom(data);
         state = NotifierState.done(
-          previous.copyWith(stage: KycFlowStage.awaitingProvider),
+          previous.copyWith(
+            stage: KycFlowStage.awaitingProvider,
+            initiation: resumable,
+          ),
           message: result.message ?? 'Verification already in progress.',
           statusCode: result.statusCode,
           meta: result.meta,
         );
-        return;
+        return resumable;
       }
 
       state = NotifierState.error(
@@ -443,9 +476,33 @@ class GovernmentIdVerificationNotifier
         meta: result.meta,
         noAuth: result.noAuth,
       );
+      return null;
     } finally {
       _inFlight = false;
     }
+  }
+
+  /// A 409 body is only resumable if it names the job capture must reopen.
+  static KycInitiationData? _resumableFrom(KycInitiationData? data) {
+    if (data == null) return null;
+    final hasJobContext =
+        (data.smileUserId?.trim().isNotEmpty ?? false) &&
+        (data.smileJobId?.trim().isNotEmpty ?? false) &&
+        (data.callbackUrl?.trim().isNotEmpty ?? false);
+    return hasJobContext ? data : null;
+  }
+
+  void markPendingReview() => _setStage(KycFlowStage.pendingReview);
+
+  void markAwaitingProvider() => _setStage(KycFlowStage.awaitingProvider);
+
+  /// Keeps the cached initiation so a native SDK error stays retryable against
+  /// the same job rather than forcing a 409 on the next attempt.
+  void markProviderFailure() => _setStage(KycFlowStage.failed);
+
+  void _setStage(KycFlowStage stage) {
+    final previous = state.data ?? const KycFlowData();
+    state = NotifierState.done(previous.copyWith(stage: stage));
   }
 
   void clear() {

@@ -23,7 +23,11 @@ import '../account/provider/user_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
 import '../kyc/model/kyc_models.dart';
+import '../kyc/model/kyc_status_models.dart';
 import '../kyc/provider/kyc_providers.dart';
+import '../kyc/provider/kyc_status_provider.dart';
+import '../kyc/screens/smile_id_enhanced_document_screen.dart';
+import '../kyc/service/smile_id_gateway.dart';
 import '../component/text_fields.dart';
 import '../component/password_strength_component.dart';
 import '../onboarding/model/auth_enums.dart';
@@ -123,6 +127,16 @@ class AppFlowNavigator extends ConsumerStatefulWidget {
 }
 
 class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
+  /// Applies a KYC form-state change from the `KycScreens` extension.
+  ///
+  /// `setState` is protected, so an extension in another library calling it
+  /// directly is `invalid_use_of_protected_member`. This is the sanctioned
+  /// seam: the extension asks the State to rebuild, rather than reaching into
+  /// a member it does not own.
+  void refreshKycFormState(VoidCallback update) => setState(update);
+
+  AppLifecycleListener? _lifecycleListener;
+
   late AppScreen _screen = widget.initialScreen;
   final List<AppScreen> _history = <AppScreen>[];
   int _onboardingIndex = 0;
@@ -155,7 +169,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _documentNumberController = TextEditingController();
   final _governmentIdFormKey = GlobalKey<FormState>();
   GovernmentIdDocumentType _selectedDocumentType =
-      GovernmentIdDocumentType.driversLicense;
+      GovernmentIdDocumentType.voterId;
   final _addressController = TextEditingController();
   final _addressStateController = TextEditingController();
   final _lgaController = TextEditingController();
@@ -188,6 +202,17 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     if (widget.initialRouteName == AppRoutes.tier2Nin) {
       _selectedIdentityType = IdentityType.nin;
     }
+    // A KYC verdict arrives by webhook while the app is backgrounded, so the
+    // authoritative state is re-read on resume. KycAuthoritativeRefresh shares
+    // one in-flight round with the manual Refresh and the post-submission
+    // refresh, so no extra debounce belongs here.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        if (!mounted || !_isKycScreen(_screen)) return;
+        ref.read(kycAuthoritativeRefreshProvider)();
+      },
+    );
+
     final message = widget.routeArguments.message;
     if (message != null && message.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -219,8 +244,15 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _lgaController.dispose();
     _utilityProviderController.dispose();
     _utilityNumberController.dispose();
+    _lifecycleListener?.dispose();
     super.dispose();
   }
+
+  static bool _isKycScreen(AppScreen screen) =>
+      screen == AppScreen.kycIdentity ||
+      screen == AppScreen.kycGovernmentId ||
+      screen == AppScreen.kycUtilityBill ||
+      screen == AppScreen.tiers;
 
   void _go(AppScreen next, {bool replace = false}) {
     setState(() {
