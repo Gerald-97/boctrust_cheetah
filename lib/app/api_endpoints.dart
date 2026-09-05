@@ -26,7 +26,10 @@ abstract final class ApiEndpoints {
   static const ownHome = '/users/me/home';
   static const profileImageSignedUrl = '/users/me/profile-image/signed-url';
 
+  static const banks = '/users/banks';
   static const withdrawalBankAccounts = '/users/me/withdrawal-bank-accounts';
+  static const resolveWithdrawalBankAccount =
+      '/users/me/withdrawal-bank-accounts/resolve';
   static String withdrawalBankAccount(String bankAccountId) =>
       '$withdrawalBankAccounts/${Uri.encodeComponent(bankAccountId)}';
 
