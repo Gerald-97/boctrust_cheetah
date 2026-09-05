@@ -96,25 +96,49 @@ class LoggingInterceptor extends Interceptor {
     handler.next(err);
   }
 
-  Object? _visible(Object? value) =>
-      includeSensitiveData ? value : _redact(value);
+  /// Redacted in every environment, including staging. These values are either
+  /// provider credentials or regulated identifiers, so no debugging convenience
+  /// justifies emitting them.
+  static const _alwaysRedactedKeyParts = <String>{
+    'authtoken',
+    'partnerid',
+    'smileconfig',
+    'callbackurl',
+    'accountnumber',
+    'identitynumber',
+    'documentnumber',
+    'resultjson',
+  };
 
-  static Object? _redact(Object? value) {
+  Object? _visible(Object? value) =>
+      _redact(value, includeSensitiveData: includeSensitiveData);
+
+  static Object? _redact(Object? value, {required bool includeSensitiveData}) {
     if (value is Map) {
       return value.map<Object?, Object?>((key, nested) {
         final keyString = key.toString().toLowerCase().replaceAll(
           RegExp('[^a-z0-9]'),
           '',
         );
+        final alwaysRedacted = _alwaysRedactedKeyParts.any(keyString.contains);
+        final environmentRedacted =
+            !includeSensitiveData && _sensitiveKeyParts.any(keyString.contains);
         return MapEntry(
           key,
-          _sensitiveKeyParts.any(keyString.contains)
+          alwaysRedacted || environmentRedacted
               ? '[REDACTED]'
-              : _redact(nested),
+              : _redact(nested, includeSensitiveData: includeSensitiveData),
         );
       });
     }
-    if (value is Iterable) return value.map(_redact).toList(growable: false);
+    if (value is Iterable) {
+      return value
+          .map(
+            (nested) =>
+                _redact(nested, includeSensitiveData: includeSensitiveData),
+          )
+          .toList(growable: false);
+    }
     return value;
   }
 
