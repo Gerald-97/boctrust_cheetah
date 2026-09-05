@@ -113,13 +113,25 @@ class LoggingInterceptor extends Interceptor {
   Object? _visible(Object? value) =>
       _redact(value, includeSensitiveData: includeSensitiveData);
 
+  /// Normalized form used to match keys, and to scan serialized payloads.
+  static String _normalize(Object? value) =>
+      value.toString().toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
+
   static Object? _redact(Object? value, {required bool includeSensitiveData}) {
+    // A String can itself be a serialized payload. Recursing only through Map
+    // and Iterable would print every value inside it verbatim, which is how a
+    // stringified body such as {"accountNumber":"0123456789"} leaked in a live
+    // staging check. Redact the whole string when it names a protected field:
+    // over-redacting a log line is always preferable to emitting a credential.
+    if (value is String) {
+      final normalized = _normalize(value);
+      return _alwaysRedactedKeyParts.any(normalized.contains)
+          ? '[REDACTED]'
+          : value;
+    }
     if (value is Map) {
       return value.map<Object?, Object?>((key, nested) {
-        final keyString = key.toString().toLowerCase().replaceAll(
-          RegExp('[^a-z0-9]'),
-          '',
-        );
+        final keyString = _normalize(key);
         final alwaysRedacted = _alwaysRedactedKeyParts.any(keyString.contains);
         final environmentRedacted =
             !includeSensitiveData && _sensitiveKeyParts.any(keyString.contains);
