@@ -38,6 +38,8 @@ migrate_working_dir/
 .env
 .env.*
 !.env.example
+**/smile_config.json
+docs/
 
 # Symbolication related
 app.*.symbols
