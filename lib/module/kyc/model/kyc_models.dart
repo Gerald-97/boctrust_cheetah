@@ -68,6 +68,24 @@ enum GovernmentIdDocumentType {
   const GovernmentIdDocumentType(this.wireValue, this.label);
   final String wireValue;
   final String label;
+
+  /// Smile ID v11 SDK value for this document.
+  ///
+  /// The backend's wire values and Smile's SDK values are different
+  /// vocabularies; this is the only place they are bridged.
+  String get smileIdWireValue => switch (this) {
+    GovernmentIdDocumentType.voterId => 'VOTER_ID',
+    GovernmentIdDocumentType.driversLicense => 'DRIVERS_LICENSE',
+    GovernmentIdDocumentType.internationalPassport => 'PASSPORT',
+    GovernmentIdDocumentType.ninSlip => 'NIN_SLIP',
+  };
+
+  bool get smileIdCaptureBothSides => switch (this) {
+    GovernmentIdDocumentType.driversLicense ||
+    GovernmentIdDocumentType.voterId => true,
+    GovernmentIdDocumentType.internationalPassport ||
+    GovernmentIdDocumentType.ninSlip => false,
+  };
 }
 
 /// ISO 3166-1 alpha-2 country of issue. Nigeria is the only market today.
