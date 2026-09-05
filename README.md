@@ -15,21 +15,58 @@ specific `SECURE_STORAGE_NAMESPACE`. `PAYSTACK_PUBLIC_KEY` is reserved for the
 future card-funding integration. Copy `.env.example` for a new local setup;
 environment files remain gitignored.
 
+### Smile ID configuration
+
+KYC capture needs `assets/json/smile_config.json`, the partner configuration
+downloaded from the Smile ID portal. It is gitignored and must be injected into
+the build workspace by each environment's secret-delivery process before
+`flutter run` or `flutter build`; see `assets/json/README.md`. Without it the
+app still builds, and the document-capture screen shows a retry state rather
+than crashing.
+
+Do not set `SMILE_ID_API_KEY`. It was removed: that key is the backend's
+signature secret, and the mobile SDK takes its `auth_token` from the asset
+config instead. Never pass it to `SmileID.initializeWithApiKey`.
+
+### Logging
+
 API traffic is printed through the `logger` package with structured request,
-response, error, and duration details. Staging logs intentionally include raw
-headers and payloads, including authentication values, and must only be
-captured on controlled development devices. Production logs recursively redact
-sensitive fields.
+response, error, and duration details. Staging logs are intentionally
+unredacted so testers can read server-returned OTPs, and must only be captured
+on controlled development devices. Production logs recursively redact the
+`_sensitiveKeyParts` set.
+
+A narrower set is redacted in **every** environment, staging included, and does
+not depend on that flag: `auth_token`, `partner_id`, the Smile config, the Smile
+`callbackUrl` and its query, `accountNumber`, `identityNumber`,
+`documentNumber`, and raw SDK result JSON. See `_alwaysRedactedKeyParts` in
+`lib/app/interceptors.dart`. Do not move a value out of that set to make
+debugging easier.
 
 ## Verify
 
 ```sh
 flutter analyze
-dart format --output=none --set-exit-if-changed lib
+dart format --output=none --set-exit-if-changed lib test
+flutter test
 ```
 
-Automated tests are intentionally deferred while the UI prototype is being
-stabilized. Pull requests currently enforce formatting and static analysis.
+`flutter analyze` is expected to report no issues.
+
+### Physical-device testing
+
+The Smile ID capture flow uses native camera views and cannot be exercised by
+`flutter test` or a simulator. Before releasing a change to the KYC journey,
+verify on one physical Android and one physical iOS device against the Smile
+sandbox: initialization failure and retry, camera permission denied and
+re-granted, a successful Voter ID capture, user cancellation, a native SDK
+error, submission acknowledgement, delayed and failed webhooks, manual refresh,
+background/resume refresh, and logout cleanup.
+
+Only `voter_id` is enabled. Smile's published matrix lists only Nigerian
+`VOTER_ID` for Enhanced Document Verification, so each other document type
+stays disabled until a sandbox submission succeeds for this partner on both
+platforms and its webhook reaches `pending` or `success`.
 
 ## Architecture
 
@@ -67,11 +104,14 @@ no contract in that API remain explicitly unavailable.
 | Area | Missing contract | Current behavior | Replacement steps |
 |---|---|---|---|
 | Firebase native setup | Staging Android and iOS Firebase application files | FCM initialization fails closed; login and the rest of bootstrap continue | Supply `google-services.json` and `GoogleService-Info.plist` for the staging Firebase project. |
-| Liveness, BVN, NIN, next of kin, utility bill upload | Submission endpoints and upload contracts | Tier data is read from the API; submission actions are clearly unavailable | Add typed submission endpoints when the backend publishes them. |
+| Tier 1 liveness | The Smile product/job for liveness, and how its result combines with Enhanced KYC job 5 to upgrade Tier 1 | Tier 1 liveness is not offered. Job 5 is a non-capture flow in both v11 and v12, so it cannot capture the selfie the tier requires | Backend names the separate liveness job and its webhook correlation contract. |
+| Resuming an interrupted government-ID job | 409 does not return the existing `smileUserId`, `smileJobId`, and `callbackUrl` | Capture reopens from the in-memory initiation. After a process restart nothing can reopen it, and the card says a verification is already in progress and offers Refresh | Backend returns the existing job context on 409. Pinned by a test in `test/kyc_government_id_flow_test.dart`. |
+| Next of kin | Submission endpoint | Route states plainly that it is a later step | Add a typed submission endpoint. |
 | Group Save invitations and schedules | Invitation, contribution schedule, roles, missed-payment endpoints | Group routes show blocked integration state where needed | Add typed models and service methods. |
 | Card funding | Paystack/provider handoff and callback contract | Card funding route shell marked blocked | Wire WebView URL creation and callback parser. |
 | Bills and scan-to-pay | Biller catalogue, customer lookup, payment, QR payload contracts | Payment routes render UI shell and blocked integration states | Add biller models, lookup service, and receipt mapping. |
-| Beneficiaries and linked banks management | CRUD endpoint details | Account routes render blocked shell when unavailable | Replace shell with service-backed provider state. |
+| Beneficiaries | CRUD endpoint details | Account route renders a blocked shell | Replace shell with service-backed provider state. |
+| Withdrawals | No transfer or payout operation is published | Withdrawal accounts can be listed, resolved, saved, and deleted, but no money movement is offered | Add the payout endpoint before building any withdrawal action. |
 
 ## UX parity checklist
 
