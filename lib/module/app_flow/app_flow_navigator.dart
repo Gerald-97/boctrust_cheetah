@@ -51,6 +51,8 @@ part '../data/billers.dart';
 part '../component/branding.dart';
 
 part '../component/app_scaffold.dart';
+part '../component/responsive_layout.dart';
+part '../component/app_action_sheet.dart';
 
 part '../component/buttons.dart';
 
@@ -237,6 +239,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _identifierController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _otpController.dispose();
     _currentSecretController.dispose();
     _pinController.dispose();
     _confirmPinController.dispose();
