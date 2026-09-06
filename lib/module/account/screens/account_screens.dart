@@ -1,5 +1,11 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
+/// Which credential the security-check overlay was asked to verify.
+///
+/// The chooser returns this instead of invoking a callback captured from the
+/// navigator's `State`, so the launcher can re-check `mounted` before acting.
+enum SecurityCheckMethod { password, pin }
+
 extension AccountScreens on AppFlowNavigatorState {
   Widget _routePreviewScreen() {
     final preview = _previewContentForRoute(
@@ -516,35 +522,38 @@ extension AccountScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       showBottomNavigation: false,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(34),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              RoundedIcon(icon: icon, color: BocColors.gold, size: 58),
-              const SizedBox(height: 16),
-              Text(
-                'Coming soon',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  height: 1.55,
+      body: ScrollableFill(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(34),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                RoundedIcon(icon: icon, color: BocColors.gold, size: 58),
+                const SizedBox(height: 16),
+                Text(
+                  'Coming soon',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () =>
-                    _showMessage('You will be notified when $title launches.'),
-                icon: const Icon(Icons.notifications_none_rounded),
-                label: const Text("Notify me when it's ready"),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                    height: 1.55,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: () => _showMessage(
+                    'You will be notified when $title launches.',
+                  ),
+                  icon: const Icon(Icons.notifications_none_rounded),
+                  label: const Text("Notify me when it's ready"),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -692,15 +701,17 @@ extension AccountScreens on AppFlowNavigatorState {
                               size: 15,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              'Tier ${profile?.tier ?? '—'} · '
-                              '${verified ? 'Verified' : 'Verification pending'}',
-                              style: TextStyle(
-                                color: verified
-                                    ? BocColors.green
-                                    : BocColors.gold,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: Text(
+                                'Tier ${profile?.tier ?? '—'} · '
+                                '${verified ? 'Verified' : 'Verification pending'}',
+                                style: TextStyle(
+                                  color: verified
+                                      ? BocColors.green
+                                      : BocColors.gold,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],
@@ -1045,46 +1056,49 @@ extension AccountScreens on AppFlowNavigatorState {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Change transaction PIN'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const PinSecurityWarningBox(),
-                  const SizedBox(height: 12),
-                  const Text('Current PIN'),
-                  const SizedBox(height: 8),
-                  PinInputField(
-                    pinLength: 4,
-                    pinCtrl: _currentSecretController,
-                    obscureText: true,
-                    validator: validators.transactionPin,
-                    autovalidateMode: autovalidateMode,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('New PIN'),
-                  const SizedBox(height: 8),
-                  PinInputField(
-                    pinLength: 4,
-                    pinCtrl: _pinController,
-                    obscureText: true,
-                    validator: validators.strongTransactionPin,
-                    autovalidateMode: autovalidateMode,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Confirm new PIN'),
-                  const SizedBox(height: 8),
-                  PinInputField(
-                    pinLength: 4,
-                    pinCtrl: _confirmPinController,
-                    obscureText: true,
-                    validator: (value) => value == _pinController.text
-                        ? null
-                        : 'PINs do not match',
-                    autovalidateMode: autovalidateMode,
-                  ),
-                ],
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PinSecurityWarningBox(),
+                    const SizedBox(height: 12),
+                    const Text('Current PIN'),
+                    const SizedBox(height: 8),
+                    PinInputField(
+                      pinLength: 4,
+                      pinCtrl: _currentSecretController,
+                      obscureText: true,
+                      validator: validators.transactionPin,
+                      autovalidateMode: autovalidateMode,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('New PIN'),
+                    const SizedBox(height: 8),
+                    PinInputField(
+                      pinLength: 4,
+                      pinCtrl: _pinController,
+                      obscureText: true,
+                      validator: validators.strongTransactionPin,
+                      autovalidateMode: autovalidateMode,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Confirm new PIN'),
+                    const SizedBox(height: 8),
+                    PinInputField(
+                      pinLength: 4,
+                      pinCtrl: _confirmPinController,
+                      obscureText: true,
+                      validator: (value) => value == _pinController.text
+                          ? null
+                          : 'PINs do not match',
+                      autovalidateMode: autovalidateMode,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1477,31 +1491,39 @@ extension AccountScreens on AppFlowNavigatorState {
   }
 
   Future<void> _showSecurityCheckChooser() async {
-    await showModalBottomSheet<void>(
+    if (!mounted) return;
+    final method = await AppActionSheet.show<SecurityCheckMethod>(
       context: context,
-      builder: (sheetContext) => SafeArea(
+      builder: (sheetContext) => AppActionSheet(
+        icon: Icons.verified_user_outlined,
+        title: 'Security check',
+        subtitle: 'Choose how you want to verify that it is you.',
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.password_rounded),
-              title: const Text('Verify current password'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showCurrentSecretVerificationDialog(pin: false);
-              },
+            AppActionSheetOption(
+              key: const Key('security-password-option'),
+              icon: Icons.password_rounded,
+              title: 'Verify current password',
+              subtitle: 'Use your account sign-in password',
+              onTap: () =>
+                  Navigator.pop(sheetContext, SecurityCheckMethod.password),
             ),
-            ListTile(
-              leading: const Icon(Icons.pin_outlined),
-              title: const Text('Verify current PIN'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showCurrentSecretVerificationDialog(pin: true);
-              },
+            const SizedBox(height: 12),
+            AppActionSheetOption(
+              key: const Key('security-pin-option'),
+              icon: Icons.pin_outlined,
+              title: 'Verify current PIN',
+              subtitle: 'Use your 4-digit transaction PIN',
+              onTap: () => Navigator.pop(sheetContext, SecurityCheckMethod.pin),
             ),
           ],
         ),
       ),
+    );
+    if (!mounted || method == null) return;
+    await _showCurrentSecretVerificationDialog(
+      pin: method == SecurityCheckMethod.pin,
     );
   }
 
