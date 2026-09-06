@@ -18,8 +18,8 @@ class LoggingInterceptor extends Interceptor {
   static const _sensitiveKeyParts = <String>{
     'authorization',
     'cookie',
-    'password',
-    'pin',
+    // 'password' and 'pin' are always redacted; see _alwaysRedactedKeyParts.
+    // 'otp' stays here deliberately: staging testers read it to complete flows.
     'otp',
     'token',
     'secret',
@@ -104,6 +104,12 @@ class LoggingInterceptor extends Interceptor {
   /// provider credentials or regulated identifiers, so no debugging convenience
   /// justifies emitting them.
   static const _alwaysRedactedKeyParts = <String>{
+    // A tester never needs to read back a credential they just typed, and
+    // unlike an OTP these are long-lived and commonly reused across services.
+    // Keeping them out of staging logs costs nothing and removes an exposure
+    // that follows any log pasted into a bug report.
+    'password',
+    'pin',
     'authtoken',
     'partnerid',
     'smileconfig',

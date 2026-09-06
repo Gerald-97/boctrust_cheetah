@@ -92,6 +92,36 @@ void main() {
     expect(production.lines.join(), isNot(contains('12345678901')));
   });
 
+  test('credentials are redacted even in staging, unlike OTPs', () {
+    // Found by reading a real Android emulator logcat: a failed login had
+    // written the plaintext password. A tester never needs to read back a
+    // credential they just typed, and unlike an OTP a password is long-lived
+    // and commonly reused, so it is redacted in every environment.
+    // The leak was seen on the error path, which logs requestBody through the
+    // same _visible call this exercises.
+    interceptor.onRequest(
+      RequestOptions(
+        path: '/auth/login',
+        data: {
+          'identifier': 'user@example.test',
+          'password': 'Sup3rSecret!',
+          // Deliberately not a substring of the OTP below, so the assertions
+          // cannot pass or fail for the wrong reason.
+          'pin': '8888',
+          'newPin': '7777',
+          'otp': '123456',
+        },
+      ),
+      RequestInterceptorHandler(),
+    );
+    final logged = output.lines.join();
+    expect(logged, isNot(contains('Sup3rSecret!')));
+    expect(logged, isNot(contains('8888')));
+    expect(logged, isNot(contains('7777')));
+    // The staging affordance is untouched.
+    expect(logged, contains('123456'));
+  });
+
   test('a serialized payload string does not leak its contents', () {
     // Found by a live staging check: the recursive redaction walked Map and
     // Iterable only, so a JSON-encoded string field printed every value inside
