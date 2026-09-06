@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
-import 'package:boctrust_savings_loan/module/kyc/screens/smile_id_enhanced_document_screen.dart';
+import 'package:boctrust_savings_loan/module/kyc/screens/smile_id_capture_screen.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/smile_id_gateway.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +18,7 @@ class _FakeGateway implements SmileIdGateway {
   int resetCalls = 0;
   int applyCallbackUrlCalls = 0;
   Uri? lastCallbackUrl;
+  SmileIdBiometricJob? lastBiometricJob;
 
   ValueChanged<String>? _onSuccess;
   ValueChanged<String>? _onError;
@@ -39,6 +40,18 @@ class _FakeGateway implements SmileIdGateway {
   void applyCallbackUrl(Uri callbackUrl) {
     applyCallbackUrlCalls++;
     lastCallbackUrl = callbackUrl;
+  }
+
+  @override
+  Widget buildBiometricKyc({
+    required SmileIdBiometricJob job,
+    required ValueChanged<String> onSuccess,
+    required ValueChanged<String> onError,
+  }) {
+    lastBiometricJob = job;
+    _onSuccess = onSuccess;
+    _onError = onError;
+    return const Center(child: Text('capture-surface'));
   }
 
   @override
@@ -88,7 +101,7 @@ void main() {
               onPressed: () async {
                 outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
                   MaterialPageRoute(
-                    builder: (_) => SmileIdEnhancedDocumentScreen(job: _job()),
+                    builder: (_) => SmileIdCaptureScreen(job: _job()),
                   ),
                 );
               },
@@ -113,7 +126,7 @@ void main() {
         child: MaterialApp(
           home: FutureBuilder<void>(
             future: gate.future,
-            builder: (_, _) => SmileIdEnhancedDocumentScreen(job: _job()),
+            builder: (_, _) => SmileIdCaptureScreen(job: _job()),
           ),
         ),
       ),

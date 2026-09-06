@@ -28,7 +28,7 @@ import '../kyc/model/kyc_models.dart';
 import '../kyc/model/kyc_status_models.dart';
 import '../kyc/provider/kyc_providers.dart';
 import '../kyc/provider/kyc_status_provider.dart';
-import '../kyc/screens/smile_id_enhanced_document_screen.dart';
+import '../kyc/screens/smile_id_capture_screen.dart';
 import '../kyc/service/smile_id_gateway.dart';
 import '../component/text_fields.dart';
 import '../component/password_strength_component.dart';

@@ -27,13 +27,17 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
 
   bool _inFlight = false;
 
-  Future<void> submit({
+  /// Starts (or resumes) identity verification.
+  ///
+  /// Returns the initiation to launch capture with, or null when capture
+  /// cannot be opened. Mirrors the government-ID notifier.
+  Future<KycInitiationData?> submit({
     required IdentityType identityType,
     required String identityNumber,
   }) async {
     // Idempotency is not documented for initiation, so duplicate submission is
     // prevented client-side while a request is outstanding.
-    if (_inFlight) return;
+    if (_inFlight) return null;
 
     final number = identityNumber.trim();
     if (!isValidIdentityNumber(number)) {
@@ -41,12 +45,22 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
         'Enter your $kIdentityNumberLength-digit ${identityType.label}.',
         data: state.data,
       );
-      return;
+      return null;
+    }
+
+    final previous = state.data ?? const KycFlowData();
+
+    // A cached job reopens capture directly; re-initiating would earn a 409.
+    final cached = previous.initiation;
+    if (cached != null && cached.identityType == identityType.wireValue) {
+      state = NotifierState.done(
+        previous.copyWith(stage: KycFlowStage.awaitingProvider),
+      );
+      return cached;
     }
 
     _inFlight = true;
     final token = beginRequest();
-    final previous = state.data ?? const KycFlowData();
     state = NotifierState.loading(
       data: previous.copyWith(stage: KycFlowStage.initiating),
     );
@@ -62,7 +76,7 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
           );
       // A response that lands after the user left, or after a newer
       // submission started, must not overwrite the current flow state.
-      if (!isCurrent(token)) return;
+      if (!isCurrent(token)) return null;
 
       final data = result.data;
       if (result.isDone && data != null) {
@@ -74,20 +88,27 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
         );
         // The backend owns the verdict; pull the authoritative aggregate.
         await _refreshAuthoritativeState();
-        return;
+        return data;
       }
 
       // 409 means a verification is already running. That is a resumable
-      // state, not a failure: keep whatever context we already hold.
+      // state, not a failure: keep whatever context we already hold. Same
+      // three-case rule as the government-ID flow.
       if (result.statusCode == 409) {
+        final resumable =
+            previous.initiation ??
+            GovernmentIdVerificationNotifier._resumableFrom(data);
         state = NotifierState.done(
-          previous.copyWith(stage: KycFlowStage.awaitingProvider),
+          previous.copyWith(
+            stage: KycFlowStage.awaitingProvider,
+            initiation: resumable,
+          ),
           message: result.message ?? 'Verification already in progress.',
           statusCode: result.statusCode,
           meta: result.meta,
         );
         await _refreshAuthoritativeState();
-        return;
+        return resumable;
       }
 
       state = NotifierState.error(
@@ -99,9 +120,23 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
         meta: result.meta,
         noAuth: result.noAuth,
       );
+      return null;
     } finally {
       _inFlight = false;
     }
+  }
+
+  void markPendingReview() => _setStage(KycFlowStage.pendingReview);
+
+  void markAwaitingProvider() => _setStage(KycFlowStage.awaitingProvider);
+
+  /// Keeps the cached initiation so a native SDK error stays retryable against
+  /// the same job rather than forcing a 409 on the next attempt.
+  void markProviderFailure() => _setStage(KycFlowStage.failed);
+
+  void _setStage(KycFlowStage stage) {
+    final previous = state.data ?? const KycFlowData();
+    state = NotifierState.done(previous.copyWith(stage: stage));
   }
 
   /// Reloads the aggregates that actually carry verification status.

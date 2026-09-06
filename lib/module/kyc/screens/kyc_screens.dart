@@ -412,6 +412,65 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
+  /// Asks for the consent Smile records against the job.
+  ///
+  /// Requested after the number is entered and before anything is initiated, so
+  /// a refusal never leaves an orphaned job the backend would answer with 409.
+  /// Returns null when the user declines.
+  Future<KycCaptureConsent?> _requestIdentityConsent() async {
+    final granted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Consent to identity verification'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To verify your ${_selectedIdentityType.label}, we share the '
+                'following with our identity partner, Smile ID:',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '• Your personal details, including your name and '
+                'date of birth',
+              ),
+              const SizedBox(height: 6),
+              const Text('• Your contact information'),
+              const SizedBox(height: 6),
+              const Text(
+                '• Your identity number and a photo of your face, '
+                'taken on the next screen',
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your photo is matched against the record held by the issuing '
+                'authority. You can decline, but we cannot verify your '
+                'identity without it.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Decline'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('I agree'),
+          ),
+        ],
+      ),
+    );
+
+    if (granted != true) return null;
+    return KycCaptureConsent(grantedAtUtc: DateTime.now().toUtc());
+  }
+
   Future<void> _submitIdentityVerification() async {
     if (_identityFormKey.currentState?.validate() != true) {
       refreshKycFormState(
@@ -419,21 +478,102 @@ extension KycScreens on AppFlowNavigatorState {
       );
       return;
     }
+
+    final consent = await _requestIdentityConsent();
+    if (!mounted) return;
+    if (consent == null) {
+      _showMessage(
+        'Identity verification needs your consent before it can start.',
+      );
+      return;
+    }
+
+    // Held only until the SDK is handed it, then cleared below.
+    final identityNumber = _identityNumberController.text.trim();
+    final identityType = _selectedIdentityType;
+
     final notifier = ref.read(identityVerificationProvider.notifier);
-    await notifier.submit(
-      identityType: _selectedIdentityType,
-      identityNumber: _identityNumberController.text,
+    final initiation = await notifier.submit(
+      identityType: identityType,
+      identityNumber: identityNumber,
     );
     if (!mounted) return;
 
     final result = ref.read(identityVerificationProvider);
-    if (result.isDone) {
-      // The identity number is sensitive and already submitted; do not keep
-      // it in a live controller.
-      _identityNumberController.clear();
-      _showSuccessMessage(result.message ?? 'Verification submitted.');
-    } else if (result.isError) {
+    if (result.isError) {
       _showErrorMessage(result.message ?? 'Verification could not start.');
+      return;
+    }
+
+    if (initiation == null) {
+      _identityNumberController.clear();
+      _showSuccessMessage(
+        result.message ??
+            'A verification is already in progress. Pull to refresh for its '
+                'latest status.',
+      );
+      return;
+    }
+
+    await _openIdentityCapture(
+      notifier,
+      initiation,
+      identityType: identityType,
+      identityNumber: identityNumber,
+      consent: consent,
+    );
+  }
+
+  Future<void> _openIdentityCapture(
+    IdentityVerificationNotifier notifier,
+    KycInitiationData initiation, {
+    required IdentityType identityType,
+    required String identityNumber,
+    required KycCaptureConsent consent,
+  }) async {
+    final SmileIdBiometricJob job;
+    try {
+      job = SmileIdBiometricJob.fromInitiation(
+        initiation,
+        useSandbox: Env.isStaging,
+        identityType: identityType,
+        identityNumber: identityNumber,
+        consent: consent,
+      );
+    } on SmileIdConfigurationException {
+      // The backend created a job this build cannot launch — most likely it is
+      // still issuing Enhanced KYC (job 5), which captures no selfie.
+      notifier.markProviderFailure();
+      _identityNumberController.clear();
+      _showErrorMessage(
+        'We could not start identity capture. Please contact support.',
+      );
+      return;
+    }
+
+    // The number is now inside the job the SDK will receive; stop holding it
+    // in a live controller.
+    _identityNumberController.clear();
+
+    final outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
+      MaterialPageRoute(builder: (_) => SmileIdCaptureScreen(job: job)),
+    );
+    if (!mounted) return;
+
+    switch (outcome ?? SmileIdFlowOutcome.cancelled) {
+      case SmileIdFlowOutcome.submitted:
+        notifier.markPendingReview();
+        // Submitted is not verified; only the refreshed aggregates decide.
+        await ref.read(kycAuthoritativeRefreshProvider)();
+        if (!mounted) return;
+        _showSuccessMessage(
+          'Identity submitted. We will update you once it is checked.',
+        );
+      case SmileIdFlowOutcome.cancelled:
+        notifier.markAwaitingProvider();
+      case SmileIdFlowOutcome.failed:
+        notifier.markProviderFailure();
+        _showErrorMessage('Identity capture failed. You can try again.');
     }
   }
 
@@ -644,9 +784,7 @@ extension KycScreens on AppFlowNavigatorState {
     }
 
     final outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
-      MaterialPageRoute(
-        builder: (_) => SmileIdEnhancedDocumentScreen(job: job),
-      ),
+      MaterialPageRoute(builder: (_) => SmileIdCaptureScreen(job: job)),
     );
     if (!mounted) return;
 

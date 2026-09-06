@@ -15,6 +15,15 @@ enum IdentityType {
   const IdentityType(this.wireValue, this.label);
   final String wireValue;
   final String label;
+
+  /// Smile ID SDK value for this identity type.
+  ///
+  /// Smile expects the upper-case ID type; the backend's wire values are lower
+  /// case. This is the only place the two vocabularies are bridged.
+  String get smileIdWireValue => switch (this) {
+    IdentityType.bvn => 'BVN',
+    IdentityType.nin => 'NIN',
+  };
 }
 
 /// Exact length required for both BVN and NIN.

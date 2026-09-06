@@ -31,6 +31,10 @@ class LoggingInterceptor extends Interceptor {
     'lastname',
     'bvn',
     'nin',
+    // Moved here from the always-redact list so staging can show the BVN/NIN
+    // while the Biometric KYC flow is built. Production still redacts it.
+    // Move it back once that work is verified.
+    'identitynumber',
     'accountnumber',
     'cardnumber',
     'cvv',
@@ -105,7 +109,6 @@ class LoggingInterceptor extends Interceptor {
     'smileconfig',
     'callbackurl',
     'accountnumber',
-    'identitynumber',
     'documentnumber',
     'resultjson',
   };

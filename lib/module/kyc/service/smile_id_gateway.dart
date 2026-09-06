@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smile_id/products/models/model.dart';
+import 'package:smile_id/products/biometric/smile_id_biometric_kyc.dart';
 import 'package:smile_id/products/enhanceddocv/smile_id_enhanced_document_verification.dart';
 import 'package:smile_id/smile_id.dart';
 
@@ -14,36 +15,46 @@ class SmileIdConfigurationException implements Exception {
   final String message;
 }
 
-class SmileIdDocumentJob {
-  const SmileIdDocumentJob({
+/// Consent the user granted before capture, as Smile ID records it.
+///
+/// Captured in BocTrust UI rather than the SDK's own screen so the grant and
+/// its timestamp can also be reported to the backend.
+class KycCaptureConsent {
+  const KycCaptureConsent({
+    required this.grantedAtUtc,
+    this.personalDetails = true,
+    this.contactInformation = true,
+    this.documentInformation = true,
+  });
+
+  final DateTime grantedAtUtc;
+  final bool personalDetails;
+  final bool contactInformation;
+  final bool documentInformation;
+
+  /// Smile expects an ISO 8601 instant.
+  String get grantedDate => grantedAtUtc.toUtc().toIso8601String();
+}
+
+/// Values validated out of a backend initiation, shared by every Smile job.
+class _SmileJobContext {
+  const _SmileJobContext({
     required this.verificationId,
-    required this.country,
-    required this.documentType,
-    required this.captureBothSides,
     required this.userId,
     required this.jobId,
     required this.callbackUrl,
     required this.extraPartnerParams,
   });
 
-  factory SmileIdDocumentJob.fromInitiation(
+  /// Validates everything that is identical across products.
+  ///
+  /// [expectedJobType] is Smile's numeric job type, accepted as either an int
+  /// or its string form because the backend has sent both.
+  factory _SmileJobContext.from(
     KycInitiationData initiation, {
     required bool useSandbox,
+    required int expectedJobType,
   }) {
-    String requireText(String? value, String field) {
-      final text = value?.trim() ?? '';
-      if (text.isEmpty) {
-        throw SmileIdConfigurationException('Missing $field.');
-      }
-      return text;
-    }
-
-    if (initiation.product != 'enhanced_document_verification' ||
-        initiation.sdkJobType != 'enhancedDocumentVerification') {
-      throw const SmileIdConfigurationException(
-        'The backend did not create an Enhanced Document Verification job.',
-      );
-    }
     final expectedEnvironment = useSandbox ? 'sandbox' : 'live';
     if (initiation.environment != expectedEnvironment) {
       throw const SmileIdConfigurationException(
@@ -51,22 +62,10 @@ class SmileIdDocumentJob {
       );
     }
 
-    GovernmentIdDocumentType? selectedType;
-    for (final type in GovernmentIdDocumentType.values) {
-      if (type.wireValue == initiation.documentType) selectedType = type;
-    }
-    if (selectedType == null) {
-      throw const SmileIdConfigurationException('Unsupported document type.');
-    }
-
-    final country = requireText(initiation.country, 'country');
-    if (country != kDefaultDocumentCountry) {
-      throw const SmileIdConfigurationException('Unsupported country.');
-    }
-    final userId = requireText(initiation.smileUserId, 'smileUserId');
-    final jobId = requireText(initiation.smileJobId, 'smileJobId');
+    final userId = _requireText(initiation.smileUserId, 'smileUserId');
+    final jobId = _requireText(initiation.smileJobId, 'smileJobId');
     final callbackUrl = Uri.tryParse(
-      requireText(initiation.callbackUrl, 'callbackUrl'),
+      _requireText(initiation.callbackUrl, 'callbackUrl'),
     );
     if (callbackUrl == null ||
         callbackUrl.scheme != 'https' ||
@@ -92,9 +91,10 @@ class SmileIdDocumentJob {
             );
           }
         case 'job_type':
-          if (entry.value != 11 && entry.value != '11') {
-            throw const SmileIdConfigurationException(
-              'The backend did not create Smile job type 11.',
+          if (entry.value != expectedJobType &&
+              entry.value != '$expectedJobType') {
+            throw SmileIdConfigurationException(
+              'The backend did not create Smile job type $expectedJobType.',
             );
           }
         default:
@@ -107,11 +107,8 @@ class SmileIdDocumentJob {
       }
     }
 
-    return SmileIdDocumentJob(
-      verificationId: requireText(initiation.verificationId, 'verificationId'),
-      country: country,
-      documentType: selectedType.smileIdWireValue,
-      captureBothSides: selectedType.smileIdCaptureBothSides,
+    return _SmileJobContext(
+      verificationId: _requireText(initiation.verificationId, 'verificationId'),
       userId: userId,
       jobId: jobId,
       callbackUrl: callbackUrl,
@@ -120,11 +117,166 @@ class SmileIdDocumentJob {
   }
 
   final String verificationId;
+  final String userId;
+  final String jobId;
+  final Uri callbackUrl;
+  final Map<String, String> extraPartnerParams;
+}
+
+String _requireText(String? value, String field) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) {
+    throw SmileIdConfigurationException('Missing $field.');
+  }
+  return text;
+}
+
+/// A capture job the gateway can launch.
+///
+/// Sealed so the host screen dispatches exhaustively and a new product cannot
+/// be added without handling it.
+sealed class SmileIdCaptureJob {
+  const SmileIdCaptureJob();
+
+  String get verificationId;
+  Uri get callbackUrl;
+}
+
+/// Tier 1 identity: an ID-authority lookup plus selfie and liveness capture.
+///
+/// This is Smile job type 1. Enhanced KYC (job 5) cannot serve Tier 1 because
+/// it captures no image at all.
+final class SmileIdBiometricJob extends SmileIdCaptureJob {
+  const SmileIdBiometricJob({
+    required this.verificationId,
+    required this.country,
+    required this.idType,
+    required this.idNumber,
+    required this.userId,
+    required this.jobId,
+    required this.callbackUrl,
+    required this.consent,
+    required this.extraPartnerParams,
+  });
+
+  factory SmileIdBiometricJob.fromInitiation(
+    KycInitiationData initiation, {
+    required bool useSandbox,
+    required IdentityType identityType,
+    required String identityNumber,
+    required KycCaptureConsent consent,
+  }) {
+    if (initiation.product != 'biometric_kyc' ||
+        initiation.sdkJobType != 'biometricKyc') {
+      throw const SmileIdConfigurationException(
+        'The backend did not create a Biometric KYC job.',
+      );
+    }
+
+    final context = _SmileJobContext.from(
+      initiation,
+      useSandbox: useSandbox,
+      expectedJobType: 1,
+    );
+
+    // The backend may echo the country; Nigeria is the only market today.
+    final country = initiation.country?.trim().isNotEmpty ?? false
+        ? initiation.country!.trim()
+        : kDefaultDocumentCountry;
+    if (country != kDefaultDocumentCountry) {
+      throw const SmileIdConfigurationException('Unsupported country.');
+    }
+
+    return SmileIdBiometricJob(
+      verificationId: context.verificationId,
+      country: country,
+      idType: identityType.smileIdWireValue,
+      idNumber: _requireText(identityNumber, 'identityNumber'),
+      userId: context.userId,
+      jobId: context.jobId,
+      callbackUrl: context.callbackUrl,
+      consent: consent,
+      extraPartnerParams: context.extraPartnerParams,
+    );
+  }
+
+  @override
+  final String verificationId;
+  final String country;
+  final String idType;
+
+  /// The full BVN or NIN. Held only until the SDK is handed it, then cleared.
+  final String idNumber;
+  final String userId;
+  final String jobId;
+  @override
+  final Uri callbackUrl;
+  final KycCaptureConsent consent;
+  final Map<String, String> extraPartnerParams;
+}
+
+final class SmileIdDocumentJob extends SmileIdCaptureJob {
+  const SmileIdDocumentJob({
+    required this.verificationId,
+    required this.country,
+    required this.documentType,
+    required this.captureBothSides,
+    required this.userId,
+    required this.jobId,
+    required this.callbackUrl,
+    required this.extraPartnerParams,
+  });
+
+  factory SmileIdDocumentJob.fromInitiation(
+    KycInitiationData initiation, {
+    required bool useSandbox,
+  }) {
+    if (initiation.product != 'enhanced_document_verification' ||
+        initiation.sdkJobType != 'enhancedDocumentVerification') {
+      throw const SmileIdConfigurationException(
+        'The backend did not create an Enhanced Document Verification job.',
+      );
+    }
+
+    final context = _SmileJobContext.from(
+      initiation,
+      useSandbox: useSandbox,
+      expectedJobType: 11,
+    );
+
+    GovernmentIdDocumentType? selectedType;
+    for (final type in GovernmentIdDocumentType.values) {
+      if (type.wireValue == initiation.documentType) selectedType = type;
+    }
+    if (selectedType == null) {
+      throw const SmileIdConfigurationException('Unsupported document type.');
+    }
+
+    final country = _requireText(initiation.country, 'country');
+    if (country != kDefaultDocumentCountry) {
+      throw const SmileIdConfigurationException('Unsupported country.');
+    }
+
+    return SmileIdDocumentJob(
+      verificationId: context.verificationId,
+      country: country,
+      documentType: selectedType.smileIdWireValue,
+      captureBothSides: selectedType.smileIdCaptureBothSides,
+      userId: context.userId,
+      jobId: context.jobId,
+      callbackUrl: context.callbackUrl,
+      extraPartnerParams: context.extraPartnerParams,
+    );
+  }
+
+  @override
+  final String verificationId;
   final String country;
   final String documentType;
   final bool captureBothSides;
   final String userId;
   final String jobId;
+  @override
   final Uri callbackUrl;
   final Map<String, String> extraPartnerParams;
 }
@@ -138,6 +290,14 @@ abstract interface class SmileIdGateway {
   Future<void> ensureInitialized();
   void resetInitialization();
   void applyCallbackUrl(Uri callbackUrl);
+
+  /// Tier 1 identity capture: ID lookup plus selfie and liveness.
+  Widget buildBiometricKyc({
+    required SmileIdBiometricJob job,
+    required ValueChanged<String> onSuccess,
+    required ValueChanged<String> onError,
+  });
+
   Widget buildEnhancedDocumentVerification({
     required SmileIdDocumentJob job,
     required ValueChanged<String> onSuccess,
@@ -168,6 +328,35 @@ class SmileIdV11Gateway implements SmileIdGateway {
   @override
   void applyCallbackUrl(Uri callbackUrl) =>
       SmileID.setCallbackUrl(callbackUrl: callbackUrl);
+
+  @override
+  Widget buildBiometricKyc({
+    required SmileIdBiometricJob job,
+    required ValueChanged<String> onSuccess,
+    required ValueChanged<String> onError,
+  }) {
+    return SmileIDBiometricKYC(
+      country: job.country,
+      idType: job.idType,
+      idNumber: job.idNumber,
+      // The user typed the number, so Smile skips its own entry screen and
+      // goes straight to selfie and liveness capture.
+      entered: true,
+      userId: job.userId,
+      jobId: job.jobId,
+      consentGrantedDate: job.consent.grantedDate,
+      personalDetailsConsentGranted: job.consent.personalDetails,
+      contactInformationConsentGranted: job.consent.contactInformation,
+      documentInformationConsentGranted: job.consent.documentInformation,
+      showInstructions: true,
+      skipApiSubmission: false,
+      // Enhanced SmartSelfie capture, which is the stronger liveness check.
+      useStrictMode: true,
+      extraPartnerParams: job.extraPartnerParams,
+      onSuccess: onSuccess,
+      onError: onError,
+    );
+  }
 
   @override
   Widget buildEnhancedDocumentVerification({

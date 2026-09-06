@@ -7,23 +7,25 @@ import '../service/smile_id_gateway.dart';
 
 enum _Stage { initializing, capturing, initializationFailed }
 
-/// Full-screen host for the Smile ID Enhanced Document Verification flow.
+/// Full-screen host for any Smile ID capture flow.
+///
+/// Both products need the same initialization, retry, cancellation, and iOS
+/// failure handling, so they share one screen and dispatch on the job type.
 ///
 /// Pops with a [SmileIdFlowOutcome]. Submitted means the job reached Smile, not
 /// that the user is verified: only `GET /users/me/kyc/status` and the refreshed
 /// aggregates may show verification.
-class SmileIdEnhancedDocumentScreen extends ConsumerStatefulWidget {
-  const SmileIdEnhancedDocumentScreen({required this.job, super.key});
+class SmileIdCaptureScreen extends ConsumerStatefulWidget {
+  const SmileIdCaptureScreen({required this.job, super.key});
 
-  final SmileIdDocumentJob job;
+  final SmileIdCaptureJob job;
 
   @override
-  ConsumerState<SmileIdEnhancedDocumentScreen> createState() =>
-      _SmileIdEnhancedDocumentScreenState();
+  ConsumerState<SmileIdCaptureScreen> createState() =>
+      _SmileIdCaptureScreenState();
 }
 
-class _SmileIdEnhancedDocumentScreenState
-    extends ConsumerState<SmileIdEnhancedDocumentScreen> {
+class _SmileIdCaptureScreenState extends ConsumerState<SmileIdCaptureScreen> {
   /// An SDK error this soon after the capture view appears is treated as a
   /// failed initialization rather than a failed capture.
   ///
@@ -125,7 +127,10 @@ class _SmileIdEnhancedDocumentScreenState
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Verify your document'),
+          title: Text(switch (widget.job) {
+            SmileIdBiometricJob() => 'Verify your identity',
+            SmileIdDocumentJob() => 'Verify your document',
+          }),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => _close(SmileIdFlowOutcome.cancelled),
@@ -138,14 +143,26 @@ class _SmileIdEnhancedDocumentScreenState
           _Stage.initializationFailed => _InitializationFailure(
             onRetry: _retry,
           ),
-          _Stage.capturing =>
-            ref
-                .read(smileIdGatewayProvider)
-                .buildEnhancedDocumentVerification(
-                  job: widget.job,
-                  onSuccess: _handleSdkSuccess,
-                  onError: _handleSdkError,
-                ),
+          // Exhaustive over the sealed job, so a new product cannot be added
+          // without deciding how it is launched.
+          _Stage.capturing => switch (widget.job) {
+            final SmileIdBiometricJob job =>
+              ref
+                  .read(smileIdGatewayProvider)
+                  .buildBiometricKyc(
+                    job: job,
+                    onSuccess: _handleSdkSuccess,
+                    onError: _handleSdkError,
+                  ),
+            final SmileIdDocumentJob job =>
+              ref
+                  .read(smileIdGatewayProvider)
+                  .buildEnhancedDocumentVerification(
+                    job: job,
+                    onSuccess: _handleSdkSuccess,
+                    onError: _handleSdkError,
+                  ),
+          },
         },
       ),
     );

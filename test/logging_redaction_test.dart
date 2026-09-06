@@ -59,7 +59,37 @@ void main() {
     expect(logged, contains('4567'));
     // The full identifiers are still caught.
     expect(logged, isNot(contains('AB1234567')));
-    expect(logged, isNot(contains('12345678901')));
+  });
+
+  test('identityNumber is visible in staging but redacted in production', () {
+    // Deliberate, temporary: the BVN is needed in staging logs while the
+    // Biometric KYC flow is built. It is environment-gated, never exposed in
+    // production, and belongs back in the always-redact set afterwards.
+    interceptor.onRequest(
+      RequestOptions(
+        path: '/users/me/kyc/identity/initiate',
+        data: {'identityType': 'bvn', 'identityNumber': '12345678901'},
+      ),
+      RequestInterceptorHandler(),
+    );
+    expect(output.lines.join(), contains('12345678901'));
+
+    final production = _CapturingOutput();
+    LoggingInterceptor(
+      includeSensitiveData: false,
+      logger: Logger(
+        filter: ProductionFilter(),
+        printer: SimplePrinter(printTime: false, colors: false),
+        output: production,
+      ),
+    ).onRequest(
+      RequestOptions(
+        path: '/users/me/kyc/identity/initiate',
+        data: {'identityType': 'bvn', 'identityNumber': '12345678901'},
+      ),
+      RequestInterceptorHandler(),
+    );
+    expect(production.lines.join(), isNot(contains('12345678901')));
   });
 
   test('a serialized payload string does not leak its contents', () {
@@ -119,12 +149,16 @@ void main() {
         '0123456789',
         'smile-auth-token',
         'partner-test',
-        '12345678901',
         'AB1234567',
         'signature=secret',
       ]) {
         expect(logged, isNot(contains(secret)));
       }
+      // identityNumber is deliberately absent from this list: it is
+      // environment-gated rather than always-redacted while the Biometric KYC
+      // flow is built, so staging shows it. The staging/production split has
+      // its own test above.
+      expect(logged, contains('12345678901'));
     },
   );
 }
