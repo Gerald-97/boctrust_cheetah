@@ -4,7 +4,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 
 import '../../utils/input_formatters.dart';
 
-class PinInputField extends StatelessWidget {
+class PinInputField extends StatefulWidget {
   const PinInputField({
     super.key,
     this.pinLength = 6,
@@ -31,46 +31,72 @@ class PinInputField extends StatelessWidget {
   final AutovalidateMode? autovalidateMode;
 
   @override
+  State<PinInputField> createState() => _PinInputFieldState();
+}
+
+class _PinInputFieldState extends State<PinInputField> {
+  TextEditingController? _ownedController;
+  FocusNode? _ownedFocusNode;
+
+  @override
+  void dispose() {
+    _ownedController?.dispose();
+    _ownedFocusNode?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return PinCodeTextField(
-      appContext: context,
-      length: pinLength,
-      controller: pinCtrl,
-      focusNode: focusNode,
-      enabled: isActive,
-      autoFocus: autofocus,
-      enableActiveFill: true,
-      enablePinAutofill: true,
-      keyboardType: TextInputType.number,
-      obscureText: obscureText,
-      animationType: AnimationType.fade,
-      validator: validator,
-      autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
-      textStyle: Theme.of(
-        context,
-      ).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      cursorColor: colorScheme.primary,
-      pinTheme: PinTheme(
-        shape: PinCodeFieldShape.box,
-        borderRadius: BorderRadius.circular(8),
-        fieldHeight: 50,
-        fieldWidth: 50,
-        inactiveColor: Theme.of(context).dividerColor,
-        activeColor: colorScheme.primary,
-        selectedColor: colorScheme.primary,
-        errorBorderColor: colorScheme.error,
-        disabledColor: colorScheme.outlineVariant,
-        inactiveFillColor: colorScheme.surface,
-        activeFillColor: colorScheme.surface,
-        selectedFillColor: colorScheme.surface,
-        borderWidth: 1.3,
+    final pinLength = widget.pinLength;
+    final scale = MediaQuery.textScalerOf(context);
+    final controller =
+        widget.pinCtrl ?? (_ownedController ??= TextEditingController());
+    final focusNode = widget.focusNode ?? (_ownedFocusNode ??= FocusNode());
+    return LayoutBuilder(
+      builder: (context, constraints) => PinCodeTextField(
+        // The package binds these in initState; a new flow stage must rebind.
+        key: ValueKey((controller, focusNode, pinLength)),
+        appContext: context,
+        length: pinLength,
+        controller: controller,
+        focusNode: focusNode,
+        autoDisposeControllers: false,
+        enabled: widget.isActive,
+        autoFocus: widget.autofocus,
+        enableActiveFill: true,
+        enablePinAutofill: true,
+        keyboardType: TextInputType.number,
+        obscureText: widget.obscureText,
+        animationType: AnimationType.fade,
+        validator: widget.validator,
+        autovalidateMode: widget.autovalidateMode ?? AutovalidateMode.disabled,
+        textStyle: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        cursorColor: colorScheme.primary,
+        pinTheme: PinTheme(
+          shape: PinCodeFieldShape.box,
+          borderRadius: BorderRadius.circular(8),
+          fieldHeight: (scale.scale(20) + 24).clamp(50, double.infinity),
+          fieldWidth: ((constraints.maxWidth - 3 * (pinLength - 1)) / pinLength)
+              .clamp(1, 50),
+          inactiveColor: Theme.of(context).dividerColor,
+          activeColor: colorScheme.primary,
+          selectedColor: colorScheme.primary,
+          errorBorderColor: colorScheme.error,
+          disabledColor: colorScheme.outlineVariant,
+          inactiveFillColor: colorScheme.surface,
+          activeFillColor: colorScheme.surface,
+          selectedFillColor: colorScheme.surface,
+          borderWidth: 1.3,
+        ),
+        separatorBuilder: (context, index) => const SizedBox(width: 3),
+        onChanged: widget.onChanged ?? (_) {},
+        onCompleted: widget.onCompleteCode,
+        beforeTextPaste: (_) => true,
       ),
-      separatorBuilder: (context, index) => const SizedBox(width: 3),
-      onChanged: onChanged ?? (_) {},
-      onCompleted: onCompleteCode,
-      beforeTextPaste: (_) => true,
     );
   }
 }
@@ -207,6 +233,8 @@ class FormDropdownWidget<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final field = DropdownButtonFormField<T>(
+      isExpanded: true,
+      itemHeight: null,
       initialValue: value,
       items: items,
       validator: validator,
