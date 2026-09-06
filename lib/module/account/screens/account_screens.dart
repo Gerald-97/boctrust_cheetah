@@ -1040,6 +1040,7 @@ extension AccountScreens on AppFlowNavigatorState {
         ),
       ),
     );
+    if (!mounted) return;
     _currentSecretController.clear();
     _passwordController.clear();
     _confirmPasswordController.clear();
@@ -1140,6 +1141,7 @@ extension AccountScreens on AppFlowNavigatorState {
         ),
       ),
     );
+    if (!mounted) return;
     _currentSecretController.clear();
     _pinController.clear();
     _confirmPinController.clear();
@@ -1302,12 +1304,14 @@ extension AccountScreens on AppFlowNavigatorState {
         ),
       ),
     );
+    if (!mounted) return;
     _identifierController.clear();
     _otpController.clear();
     ref.invalidate(identifierVerificationProvider);
   }
 
   Future<void> _showPinRecoverySheet() async {
+    if (!mounted) return;
     ref.invalidate(pinRecoveryProvider);
     final session = ref.read(authSessionProvider);
     _identifierController.text = session?.email ?? session?.phoneNumber ?? '';
@@ -1315,9 +1319,8 @@ extension AccountScreens on AppFlowNavigatorState {
     _pinController.clear();
     _confirmPinController.clear();
     var channel = PhoneVerificationChannel.sms;
-    await showModalBottomSheet<void>(
+    await AppActionSheet.show<void>(
       context: context,
-      isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setSheetState) => Consumer(
           builder: (context, modalRef, _) {
@@ -1325,164 +1328,157 @@ extension AccountScreens on AppFlowNavigatorState {
             final stage = state.data?.stage ?? RecoveryFlowStage.idle;
             final awaitingOtp = stage == RecoveryFlowStage.awaitingOtp;
             final awaitingPin = stage == RecoveryFlowStage.awaitingNewSecret;
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                22,
-                24,
-                22 + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      awaitingOtp
-                          ? 'Verify your account'
-                          : awaitingPin
-                          ? 'Choose a new PIN'
-                          : 'Reset transaction PIN',
-                      style: Theme.of(context).textTheme.titleLarge,
+            return AppActionSheet(
+              icon: Icons.lock_reset_rounded,
+              title: awaitingOtp
+                  ? 'Verify your account'
+                  : awaitingPin
+                  ? 'Choose a new PIN'
+                  : 'Reset transaction PIN',
+              subtitle: awaitingOtp
+                  ? 'Enter the 6-digit code sent to the registered contact.'
+                  : awaitingPin
+                  ? 'Use four digits that are difficult to guess.'
+                  : "We'll send a code to verify your account.",
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (awaitingOtp) ...[
+                    PinInputField(
+                      pinCtrl: _otpController,
+                      isActive: !state.isLoading,
                     ),
-                    const SizedBox(height: 18),
-                    if (awaitingOtp) ...[
-                      PinInputField(
-                        pinCtrl: _otpController,
-                        isActive: !state.isLoading,
+                    const SizedBox(height: 10),
+                    OtpExpiryLabel(expiresAt: state.data?.otpExpiresAt),
+                    const SizedBox(height: 10),
+                    TestOtpBanner(
+                      flow: TestOtpFlow.pinRecovery,
+                      controller: _otpController,
+                    ),
+                  ] else if (awaitingPin) ...[
+                    const PinSecurityWarningBox(),
+                    const SizedBox(height: 14),
+                    PinInputField(
+                      pinLength: 4,
+                      pinCtrl: _pinController,
+                      obscureText: true,
+                      isActive: !state.isLoading,
+                      validator: validators.strongTransactionPin,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                    const SizedBox(height: 14),
+                    PinInputField(
+                      pinLength: 4,
+                      pinCtrl: _confirmPinController,
+                      obscureText: true,
+                      isActive: !state.isLoading,
+                      validator: (value) => value == _pinController.text
+                          ? null
+                          : 'PINs do not match',
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                  ] else ...[
+                    AppTextField(
+                      label: 'Email or phone number',
+                      controller: _identifierController,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<PhoneVerificationChannel>(
+                      initialValue: channel,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone delivery channel',
                       ),
-                      const SizedBox(height: 10),
-                      OtpExpiryLabel(expiresAt: state.data?.otpExpiresAt),
-                      const SizedBox(height: 10),
-                      TestOtpBanner(
-                        flow: TestOtpFlow.pinRecovery,
-                        controller: _otpController,
-                      ),
-                    ] else if (awaitingPin) ...[
-                      const PinSecurityWarningBox(),
-                      const SizedBox(height: 14),
-                      PinInputField(
-                        pinLength: 4,
-                        pinCtrl: _pinController,
-                        obscureText: true,
-                        isActive: !state.isLoading,
-                        validator: validators.strongTransactionPin,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                      ),
-                      const SizedBox(height: 14),
-                      PinInputField(
-                        pinLength: 4,
-                        pinCtrl: _confirmPinController,
-                        obscureText: true,
-                        isActive: !state.isLoading,
-                        validator: (value) => value == _pinController.text
-                            ? null
-                            : 'PINs do not match',
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                      ),
-                    ] else ...[
-                      AppTextField(
-                        label: 'Email or phone number',
-                        controller: _identifierController,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<PhoneVerificationChannel>(
-                        initialValue: channel,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone delivery channel',
+                      items: const [
+                        DropdownMenuItem(
+                          value: PhoneVerificationChannel.sms,
+                          child: Text('SMS'),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: PhoneVerificationChannel.sms,
-                            child: Text('SMS'),
-                          ),
-                          DropdownMenuItem(
-                            value: PhoneVerificationChannel.whatsapp,
-                            child: Text('WhatsApp'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setSheetState(() => channel = value);
-                          }
-                        },
-                      ),
-                    ],
-                    if (state.isError) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        state.message ?? 'PIN recovery failed.',
-                        style: const TextStyle(color: BocColors.red),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    PrimaryButton(
-                      label: state.isLoading
-                          ? 'Please wait…'
-                          : awaitingOtp
-                          ? 'Verify code'
-                          : awaitingPin
-                          ? 'Reset PIN'
-                          : 'Send code',
-                      onPressed: () async {
-                        if (state.isLoading) return;
-                        final notifier = modalRef.read(
-                          pinRecoveryProvider.notifier,
-                        );
-                        if (awaitingOtp) {
-                          if (validators.otp(_otpController.text) != null) {
-                            _showMessage('Enter the 6-digit code.');
-                            return;
-                          }
-                          await notifier.verifyOtp(_otpController.text);
-                          return;
+                        DropdownMenuItem(
+                          value: PhoneVerificationChannel.whatsapp,
+                          child: Text('WhatsApp'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setSheetState(() => channel = value);
                         }
-                        if (awaitingPin) {
-                          if (validators.strongTransactionPin(
-                                _pinController.text,
-                              ) !=
-                              null) {
-                            _showMessage('Choose a PIN that is hard to guess.');
-                            return;
-                          }
-                          if (_confirmPinController.text !=
-                              _pinController.text) {
-                            _showMessage('PINs do not match.');
-                            return;
-                          }
-                          await notifier.reset(_pinController.text);
-                          final result = modalRef.read(pinRecoveryProvider);
-                          if (result.data?.stage ==
-                                  RecoveryFlowStage.completed &&
-                              sheetContext.mounted) {
-                            Navigator.pop(sheetContext);
-                            if (mounted) {
-                              _showSuccessMessage(
-                                result.message ?? 'Transaction PIN reset.',
-                              );
-                            }
-                          }
-                          return;
-                        }
-                        final identifier = _identifierController.text.trim();
-                        if (identifier.isEmpty) {
-                          _showMessage('Enter your email or phone number.');
-                          return;
-                        }
-                        await notifier.start(
-                          identifier,
-                          channel: identifier.contains('@') ? null : channel,
-                        );
                       },
                     ),
                   ],
-                ),
+                  if (state.isError) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      state.message ?? 'PIN recovery failed.',
+                      style: const TextStyle(color: BocColors.red),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  PrimaryButton(
+                    label: state.isLoading
+                        ? 'Please wait…'
+                        : awaitingOtp
+                        ? 'Verify code'
+                        : awaitingPin
+                        ? 'Reset PIN'
+                        : 'Send code',
+                    onPressed: () async {
+                      if (state.isLoading) return;
+                      final notifier = modalRef.read(
+                        pinRecoveryProvider.notifier,
+                      );
+                      if (awaitingOtp) {
+                        if (validators.otp(_otpController.text) != null) {
+                          _showMessage('Enter the 6-digit code.');
+                          return;
+                        }
+                        await notifier.verifyOtp(_otpController.text);
+                        return;
+                      }
+                      if (awaitingPin) {
+                        if (validators.strongTransactionPin(
+                              _pinController.text,
+                            ) !=
+                            null) {
+                          _showMessage('Choose a PIN that is hard to guess.');
+                          return;
+                        }
+                        if (_confirmPinController.text != _pinController.text) {
+                          _showMessage('PINs do not match.');
+                          return;
+                        }
+                        await notifier.reset(_pinController.text);
+                        final result = modalRef.read(pinRecoveryProvider);
+                        if (result.data?.stage == RecoveryFlowStage.completed &&
+                            sheetContext.mounted) {
+                          Navigator.pop(sheetContext);
+                          if (mounted) {
+                            _showSuccessMessage(
+                              result.message ?? 'Transaction PIN reset.',
+                            );
+                          }
+                        }
+                        return;
+                      }
+                      final identifier = _identifierController.text.trim();
+                      if (identifier.isEmpty) {
+                        _showMessage('Enter your email or phone number.');
+                        return;
+                      }
+                      await notifier.start(
+                        identifier,
+                        channel: identifier.contains('@') ? null : channel,
+                      );
+                    },
+                  ),
+                ],
               ),
             );
           },
         ),
       ),
     );
+    if (!mounted) return;
     ref.read(pinRecoveryProvider.notifier).cancel();
     _identifierController.clear();
     _otpController.clear();
@@ -1597,6 +1593,7 @@ extension AccountScreens on AppFlowNavigatorState {
         ],
       ),
     );
+    if (!mounted) return;
     _currentSecretController.clear();
   }
 }

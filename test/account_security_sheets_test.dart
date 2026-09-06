@@ -158,4 +158,18 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Recovery sheet uses the branded shell', (tester) async {
+    await _pumpAccount(tester);
+    await _openSetting(tester, 'Forgot transaction PIN');
+
+    expect(find.byKey(const Key('app-action-sheet')), findsOneWidget);
+    expect(find.text('Reset transaction PIN'), findsOneWidget);
+    expect(
+      find.text("We'll send a code to verify your account."),
+      findsOneWidget,
+    );
+    expect(find.text('Send code'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
