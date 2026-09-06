@@ -122,6 +122,31 @@ void main() {
     expect(logged, contains('123456'));
   });
 
+  test('prose and status flags survive, only payload strings are scanned', () {
+    // Both regressions were found by reading a real Android emulator logcat.
+    // A message merely mentioning a protected word vanished, and boolean
+    // onboarding flags were redacted because their key names contain
+    // "password" and "pin" — destroying the fields logs are read for.
+    interceptor.onResponse(
+      Response<Object?>(
+        requestOptions: RequestOptions(path: '/auth/password/forgot'),
+        data: {
+          'message': 'A password reset link has been sent to your email.',
+          'isCreatedPassword': true,
+          'isCreatedPin': false,
+          'password': 'Sup3rSecret!',
+        },
+      ),
+      ResponseInterceptorHandler(),
+    );
+    final logged = output.lines.join();
+    expect(logged, contains('A password reset link has been sent'));
+    expect(logged, contains('"isCreatedPassword":true'));
+    expect(logged, contains('"isCreatedPin":false'));
+    // The actual credential is still gone.
+    expect(logged, isNot(contains('Sup3rSecret!')));
+  });
+
   test('a serialized payload string does not leak its contents', () {
     // Found by a live staging check: the recursive redaction walked Map and
     // Iterable only, so a JSON-encoded string field printed every value inside

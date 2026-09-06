@@ -138,13 +138,32 @@ class LoggingInterceptor extends Interceptor {
   static bool _isServerMaskedFragment(String normalizedKey) =>
       normalizedKey.endsWith('last4');
 
+  /// Whether a string looks like a serialized payload rather than prose.
+  ///
+  /// The value scan exists to catch a JSON body carried as a string. Applying
+  /// it to ordinary text redacts any message that merely mentions a protected
+  /// word — "A password reset link has been sent" disappeared entirely — which
+  /// destroys exactly the field logs are read for.
+  static bool _looksLikeSerializedPayload(String value) {
+    final trimmed = value.trimLeft();
+    return trimmed.startsWith('{') ||
+        trimmed.startsWith('[') ||
+        value.contains('":');
+  }
+
   static Object? _redact(Object? value, {required bool includeSensitiveData}) {
     // A String can itself be a serialized payload. Recursing only through Map
     // and Iterable would print every value inside it verbatim, which is how a
     // stringified body such as {"accountNumber":"0123456789"} leaked in a live
     // staging check. Redact the whole string when it names a protected field:
     // over-redacting a log line is always preferable to emitting a credential.
+    // A bool can never carry a secret. Flags such as `isCreatedPassword` and
+    // `isCreatedPin` report whether a credential exists, not what it is, and
+    // the app's own onboarding logic depends on reading them.
+    if (value is bool) return value;
+
     if (value is String) {
+      if (!_looksLikeSerializedPayload(value)) return value;
       final normalized = _normalize(value);
       return _alwaysRedactedKeyParts.any(normalized.contains)
           ? '[REDACTED]'
@@ -153,11 +172,16 @@ class LoggingInterceptor extends Interceptor {
     if (value is Map) {
       return value.map<Object?, Object?>((key, nested) {
         final keyString = _normalize(key);
+        // A bool under a credential-shaped key is a status flag, not a
+        // credential; `isCreatedPassword` must stay readable.
         final alwaysRedacted =
+            nested is! bool &&
             !_isServerMaskedFragment(keyString) &&
             _alwaysRedactedKeyParts.any(keyString.contains);
         final environmentRedacted =
-            !includeSensitiveData && _sensitiveKeyParts.any(keyString.contains);
+            nested is! bool &&
+            !includeSensitiveData &&
+            _sensitiveKeyParts.any(keyString.contains);
         return MapEntry(
           key,
           alwaysRedacted || environmentRedacted
