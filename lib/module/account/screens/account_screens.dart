@@ -1057,6 +1057,10 @@ extension AccountScreens on AppFlowNavigatorState {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Change transaction PIN'),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 12,
+          ),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -1074,7 +1078,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       pinCtrl: _currentSecretController,
                       obscureText: true,
                       validator: validators.transactionPin,
-                      autovalidateMode: autovalidateMode,
+                      autoValidateMode: autovalidateMode,
                     ),
                     const SizedBox(height: 12),
                     const Text('New PIN'),
@@ -1084,7 +1088,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       pinCtrl: _pinController,
                       obscureText: true,
                       validator: validators.strongTransactionPin,
-                      autovalidateMode: autovalidateMode,
+                      autoValidateMode: autovalidateMode,
                     ),
                     const SizedBox(height: 12),
                     const Text('Confirm new PIN'),
@@ -1096,7 +1100,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       validator: (value) => value == _pinController.text
                           ? null
                           : 'PINs do not match',
-                      autovalidateMode: autovalidateMode,
+                      autoValidateMode: autovalidateMode,
                     ),
                   ],
                 ),
@@ -1365,7 +1369,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       obscureText: true,
                       isActive: !state.isLoading,
                       validator: validators.strongTransactionPin,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      autoValidateMode: AutovalidateMode.onUserInteraction,
                     ),
                     const SizedBox(height: 14),
                     PinInputField(
@@ -1376,7 +1380,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       validator: (value) => value == _pinController.text
                           ? null
                           : 'PINs do not match',
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      autoValidateMode: AutovalidateMode.onUserInteraction,
                     ),
                   ] else ...[
                     AppTextField(

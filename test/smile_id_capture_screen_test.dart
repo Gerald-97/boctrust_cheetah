@@ -209,4 +209,35 @@ void main() {
 
     expect(outcome, SmileIdFlowOutcome.cancelled);
   });
+
+  for (final size in [const Size(320, 568), const Size(844, 390)]) {
+    testWidgets('initialization error remains reachable at $size', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      gateway.initializationError = StateError('config missing');
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [smileIdGatewayProvider.overrideWithValue(gateway)],
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: SmileIdCaptureScreen(job: _job()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retry').hitTestable(), findsOneWidget);
+    });
+  }
 }

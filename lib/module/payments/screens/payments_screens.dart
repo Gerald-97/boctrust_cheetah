@@ -56,13 +56,9 @@ extension PaymentsScreens on AppFlowNavigatorState {
           const SectionHeader(title: 'Bill payments'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 8,
-              childAspectRatio: 0.82,
+            child: ResponsiveTiles(
+              minTileWidth: 72,
+              spacing: 16,
               children: [
                 BillGridItem(
                   icon: Icons.phone_android_rounded,
@@ -166,43 +162,51 @@ extension PaymentsScreens on AppFlowNavigatorState {
       ),
       body: SafeArea(
         top: false,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 210,
-                  height: 210,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: BocColors.goldLight, width: 3),
-                    color: Colors.white.withValues(alpha: 0.03),
-                  ),
-                  child: const Icon(
-                    Icons.qr_code_2_rounded,
-                    color: Colors.white24,
-                    size: 140,
-                  ),
+        child: ResponsiveContent(
+          maxWidth: 560,
+          child: ScrollableFill(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 210,
+                      height: 210,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: BocColors.goldLight,
+                          width: 3,
+                        ),
+                        color: Colors.white.withValues(alpha: 0.03),
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_2_rounded,
+                        color: Colors.white24,
+                        size: 140,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      "Point your camera at a merchant's QR code to pay instantly",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFFC7D3E0), height: 1.6),
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: BocColors.goldLight,
+                        side: const BorderSide(color: BocColors.goldLight),
+                      ),
+                      onPressed: () =>
+                          _showMessage('Manual payment code entry opened.'),
+                      child: const Text('Enter code manually'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 22),
-                const Text(
-                  "Point your camera at a merchant's QR code to pay instantly",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFFC7D3E0), height: 1.6),
-                ),
-                const SizedBox(height: 20),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: BocColors.goldLight,
-                    side: const BorderSide(color: BocColors.goldLight),
-                  ),
-                  onPressed: () =>
-                      _showMessage('Manual payment code entry opened.'),
-                  child: const Text('Enter code manually'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

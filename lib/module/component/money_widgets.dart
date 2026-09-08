@@ -69,9 +69,9 @@ class MoneyKeypad extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 1.65,
+        mainAxisExtent: MediaQuery.textScalerOf(context).scale(20) + 40,
       ),
       itemCount: keys.length,
       itemBuilder: (context, index) {

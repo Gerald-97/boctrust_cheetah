@@ -18,20 +18,21 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = icon == null
-        ? Text(label)
+        ? Text(label, textAlign: TextAlign.center)
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 18),
               const SizedBox(width: 8),
-              Text(label),
+              Flexible(child: Text(label, textAlign: TextAlign.center)),
             ],
           );
     return SizedBox(
       width: double.infinity,
-      height: 50,
       child: FilledButton(
         style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 50),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           backgroundColor: BocColors.navy,
           foregroundColor: BocColors.goldLight,
           shape: RoundedRectangleBorder(
@@ -60,10 +61,11 @@ class SecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 50),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           foregroundColor: Theme.of(context).colorScheme.onSurface,
           side: BorderSide(color: Theme.of(context).dividerColor),
           shape: RoundedRectangleBorder(
@@ -71,7 +73,7 @@ class SecondaryButton extends StatelessWidget {
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
-        child: Text(label),
+        child: Text(label, textAlign: TextAlign.center),
       ),
     );
   }

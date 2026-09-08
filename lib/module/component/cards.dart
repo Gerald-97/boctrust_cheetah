@@ -166,18 +166,24 @@ class BalanceCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        secondaryLabel ?? '',
-                        style: const TextStyle(
-                          color: _mutedText,
-                          fontSize: 11.5,
+                      Expanded(
+                        child: Text(
+                          secondaryLabel ?? '',
+                          style: const TextStyle(
+                            color: _mutedText,
+                            fontSize: 11.5,
+                          ),
                         ),
                       ),
-                      Text(
-                        hidden ? '••••••' : secondary,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          hidden ? '••••••' : secondary,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],

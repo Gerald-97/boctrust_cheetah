@@ -185,21 +185,13 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
       autofillHints: widget.autofillHints,
       onChanged: widget.onChanged,
       obscureText: _hidden,
-      suffix: Semantics(
-        button: true,
-        label: label,
-        child: Tooltip(
-          message: label,
-          child: IconButton(
-            onPressed: widget.enabled
-                ? () => setState(() => _hidden = !_hidden)
-                : null,
-            icon: Icon(
-              _hidden
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-            ),
-          ),
+      suffix: IconButton(
+        tooltip: label,
+        onPressed: widget.enabled
+            ? () => setState(() => _hidden = !_hidden)
+            : null,
+        icon: Icon(
+          _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
         ),
       ),
     );

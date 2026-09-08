@@ -64,12 +64,14 @@ class SavingsHeroCard extends StatelessWidget {
                 size: 15,
               ),
               const SizedBox(width: 4),
-              Text(
-                growth,
-                style: const TextStyle(
-                  color: BocColors.green,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  growth,
+                  style: const TextStyle(
+                    color: BocColors.green,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -108,12 +110,14 @@ class InfoBanner extends StatelessWidget {
           ),
           if (value.isNotEmpty) ...[
             const SizedBox(width: 12),
-            Text(
-              value,
-              style: const TextStyle(
-                color: BocColors.navy,
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
+            Flexible(
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: BocColors.navy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
               ),
             ),
           ],
@@ -129,13 +133,10 @@ class GridViewInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.15,
+    return ResponsiveTiles(
+      maxColumns: 2,
+      minTileWidth: 150,
+      spacing: 10,
       children: items
           .map(
             (item) => SurfaceCard(

@@ -233,9 +233,11 @@ extension SavingsScreens on AppFlowNavigatorState {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Your goals',
-                style: Theme.of(context).textTheme.titleMedium,
+              Expanded(
+                child: Text(
+                  'Your goals',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
               TextButton.icon(
                 onPressed: () {},

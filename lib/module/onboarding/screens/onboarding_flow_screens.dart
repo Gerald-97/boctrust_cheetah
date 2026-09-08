@@ -9,46 +9,52 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     final hasError = state.status == ServiceStatus.error;
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const BocLogo(height: 52),
-                const SizedBox(height: 28),
-                if (!hasError) ...[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 18),
-                  Text(
-                    state.data?.stage == StartupGateStage.loadingProfile
-                        ? 'Loading your account…'
-                        : 'Starting securely…',
-                  ),
-                ] else ...[
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    size: 48,
-                    color: BocColors.gold,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    state.message ?? 'Unable to load your account.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  PrimaryButton(
-                    label: 'Retry',
-                    onPressed: () =>
-                        ref.read(startupGateProvider.notifier).retryProfile(),
-                  ),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: _confirmSignOut,
-                    child: const Text('Sign out'),
-                  ),
-                ],
-              ],
+        child: ResponsiveContent(
+          maxWidth: 560,
+          child: ScrollableFill(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const BocLogo(height: 52),
+                    const SizedBox(height: 28),
+                    if (!hasError) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 18),
+                      Text(
+                        state.data?.stage == StartupGateStage.loadingProfile
+                            ? 'Loading your account…'
+                            : 'Starting securely…',
+                      ),
+                    ] else ...[
+                      const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 48,
+                        color: BocColors.gold,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        state.message ?? 'Unable to load your account.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      PrimaryButton(
+                        label: 'Retry',
+                        onPressed: () => ref
+                            .read(startupGateProvider.notifier)
+                            .retryProfile(),
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton(
+                        onPressed: _confirmSignOut,
+                        child: const Text('Sign out'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -80,77 +86,83 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     final slide = slides[_onboardingIndex];
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () =>
-                      _openAuthDestination(AuthDestination.verificationMethod),
-                  child: const Text('Skip'),
-                ),
-              ),
-              const BocLogo(height: 42),
-              const Spacer(),
-              OnboardingIllustration(icon: slide.icon),
-              const SizedBox(height: 30),
-              Text(
-                slide.title,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(fontSize: 23),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                slide.description,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  slides.length,
-                  (index) => GestureDetector(
-                    onTap: () => _selectOnboardingIndex(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: index == _onboardingIndex ? 22 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: index == _onboardingIndex
-                            ? BocColors.gold
-                            : Theme.of(context).dividerColor,
-                        borderRadius: BorderRadius.circular(20),
+        child: ResponsiveContent(
+          maxWidth: 560,
+          child: ScrollableFill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => _openAuthDestination(
+                        AuthDestination.verificationMethod,
+                      ),
+                      child: const Text('Skip'),
+                    ),
+                  ),
+                  const BocLogo(height: 42),
+                  const Spacer(),
+                  OnboardingIllustration(icon: slide.icon),
+                  const SizedBox(height: 30),
+                  Text(
+                    slide.title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(fontSize: 23),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    slide.description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      slides.length,
+                      (index) => GestureDetector(
+                        onTap: () => _selectOnboardingIndex(index),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: index == _onboardingIndex ? 22 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: index == _onboardingIndex
+                                ? BocColors.gold
+                                : Theme.of(context).dividerColor,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  const RegulatoryBadge(),
+                  const SizedBox(height: 14),
+                  PrimaryButton(
+                    label: _onboardingIndex == slides.length - 1
+                        ? 'Get started'
+                        : 'Next',
+                    onPressed: _advanceOnboarding,
+                  ),
+                  TextButton(
+                    onPressed: () => _openAuthDestination(
+                      AuthDestination.login,
+                      mode: AuthNavigationMode.clearStack,
+                    ),
+                    child: const Text('I already have an account'),
+                  ),
+                ],
               ),
-              const Spacer(),
-              const RegulatoryBadge(),
-              const SizedBox(height: 14),
-              PrimaryButton(
-                label: _onboardingIndex == slides.length - 1
-                    ? 'Get started'
-                    : 'Next',
-                onPressed: _advanceOnboarding,
-              ),
-              TextButton(
-                onPressed: () => _openAuthDestination(
-                  AuthDestination.login,
-                  mode: AuthNavigationMode.clearStack,
-                ),
-                child: const Text('I already have an account'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -166,10 +178,48 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     Widget? footer,
     bool showBack = true,
   }) {
+    final fields = <Widget>[
+      const BocLogo(height: 36),
+      const SizedBox(height: 28),
+      Text(
+        title,
+        textAlign: TextAlign.center,
+        style: Theme.of(
+          context,
+        ).textTheme.headlineSmall?.copyWith(fontSize: 22),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        subtitle,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          height: 1.55,
+          color: Theme.of(context).textTheme.bodySmall?.color,
+        ),
+      ),
+      const SizedBox(height: 28),
+      content,
+    ];
+    final actions = Container(
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PrimaryButton(label: buttonLabel, onPressed: onButtonPressed),
+          if (footer != null) ...[const SizedBox(height: 10), footer],
+        ],
+      ),
+    );
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: showBack
+        // Never render a chevron that cannot navigate: a screen entered with a
+        // cleared stack has no history and nothing to pop.
+        leading: showBack && _canGoBack
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
                 onPressed: _back,
@@ -178,52 +228,43 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+        child: ResponsiveContent(
+          maxWidth: 560,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // A pinned footer must not consume the form's viewport when a
+              // keyboard or landscape window leaves little vertical space, so
+              // the footer scrolls with the fields instead.
+              //
+              // Both cases must keep the SAME widget tree above the fields.
+              // Returning two differently shaped trees re-parents every
+              // TextFormField the instant the keyboard raises viewInsets. Its
+              // FormFieldState is then rebuilt rather than reused, the focus
+              // node it owns is disposed, and Flutter closes the input
+              // connection — so the keyboard dismisses itself before a
+              // character can be typed. Dismissing it drops viewInsets back to
+              // zero, which restores the first shape, so it never settles.
+              final tight =
+                  constraints.maxHeight < 480 ||
+                  MediaQuery.viewInsetsOf(context).bottom > 0;
+              return Column(
                 children: [
-                  const BocLogo(height: 36),
-                  const SizedBox(height: 28),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.headlineSmall?.copyWith(fontSize: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      height: 1.55,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+                      children: [
+                        ...fields,
+                        // Scrolls with the form only when space is tight.
+                        if (tight) actions,
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 28),
-                  content,
+                  // Pinned only when there is room for it.
+                  if (!tight) actions,
                 ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                border: Border(
-                  top: BorderSide(color: Theme.of(context).dividerColor),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PrimaryButton(label: buttonLabel, onPressed: onButtonPressed),
-                  if (footer != null) ...[const SizedBox(height: 10), footer],
-                ],
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -702,7 +743,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
                   obscureText: true,
                   isActive: !state.isLoading,
                   validator: validators.strongTransactionPin,
-                  autovalidateMode: _createFirstPinAutovalidate,
+                  autoValidateMode: _createFirstPinAutovalidate,
                 ),
                 const SizedBox(height: 18),
                 const Text('Confirm PIN'),
@@ -714,7 +755,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
                   isActive: !state.isLoading,
                   validator: (value) =>
                       value == _pinController.text ? null : 'PINs do not match',
-                  autovalidateMode: _createFirstPinAutovalidate,
+                  autoValidateMode: _createFirstPinAutovalidate,
                 ),
               ],
             ),

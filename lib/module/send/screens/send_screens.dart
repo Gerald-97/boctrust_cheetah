@@ -275,18 +275,19 @@ extension SendScreens on AppFlowNavigatorState {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         children: [
-          Container(
-            width: 62,
-            height: 62,
-            margin: const EdgeInsets.symmetric(horizontal: 130),
-            decoration: BoxDecoration(
-              color: context.bocColors.goldPale,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(
-              Icons.lock_outline_rounded,
-              color: BocColors.gold,
-              size: 28,
+          Center(
+            child: Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: context.bocColors.goldPale,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: BocColors.gold,
+                size: 28,
+              ),
             ),
           ),
           const SizedBox(height: 16),

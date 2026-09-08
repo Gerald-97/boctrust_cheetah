@@ -102,11 +102,13 @@ class PasswordStrengthWidget extends StatelessWidget {
               color: activeColor,
             ),
             const SizedBox(width: 6),
-            Text(
-              strength.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: activeColor,
-                fontWeight: FontWeight.w800,
+            Flexible(
+              child: Text(
+                strength.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: activeColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -153,11 +155,13 @@ class _PasswordCriterionChip extends StatelessWidget {
           color: color,
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: met ? FontWeight.w700 : FontWeight.w500,
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: met ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
       ],

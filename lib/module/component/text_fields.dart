@@ -16,7 +16,7 @@ class PinInputField extends StatefulWidget {
     this.onCompleteCode,
     this.pinCtrl,
     this.validator,
-    this.autovalidateMode,
+    this.autoValidateMode,
   });
 
   final int pinLength;
@@ -28,7 +28,7 @@ class PinInputField extends StatefulWidget {
   final ValueChanged<String>? onCompleteCode;
   final TextEditingController? pinCtrl;
   final String? Function(String?)? validator;
-  final AutovalidateMode? autovalidateMode;
+  final AutovalidateMode? autoValidateMode;
 
   @override
   State<PinInputField> createState() => _PinInputFieldState();
@@ -70,7 +70,7 @@ class _PinInputFieldState extends State<PinInputField> {
         obscureText: widget.obscureText,
         animationType: AnimationType.fade,
         validator: widget.validator,
-        autovalidateMode: widget.autovalidateMode ?? AutovalidateMode.disabled,
+        autovalidateMode: widget.autoValidateMode ?? AutovalidateMode.disabled,
         textStyle: Theme.of(
           context,
         ).textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),

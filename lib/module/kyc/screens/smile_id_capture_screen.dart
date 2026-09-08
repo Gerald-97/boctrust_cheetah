@@ -141,6 +141,12 @@ class _SmileIdCaptureScreenState extends ConsumerState<SmileIdCaptureScreen> {
             child: CircularProgressIndicator(),
           ),
           _Stage.initializationFailed => _InitializationFailure(
+            // The screen hosts both products, so the message must name the one
+            // the user actually started.
+            what: switch (widget.job) {
+              SmileIdBiometricJob() => 'identity verification',
+              SmileIdDocumentJob() => 'document verification',
+            },
             onRetry: _retry,
           ),
           // Exhaustive over the sealed job, so a new product cannot be added
@@ -170,26 +176,31 @@ class _SmileIdCaptureScreenState extends ConsumerState<SmileIdCaptureScreen> {
 }
 
 class _InitializationFailure extends StatelessWidget {
-  const _InitializationFailure({required this.onRetry});
+  const _InitializationFailure({required this.what, required this.onRetry});
 
+  final String what;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              "We couldn't start document verification. Please check your "
-              'connection and try again.',
-              textAlign: TextAlign.center,
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "We couldn't start $what. Please check your connection and "
+                  'try again.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(onPressed: onRetry, child: const Text('Retry')),
+              ],
             ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
+          ),
         ),
       ),
     );

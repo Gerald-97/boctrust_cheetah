@@ -42,7 +42,7 @@ class AppScaffold extends StatelessWidget {
             ),
         actions: actions,
       ),
-      body: body,
+      body: SafeArea(top: false, child: ResponsiveContent(child: body)),
       bottomNavigationBar: showBottomNavigation
           ? AppBottomNavigation(
               selected: activeSection,
@@ -88,53 +88,55 @@ class AppBottomNavigation extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 10, 4, 18),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: items.map((item) {
-            final active = item.section == selected;
-            return Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => onSelected(item.section),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        width: active ? 6 : 0,
-                        height: active ? 6 : 0,
-                        margin: EdgeInsets.only(bottom: active ? 4 : 0),
-                        decoration: const BoxDecoration(
-                          color: BocColors.gold,
-                          shape: BoxShape.circle,
+        child: ResponsiveContent(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: items.map((item) {
+              final active = item.section == selected;
+              return Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onSelected(item.section),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: active ? 6 : 0,
+                          height: active ? 6 : 0,
+                          margin: EdgeInsets.only(bottom: active ? 4 : 0),
+                          decoration: const BoxDecoration(
+                            color: BocColors.gold,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      Icon(
-                        item.icon,
-                        size: 20,
-                        color: active
-                            ? Theme.of(context).textTheme.titleMedium?.color
-                            : Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                        Icon(
+                          item.icon,
+                          size: 20,
                           color: active
                               ? Theme.of(context).textTheme.titleMedium?.color
                               : Theme.of(context).textTheme.bodySmall?.color,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: active
+                                ? Theme.of(context).textTheme.titleMedium?.color
+                                : Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

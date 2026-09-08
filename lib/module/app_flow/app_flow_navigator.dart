@@ -268,16 +268,50 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     });
   }
 
+  /// Whether [_back] has anywhere to go from the current screen.
+  ///
+  /// A screen entered with [AuthNavigationMode.clearStack] has no in-app
+  /// history and no route beneath it, so a back control there is inert. Asking
+  /// this before rendering one keeps the chevron honest instead of showing a
+  /// button that silently does nothing.
+  bool get _canGoBack =>
+      _history.isNotEmpty ||
+      Navigator.of(context).canPop() ||
+      _authFallbackFor(_screen) != null;
+
+  /// Where an auth screen returns to when it has no history to pop.
+  ///
+  /// "Create an account" reaches the verification flow with `clearStack`, which
+  /// wipes the route beneath it. Without an explicit destination the user is
+  /// stranded with no way back to Login.
+  AuthDestination? _authFallbackFor(AppScreen screen) => switch (screen) {
+    AppScreen.verifyMethod || AppScreen.passwordReset => AuthDestination.login,
+    AppScreen.otp ||
+    AppScreen.createPassword => AuthDestination.verificationMethod,
+    _ => null,
+  };
+
   void _back() {
     _cancelFlowForScreen(_screen);
-    if (_history.isEmpty) {
-      final navigator = Navigator.of(context);
-      if (navigator.canPop()) navigator.pop();
+    if (_history.isNotEmpty) {
+      setState(() {
+        _screen = _history.removeLast();
+      });
       return;
     }
-    setState(() {
-      _screen = _history.removeLast();
-    });
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+
+    // Nothing to pop: this screen was entered with a cleared stack. Route to
+    // its declared origin rather than doing nothing.
+    final fallback = _authFallbackFor(_screen);
+    if (fallback != null) {
+      _openAuthDestination(fallback, mode: AuthNavigationMode.clearStack);
+    }
   }
 
   void _cancelFlowForScreen(AppScreen screen) {
