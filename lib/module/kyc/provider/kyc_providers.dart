@@ -95,20 +95,42 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
       // state, not a failure: keep whatever context we already hold. Same
       // three-case rule as the government-ID flow.
       if (result.statusCode == 409) {
+        // A 409 has more than one meaning and the backend sends the same
+        // `CONFLICT` code for all of them: a verification already running on
+        // this account, or an identity number already bound to a different
+        // account. Only the first is resumable, and only the server's message
+        // can tell them apart, so never assert a cause of our own.
         final resumable =
             previous.initiation ??
             GovernmentIdVerificationNotifier._resumableFrom(data);
-        state = NotifierState.done(
-          previous.copyWith(
-            stage: KycFlowStage.awaitingProvider,
-            initiation: resumable,
-          ),
-          message: result.message ?? 'Verification already in progress.',
+
+        if (resumable != null) {
+          state = NotifierState.done(
+            previous.copyWith(
+              stage: KycFlowStage.awaitingProvider,
+              initiation: resumable,
+            ),
+            message: result.message ?? 'Verification already in progress.',
+            statusCode: result.statusCode,
+            meta: result.meta,
+          );
+          await _refreshAuthoritativeState();
+          return resumable;
+        }
+
+        // Nothing can reopen capture from here, so this is a failure to start
+        // rather than progress. Surfacing it as done previously rendered the
+        // server's rejection in a success style.
+        state = NotifierState.error(
+          result.message ?? 'We could not start your verification.',
+          data: previous.copyWith(stage: KycFlowStage.failed),
           statusCode: result.statusCode,
+          errorCode: result.errorCode,
+          errors: result.errors,
           meta: result.meta,
         );
         await _refreshAuthoritativeState();
-        return resumable;
+        return null;
       }
 
       state = NotifierState.error(
@@ -490,16 +512,31 @@ class GovernmentIdVerificationNotifier
         //    only reachable outcome, and it stays blocked until the job expires
         //    or its webhook fails.
         final resumable = previous.initiation ?? _resumableFrom(data);
-        state = NotifierState.done(
-          previous.copyWith(
-            stage: KycFlowStage.awaitingProvider,
-            initiation: resumable,
-          ),
-          message: result.message ?? 'Verification already in progress.',
+
+        if (resumable != null) {
+          state = NotifierState.done(
+            previous.copyWith(
+              stage: KycFlowStage.awaitingProvider,
+              initiation: resumable,
+            ),
+            message: result.message ?? 'Verification already in progress.',
+            statusCode: result.statusCode,
+            meta: result.meta,
+          );
+          return resumable;
+        }
+
+        // Case 3: a failure to start, not progress. The server's message is
+        // the only thing that explains which conflict this was.
+        state = NotifierState.error(
+          result.message ?? 'We could not start your verification.',
+          data: previous.copyWith(stage: KycFlowStage.failed),
           statusCode: result.statusCode,
+          errorCode: result.errorCode,
+          errors: result.errors,
           meta: result.meta,
         );
-        return resumable;
+        return null;
       }
 
       state = NotifierState.error(

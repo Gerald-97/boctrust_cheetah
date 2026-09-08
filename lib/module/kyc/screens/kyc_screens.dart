@@ -507,7 +507,10 @@ extension KycScreens on AppFlowNavigatorState {
 
     if (initiation == null) {
       _identityNumberController.clear();
-      _showSuccessMessage(
+      // Reached only when a verification is already running and this process
+      // still cannot reopen it. A blocking conflict arrives as an error above,
+      // so it is never announced in a success style.
+      _showMessage(
         result.message ??
             'A verification is already in progress. Pull to refresh for its '
                 'latest status.',
@@ -752,7 +755,7 @@ extension KycScreens on AppFlowNavigatorState {
     if (initiation == null) {
       // A verification is already running and this process cannot reopen it.
       // Refresh is the only honest action; retrying would orphan the job.
-      _showSuccessMessage(
+      _showMessage(
         result.message ??
             'A verification is already in progress. Pull to refresh for its '
                 'latest status.',

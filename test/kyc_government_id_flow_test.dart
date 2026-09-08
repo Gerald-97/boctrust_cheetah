@@ -141,9 +141,42 @@ void main() {
 
     expect(resumed, isNull);
     final state = container.read(governmentIdVerificationProvider);
-    expect(state.isDone, isTrue, reason: 'in progress is not an error');
-    expect(state.data!.stage, KycFlowStage.awaitingProvider);
+    // A 409 that cannot be resumed is a failure to start, not progress.
+    // Reporting it as done rendered the server's rejection in a success style.
+    expect(state.isError, isTrue);
+    expect(state.data!.stage, KycFlowStage.failed);
     expect(state.data!.stage, isNot(KycFlowStage.pendingReview));
+  });
+
+  test('an unresumable 409 surfaces the server message verbatim', () async {
+    // The backend returns the same CONFLICT code whether a verification is
+    // already running on this account or the identity number belongs to a
+    // different one. Observed on device: "BVN is already in use on this
+    // platform." Only the server's message distinguishes them, so the client
+    // must never substitute a cause of its own.
+    final kyc = _FakeKycService([
+      const NotifierState<KycInitiationData>.error(
+        'BVN is already in use on this platform.',
+        statusCode: 409,
+      ),
+    ]);
+    final container = containerWith(kyc);
+    final notifier = container.read(governmentIdVerificationProvider.notifier);
+    notifier.clear();
+
+    final resumed = await notifier.submit(
+      documentType: GovernmentIdDocumentType.voterId,
+    );
+
+    expect(resumed, isNull);
+    final state = container.read(governmentIdVerificationProvider);
+    expect(state.isError, isTrue);
+    expect(state.message, 'BVN is already in use on this platform.');
+    expect(
+      state.message,
+      isNot(contains('already in progress')),
+      reason: 'the client must not claim a conflict it cannot identify',
+    );
   });
 
   test('a 409 carrying job context reopens capture', () async {
