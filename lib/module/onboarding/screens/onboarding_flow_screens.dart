@@ -145,6 +145,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
                     ),
                   ),
                   const Spacer(),
+                  const SizedBox(height: 5),
                   const RegulatoryBadge(),
                   const SizedBox(height: 14),
                   PrimaryButton(

@@ -9,8 +9,10 @@ extension SavingsScreens on AppFlowNavigatorState {
       actions: [
         IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).cardColor,
-            foregroundColor: BocColors.navy,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           onPressed: () => _go(AppScreen.target),
           icon: const Icon(Icons.add_rounded),

@@ -326,16 +326,6 @@ extension KycScreens on AppFlowNavigatorState {
                   'automatically once the check completes.',
               tone: ApiStateTone.info,
             ),
-            const SizedBox(height: 14),
-            // Tier 1 liveness needs a separate Smile product the backend has
-            // not named yet; Enhanced KYC job 5 captures no selfie.
-            const ApiStateCard(
-              title: 'Identity capture not available yet',
-              message:
-                  'Guided photo capture is not connected in this release. If '
-                  'the check needs more from you, we will let you know.',
-              tone: ApiStateTone.blocked,
-            ),
           ] else
             _identityForm(submitting),
           if (flowState.isError && flowState.message != null) ...[
