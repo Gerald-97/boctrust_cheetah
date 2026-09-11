@@ -100,9 +100,9 @@ class KycIdentityStatus extends Equatable {
   /// Whether the backend holds a verified BVN or NIN for this user.
   final bool hasBvnOrNin;
 
-  /// Whether the backend holds a liveness selfie. Tier 1 needs both, and the
-  /// liveness product is not implementable on the client yet, so this is
-  /// reported rather than acted on.
+  /// Whether the backend holds a liveness selfie. Pending BVN users may retry
+  /// capture when the backend authorizes another Smile biometric job; this flag
+  /// remains informational and is never treated as verification success.
   final bool hasLivenessSelfie;
   final String? identityType;
   final String? identityLast4;

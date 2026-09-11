@@ -52,7 +52,13 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
 
     // A cached job reopens capture directly; re-initiating would earn a 409.
     final cached = previous.initiation;
-    if (cached != null && cached.identityType == identityType.wireValue) {
+    // BVN is re-entered on every pending retry so the backend can authorize
+    // the number against the current account. Reusing a cached BVN job could
+    // silently bind a different number to the old Smile job. NIN retains the
+    // original in-process resume behavior.
+    if (identityType != IdentityType.bvn &&
+        cached != null &&
+        cached.identityType == identityType.wireValue) {
       state = NotifierState.done(
         previous.copyWith(stage: KycFlowStage.awaitingProvider),
       );
@@ -100,9 +106,10 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
         // this account, or an identity number already bound to a different
         // account. Only the first is resumable, and only the server's message
         // can tell them apart, so never assert a cause of our own.
-        final resumable =
-            previous.initiation ??
-            GovernmentIdVerificationNotifier._resumableFrom(data);
+        final resumable = identityType == IdentityType.bvn
+            ? null
+            : previous.initiation ??
+                  GovernmentIdVerificationNotifier._resumableFrom(data);
 
         if (resumable != null) {
           state = NotifierState.done(
@@ -144,7 +151,7 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
       );
       return null;
     } finally {
-      _inFlight = false;
+      if (isCurrent(token)) _inFlight = false;
     }
   }
 
@@ -172,8 +179,27 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
   Future<void> refreshStatus() => _refreshAuthoritativeState();
 
   void clear() {
+    beginRequest();
     _inFlight = false;
     state = const NotifierState.idle(data: KycFlowData());
+  }
+
+  /// Cancels a client-side request when the user leaves the identity screen.
+  /// Any server job remains resumable; this only prevents a late response from
+  /// blocking or overwriting a later attempt.
+  void cancelPendingRequest() {
+    beginRequest();
+    _inFlight = false;
+    final previous = state.data ?? const KycFlowData();
+    if (state.isLoading) {
+      state = NotifierState.idle(
+        data: previous.copyWith(
+          stage: previous.initiation == null
+              ? KycFlowStage.idle
+              : KycFlowStage.awaitingProvider,
+        ),
+      );
+    }
   }
 }
 

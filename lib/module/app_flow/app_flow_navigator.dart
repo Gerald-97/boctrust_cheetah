@@ -261,6 +261,9 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       screen == AppScreen.tiers;
 
   void _go(AppScreen next, {bool replace = false}) {
+    if (_screen == AppScreen.kycIdentity && next != AppScreen.kycIdentity) {
+      ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
+    }
     setState(() {
       if (!replace) _history.add(_screen);
       _screen = next;
@@ -315,6 +318,9 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   }
 
   void _cancelFlowForScreen(AppScreen screen) {
+    if (screen == AppScreen.kycIdentity) {
+      ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
+    }
     if (screen == AppScreen.passwordReset) {
       ref.read(passwordRecoveryProvider.notifier).cancel();
     }

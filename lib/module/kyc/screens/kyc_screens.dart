@@ -268,10 +268,22 @@ extension KycScreens on AppFlowNavigatorState {
     // The backend owns verification. The local stage only decides whether the
     // form is still usable.
     final serverStatus = status?.status ?? KycVerificationStatus.unknown;
+    final pendingBvn =
+        serverStatus == KycVerificationStatus.pending &&
+        status?.identityType == IdentityType.bvn.wireValue;
+    final localBvnResume =
+        flow.initiation?.identityType == IdentityType.bvn.wireValue &&
+        (flow.stage == KycFlowStage.awaitingProvider ||
+            flow.stage == KycFlowStage.pendingReview ||
+            flow.stage == KycFlowStage.failed);
     final initiated =
         serverStatus == KycVerificationStatus.pending ||
         serverStatus == KycVerificationStatus.success ||
         flow.stage == KycFlowStage.awaitingProvider;
+    final showBvnResumeForm = pendingBvn || localBvnResume;
+    final effectiveCardType = showBvnResumeForm
+        ? IdentityType.bvn
+        : _selectedIdentityType;
 
     return AppScaffold(
       title: 'Identity verification',
@@ -291,13 +303,13 @@ extension KycScreens on AppFlowNavigatorState {
           ),
           const SizedBox(height: 16),
           VerificationCard(
-            title: '${_selectedIdentityType.label} verification',
+            title: '${effectiveCardType.label} verification',
             description: _identityDescription(serverStatus),
             statusLabel: _statusLabel(serverStatus),
             statusColor: _statusColor(serverStatus),
             value: (status?.identityLast4 ?? flow.identityLast4) == null
                 ? null
-                : '${_selectedIdentityType.label} — '
+                : '${effectiveCardType.label} — '
                       '•••• ••• ${status?.identityLast4 ?? flow.identityLast4}',
           ),
           const SizedBox(height: 14),
@@ -326,8 +338,22 @@ extension KycScreens on AppFlowNavigatorState {
                   'automatically once the check completes.',
               tone: ApiStateTone.info,
             ),
+            if (showBvnResumeForm) ...[
+              const SizedBox(height: 14),
+              _identityForm(
+                submitting,
+                identityType: IdentityType.bvn,
+                lockType: true,
+                continuing: true,
+              ),
+            ],
           ] else
-            _identityForm(submitting),
+            _identityForm(
+              submitting,
+              identityType: _selectedIdentityType,
+              lockType: false,
+              continuing: false,
+            ),
           if (flowState.isError && flowState.message != null) ...[
             const SizedBox(height: 14),
             ApiStateCard(
@@ -341,7 +367,12 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
-  Widget _identityForm(bool submitting) {
+  Widget _identityForm(
+    bool submitting, {
+    required IdentityType identityType,
+    required bool lockType,
+    required bool continuing,
+  }) {
     return SurfaceCard(
       child: Form(
         key: _identityFormKey,
@@ -363,14 +394,15 @@ extension KycScreens on AppFlowNavigatorState {
             const SizedBox(height: 14),
             FormDropdown<IdentityType>(
               label: 'Identity type',
-              value: _selectedIdentityType,
+              key: const ValueKey('identity-type'),
+              value: identityType,
               items: IdentityType.values
                   .map(
                     (type) =>
                         DropdownMenuItem(value: type, child: Text(type.label)),
                   )
                   .toList(growable: false),
-              onChanged: submitting
+              onChanged: lockType || submitting
                   ? null
                   : (value) => refreshKycFormState(() {
                       if (value != null) _selectedIdentityType = value;
@@ -378,7 +410,8 @@ extension KycScreens on AppFlowNavigatorState {
             ),
             const SizedBox(height: 12),
             AppTextField(
-              label: '${_selectedIdentityType.label} number',
+              key: const ValueKey('identity-number'),
+              label: '${identityType.label} number',
               controller: _identityNumberController,
               keyboardType: TextInputType.number,
               inputFormatters: [
@@ -389,12 +422,19 @@ extension KycScreens on AppFlowNavigatorState {
               validator: (value) => isValidIdentityNumber(value ?? '')
                   ? null
                   : 'Enter your $kIdentityNumberLength-digit '
-                        '${_selectedIdentityType.label}.',
+                        '${identityType.label}.',
             ),
             const SizedBox(height: 18),
             PrimaryButton(
-              label: submitting ? 'Submitting…' : 'Submit for verification',
-              onPressed: submitting ? null : _submitIdentityVerification,
+              key: const ValueKey('identity-submit'),
+              label: submitting
+                  ? 'Submitting…'
+                  : continuing
+                  ? 'Continue verification'
+                  : 'Submit for verification',
+              onPressed: submitting
+                  ? null
+                  : () => _submitIdentityVerification(identityType),
             ),
           ],
         ),
@@ -407,7 +447,9 @@ extension KycScreens on AppFlowNavigatorState {
   /// Requested after the number is entered and before anything is initiated, so
   /// a refusal never leaves an orphaned job the backend would answer with 409.
   /// Returns null when the user declines.
-  Future<KycCaptureConsent?> _requestIdentityConsent() async {
+  Future<KycCaptureConsent?> _requestIdentityConsent(
+    IdentityType identityType,
+  ) async {
     final granted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -418,7 +460,7 @@ extension KycScreens on AppFlowNavigatorState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'To verify your ${_selectedIdentityType.label}, we share the '
+                'To verify your ${identityType.label}, we share the '
                 'following with our identity partner, Smile ID:',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -461,7 +503,9 @@ extension KycScreens on AppFlowNavigatorState {
     return KycCaptureConsent(grantedAtUtc: DateTime.now().toUtc());
   }
 
-  Future<void> _submitIdentityVerification() async {
+  Future<void> _submitIdentityVerification([
+    IdentityType? requestedType,
+  ]) async {
     if (_identityFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _identityAutovalidate = AutovalidateMode.onUserInteraction,
@@ -469,7 +513,8 @@ extension KycScreens on AppFlowNavigatorState {
       return;
     }
 
-    final consent = await _requestIdentityConsent();
+    final identityType = requestedType ?? _selectedIdentityType;
+    final consent = await _requestIdentityConsent(identityType);
     if (!mounted) return;
     if (consent == null) {
       _showMessage(
@@ -480,8 +525,6 @@ extension KycScreens on AppFlowNavigatorState {
 
     // Held only until the SDK is handed it, then cleared below.
     final identityNumber = _identityNumberController.text.trim();
-    final identityType = _selectedIdentityType;
-
     final notifier = ref.read(identityVerificationProvider.notifier);
     final initiation = await notifier.submit(
       identityType: identityType,
