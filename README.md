@@ -15,6 +15,32 @@ specific `SECURE_STORAGE_NAMESPACE`. `PAYSTACK_PUBLIC_KEY` is reserved for the
 future card-funding integration. Copy `.env.example` for a new local setup;
 environment files remain gitignored.
 
+### iOS build setup
+
+iOS native dependencies use Swift Package Manager through Flutter's generated
+`FlutterGeneratedPluginSwiftPackage`. Use Flutter 3.44.6 (Dart 3.12.2) with
+Xcode; the local migration toolchain is Xcode 26.6. The app supports iOS 15.0
+and later.
+
+```sh
+flutter pub get
+flutter build ios --simulator --debug
+flutter run --dart-define-from-file=.env.stage
+```
+
+For Xcode development, open `ios/Runner.xcworkspace` and select the Runner
+scheme. Run Flutter with the environment configuration first so Xcode inherits
+the generated build settings. Keep the scheme's **Run Prepare Flutter
+Framework Script** pre-action and Flutter build phases enabled.
+
+Routine iOS setup does not require `pod install`. Flutter plugin manifests and
+the tracked SwiftPM `Package.resolved` files control native dependency versions;
+do not add duplicate Firebase or Smile ID packages directly to Runner. Do not
+commit `ios/Flutter/ephemeral`, `Generated.xcconfig`, or generated registrants.
+After dependency changes, use `flutter pub get` and rebuild. CI checks a
+simulator Debug build and an unsigned device Release build; physical-device
+plugin checks and distribution signing remain separate release checks.
+
 ### Smile ID configuration
 
 KYC capture needs `assets/json/smile_config.json`, the partner configuration
