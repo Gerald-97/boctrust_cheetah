@@ -1,0 +1,4 @@
+[submodule "ios/vendor/dojah-widget"]
+	path = ios/vendor/dojah-widget
+	url = https://github.com/dojah-inc/sdk-swift.git
+	branch = pod-package

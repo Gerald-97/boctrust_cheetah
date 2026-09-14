@@ -12,6 +12,12 @@ abstract final class Env {
   static const paystackPublicKey = String.fromEnvironment(
     'PAYSTACK_PUBLIC_KEY',
   );
+  static const dojahSelfieWidgetId = String.fromEnvironment(
+    'DOJAH_SELFIE_WIDGET_ID',
+  );
+  static const dojahGovernmentWidgetId = String.fromEnvironment(
+    'DOJAH_GOVERNMENT_WIDGET_ID',
+  );
 
   static bool get isStaging => environment == 'staging';
   static bool get isProd => environment == 'prod';

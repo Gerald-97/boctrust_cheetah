@@ -1,0 +1,66 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:9.2.1")
+    }
+}
+
+apply plugin: "com.android.library"
+
+group = "com.dojah.dojah_kyc_sdk_flutter"
+version = "1.0-SNAPSHOT"
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace = "com.dojah.dojah_kyc_sdk_flutter"
+        //com.dojah.dojah_kyc_sdk_flutter
+    }
+
+    compileSdk = 35
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdk = 21
+    }
+    buildTypes {
+        release {
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+
+            minifyEnabled true
+        }
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
+
+    dependencies {
+        testImplementation("org.jetbrains.kotlin:kotlin-test")
+        testImplementation("org.mockito:mockito-core:5.23.0")
+        implementation 'com.github.dojah-inc:sdk-kotlin:v0.4.2'
+//        implementation 'com.github.dojah-inc:sdk-kotlin:v0.1.1-dev'
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+}

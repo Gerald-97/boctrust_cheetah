@@ -1,0 +1,62 @@
+PODS:
+  - dojah_kyc_sdk_flutter (0.0.5):
+    - DojahWidget
+    - Flutter
+  - DojahWidget (1.1.17):
+    - GooglePlaces (~> 8.5.0)
+    - HorizonCalendar (~> 1.16.0)
+    - IQKeyboardManagerSwift (~> 7.1.1)
+    - Kingfisher (~> 7.12.0)
+    - lottie-ios (~> 4.5.2)
+    - RealmSwift (= 10.54.6)
+  - Flutter (1.0.0)
+  - GooglePlaces (8.5.0)
+  - HorizonCalendar (1.16.0)
+  - IQKeyboardManagerSwift (7.1.1)
+  - Kingfisher (7.12.0)
+  - lottie-ios (4.5.2)
+  - Realm (10.54.6):
+    - Realm/Headers (= 10.54.6)
+  - Realm/Headers (10.54.6)
+  - RealmSwift (10.54.6):
+    - Realm (= 10.54.6)
+
+DEPENDENCIES:
+  - dojah_kyc_sdk_flutter (from `.symlinks/plugins/dojah_kyc_sdk_flutter/ios`)
+  - DojahWidget (from `.`)
+  - Flutter (from `Flutter`)
+  - Realm (= 10.54.6)
+
+SPEC REPOS:
+  trunk:
+    - GooglePlaces
+    - HorizonCalendar
+    - IQKeyboardManagerSwift
+    - Kingfisher
+    - lottie-ios
+    - Realm
+    - RealmSwift
+
+EXTERNAL SOURCES:
+  dojah_kyc_sdk_flutter:
+    :path: ".symlinks/plugins/dojah_kyc_sdk_flutter/ios"
+  DojahWidget:
+    :path: "."
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  dojah_kyc_sdk_flutter: 473995e92048019f8e921ba27a449cd346495392
+  DojahWidget: 06bf2a79d7624a7e297fcd4aea170a8791ccafdf
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  GooglePlaces: 426efb69051e7b460e16300ba63598687d10fa1a
+  HorizonCalendar: 90d7281cf1cd0cb3fae1d3e53f6f7fd24fda5a0e
+  IQKeyboardManagerSwift: d7f3d3a562c237a0e7335e657cd598c452f57f1b
+  Kingfisher: 53a10ea35051a436b5fb626ca2dd8f3144d755e9
+  lottie-ios: 96784afc26ea031d3e2b6cae342a4b8915072489
+  Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
+  RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
+
+PODFILE CHECKSUM: dc37c7379f0a291949d4c102a79f798ed656e961
+
+COCOAPODS: 1.16.2

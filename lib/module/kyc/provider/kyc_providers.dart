@@ -163,6 +163,8 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
   /// the same job rather than forcing a 409 on the next attempt.
   void markProviderFailure() => _setStage(KycFlowStage.failed);
 
+  void markReconciling() => _setStage(KycFlowStage.reconciling);
+
   void _setStage(KycFlowStage stage) {
     final previous = state.data ?? const KycFlowData();
     state = NotifierState.done(previous.copyWith(stage: stage));
@@ -597,6 +599,8 @@ class GovernmentIdVerificationNotifier
   /// Keeps the cached initiation so a native SDK error stays retryable against
   /// the same job rather than forcing a 409 on the next attempt.
   void markProviderFailure() => _setStage(KycFlowStage.failed);
+
+  void markReconciling() => _setStage(KycFlowStage.reconciling);
 
   void _setStage(KycFlowStage stage) {
     final previous = state.data ?? const KycFlowData();

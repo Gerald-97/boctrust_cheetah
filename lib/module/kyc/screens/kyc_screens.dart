@@ -442,7 +442,7 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
-  /// Asks for the consent Smile records against the job.
+  /// Asks for consent before a provider job is created.
   ///
   /// Requested after the number is entered and before anything is initiated, so
   /// a refusal never leaves an orphaned job the backend would answer with 409.
@@ -461,7 +461,8 @@ extension KycScreens on AppFlowNavigatorState {
             children: [
               Text(
                 'To verify your ${identityType.label}, we share the '
-                'following with our identity partner, Smile ID:',
+                'following with our identity verification provider, which '
+                'may be Dojah or Smile ID:',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),
@@ -567,6 +568,34 @@ extension KycScreens on AppFlowNavigatorState {
     required String identityNumber,
     required KycCaptureConsent consent,
   }) async {
+    final KycProvider provider;
+    try {
+      provider = validateKycLaunch(
+        initiation,
+        operation: KycOperation.identity,
+        useSandbox: Env.isStaging,
+        now: DateTime.now().toUtc(),
+      );
+    } on FormatException {
+      notifier.markProviderFailure();
+      _identityNumberController.clear();
+      _showErrorMessage(
+        'We could not start identity capture. Please contact support.',
+      );
+      return;
+    }
+
+    if (provider == KycProvider.dojah) {
+      _identityNumberController.clear();
+      final outcome = await _openDojahCapture(
+        initiation,
+        KycOperation.identity,
+      );
+      if (!mounted || outcome == null) return;
+      await _handleIdentityCaptureOutcome(notifier, outcome);
+      return;
+    }
+
     final SmileIdBiometricJob job;
     try {
       job = SmileIdBiometricJob.fromInitiation(
@@ -596,8 +625,20 @@ extension KycScreens on AppFlowNavigatorState {
     );
     if (!mounted) return;
 
-    switch (outcome ?? SmileIdFlowOutcome.cancelled) {
-      case SmileIdFlowOutcome.submitted:
+    await _handleIdentityCaptureOutcome(notifier, switch (outcome ??
+        SmileIdFlowOutcome.cancelled) {
+      SmileIdFlowOutcome.submitted => KycCaptureOutcome.submitted,
+      SmileIdFlowOutcome.cancelled => KycCaptureOutcome.cancelled,
+      SmileIdFlowOutcome.failed => KycCaptureOutcome.failed,
+    });
+  }
+
+  Future<void> _handleIdentityCaptureOutcome(
+    IdentityVerificationNotifier notifier,
+    KycCaptureOutcome outcome,
+  ) async {
+    switch (outcome) {
+      case KycCaptureOutcome.submitted:
         notifier.markPendingReview();
         // Submitted is not verified; only the refreshed aggregates decide.
         await ref.read(kycAuthoritativeRefreshProvider)();
@@ -605,11 +646,17 @@ extension KycScreens on AppFlowNavigatorState {
         _showSuccessMessage(
           'Identity submitted. We will update you once it is checked.',
         );
-      case SmileIdFlowOutcome.cancelled:
+      case KycCaptureOutcome.cancelled:
         notifier.markAwaitingProvider();
-      case SmileIdFlowOutcome.failed:
+      case KycCaptureOutcome.failed:
         notifier.markProviderFailure();
         _showErrorMessage('Identity capture failed. You can try again.');
+      case KycCaptureOutcome.unknown:
+        notifier.markReconciling();
+        await ref.read(kycAuthoritativeRefreshProvider)();
+        if (mounted) {
+          _showMessage('Checking your identity verification status.');
+        }
     }
   }
 
@@ -803,6 +850,32 @@ extension KycScreens on AppFlowNavigatorState {
     GovernmentIdVerificationNotifier notifier,
     KycInitiationData initiation,
   ) async {
+    final KycProvider provider;
+    try {
+      provider = validateKycLaunch(
+        initiation,
+        operation: KycOperation.governmentId,
+        useSandbox: Env.isStaging,
+        now: DateTime.now().toUtc(),
+      );
+    } on FormatException {
+      notifier.markProviderFailure();
+      _showErrorMessage(
+        'We could not start document capture. Please contact support.',
+      );
+      return;
+    }
+
+    if (provider == KycProvider.dojah) {
+      final outcome = await _openDojahCapture(
+        initiation,
+        KycOperation.governmentId,
+      );
+      if (!mounted || outcome == null) return;
+      await _handleDocumentCaptureOutcome(notifier, outcome);
+      return;
+    }
+
     final SmileIdDocumentJob job;
     try {
       job = SmileIdDocumentJob.fromInitiation(
@@ -824,8 +897,44 @@ extension KycScreens on AppFlowNavigatorState {
     );
     if (!mounted) return;
 
-    switch (outcome ?? SmileIdFlowOutcome.cancelled) {
-      case SmileIdFlowOutcome.submitted:
+    await _handleDocumentCaptureOutcome(notifier, switch (outcome ??
+        SmileIdFlowOutcome.cancelled) {
+      SmileIdFlowOutcome.submitted => KycCaptureOutcome.submitted,
+      SmileIdFlowOutcome.cancelled => KycCaptureOutcome.cancelled,
+      SmileIdFlowOutcome.failed => KycCaptureOutcome.failed,
+    });
+  }
+
+  Future<KycCaptureOutcome?> _openDojahCapture(
+    KycInitiationData initiation,
+    KycOperation operation,
+  ) async {
+    final config = ref.read(dojahConfigProvider);
+    final widgetId = config.widgetIdFor(operation);
+    final referenceId = initiation.referenceId?.trim() ?? '';
+    if (widgetId.isEmpty || referenceId.isEmpty) {
+      _showErrorMessage(
+        'Dojah verification is not configured for this environment.',
+      );
+      return null;
+    }
+    return Navigator.of(context).push<KycCaptureOutcome>(
+      MaterialPageRoute(
+        builder: (_) => DojahCaptureScreen(
+          widgetId: widgetId,
+          referenceId: referenceId,
+          operation: operation,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDocumentCaptureOutcome(
+    GovernmentIdVerificationNotifier notifier,
+    KycCaptureOutcome outcome,
+  ) async {
+    switch (outcome) {
+      case KycCaptureOutcome.submitted:
         notifier.markPendingReview();
         // Submitted means the job reached Smile, never verified. Only the
         // refreshed aggregates may move this card forward.
@@ -836,11 +945,17 @@ extension KycScreens on AppFlowNavigatorState {
         _showSuccessMessage(
           'Document submitted. We will update you once it is reviewed.',
         );
-      case SmileIdFlowOutcome.cancelled:
+      case KycCaptureOutcome.cancelled:
         notifier.markAwaitingProvider();
-      case SmileIdFlowOutcome.failed:
+      case KycCaptureOutcome.failed:
         notifier.markProviderFailure();
         _showErrorMessage('Document capture failed. You can try again.');
+      case KycCaptureOutcome.unknown:
+        notifier.markReconciling();
+        await ref.read(kycAuthoritativeRefreshProvider)();
+        if (mounted) {
+          _showMessage('Checking your document verification status.');
+        }
     }
   }
 

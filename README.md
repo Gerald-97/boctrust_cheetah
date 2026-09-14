@@ -11,19 +11,24 @@ flutter run --dart-define-from-file=.env.stage
 
 The staging configuration must define `ENV=staging`,
 `BASE_URL=https://user-dev-api.centurysoftware.dev/api`, and an environment-
-specific `SECURE_STORAGE_NAMESPACE`. `PAYSTACK_PUBLIC_KEY` is reserved for the
-future card-funding integration. Copy `.env.example` for a new local setup;
+specific `SECURE_STORAGE_NAMESPACE`. KYC builds also define
+`DOJAH_SELFIE_WIDGET_ID` and `DOJAH_GOVERNMENT_WIDGET_ID` with the published
+widget for each environment. `PAYSTACK_PUBLIC_KEY` is reserved for the future
+card-funding integration. Copy `.env.example` for a new local setup;
 environment files remain gitignored.
 
 ### iOS build setup
 
 iOS native dependencies use Swift Package Manager through Flutter's generated
-`FlutterGeneratedPluginSwiftPackage`. Use Flutter 3.44.6 (Dart 3.12.2) with
-Xcode; the local migration toolchain is Xcode 26.6. The app supports iOS 15.0
-and later.
+`FlutterGeneratedPluginSwiftPackage`. Dojah's Flutter package additionally
+requires the checked-in CocoaPods configuration for DojahWidget and Realm. Use
+Flutter 3.44.6 (Dart 3.12.2) with Xcode; the local migration toolchain is Xcode
+26.6. The app supports iOS 15.0 and later.
 
 ```sh
+git submodule update --init
 flutter pub get
+cd ios && pod install --deployment && cd ..
 flutter build ios --simulator --debug
 flutter run --dart-define-from-file=.env.stage
 ```
@@ -33,13 +38,23 @@ scheme. Run Flutter with the environment configuration first so Xcode inherits
 the generated build settings. Keep the scheme's **Run Prepare Flutter
 Framework Script** pre-action and Flutter build phases enabled.
 
-Routine iOS setup does not require `pod install`. Flutter plugin manifests and
-the tracked SwiftPM `Package.resolved` files control native dependency versions;
-do not add duplicate Firebase or Smile ID packages directly to Runner. Do not
+Run `pod install --deployment` after `flutter pub get`. The checked-in Podfile
+and Podfile.lock pin Dojah's CocoaPods dependencies, while the tracked SwiftPM
+`Package.resolved` files control the remaining native dependency versions. Do
+not add duplicate Firebase or Smile ID packages directly to Runner. Do not
 commit `ios/Flutter/ephemeral`, `Generated.xcconfig`, or generated registrants.
-After dependency changes, use `flutter pub get` and rebuild. CI checks a
-simulator Debug build and an unsigned device Release build; physical-device
-plugin checks and distribution signing remain separate release checks.
+CI checks a simulator Debug build and an unsigned device Release build;
+physical-device plugin checks and distribution signing remain separate release
+checks.
+
+### KYC provider configuration
+
+Dojah is launched only when the backend initiation response selects `dojah`.
+The app supplies the backend-issued reference and the operation-specific widget
+ID; it does not send the BVN or document number to the SDK. Provider completion
+is reconciled against the backend status because the SDK return value is not a
+verification verdict. Smile ID remains supported when the backend selects it or
+returns the existing legacy Smile job context.
 
 ### Smile ID configuration
 
@@ -81,13 +96,13 @@ flutter test
 
 ### Physical-device testing
 
-The Smile ID capture flow uses native camera views and cannot be exercised by
-`flutter test` or a simulator. Before releasing a change to the KYC journey,
-verify on one physical Android and one physical iOS device against the Smile
-sandbox: initialization failure and retry, camera permission denied and
-re-granted, a successful Voter ID capture, user cancellation, a native SDK
-error, submission acknowledgement, delayed and failed webhooks, manual refresh,
-background/resume refresh, and logout cleanup.
+The Dojah and Smile ID capture flows use native camera views and cannot be
+exercised by `flutter test` or a simulator. Before releasing a change to the KYC
+journey, verify both providers on one physical Android and one physical iOS
+device: initialization failure and retry, camera and microphone permission
+denied and re-granted, selfie liveness, a successful Voter ID capture, user
+cancellation, a native SDK error, submission acknowledgement, delayed and
+failed webhooks, manual refresh, background/resume refresh, and logout cleanup.
 
 Only `voter_id` is enabled. Smile's published matrix lists only Nigerian
 `VOTER_ID` for Enhanced Document Verification, so each other document type

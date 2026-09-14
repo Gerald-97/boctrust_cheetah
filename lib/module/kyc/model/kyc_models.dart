@@ -45,6 +45,7 @@ enum KycFlowStage {
   requestingUpload,
   uploading,
   completing,
+  reconciling,
   pendingReview,
   failed,
 }
@@ -149,6 +150,13 @@ class KycInitiationData extends Equatable {
     this.smileJobId,
     this.callbackUrl,
     this.partnerParams = const {},
+    this.contractVersion,
+    this.attemptId,
+    this.operation,
+    this.referenceId,
+    this.launchExpiresAt,
+    this.policyVersion,
+    this.allowedAlternatives = const [],
   });
 
   factory KycInitiationData.fromJson(Object? value) {
@@ -169,6 +177,13 @@ class KycInitiationData extends Equatable {
       smileJobId: json['smileJobId'] as String?,
       callbackUrl: json['callbackUrl'] as String?,
       partnerParams: _immutableMap(json['partnerParams']),
+      contractVersion: (json['contractVersion'] as num?)?.toInt(),
+      attemptId: json['attemptId'] as String?,
+      operation: json['operation'] as String?,
+      referenceId: json['referenceId'] as String?,
+      launchExpiresAt: _utcDate(json['launchExpiresAt']),
+      policyVersion: json['policyVersion'] as String?,
+      allowedAlternatives: _stringList(json['allowedAlternatives']),
     );
   }
 
@@ -200,6 +215,13 @@ class KycInitiationData extends Equatable {
   final String? smileJobId;
   final String? callbackUrl;
   final Map<String, Object?> partnerParams;
+  final int? contractVersion;
+  final String? attemptId;
+  final String? operation;
+  final String? referenceId;
+  final DateTime? launchExpiresAt;
+  final String? policyVersion;
+  final List<String> allowedAlternatives;
 
   @override
   List<Object?> get props => [
@@ -217,8 +239,24 @@ class KycInitiationData extends Equatable {
     smileJobId,
     callbackUrl,
     partnerParams,
+    contractVersion,
+    attemptId,
+    operation,
+    referenceId,
+    launchExpiresAt,
+    policyVersion,
+    allowedAlternatives,
   ];
 }
+
+DateTime? _utcDate(Object? value) {
+  if (value is! String) return null;
+  return DateTime.tryParse(value)?.toUtc();
+}
+
+List<String> _stringList(Object? value) => value is List
+    ? List<String>.unmodifiable(value.whereType<String>())
+    : const [];
 
 /// Metering arrangement on a utility bill.
 enum UtilityType {
