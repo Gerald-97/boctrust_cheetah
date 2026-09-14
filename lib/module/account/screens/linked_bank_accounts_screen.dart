@@ -155,6 +155,79 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
   Widget _addWithdrawalAccountForm(
     NotifierState<BankCatalogueData> catalogueState,
   ) {
+    return _WithdrawalAccountForm(
+      catalogueState: catalogueState,
+      onSave: _saveWithdrawalAccount,
+    );
+  }
+
+  Future<void> _saveWithdrawalAccount() async {
+    final result = await ref.read(withdrawalBankDraftProvider.notifier).save();
+    if (!mounted) return;
+
+    if (result.isDone) {
+      _showSuccessMessage(result.message ?? 'Withdrawal account saved.');
+    } else if (result.isError) {
+      _showErrorMessage(result.message ?? 'We could not save that account.');
+    }
+  }
+}
+
+/// The add-account form owns its account-number controller so the visible
+/// number is always the one in [withdrawalBankDraftProvider].
+///
+/// The draft outlives this widget (it survives navigation and the account cap
+/// hiding the form), so the controller is seeded from it on mount and follows
+/// it afterwards: a successful save or a cleared draft empties the field
+/// instead of leaving a number that Check/Save would no longer use.
+class _WithdrawalAccountForm extends ConsumerStatefulWidget {
+  const _WithdrawalAccountForm({
+    required this.catalogueState,
+    required this.onSave,
+  });
+
+  final NotifierState<BankCatalogueData> catalogueState;
+
+  /// Saves the draft; the navigator reports the outcome.
+  final Future<void> Function() onSave;
+
+  @override
+  ConsumerState<_WithdrawalAccountForm> createState() =>
+      _WithdrawalAccountFormState();
+}
+
+class _WithdrawalAccountFormState
+    extends ConsumerState<_WithdrawalAccountForm> {
+  late final TextEditingController _accountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _accountController = TextEditingController(
+      text: ref.read(withdrawalBankDraftProvider).data?.accountNumber ?? '',
+    );
+    // Only writes the controller: syncing never starts a resolution.
+    ref.listenManual(withdrawalBankDraftProvider, (previous, next) {
+      final number = next.data?.accountNumber ?? '';
+      // Typing already matches the draft, so the cursor is left alone.
+      if (_accountController.text != number) {
+        _accountController.value = TextEditingValue(
+          text: number,
+          selection: TextSelection.collapsed(offset: number.length),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _accountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final catalogueState = widget.catalogueState;
     final draftState = ref.watch(withdrawalBankDraftProvider);
     final draft = draftState.data ?? const WithdrawalBankDraft();
     final busy = draftState.isLoading;
@@ -202,6 +275,7 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
         AppTextField(
           label: 'Account number',
           hintText: '10 digits',
+          controller: _accountController,
           keyboardType: TextInputType.number,
           enabled: !busy,
           inputFormatters: [
@@ -252,20 +326,9 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
         PrimaryButton(
           label: 'Save account',
           // Enabled only when the server confirmed this exact account.
-          onPressed: (busy || !draft.canSave) ? null : _saveWithdrawalAccount,
+          onPressed: (busy || !draft.canSave) ? null : widget.onSave,
         ),
       ],
     );
-  }
-
-  Future<void> _saveWithdrawalAccount() async {
-    final result = await ref.read(withdrawalBankDraftProvider.notifier).save();
-    if (!mounted) return;
-
-    if (result.isDone) {
-      _showSuccessMessage(result.message ?? 'Withdrawal account saved.');
-    } else if (result.isError) {
-      _showErrorMessage(result.message ?? 'We could not save that account.');
-    }
   }
 }
