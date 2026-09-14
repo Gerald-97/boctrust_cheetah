@@ -575,14 +575,14 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
           title: 'Loans',
           icon: Icons.percent_rounded,
           message:
-              "Loans aren't part of Cheetah's app yet — this release is focused on Savings and Payments. We'll let you know the moment borrowing is available.",
+              "Loans aren't part of Cheetah's app yet — this release is focused on Savings.",
         );
       case AppScreen.cards:
         return _comingSoonScreen(
           title: 'Cards',
           icon: Icons.credit_card_rounded,
           message:
-              "Virtual and physical debit cards aren't part of Cheetah's app yet. This release is focused on Savings and Payments previews. We'll let you know the moment cards are available.",
+              "Virtual and physical debit cards aren't part of Cheetah's app yet. This release is focused on Savings.",
         );
       case AppScreen.routePreview:
         return _routePreviewScreen();

@@ -341,12 +341,12 @@ extension AccountScreens on AppFlowNavigatorState {
                   ),
                 ),
                 const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: () => _showMessage(
-                    'You will be notified when $title launches.',
-                  ),
-                  icon: const Icon(Icons.notifications_none_rounded),
-                  label: const Text("Notify me when it's ready"),
+                // No subscription service exists, so nothing is offered that
+                // would imply the customer will be contacted.
+                Text(
+                  'Launch notifications are not available yet.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
