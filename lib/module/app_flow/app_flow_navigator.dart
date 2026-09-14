@@ -48,10 +48,6 @@ import '../onboarding/provider/test_otp_provider.dart';
 
 part 'app_flow_screens.dart';
 
-part '../data/transaction_context.dart';
-
-part '../data/billers.dart';
-
 part '../component/branding.dart';
 
 part '../component/app_scaffold.dart';
@@ -152,21 +148,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   int _onboardingIndex = 0;
   bool _verifyByPhone = true;
   PhoneVerificationChannel _phoneChannel = PhoneVerificationChannel.sms;
-  int _authPinCount = 0;
-  String _selectedBillerCategory = 'electricity';
-  BillerItem _selectedBiller = const BillerItem(
-    'Eko Electricity Distribution Co. (EKEDC)',
-    'Lagos — Eko & environs',
-  );
-  TransactionContext _transaction = const TransactionContext(
-    amount: '₦35,000.00',
-    description: 'Sent to Ifeoma Nwachukwu · Cheetah.',
-    title: 'Transfer successful',
-    row1Label: 'Recipient',
-    row1Value: 'Ifeoma Nwachukwu',
-    row2Label: 'Account',
-    row2Value: '0198 220 341',
-  );
 
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -201,12 +182,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   void initState() {
     super.initState();
-    _selectedBillerCategory =
-        billerCategoryForRoute(widget.initialRouteName) ??
-        _selectedBillerCategory;
-    _selectedBiller =
-        billerCategories[_selectedBillerCategory]?.items.first ??
-        _selectedBiller;
     // `/account/tier/nin` preselects NIN; every other entry point defaults to
     // BVN. Set once here so the user's own dropdown choice always wins after.
     if (widget.initialRouteName == AppRoutes.tier2Nin) {
@@ -272,7 +247,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     setState(() {
       if (!replace) _history.add(_screen);
       _screen = next;
-      if (next == AppScreen.authPin) _authPinCount = 0;
       _savingsLoadedFor = null;
       _savingsAuthorizedFor = null;
     });
@@ -394,29 +368,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     }
   }
 
-  void _openAuth(TransactionContext transaction) {
-    _transaction = transaction;
-    _go(AppScreen.authPin);
-  }
-
-  void _selectBiller(String categoryKey, BillerItem item) {
-    setState(() {
-      _selectedBillerCategory = categoryKey;
-      _selectedBiller = item;
-    });
-    _go(AppScreen.billPay);
-  }
-
-  void _pinPressed() {
-    if (_authPinCount >= 4) return;
-    setState(() => _authPinCount += 1);
-    if (_authPinCount == 4) {
-      Future<void>.delayed(const Duration(milliseconds: 250), () {
-        if (mounted) _go(AppScreen.success);
-      });
-    }
-  }
-
   void _selectOnboardingIndex(int index) {
     setState(() => _onboardingIndex = index);
   }
@@ -450,16 +401,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   void _selectPhoneChannel(PhoneVerificationChannel channel) {
     setState(() => _phoneChannel = channel);
-  }
-
-  void _openBillerCategory(String categoryKey) {
-    setState(() => _selectedBillerCategory = categoryKey);
-    _go(AppScreen.billerList);
-  }
-
-  void _removePinDigit() {
-    if (_authPinCount == 0) return;
-    setState(() => _authPinCount -= 1);
   }
 
   @override

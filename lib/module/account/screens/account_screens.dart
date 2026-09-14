@@ -30,9 +30,34 @@ extension AccountScreens on AppFlowNavigatorState {
         message: '$title ${singular ? 'is' : 'are'} not available yet.',
       );
     }
-    final preview = _previewContentForRoute(
-      appPreviewRouteForRoute(widget.initialRouteName),
-    );
+    // These routes once rendered sample customer activity. With no
+    // transaction or beneficiary service they only explain the gap.
+    switch (route) {
+      case AppPreviewRoute.transactionHistory:
+        return _transactionUnavailableScreen(
+          title: 'Transactions',
+          section: AppSection.payments,
+          heading: 'Transaction history is unavailable',
+          message: 'Your transaction history cannot be displayed yet.',
+        );
+      case AppPreviewRoute.paymentWebView:
+        return _transactionUnavailableScreen(
+          title: 'Payment',
+          section: AppSection.payments,
+          heading: 'Payment checkout is unavailable',
+          message: 'Card and hosted checkout payments are not available yet.',
+        );
+      case AppPreviewRoute.accountBeneficiaries:
+        return _transactionUnavailableScreen(
+          title: 'Beneficiaries',
+          section: AppSection.account,
+          heading: 'Beneficiaries are unavailable',
+          message: 'Saved beneficiaries are not available yet.',
+        );
+      default:
+        break;
+    }
+    final preview = _previewContentForRoute(route);
     final rows = preview.rows;
     return AppScaffold(
       title: preview.title,
@@ -130,6 +155,9 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.groupMembers:
       case AppPreviewRoute.bankTransferFunding:
       case AppPreviewRoute.cardFunding:
+      case AppPreviewRoute.accountBeneficiaries:
+      case AppPreviewRoute.transactionHistory:
+      case AppPreviewRoute.paymentWebView:
         return (
           title: 'Unavailable',
           icon: Icons.info_outline,
@@ -138,29 +166,6 @@ extension AccountScreens on AppFlowNavigatorState {
           summary: 'This feature is not available yet.',
           actionLabel: 'Back',
           rows: <(IconData, String, String)>[],
-        );
-      case AppPreviewRoute.accountBeneficiaries:
-        return (
-          title: 'Beneficiaries',
-          icon: Icons.people_alt_outlined,
-          color: BocColors.blue,
-          section: AppSection.account,
-          summary:
-              'Preview saved Cheetah and bank beneficiaries before beneficiary APIs are connected.',
-          actionLabel: 'Preview beneficiary setup',
-          rows: [
-            (
-              Icons.person_outline_rounded,
-              'Ifeoma Nwachukwu',
-              'Cheetah - 0198 220 341',
-            ),
-            (
-              Icons.account_balance_outlined,
-              'Chuka Obi',
-              'GTBank - 0123456789',
-            ),
-            (Icons.add_rounded, 'Add beneficiary', 'Local UI preview'),
-          ],
         );
       case AppPreviewRoute.accountSecurity:
         return (
@@ -274,44 +279,6 @@ extension AccountScreens on AppFlowNavigatorState {
             (Icons.settings_brightness_outlined, 'System', 'Follow device'),
             (Icons.light_mode_outlined, 'Light', 'Bright interface'),
             (Icons.dark_mode_outlined, 'Dark', 'Low-light interface'),
-          ],
-        );
-      case AppPreviewRoute.transactionHistory:
-        return (
-          title: 'Transactions',
-          icon: Icons.receipt_long_outlined,
-          color: BocColors.green,
-          section: AppSection.payments,
-          summary:
-              'Preview transaction history filters and receipt access while the transaction API is pending.',
-          actionLabel: 'Preview receipt',
-          rows: [
-            (Icons.phone_android_rounded, 'MTN Airtime', '-₦2,000.00'),
-            (Icons.bolt_outlined, 'EKEDC', '-₦15,000.00'),
-            (Icons.send_rounded, 'Sent to Ifeoma', '-₦35,000.00'),
-          ],
-        );
-      case AppPreviewRoute.paymentWebView:
-        return (
-          title: 'Payment webview',
-          icon: Icons.web_asset_outlined,
-          color: BocColors.gold,
-          section: AppSection.payments,
-          summary:
-              'Preview the hosted payment handoff screen and return states before the provider webview is connected.',
-          actionLabel: 'Preview return to app',
-          rows: [
-            (
-              Icons.open_in_browser_rounded,
-              'Provider page',
-              'Secure checkout preview',
-            ),
-            (Icons.lock_outline_rounded, 'Authorization', '3DS or OTP'),
-            (
-              Icons.check_circle_outline_rounded,
-              'Return state',
-              'Success, failed, cancelled',
-            ),
           ],
         );
       case null:
