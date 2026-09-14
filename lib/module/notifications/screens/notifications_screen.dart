@@ -1,6 +1,9 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
 extension NotificationsScreen on AppFlowNavigatorState {
+  /// Push delivery is not an inbox: there is no service that returns past
+  /// notifications, so this neither lists sample activity nor claims the
+  /// inbox is empty.
   Widget _notificationsScreen() {
     return AppScaffold(
       title: 'Notifications',
@@ -8,52 +11,12 @@ extension NotificationsScreen on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: const [
-          NotificationGroup(
-            label: 'Today',
-            items: [
-              NotificationItem(
-                icon: Icons.savings_outlined,
-                title: 'Cheetah Flex Savings interest credited',
-                subtitle: '+₦412.60 added to your balance · 12:01 AM',
-                color: BocColors.green,
-              ),
-              NotificationItem(
-                icon: Icons.shield_outlined,
-                title: 'Finish Tier 2 verification',
-                subtitle: 'Unlock higher transfer limits · 9:14 AM',
-                color: BocColors.gold,
-              ),
-            ],
-          ),
-          NotificationGroup(
-            label: 'Yesterday',
-            items: [
-              NotificationItem(
-                icon: Icons.send_rounded,
-                title: 'Transfer sent',
-                subtitle: '₦35,000 to Ifeoma Nwachukwu · 4:20 PM',
-                color: BocColors.blue,
-              ),
-              NotificationItem(
-                icon: Icons.groups_outlined,
-                title: 'Cheetah Group Savings reminder',
-                subtitle: 'Owambe Squad contribution due 28 Jul · 8:00 AM',
-                color: BocColors.purple,
-              ),
-            ],
-          ),
-          NotificationGroup(
-            label: 'Earlier this week',
-            items: [
-              NotificationItem(
-                icon: Icons.account_balance_outlined,
-                title: 'Bank transfer received',
-                subtitle: '₦150,000 from GTBank · Mon, 9:02 AM',
-                color: BocColors.green,
-              ),
-            ],
+          ApiStateCard(
+            title: 'Notification history is unavailable',
+            message: 'Your notification history cannot be displayed yet.',
+            tone: ApiStateTone.info,
           ),
         ],
       ),

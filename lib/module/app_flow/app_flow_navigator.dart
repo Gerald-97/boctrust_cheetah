@@ -70,8 +70,6 @@ part '../component/payment_widgets.dart';
 
 part '../component/savings_widgets.dart';
 
-part '../component/notification_widgets.dart';
-
 part '../component/misc_widgets.dart';
 
 part '../component/api_state_widgets.dart';
