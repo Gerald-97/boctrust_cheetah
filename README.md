@@ -176,8 +176,12 @@ no contract in that API remain explicitly unavailable.
 | Next of kin | Submission endpoint | Route states plainly that it is a later step | Add a typed submission endpoint. |
 | Group Save invitations and schedules | Invitation, contribution schedule, roles, missed-payment endpoints | Group routes show blocked integration state where needed | Add typed models and service methods. |
 | Card funding | Paystack/provider handoff and callback contract | Card funding route shell marked blocked | Wire WebView URL creation and callback parser. |
-| Bills and scan-to-pay | Biller catalogue, customer lookup, payment, QR payload contracts | Payment routes render UI shell and blocked integration states | Add biller models, lookup service, and receipt mapping. |
-| Beneficiaries | CRUD endpoint details | Account route renders a blocked shell | Replace shell with service-backed provider state. |
+| Transfers, airtime, data, and bills | Catalogue/account lookup, fee and amount rules, transaction-bound authorization, idempotent submit, status, and server-issued receipts | Send and Pay hubs stay navigable, but every transfer, airtime, data, biller, authorization, and receipt route shows an unavailable state. No form, PIN, recipient, or receipt is shown | Add the transaction contract first; receipts may only render confirmed server data. `/auth/pin/verify-current` is not a substitute for transaction authorization. |
+| Scan to pay | QR payload format, merchant lookup, payment submission and status, native scanning integration | Route shows an unavailable state; no camera or manual-code entry | Add the payment contract and a supported scanner. |
+| Transaction history and payment checkout | Transaction list and hosted-checkout contracts | `/transactions` and `/payment/webview` show unavailable states | Replace with service-backed state. |
+| Beneficiaries | CRUD endpoint details | Account route shows an unavailable state with no sample recipients | Replace with service-backed provider state. |
+| Notification history | Authenticated inbox, pagination, stable IDs, read state, validated deep links | Notifications route states history is unavailable. It neither lists activity nor claims the inbox is empty. Push delivery and deep-link parsing are unchanged | Add the inbox contract. |
+| Loan and card launch subscriptions | Persisted subscription, consent/channel, unsubscribe | Loans and Cards say "Coming soon" and that launch notifications are not available; no subscription is offered | Add the subscription contract before offering a notify-me action. |
 | Withdrawals | No transfer or payout operation is published | Withdrawal accounts can be listed, resolved, saved, and deleted, but no money movement is offered | Add the payout endpoint before building any withdrawal action. |
 
 ## UX parity checklist
@@ -185,9 +189,9 @@ no contract in that API remain explicitly unavailable.
 - Home, Save, Send, Pay, and Account tabs are registered.
 - Onboarding, verification, OTP, password, login, password reset, and new-device OTP routes are registered.
 - Savings/Flex render the live wallet and catalogue. Target, Lock, Group and unsupported Savings action routes show availability states.
-- Wallet funding routes cover Add Money, bank transfer, and card funding.
-- Send routes cover own account, Cheetah beneficiary, and other-bank transfers.
-- Payments routes cover airtime, data, bill categories, bill pay, scan-to-pay, and recent transaction receipt drill-down route support.
-- Account routes cover tiers, beneficiaries, linked banks, security, support, legal, social, theme, loans, cards, and notify-me actions.
-- Notifications route supports grouping labels and deep-link helper parsing.
-- Transaction authorization and success receipt routes are shared across money-moving flows.
+- Live: Add Money and bank-transfer funding (virtual-account details), linked withdrawal bank accounts (list, resolve, save, delete), KYC tiers, login, and PIN flows.
+- Unavailable (routes registered, honest unavailable state): card funding, own-account/beneficiary/other-bank transfers, airtime, data, all biller categories, bill pay, scan-to-pay, transaction authorization, receipts (including `/transaction/receipt/demo`), transaction history, payment webview, and beneficiaries.
+- There is no live transaction service and no notification-history service. No route fabricates a transaction, recipient, receipt, or notification.
+- Loans and Cards (including the `notify-me` compatibility routes) show "Coming soon" without a subscription action.
+- Notification deep links still parse; unknown routes fall back to Notifications.
+- Linked-bank form: the visible bank and account number always match the draft that Check and Save use, across navigation, save, and delete.
