@@ -38,8 +38,6 @@ flutter:
       android:
         package: com.dojah.dojah_kyc_sdk_flutter
         pluginClass: DojahFlutterSdkPlugin
-      ios:
-        pluginClass: DojahFlutterSdkPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

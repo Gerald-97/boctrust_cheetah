@@ -19,16 +19,17 @@ environment files remain gitignored.
 
 ### iOS build setup
 
-iOS native dependencies use Swift Package Manager through Flutter's generated
-`FlutterGeneratedPluginSwiftPackage`. Dojah's Flutter package additionally
-requires the checked-in CocoaPods configuration for DojahWidget and Realm. Use
+iOS native dependencies use Swift Package Manager only, through Flutter's
+generated `FlutterGeneratedPluginSwiftPackage`; the project has no Podfile. The
+repository-local Dojah plugin is registered for Android only, so iOS does not
+link DojahWidget or Realm. On iOS, Dojah opens the hosted identity flow
+(`https://identity.dojah.io/?widget_id=…&metadata[reference]=…&loading=async`)
+in an embedded WebView. Use
 Flutter 3.44.6 (Dart 3.12.2) with Xcode; the local migration toolchain is Xcode
 26.6. The app supports iOS 15.0 and later.
 
 ```sh
-git submodule update --init
 flutter pub get
-cd ios && pod install --deployment && cd ..
 flutter build ios --simulator --debug
 flutter run --dart-define-from-file=.env.stage
 ```
@@ -38,10 +39,10 @@ scheme. Run Flutter with the environment configuration first so Xcode inherits
 the generated build settings. Keep the scheme's **Run Prepare Flutter
 Framework Script** pre-action and Flutter build phases enabled.
 
-Run `pod install --deployment` after `flutter pub get`. The checked-in Podfile
-and Podfile.lock pin Dojah's CocoaPods dependencies, while the tracked SwiftPM
-`Package.resolved` files control the remaining native dependency versions. Do
-not add duplicate Firebase or Smile ID packages directly to Runner. Do not
+The tracked SwiftPM `Package.resolved` files control native dependency
+versions. Do not reintroduce CocoaPods or register the Dojah plugin for iOS;
+CI fails if either returns. Do not add duplicate Firebase or Smile ID packages
+directly to Runner. Do not
 commit `ios/Flutter/ephemeral`, `Generated.xcconfig`, or generated registrants.
 CI checks a simulator Debug build and an unsigned device Release build;
 physical-device plugin checks and distribution signing remain separate release

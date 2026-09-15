@@ -5,7 +5,6 @@ import android.app.Activity.RESULT_OK
 import android.app.Instrumentation
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.dojah.kyc_sdk_kotlin.DOJAH_CLOSED_RESULT
@@ -118,7 +117,6 @@ class DojahFlutterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode == 1001) {
-            Log.d("DojahFlutterSdkPlugin", "Got Result: $data")
             val pending = takeResult() ?: return true
             if (resultCode == RESULT_OK) {
                 val payload = data?.getStringExtra(DOJAH_RESULT_KEY)
@@ -126,7 +124,6 @@ class DojahFlutterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     pending.error("MISSING_RESULT", "Dojah returned no result", null)
                 } else {
                     pending.success(payload)
-                    Log.d("DojahFlutterSdkPlugin", "Got Result: $payload")
                 }
             } else {
                 pending.success(DOJAH_CLOSED_RESULT)

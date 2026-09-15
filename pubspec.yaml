@@ -26,6 +26,8 @@ dependencies:
   logger: ^2.7.0
   intl: ^0.20.2
   dio: ^5.9.0
+  webview_flutter: ^4.14.1
+  webview_flutter_wkwebview: ^3.26.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0

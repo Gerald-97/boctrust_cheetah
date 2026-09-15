@@ -24,8 +24,6 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -33,9 +31,14 @@ jobs:
           cache: true
       - run: xcodebuild -version
       - run: flutter pub get
-      - run: cd ios && pod install --deployment
-      - name: Keep existing plugins on SwiftPM
-        run: |
-          ! grep -Eq '^  - (Firebase|SmileID|smile_id)' ios/Podfile.lock
       - run: flutter build ios --simulator --debug
       - run: flutter build ios --release --no-codesign
+      # iOS is SwiftPM-only. Dojah runs natively on Android and through an
+      # embedded WebView on iOS, so its native iOS plugin must stay unlinked.
+      - name: Verify CocoaPods and native iOS Dojah were not recreated
+        run: |
+          test ! -e ios/Podfile
+          test ! -e ios/Podfile.lock
+          test ! -d ios/Pods
+          test ! -e .gitmodules
+          ! grep -qi dojah ios/Runner/GeneratedPluginRegistrant.m
