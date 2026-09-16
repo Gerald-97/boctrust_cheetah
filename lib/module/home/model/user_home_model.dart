@@ -119,10 +119,11 @@ class DedicatedVirtualAccountData extends Equatable {
   final String? failureReason;
 
   /// Account details may only be shown when the provider reports the account
-  /// as available and an account number was actually returned.
+  /// as available and both bank and account number were returned.
   bool get canDisplayDetails =>
       status == DedicatedVirtualAccountStatus.available &&
-      (accountNumber?.isNotEmpty ?? false);
+      (accountNumber?.trim().isNotEmpty ?? false) &&
+      (bankName?.trim().isNotEmpty ?? false);
 
   @override
   List<Object?> get props => [
@@ -141,8 +142,8 @@ class DedicatedVirtualAccountData extends Equatable {
 ///
 /// `user`, `verification`, and `savingsProducts` are declared as free-form
 /// objects in the current OpenAPI document, so they are preserved as immutable
-/// raw maps and are deliberately not rendered. Only [flexWallet] and
-/// [dedicatedVirtualAccount], whose schemas are explicit, reach the UI.
+/// raw maps. Savings uses a separate defensive catalogue adapter for names
+/// and supported navigation; financial terms remain undisplayed.
 class UserHomeData extends Equatable {
   const UserHomeData({
     required this.user,

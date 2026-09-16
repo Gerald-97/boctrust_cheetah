@@ -11,6 +11,8 @@ import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.da
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
+import 'support/savings_fixtures.dart';
 
 void main() {
   group('KycStatusData', () {
@@ -74,6 +76,7 @@ void main() {
           kycServiceProvider.overrideWithValue(kyc),
           userServiceProvider.overrideWithValue(user),
           homeServiceProvider.overrideWithValue(home),
+          authSessionProvider.overrideWith(SavingsSession.new),
         ],
       );
       addTearDown(container.dispose);

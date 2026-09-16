@@ -8,6 +8,28 @@ enum SecurityCheckMethod { password, pin }
 
 extension AccountScreens on AppFlowNavigatorState {
   Widget _routePreviewScreen() {
+    final route = appPreviewRouteForRoute(widget.initialRouteName);
+    if (route == AppPreviewRoute.flexTopUp ||
+        route == AppPreviewRoute.bankTransferFunding) {
+      return _addMoneyScreen();
+    }
+    if (widget.initialRouteName?.startsWith('/savings/') == true ||
+        route == AppPreviewRoute.cardFunding) {
+      final title = switch (route) {
+        AppPreviewRoute.flexWithdraw => 'Withdrawals',
+        AppPreviewRoute.flexStatement => 'Savings statements',
+        AppPreviewRoute.flexSettings => 'Auto-save',
+        AppPreviewRoute.cardFunding => 'Card funding',
+        _ => 'Savings plans',
+      };
+      final singular =
+          route == AppPreviewRoute.flexSettings ||
+          route == AppPreviewRoute.cardFunding;
+      return _savingsUnavailableScreen(
+        title: title,
+        message: '$title ${singular ? 'is' : 'are'} not available yet.',
+      );
+    }
     final preview = _previewContentForRoute(
       appPreviewRouteForRoute(widget.initialRouteName),
     );
@@ -93,222 +115,29 @@ extension AccountScreens on AppFlowNavigatorState {
   _previewContentForRoute(AppPreviewRoute? route) {
     switch (route) {
       case AppPreviewRoute.savingsNew:
-        return (
-          title: 'Create savings plan',
-          icon: Icons.add_circle_outline_rounded,
-          color: BocColors.gold,
-          section: AppSection.save,
-          summary:
-              'Choose Flex, Target, Fixed Deposit, or Group Savings and preview the setup fields before the savings API is connected.',
-          actionLabel: 'Preview setup',
-          rows: [
-            (Icons.savings_outlined, 'Flex Savings', 'Withdraw anytime'),
-            (
-              Icons.track_changes_rounded,
-              'Target Savings',
-              'Save toward a goal',
-            ),
-            (
-              Icons.lock_outline_rounded,
-              'Fixed Deposit',
-              'Lock funds for higher yield',
-            ),
-          ],
-        );
       case AppPreviewRoute.flexTopUp:
-        return (
-          title: 'Top up Flex Savings',
-          icon: Icons.add_card_rounded,
-          color: BocColors.gold,
-          section: AppSection.save,
-          summary:
-              'Preview the top-up amount, funding source, and confirmation flow for Flex Savings.',
-          actionLabel: 'Preview top up',
-          rows: [
-            (
-              Icons.account_balance_wallet_outlined,
-              'Destination',
-              'Everyday Flex',
-            ),
-            (Icons.payments_outlined, 'Amount', '₦50,000.00'),
-            (Icons.verified_user_outlined, 'Authorization', 'Transaction PIN'),
-          ],
-        );
       case AppPreviewRoute.flexWithdraw:
-        return (
-          title: 'Withdraw from Flex',
-          icon: Icons.call_received_rounded,
-          color: BocColors.blue,
-          section: AppSection.save,
-          summary:
-              'Preview withdrawal details for moving money from Flex Savings to your wallet.',
-          actionLabel: 'Preview withdrawal',
-          rows: [
-            (Icons.savings_outlined, 'Source', 'Everyday Flex'),
-            (
-              Icons.account_balance_wallet_outlined,
-              'Destination',
-              'Cheetah wallet',
-            ),
-            (Icons.schedule_rounded, 'Delivery', 'Instant preview'),
-          ],
-        );
       case AppPreviewRoute.flexStatement:
-        return (
-          title: 'Flex statement',
-          icon: Icons.receipt_long_outlined,
-          color: BocColors.green,
-          section: AppSection.save,
-          summary:
-              'Preview interest, deposits, and withdrawals for the selected Flex Savings account.',
-          actionLabel: 'Preview statement export',
-          rows: [
-            (Icons.trending_up_rounded, 'Daily interest', '+₦412.60'),
-            (Icons.add_rounded, 'Top up', '+₦50,000.00'),
-            (Icons.call_received_rounded, 'Withdrawal', '-₦20,000.00'),
-          ],
-        );
       case AppPreviewRoute.flexSettings:
-        return (
-          title: 'Flex settings',
-          icon: Icons.tune_rounded,
-          color: BocColors.purple,
-          section: AppSection.save,
-          summary:
-              'Preview account preferences such as auto-save rules, withdrawal destination, and statement notifications.',
-          actionLabel: 'Preview settings',
-          rows: [
-            (Icons.autorenew_rounded, 'Auto-save', 'Weekly, ₦10,000'),
-            (Icons.notifications_none_rounded, 'Interest alerts', 'Enabled'),
-            (
-              Icons.account_balance_outlined,
-              'Withdrawal account',
-              'Primary wallet',
-            ),
-          ],
-        );
       case AppPreviewRoute.targetCreate:
-        return (
-          title: 'Create target',
-          icon: Icons.track_changes_rounded,
-          color: BocColors.blue,
-          section: AppSection.save,
-          summary:
-              'Preview the target goal form, frequency selector, and auto-save confirmation.',
-          actionLabel: 'Preview target creation',
-          rows: [
-            (Icons.flag_outlined, 'Goal name', 'Rent - Dec 2026'),
-            (Icons.payments_outlined, 'Target amount', '₦1,000,000'),
-            (Icons.calendar_month_outlined, 'Frequency', 'Weekly'),
-          ],
-        );
       case AppPreviewRoute.targetSort:
-        return (
-          title: 'Sort targets',
-          icon: Icons.sort_rounded,
-          color: BocColors.blue,
-          section: AppSection.save,
-          summary:
-              'Preview sorting target savings by progress, date created, maturity date, or amount.',
-          actionLabel: 'Preview sort',
-          rows: [
-            (Icons.trending_up_rounded, 'Progress', 'Highest first'),
-            (Icons.event_available_outlined, 'Maturity', 'Soonest first'),
-            (Icons.payments_outlined, 'Amount', 'Largest target first'),
-          ],
-        );
       case AppPreviewRoute.lockCreate:
-        return (
-          title: 'Create fixed deposit',
-          icon: Icons.lock_outline_rounded,
-          color: BocColors.purple,
-          section: AppSection.save,
-          summary:
-              'Preview the fixed deposit setup for amount, tenor, rate, and payout account.',
-          actionLabel: 'Preview lock setup',
-          rows: [
-            (Icons.payments_outlined, 'Amount', '₦300,000.00'),
-            (Icons.timelapse_rounded, 'Tenor', '6 months'),
-            (Icons.percent_rounded, 'Rate', '18% p.a.'),
-          ],
-        );
       case AppPreviewRoute.lockDetails:
-        return (
-          title: 'Fixed deposit details',
-          icon: Icons.lock_clock_rounded,
-          color: BocColors.purple,
-          section: AppSection.save,
-          summary:
-              'Preview maturity date, accrued interest, payout destination, and early-break terms.',
-          actionLabel: 'Preview details',
-          rows: [
-            (Icons.event_available_outlined, 'Maturity', '14 Oct 2026'),
-            (Icons.trending_up_rounded, 'Expected interest', '₦45,000'),
-            (Icons.warning_amber_rounded, 'Early exit', 'Interest forfeited'),
-          ],
-        );
       case AppPreviewRoute.lockAddMoney:
-        return (
-          title: 'Add to fixed deposit',
-          icon: Icons.add_box_outlined,
-          color: BocColors.purple,
-          section: AppSection.save,
-          summary:
-              'Preview increasing an existing fixed deposit before maturity.',
-          actionLabel: 'Preview add money',
-          rows: [
-            (Icons.lock_outline_rounded, 'Active lock', '18-month lock'),
-            (Icons.payments_outlined, 'Additional amount', '₦50,000.00'),
-            (Icons.percent_rounded, 'Current rate', '18% p.a.'),
-          ],
-        );
       case AppPreviewRoute.groupCreate:
       case AppPreviewRoute.groupContribute:
       case AppPreviewRoute.groupInvite:
       case AppPreviewRoute.groupMembers:
-        return (
-          title: 'Group Savings',
-          icon: Icons.groups_outlined,
-          color: BocColors.green,
-          section: AppSection.save,
-          summary:
-              'Preview group setup, contributions, invites, and member status before group savings endpoints are available.',
-          actionLabel: 'Preview group action',
-          rows: [
-            (Icons.group_add_outlined, 'Members', '6 active members'),
-            (Icons.payments_outlined, 'Contribution', '₦20,000 weekly'),
-            (Icons.link_rounded, 'Invite', 'Shareable invite preview'),
-          ],
-        );
       case AppPreviewRoute.bankTransferFunding:
-        return (
-          title: 'Bank transfer funding',
-          icon: Icons.account_balance_outlined,
-          color: BocColors.blue,
-          section: AppSection.payments,
-          summary:
-              'Preview virtual account funding instructions and reference details.',
-          actionLabel: 'Preview bank transfer',
-          rows: [
-            (Icons.account_balance_outlined, 'Bank', 'Cheetah MFB'),
-            (Icons.numbers_rounded, 'Account number', '0198 220 341'),
-            (Icons.person_outline_rounded, 'Account name', 'Adaeze Okonkwo'),
-          ],
-        );
       case AppPreviewRoute.cardFunding:
         return (
-          title: 'Card funding',
-          icon: Icons.credit_card_outlined,
+          title: 'Unavailable',
+          icon: Icons.info_outline,
           color: BocColors.gold,
-          section: AppSection.payments,
-          summary:
-              'Preview adding money with a debit card while card processor integration is pending.',
-          actionLabel: 'Preview card funding',
-          rows: [
-            (Icons.credit_card_outlined, 'Card', 'Visa ending 4242'),
-            (Icons.payments_outlined, 'Amount', '₦50,000.00'),
-            (Icons.lock_outline_rounded, 'Security', '3DS authorization'),
-          ],
+          section: AppSection.save,
+          summary: 'This feature is not available yet.',
+          actionLabel: 'Back',
+          rows: <(IconData, String, String)>[],
         );
       case AppPreviewRoute.accountBeneficiaries:
         return (

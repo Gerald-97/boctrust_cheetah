@@ -139,6 +139,32 @@ security-secret flows use the staging User API.
 
 ## Backend-contract blockers
 
+### Savings integration
+
+Savings and Flex share the authenticated Home aggregate (`GET /users/me/home`)
+with Home. The screens display the returned wallet balance/status and validated
+product names. Catalogue entries are product descriptions, not customer-owned
+plans. Rates, minimum deposits, earnings and history remain hidden until their
+contracts are defined.
+
+Add money and bank-transfer routes show the user's current virtual-account
+details. Entering funding refreshes the aggregate; Copy is enabled only after a
+successful load with an available account, bank and account number. A failed
+refresh keeps prior details visible with a warning and disables Copy. No client
+action marks a transfer as completed.
+
+Direct Savings routes restore authentication and require the current user's
+profile and first transaction PIN. Home requests are shared while in flight and
+discarded on session changes. Target, Fixed Deposit, Group, statements,
+withdrawals, auto-save and card funding show unavailable states because this
+User API does not publish those operations. Their URLs remain registered.
+
+Focused checks: `flutter test test/savings_provider_test.dart
+test/savings_product_data_test.dart test/savings_access_test.dart
+test/savings_ui_test.dart test/savings_live_ui_test.dart`.
+These use synthetic transport responses; authenticated staging-device
+verification is a separate release check.
+
 The User API is wired for its documented mobile endpoints. Product areas with
 no contract in that API remain explicitly unavailable.
 
@@ -158,7 +184,7 @@ no contract in that API remain explicitly unavailable.
 
 - Home, Save, Send, Pay, and Account tabs are registered.
 - Onboarding, verification, OTP, password, login, password reset, and new-device OTP routes are registered.
-- Savings product routes cover Flex, Target, Lock, and Group actions including statement, settings, sort, details, add-to-lock, invite, contribute, and full-member list.
+- Savings/Flex render the live wallet and catalogue. Target, Lock, Group and unsupported Savings action routes show availability states.
 - Wallet funding routes cover Add Money, bank transfer, and card funding.
 - Send routes cover own account, Cheetah beneficiary, and other-bank transfers.
 - Payments routes cover airtime, data, bill categories, bill pay, scan-to-pay, and recent transaction receipt drill-down route support.

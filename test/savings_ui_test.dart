@@ -1,0 +1,90 @@
+import 'package:boctrust_savings_loan/app/network.dart';
+import 'package:boctrust_savings_loan/app/preferences.dart';
+import 'package:boctrust_savings_loan/app/theme.dart';
+import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'support/responsive_fixtures.dart';
+import 'support/savings_fixtures.dart';
+import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
+
+void main() {
+  Future<void> open(WidgetTester tester, AppScreen screen) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 503,
+              data: {'message': 'Test unavailable'},
+            ),
+          );
+        },
+      ),
+    );
+    addTearDown(() => dio.close());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          dioProvider.overrideWithValue(dio),
+          authSessionProvider.overrideWith(SavingsSession.new),
+          userProfileProvider.overrideWith(LayoutProfile.new),
+          userHomeProvider.overrideWith(LayoutHome.new),
+        ],
+        child: MaterialApp(
+          theme: CheetahTheme.lightTheme,
+          home: AppFlowNavigator(initialScreen: screen),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('Flex shows the live Home balance without sample interest', (
+    tester,
+  ) async {
+    await open(tester, AppScreen.flex);
+    expect(find.text('₦1,234,567,890.12'), findsWidgets);
+    expect(find.textContaining('12.5%'), findsNothing);
+    expect(find.text('Withdraw'), findsNothing);
+  });
+  for (final screen in [AppScreen.target, AppScreen.lock, AppScreen.group]) {
+    testWidgets('$screen is unavailable without money or setup actions', (
+      tester,
+    ) async {
+      await open(tester, screen);
+      expect(find.text('Unavailable'), findsOneWidget);
+      expect(find.byType(AppTextField), findsNothing);
+      expect(find.text('Back to Savings'), findsOneWidget);
+      expect(find.textContaining('₦'), findsNothing);
+    });
+  }
+  testWidgets('funding uses the live virtual account without an amount flow', (
+    tester,
+  ) async {
+    await open(tester, AppScreen.addMoney);
+    expect(find.text('0123456789'), findsOneWidget);
+    expect(find.text('Example Merchant Bank'), findsOneWidget);
+    expect(find.byType(MoneyKeypad), findsNothing);
+    expect(find.text('Continue'), findsNothing);
+    final copy = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Copy account number'),
+    );
+    expect(
+      copy.onPressed,
+      isNull,
+      reason:
+          'The funding refresh failed; stale details must not be actionable.',
+    );
+  });
+}

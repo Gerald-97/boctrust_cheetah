@@ -94,6 +94,18 @@ void main() {
   });
 
   group('UserHomeData', () {
+    test('funding needs a nonblank account number and bank', () {
+      for (final fields in [
+        {'accountNumber': '   ', 'bankName': 'Bank'},
+        {'accountNumber': '0123456789', 'bankName': ' '},
+        {'accountNumber': '0123456789'},
+      ]) {
+        final home = UserHomeData.fromJson({
+          'dedicatedVirtualAccount': {'status': 'available', ...fields},
+        });
+        expect(home.dedicatedVirtualAccount!.canDisplayDetails, isFalse);
+      }
+    });
     test('parses documented wallet and virtual-account fields', () {
       final home = UserHomeData.fromJson({
         'user': {'anything': 1},

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/services.dart';
 import '../model/user_home_model.dart';
 import '../service/home_service.dart';
+import '../../onboarding/provider/auth_session_provider.dart';
 
 final userHomeProvider =
     NotifierProvider<UserHomeNotifier, NotifierState<UserHomeData>>(
@@ -14,16 +15,38 @@ class UserHomeNotifier extends Notifier<NotifierState<UserHomeData>>
   @override
   NotifierState<UserHomeData> build() {
     trackDisposal();
+    ref.listen(authSessionProvider, (previous, next) {
+      if (previous != next) clear();
+    });
     return const NotifierState.idle();
   }
 
+  Future<NotifierState<UserHomeData>>? _inFlight;
+
   /// Loads the Home aggregate, keeping any previously loaded data visible
   /// while the request is in flight so a refresh never blanks the screen.
-  Future<NotifierState<UserHomeData>> load() async {
+  Future<NotifierState<UserHomeData>> load() {
+    final session = ref.read(authSessionProvider);
+    if (session == null || session.isExpired) {
+      clear();
+      return Future.value(state);
+    }
+    return _inFlight ??= _load(session.accessToken);
+  }
+
+  Future<NotifierState<UserHomeData>> _load(String accessToken) async {
     final token = beginRequest();
     state = NotifierState.loading(data: state.data);
     final result = await ref.read(homeServiceProvider).getOwnHome();
-    if (!isCurrent(token)) return result;
+    if (!ref.mounted || !isCurrent(token)) return const NotifierState.idle();
+    _inFlight = null;
+    final session = ref.read(authSessionProvider);
+    if (session == null ||
+        session.isExpired ||
+        session.accessToken != accessToken) {
+      clear();
+      return const NotifierState.idle();
+    }
     // Preserve stale data on failure so the section can show it beside an
     // inline retry rather than collapsing to an empty card.
     state = result.isError && result.data == null && state.data != null
@@ -42,7 +65,11 @@ class UserHomeNotifier extends Notifier<NotifierState<UserHomeData>>
 
   /// Clears private balance data. Called on logout and handled session expiry
   /// so a second user can never see the previous user's balances.
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    _inFlight = null;
+    state = const NotifierState.idle();
+  }
 }
 
 /// Local-only visibility toggle for the Home balance hero.

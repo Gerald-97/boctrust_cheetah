@@ -24,6 +24,7 @@ import '../account/model/withdrawal_bank_models.dart';
 import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
+import '../savings/provider/savings_provider.dart';
 import '../kyc/model/kyc_models.dart';
 import '../kyc/model/kyc_provider_models.dart';
 import '../kyc/model/kyc_status_models.dart';
@@ -86,6 +87,7 @@ part '../kyc/screens/kyc_screens.dart';
 part '../home/screens/home_screen.dart';
 
 part '../savings/screens/savings_screens.dart';
+part '../savings/screens/savings_access_gate.dart';
 
 part '../send/screens/send_screens.dart';
 
@@ -271,6 +273,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       if (!replace) _history.add(_screen);
       _screen = next;
       if (next == AppScreen.authPin) _authPinCount = 0;
+      _savingsLoadedFor = null;
+      _savingsAuthorizedFor = null;
     });
   }
 
@@ -298,6 +302,9 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   };
 
   void _back() {
+    // System Back also reaches this callback while the access gate is loading.
+    // It must not fall through to an ungated Home before PIN status is known.
+    if (_isSavingsDestination && !_hasSavingsAccess) return;
     _cancelFlowForScreen(_screen);
     if (_history.isNotEmpty) {
       setState(() {
@@ -317,6 +324,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     final fallback = _authFallbackFor(_screen);
     if (fallback != null) {
       _openAuthDestination(fallback, mode: AuthNavigationMode.clearStack);
+    } else if (_isSavingsDestination) {
+      _go(
+        _screen == AppScreen.saveHub ? AppScreen.home : AppScreen.saveHub,
+        replace: true,
+      );
     }
   }
 
@@ -452,6 +464,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isSavingsDestination) {
+      // Keep the native Back policy reactive even on static unavailable pages.
+      ref.watch(authSessionProvider);
+      ref.watch(userProfileProvider);
+    }
     final canExit =
         Navigator.of(context).canPop() ||
         _screen == AppScreen.bootstrap ||
@@ -459,7 +476,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         _screen == AppScreen.login ||
         (_screen == AppScreen.home && _history.isEmpty);
     return PopScope(
-      canPop: canExit,
+      canPop: canExit && (!_isSavingsDestination || _hasSavingsAccess),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           _cancelFlowForScreen(_screen);
@@ -467,8 +484,79 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
           _back();
         }
       },
-      child: _buildScreen(_screen),
+      child: _isSavingsDestination
+          ? SavingsAccessGate(
+              onSignedOut: () => _redirectSavingsAuth(AppRoutes.login),
+              onCreatePin: () => _redirectSavingsAuth(AppRoutes.createFirstPin),
+              builder: (_) {
+                _savingsAuthorizedFor = ref
+                    .read(authSessionProvider)
+                    ?.accessToken;
+                _ensureSavingsLoaded();
+                return _buildScreen(_screen);
+              },
+            )
+          : _buildScreen(_screen),
     );
+  }
+
+  String? _savingsLoadedFor;
+  String? _savingsAuthorizedFor;
+
+  void _redirectSavingsAuth(String route) {
+    // Do not leave a private route beneath login/PIN setup in either stack.
+    _history.clear();
+    Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
+  }
+
+  bool get _hasSavingsAccess {
+    final session = ref.read(authSessionProvider);
+    final profile = ref.read(userProfileProvider).data;
+    return session != null &&
+        !session.isExpired &&
+        _savingsAuthorizedFor == session.accessToken &&
+        profile?.userId == session.userId &&
+        profile?.isCreatedPin == true;
+  }
+
+  bool get _isSavingsDestination => switch (_screen) {
+    AppScreen.saveHub ||
+    AppScreen.flex ||
+    AppScreen.target ||
+    AppScreen.lock ||
+    AppScreen.group ||
+    AppScreen.addMoney => true,
+    AppScreen.routePreview =>
+      widget.initialRouteName?.startsWith('/savings/') == true ||
+          widget.initialRouteName == AppRoutes.bankTransferFunding ||
+          widget.initialRouteName == AppRoutes.cardFunding,
+    _ => false,
+  };
+
+  void _ensureSavingsLoaded() {
+    final session = ref.read(authSessionProvider);
+    if (session == null ||
+        session.isExpired ||
+        _savingsLoadedFor == session.accessToken) {
+      return;
+    }
+    _savingsLoadedFor = session.accessToken;
+    final funding =
+        _screen == AppScreen.addMoney ||
+        (_screen == AppScreen.routePreview &&
+            (widget.initialRouteName == AppRoutes.flexTopUp ||
+                widget.initialRouteName == AppRoutes.bankTransferFunding));
+    final needsData =
+        funding || _screen == AppScreen.saveHub || _screen == AppScreen.flex;
+    if (needsData &&
+        (funding || ref.read(userHomeProvider).status == ServiceStatus.idle)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ref.read(authSessionProvider)?.accessToken == session.accessToken) {
+          unawaited(ref.read(userHomeProvider.notifier).load());
+        }
+      });
+    }
   }
 
   Widget _buildScreen(AppScreen screen) {

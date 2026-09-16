@@ -253,10 +253,9 @@ extension HomeScreen on AppFlowNavigatorState {
   Widget _flexWalletCard(FlexWalletData? wallet, {required bool loading}) {
     if (wallet == null) {
       return const ApiStateCard(
-        title: 'No wallet yet',
+        title: 'Wallet information unavailable',
         message:
-            'Your Flex wallet has not been created. It will appear here once '
-            'it is ready.',
+            'Your wallet details are unavailable right now. Refresh to try again.',
         tone: ApiStateTone.info,
       );
     }
@@ -297,8 +296,8 @@ extension HomeScreen on AppFlowNavigatorState {
 
     if (account == null) {
       return const ApiStateCard(
-        title: 'No funding account',
-        message: 'You do not have a dedicated account for bank transfers yet.',
+        title: 'Funding information unavailable',
+        message: 'Your bank-transfer details are unavailable right now.',
         tone: ApiStateTone.info,
       );
     }
@@ -309,8 +308,8 @@ extension HomeScreen on AppFlowNavigatorState {
           return ApiStateCard(
             title: 'Funding account incomplete',
             message:
-                'Your funding account is marked available but no account '
-                'number was returned. Refresh to try again.',
+                'We could not confirm complete bank-transfer details. '
+                'Refresh to try again.',
             tone: ApiStateTone.warning,
             actionLabel: 'Refresh',
             onAction: refresh,
@@ -322,8 +321,7 @@ extension HomeScreen on AppFlowNavigatorState {
         return ApiStateCard(
           title: 'Funding account is being set up',
           message:
-              'We are still creating your dedicated account for bank '
-              'transfers. This usually takes a few minutes.',
+              'Your bank-transfer account is being set up. Refresh to check its status.',
           tone: ApiStateTone.info,
           actionLabel: 'Refresh',
           onAction: refresh,
@@ -368,7 +366,12 @@ extension HomeScreen on AppFlowNavigatorState {
   }
 
   Widget _availableVirtualAccountCard(DedicatedVirtualAccountData account) {
-    final accountNumber = account.accountNumber!;
+    final accountNumber = account.accountNumber!.trim();
+    final currentHome = ref.watch(userHomeProvider);
+    final canCopy =
+        currentHome.isDone &&
+        ref.watch(authSessionProvider) != null &&
+        account.canDisplayDetails;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,10 +419,24 @@ extension HomeScreen on AppFlowNavigatorState {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: accountNumber));
-                _showSuccessMessage('Account number copied.');
-              },
+              onPressed: !canCopy
+                  ? null
+                  : () async {
+                      final current = ref.read(userHomeProvider);
+                      final session = ref.read(authSessionProvider);
+                      if (session == null ||
+                          session.isExpired ||
+                          !current.isDone ||
+                          current.data?.dedicatedVirtualAccount != account) {
+                        return;
+                      }
+                      await Clipboard.setData(
+                        ClipboardData(text: accountNumber),
+                      );
+                      if (mounted && ref.read(authSessionProvider) == session) {
+                        _showSuccessMessage('Account number copied.');
+                      }
+                    },
               icon: const Icon(Icons.copy_rounded, size: 18),
               label: const Text('Copy account number'),
             ),

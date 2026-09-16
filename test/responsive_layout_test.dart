@@ -6,6 +6,8 @@ import 'package:boctrust_savings_loan/module/account/provider/withdrawal_bank_pr
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
 import 'support/responsive_fixtures.dart';
+import 'support/savings_fixtures.dart';
+import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:dio/dio.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
@@ -60,6 +62,9 @@ void main() {
           AppScreen.kycGovernmentId,
           AppScreen.kycUtilityBill,
           AppScreen.linkedBanks,
+          AppScreen.saveHub,
+          AppScreen.flex,
+          AppScreen.addMoney,
         ])
           (screen: screen, route: null, populated: true, keyboard: false),
         for (final screen in [
@@ -74,6 +79,18 @@ void main() {
       ];
       for (final scenario in scenarios) {
         testWidgets('$scenario at $size text $scale', (tester) async {
+          final savings =
+              [
+                AppScreen.saveHub,
+                AppScreen.flex,
+                AppScreen.target,
+                AppScreen.lock,
+                AppScreen.group,
+                AppScreen.addMoney,
+              ].contains(scenario.screen) ||
+              scenario.route?.startsWith('/savings/') == true ||
+              scenario.route == AppRoutes.bankTransferFunding ||
+              scenario.route == AppRoutes.cardFunding;
           tester.view.physicalSize = size;
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.resetPhysicalSize);
@@ -101,8 +118,11 @@ void main() {
                 sharedPreferencesProvider.overrideWithValue(preferences),
                 dioProvider.overrideWithValue(dio),
                 startupGateProvider.overrideWith(LayoutStartup.new),
-                if (scenario.populated) ...[
+                if (savings)
+                  authSessionProvider.overrideWith(SavingsSession.new),
+                if (savings || scenario.populated)
                   userProfileProvider.overrideWith(LayoutProfile.new),
+                if (scenario.populated) ...[
                   userHomeProvider.overrideWith(LayoutHome.new),
                   userTierProvider.overrideWith(LayoutTiers.new),
                   kycStatusProvider.overrideWith(LayoutKyc.new),
