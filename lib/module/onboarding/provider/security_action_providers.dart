@@ -1,11 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/auth_navigation_provider.dart';
+import '../../../app/private_user_state.dart';
 import '../../../app/services.dart';
 import '../../../utils/auth_input.dart';
 import '../../account/provider/user_providers.dart';
-import '../../home/provider/home_provider.dart';
-import '../../kyc/provider/kyc_providers.dart';
 import '../model/auth_requests.dart';
 import '../model/auth_responses.dart';
 import '../service/auth_service.dart';
@@ -164,13 +163,7 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
       } catch (_) {
         // In-memory auth state is already cleared by the session notifier.
       }
-      ref.read(userProfileProvider.notifier).clear();
-      ref.read(userTierProvider.notifier).clear();
-      ref.read(userHomeProvider.notifier).clear();
-      ref.read(profileImageSignedUrlProvider.notifier).clear();
-      ref.read(identityVerificationProvider.notifier).clear();
-      ref.read(governmentIdVerificationProvider.notifier).clear();
-      ref.read(utilityBillUploadProvider.notifier).clear();
+      clearPrivateUserState(ref);
       ref.invalidate(signupFlowProvider);
       ref.invalidate(loginFlowProvider);
       ref.invalidate(passwordRecoveryProvider);
