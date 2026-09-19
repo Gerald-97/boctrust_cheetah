@@ -107,7 +107,7 @@ class ApiService {
     try {
       return _mapResponse(await call(), parser);
     } on DioException catch (error) {
-      return _mapDioException<T>(error);
+      return _mapDioException(error, parser);
     } catch (_) {
       return const ServiceResponse.error('The server response was invalid.');
     }
@@ -129,8 +129,10 @@ class ApiService {
     final message = json['message'] as String?;
     final meta = ApiMeta.fromJson(json['meta']);
     if (json['success'] != true) {
-      return ServiceResponse<T>.error(
-        message ?? 'Request failed.',
+      return ServiceResponse<T>(
+        status: ServiceStatus.error,
+        data: _conflictData(statusCode, json, parser),
+        message: message ?? 'Request failed.',
         statusCode: statusCode,
         errorCode: json['code'] as String?,
         errors: _errors(json['errors']),
@@ -154,7 +156,10 @@ class ApiService {
     }
   }
 
-  ServiceResponse<T> _mapDioException<T>(DioException error) {
+  ServiceResponse<T> _mapDioException<T>(
+    DioException error,
+    ApiDataParser<T> parser,
+  ) {
     final statusCode = error.response?.statusCode;
     final noAuth = error.requestOptions.extra['sessionExpiryHandled'] == true;
     if (error.error is LocalSessionExpired) {
@@ -168,8 +173,10 @@ class ApiService {
     final body = error.response?.data;
     if (body is Map) {
       final json = Map<String, Object?>.from(body);
-      return ServiceResponse<T>.error(
-        json['message'] as String? ?? 'Request failed.',
+      return ServiceResponse<T>(
+        status: ServiceStatus.error,
+        data: _conflictData(statusCode, json, parser),
+        message: json['message'] as String? ?? 'Request failed.',
         statusCode: statusCode,
         errorCode: json['code'] as String?,
         errors: _errors(json['errors']),
@@ -183,6 +190,22 @@ class ApiService {
       statusCode: statusCode,
       noAuth: noAuth,
     );
+  }
+
+  /// A 409 may return the resource already in the way (for KYC, the
+  /// verification in progress) so the caller can reopen it. Any other error's
+  /// data, or conflict data that does not parse, is dropped.
+  static T? _conflictData<T>(
+    int? statusCode,
+    Map<String, Object?> json,
+    ApiDataParser<T> parser,
+  ) {
+    if (statusCode != 409 || json['data'] == null) return null;
+    try {
+      return parser(json['data']);
+    } catch (_) {
+      return null;
+    }
   }
 
   static List<Object?> _errors(Object? value) {
