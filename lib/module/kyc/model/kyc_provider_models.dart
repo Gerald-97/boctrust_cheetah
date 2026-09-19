@@ -31,6 +31,52 @@ enum KycOperation {
   }
 }
 
+/// Which government documents each provider accepts for Tier 2.
+///
+/// The provider is chosen by the backend per attempt, so a document is only
+/// launchable once the provider that answers the initiation accepts it.
+extension GovernmentIdDocumentTypeCapability on GovernmentIdDocumentType {
+  /// Whether [provider] can verify this document type.
+  ///
+  /// Dojah accepts every type the app offers: its widget, not the launch
+  /// call, decides which documents it presents, so the set here must match
+  /// the documents enabled on `DOJAH_GOVERNMENT_WIDGET_ID` in the Dojah
+  /// dashboard. Smile's published Enhanced Document Verification matrix lists
+  /// only Nigerian `VOTER_ID`; each other type stays disabled there until a
+  /// sandbox submission succeeds for this partner on both platforms and its
+  /// document webhook reaches pending or success. Never substitute job 6 or
+  /// Biometric KYC to work around a disabled type; that needs a backend
+  /// contract change.
+  bool isEnabledFor(KycProvider provider) => switch (provider) {
+    KycProvider.dojah => true,
+    KycProvider.smileId => this == GovernmentIdDocumentType.voterId,
+  };
+}
+
+/// Why [provider] cannot verify [type], or null when it can.
+///
+/// The provider is only known once initiation answers, so the document the
+/// user chose can turn out to be one this provider cannot verify. The user
+/// can pick another on the form, so the message names a document that works
+/// rather than sending them to support. A null [type] is not a problem: the
+/// backend need not echo a document for the attempt to be launchable.
+String? governmentIdUnsupportedMessage(
+  GovernmentIdDocumentType? type,
+  KycProvider provider,
+) {
+  if (type == null || type.isEnabledFor(provider)) return null;
+  final alternatives = GovernmentIdDocumentType.values
+      .where((candidate) => candidate.isEnabledFor(provider))
+      .map((candidate) => candidate.label)
+      .toList(growable: false);
+  if (alternatives.isEmpty) {
+    return '${type.label} cannot be verified right now. Please contact '
+        'support.';
+  }
+  return '${type.label} is not supported by the verification method '
+      'available right now. Choose ${alternatives.join(' or ')} instead.';
+}
+
 enum KycCaptureOutcome { submitted, cancelled, failed, unknown }
 
 KycFlowStage stageAfterCapture(KycCaptureOutcome outcome) => switch (outcome) {
@@ -66,6 +112,22 @@ KycProvider validateKycLaunch(
   final provider = KycProvider.tryParse(explicitProvider);
   if (provider == null) {
     throw const FormatException('Unsupported KYC provider.');
+  }
+  if (provider == KycProvider.dojah && data.contractVersion == null) {
+    // Pre-v2 Dojah initiation: no attempt ID or launch expiry to check, so
+    // the backend must reject a stale result when its webhook arrives.
+    final operationValue = data.operation;
+    if (operationValue != null &&
+        KycOperation.tryParse(operationValue) != operation) {
+      throw const FormatException('The verification operation does not match.');
+    }
+    if ((data.country ?? kDefaultDocumentCountry) != kDefaultDocumentCountry) {
+      throw const FormatException('Unsupported country.');
+    }
+    if (data.referenceId?.trim().isEmpty != false) {
+      throw const FormatException('Missing Dojah reference.');
+    }
+    return provider;
   }
   if (data.contractVersion != 2 || data.attemptId?.trim().isEmpty != false) {
     throw const FormatException('Invalid verification attempt.');

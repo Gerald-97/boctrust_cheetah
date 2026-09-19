@@ -1,133 +1,35 @@
-import 'dart:async';
-
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_provider_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/screens/dojah_capture_screen.dart';
-import 'package:boctrust_savings_loan/module/kyc/service/dojah_gateway.dart';
 import 'package:boctrust_savings_loan/module/kyc/screens/dojah_webview.dart';
+import 'package:boctrust_savings_loan/module/kyc/service/dojah_camera_permission.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_platform_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _Gateway implements DojahGateway {
-  final result = Completer<KycCaptureOutcome>();
-  var calls = 0;
-
-  @override
-  Future<KycCaptureOutcome> launch({
-    required String widgetId,
-    required String referenceId,
-  }) {
-    calls++;
-    return result.future;
-  }
-}
-
 void main() {
-  testWidgets('launches once and returns the normalized outcome', (
-    tester,
-  ) async {
-    final gateway = _Gateway();
-    KycCaptureOutcome? outcome;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [dojahGatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp(
-          home: Builder(
-            builder: (context) => TextButton(
-              onPressed: () async {
-                outcome = await Navigator.of(context).push<KycCaptureOutcome>(
-                  MaterialPageRoute(
-                    builder: (_) => const DojahCaptureScreen(
-                      widgetId: 'selfie-widget',
-                      referenceId: 'boc-attempt-000001',
-                      operation: KycOperation.identity,
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Start'),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Start'));
-    await tester.pump();
-    await tester.pump();
-    expect(gateway.calls, 1);
-
-    await tester.pump();
-    expect(gateway.calls, 1);
-
-    gateway.result.complete(KycCaptureOutcome.unknown);
-    await tester.pumpAndSettle();
-    expect(outcome, KycCaptureOutcome.unknown);
-  });
-
-  testWidgets('back is a cancellation while native capture is pending', (
-    tester,
-  ) async {
-    final gateway = _Gateway();
-    KycCaptureOutcome? outcome;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [dojahGatewayProvider.overrideWithValue(gateway)],
-        child: MaterialApp(
-          home: Builder(
-            builder: (context) => TextButton(
-              onPressed: () async {
-                outcome = await Navigator.of(context).push<KycCaptureOutcome>(
-                  MaterialPageRoute(
-                    builder: (_) => const DojahCaptureScreen(
-                      widgetId: 'government-widget',
-                      referenceId: 'boc-attempt-000002',
-                      operation: KycOperation.governmentId,
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Start'),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Start'));
-    await tester.pump();
-    await tester.pump();
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-
-    expect(outcome, KycCaptureOutcome.cancelled);
-  });
-
-  testWidgets('iOS opens the identity URL in the browser, never native', (
-    tester,
-  ) async {
-    final gateway = _Gateway();
+  testWidgets('capture opens the identity URL in the browser', (tester) async {
     final browser = _Browser();
     final outcomes = <KycCaptureOutcome?>[];
     await tester.pumpWidget(
       _app(
-        gateway: gateway,
-        route: DojahPlatformRoute.iosWebView,
+        route: DojahPlatformRoute.webView,
         browser: browser,
         onOutcome: outcomes.add,
+        cameraGranted: true,
       ),
     );
 
     await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
-    expect(gateway.calls, 0);
     expect(browser.uri?.host, 'identity.dojah.io');
     expect(browser.uri?.queryParameters, {
       'widget_id': 'selfie-widget',
       'metadata[reference]': 'boc-attempt-000003',
+      'user_data[residence_country]': 'NG',
+      'user_data[email]': 'person@example.test',
+      'gov_data[bvn]': '00000000006',
       'loading': 'async',
     });
 
@@ -139,14 +41,14 @@ void main() {
     expect(find.text('Start'), findsOneWidget);
   });
 
-  testWidgets('iOS back closes the browser as a cancellation', (tester) async {
+  testWidgets('back closes the browser as a cancellation', (tester) async {
     final outcomes = <KycCaptureOutcome?>[];
     await tester.pumpWidget(
       _app(
-        gateway: _Gateway(),
-        route: DojahPlatformRoute.iosWebView,
+        route: DojahPlatformRoute.webView,
         browser: _Browser(),
         onOutcome: outcomes.add,
+        cameraGranted: true,
       ),
     );
 
@@ -159,22 +61,20 @@ void main() {
   });
 
   testWidgets('unsupported platforms never launch capture', (tester) async {
-    final gateway = _Gateway();
     final browser = _Browser();
     final outcomes = <KycCaptureOutcome?>[];
     await tester.pumpWidget(
       _app(
-        gateway: gateway,
         route: DojahPlatformRoute.unsupported,
         browser: browser,
         onOutcome: outcomes.add,
+        cameraGranted: true,
       ),
     );
 
     await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
-    expect(gateway.calls, 0);
     expect(browser.uri, isNull);
     expect(
       find.text(
@@ -187,6 +87,48 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(outcomes, [KycCaptureOutcome.cancelled]);
+  });
+
+  testWidgets('a refused camera never opens the browser', (tester) async {
+    // The hosted flow photographs the document, so without camera access
+    // there is nothing to show. The native SDK used to ask for this itself.
+    final browser = _Browser();
+    final outcomes = <KycCaptureOutcome?>[];
+    await tester.pumpWidget(
+      _app(
+        route: DojahPlatformRoute.webView,
+        browser: browser,
+        onOutcome: outcomes.add,
+        cameraGranted: false,
+      ),
+    );
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    expect(browser.uri, isNull);
+    expect(find.textContaining('Camera access'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(outcomes, [KycCaptureOutcome.cancelled]);
+  });
+
+  testWidgets('a granted camera opens the browser', (tester) async {
+    final browser = _Browser();
+    await tester.pumpWidget(
+      _app(
+        route: DojahPlatformRoute.webView,
+        browser: browser,
+        onOutcome: (_) {},
+        cameraGranted: true,
+      ),
+    );
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    expect(browser.uri, isNotNull);
   });
 }
 
@@ -205,15 +147,17 @@ class _Browser {
 }
 
 Widget _app({
-  required _Gateway gateway,
   required DojahPlatformRoute route,
   required _Browser browser,
   required void Function(KycCaptureOutcome?) onOutcome,
+  bool cameraGranted = true,
 }) {
   return ProviderScope(
     overrides: [
-      dojahGatewayProvider.overrideWithValue(gateway),
       dojahPlatformRouteProvider.overrideWithValue(route),
+      dojahCameraPermissionProvider.overrideWithValue(
+        () async => cameraGranted,
+      ),
       dojahWebViewBuilderProvider.overrideWithValue(browser.build),
     ],
     child: MaterialApp(
@@ -227,6 +171,8 @@ Widget _app({
                     widgetId: 'selfie-widget',
                     referenceId: 'boc-attempt-000003',
                     operation: KycOperation.identity,
+                    bvn: '00000000006',
+                    email: 'person@example.test',
                   ),
                 ),
               ),

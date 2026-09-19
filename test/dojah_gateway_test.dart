@@ -3,13 +3,17 @@ import 'package:boctrust_savings_loan/module/kyc/service/dojah_gateway.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 NativeDojahGateway _returning(String? result) =>
-    NativeDojahGateway((widgetId, {required metadata}) async => result);
+    NativeDojahGateway((widgetId, {required metadata, bvn}) async => result);
 
 void main() {
   test(
     'sends the backend reference as metadata, not as a session resume',
     () async {
-      final gateway = NativeDojahGateway((widgetId, {required metadata}) async {
+      final gateway = NativeDojahGateway((
+        widgetId, {
+        required metadata,
+        bvn,
+      }) async {
         expect(widgetId, 'selfie-widget');
         expect(metadata, {'reference': 'boc-attempt-000001'});
         return 'pending';
@@ -21,6 +25,46 @@ void main() {
       );
     },
   );
+
+  test('passes the entered BVN to the SDK', () async {
+    String? sent;
+    final gateway = NativeDojahGateway((
+      widgetId, {
+      required metadata,
+      bvn,
+    }) async {
+      sent = bvn;
+      return 'pending';
+    });
+
+    await gateway.launch(
+      widgetId: 'selfie-widget',
+      referenceId: 'boc-attempt-000001',
+      bvn: ' 00000000006 ',
+    );
+
+    expect(sent, '00000000006');
+  });
+
+  test('sends no BVN when none was entered', () async {
+    var sent = 'unset';
+    final gateway = NativeDojahGateway((
+      widgetId, {
+      required metadata,
+      bvn,
+    }) async {
+      sent = '$bvn';
+      return 'pending';
+    });
+
+    await gateway.launch(
+      widgetId: 'selfie-widget',
+      referenceId: 'boc-attempt-000001',
+      bvn: ' ',
+    );
+
+    expect(sent, 'null');
+  });
 
   test('maps the SDK result tokens to capture outcomes', () async {
     const expected = {
@@ -62,7 +106,11 @@ void main() {
 
   test('rejects missing launch configuration before native code', () async {
     var launched = false;
-    final gateway = NativeDojahGateway((widgetId, {required metadata}) async {
+    final gateway = NativeDojahGateway((
+      widgetId, {
+      required metadata,
+      bvn,
+    }) async {
       launched = true;
       return 'closed';
     });
@@ -84,7 +132,7 @@ void main() {
       () => 'closed',
     );
     final gateway = NativeDojahGateway(
-      (widgetId, {required metadata}) => first,
+      (widgetId, {required metadata, bvn}) => first,
     );
 
     final pending = gateway.launch(

@@ -5,14 +5,17 @@ void main() {
   test('iOS chooses the embedded browser', () {
     expect(
       chooseDojahPlatformRoute(isWeb: false, isAndroid: false, isIOS: true),
-      DojahPlatformRoute.iosWebView,
+      DojahPlatformRoute.webView,
     );
   });
 
-  test('Android keeps the native SDK', () {
+  test('Android chooses the embedded browser too', () {
+    // The native Android SDK (sdk-kotlin v0.4.2) throws "No stepNumber" from
+    // its own coroutine when the user navigates back on the document pages,
+    // which kills the host process. The hosted flow cannot do that.
     expect(
       chooseDojahPlatformRoute(isWeb: false, isAndroid: true, isIOS: false),
-      DojahPlatformRoute.nativeAndroid,
+      DojahPlatformRoute.webView,
     );
   });
 

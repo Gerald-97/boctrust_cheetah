@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/kyc_provider_models.dart';
-import '../service/dojah_gateway.dart';
+import '../service/dojah_camera_permission.dart';
 import '../service/dojah_platform_route.dart';
 import '../service/dojah_web_policy.dart';
 import 'dojah_webview.dart';
@@ -12,6 +12,8 @@ class DojahCaptureScreen extends ConsumerStatefulWidget {
     required this.widgetId,
     required this.referenceId,
     required this.operation,
+    this.bvn,
+    this.email,
     super.key,
   });
 
@@ -19,49 +21,38 @@ class DojahCaptureScreen extends ConsumerStatefulWidget {
   final String referenceId;
   final KycOperation operation;
 
+  /// The BVN the user entered, prefilled into Dojah. Null for NIN and
+  /// government-ID capture.
+  final String? bvn;
+
+  /// The address the user signed up with, which satisfies the flow's Email
+  /// step so Dojah does not ask for it again. Null when the profile has not
+  /// loaded or holds none.
+  final String? email;
+
   @override
   ConsumerState<DojahCaptureScreen> createState() => _DojahCaptureScreenState();
 }
 
 class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
-  var _started = false;
   var _finished = false;
-  Object? _error;
+
+  /// Null until the camera request has answered, so the browser is never
+  /// built before the page can actually use the camera.
+  bool? _cameraGranted;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _launch());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _requestCamera());
   }
 
-  Future<void> _launch() async {
-    if (_started || !mounted) return;
-    // The plugin is registered for Android only; never reach its channel
-    // from iOS or another platform.
-    if (ref.read(dojahPlatformRouteProvider) !=
-        DojahPlatformRoute.nativeAndroid) {
+  Future<void> _requestCamera() async {
+    if (ref.read(dojahPlatformRouteProvider) != DojahPlatformRoute.webView) {
       return;
     }
-    setState(() {
-      _started = true;
-      _error = null;
-    });
-    try {
-      final outcome = await ref
-          .read(dojahGatewayProvider)
-          .launch(widgetId: widget.widgetId, referenceId: widget.referenceId);
-      _finish(outcome);
-    } catch (error) {
-      if (mounted) setState(() => _error = error);
-    }
-  }
-
-  void _retry() {
-    setState(() {
-      _started = false;
-      _error = null;
-    });
-    _launch();
+    final granted = await ref.read(dojahCameraPermissionProvider)();
+    if (mounted) setState(() => _cameraGranted = granted);
   }
 
   /// The only place this route closes, so duplicate or late provider events
@@ -94,8 +85,11 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
         ),
         body: SafeArea(
           child: switch (ref.watch(dojahPlatformRouteProvider)) {
-            DojahPlatformRoute.nativeAndroid => _nativeStatus(),
-            DojahPlatformRoute.iosWebView => _browser(),
+            DojahPlatformRoute.webView => switch (_cameraGranted) {
+              null => const Center(child: CircularProgressIndicator()),
+              true => _browser(),
+              false => _cameraRefused(),
+            },
             DojahPlatformRoute.unsupported => _unavailable(),
           },
         ),
@@ -109,6 +103,8 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
       uri = buildDojahIdentityUri(
         widgetId: widget.widgetId,
         referenceId: widget.referenceId,
+        bvn: widget.bvn,
+        email: widget.email,
       );
     } on FormatException {
       return _unavailable();
@@ -119,35 +115,18 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
     );
   }
 
+  Widget _cameraRefused() => _message(
+    'Camera access is needed to photograph your document. Allow it for '
+    'Boctrust in your device settings, then try again.',
+    action: 'Close',
+    onPressed: _cancel,
+  );
+
   Widget _unavailable() => _message(
     'Verification with this provider is not yet available on this device.',
     action: 'Close',
     onPressed: _cancel,
   );
-
-  Widget _nativeStatus() => _error == null
-      ? const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text(
-                  'Finish verification in the Dojah window.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        )
-      : _message(
-          "We couldn't start verification. Check your connection and try "
-          'again.',
-          action: 'Retry',
-          onPressed: _retry,
-        );
 
   Widget _message(
     String text, {

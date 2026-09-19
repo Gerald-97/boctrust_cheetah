@@ -90,15 +90,14 @@ enum GovernmentIdDocumentType {
     GovernmentIdDocumentType.ninSlip => 'NIN_SLIP',
   };
 
-  /// Whether this type is cleared for Enhanced Document Verification.
-  ///
-  /// Smile's published matrix currently lists only Nigerian `VOTER_ID` for this
-  /// product. Each other type stays disabled until a sandbox submission
-  /// succeeds for this partner on both platforms and its document webhook
-  /// reaches pending or success. Never substitute job 6 or Biometric KYC to
-  /// work around a disabled type; that needs a backend contract change.
-  bool get isEnhancedDocumentVerificationEnabled =>
-      this == GovernmentIdDocumentType.voterId;
+  /// The type for a backend wire value, or null when it names none this
+  /// build knows. A document this app cannot name is never guessed at.
+  static GovernmentIdDocumentType? tryParse(Object? value) {
+    for (final type in values) {
+      if (type.wireValue == value) return type;
+    }
+    return null;
+  }
 
   bool get smileIdCaptureBothSides => switch (this) {
     GovernmentIdDocumentType.driversLicense ||
@@ -111,22 +110,28 @@ enum GovernmentIdDocumentType {
 /// ISO 3166-1 alpha-2 country of issue. Nigeria is the only market today.
 const kDefaultDocumentCountry = 'NG';
 
+/// Asks the backend to open a Tier 2 document attempt.
+///
+/// `documentType` and `documentNumber` are both required: the backend
+/// rejects an initiation missing either with `VALIDATION_ERROR`. The
+/// provider's own capture asks for the document again from its configured
+/// list, so these declare what the user intends and the provider's webhook
+/// reports what they actually presented.
 class GovernmentIdVerificationRequest {
   const GovernmentIdVerificationRequest({
     required this.documentType,
-    this.documentNumber,
+    required this.documentNumber,
     this.country = kDefaultDocumentCountry,
   });
 
   final GovernmentIdDocumentType documentType;
-  final String? documentNumber;
+  final String documentNumber;
   final String country;
 
   Map<String, Object?> toJson() => {
     'documentType': documentType.wireValue,
+    'documentNumber': documentNumber.trim(),
     'country': country,
-    if (documentNumber != null && documentNumber!.trim().isNotEmpty)
-      'documentNumber': documentNumber!.trim(),
   };
 }
 
@@ -180,7 +185,10 @@ class KycInitiationData extends Equatable {
       contractVersion: (json['contractVersion'] as num?)?.toInt(),
       attemptId: json['attemptId'] as String?,
       operation: json['operation'] as String?,
-      referenceId: json['referenceId'] as String?,
+      // The pre-v2 Dojah initiation carries its reference as `providerJobId`;
+      // an explicit `referenceId` wins.
+      referenceId:
+          json['referenceId'] as String? ?? json['providerJobId'] as String?,
       launchExpiresAt: _utcDate(json['launchExpiresAt']),
       policyVersion: json['policyVersion'] as String?,
       allowedAlternatives: _stringList(json['allowedAlternatives']),

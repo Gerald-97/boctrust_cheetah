@@ -304,6 +304,20 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     }
   }
 
+  /// Returns to the tier list once a KYC step has been submitted.
+  ///
+  /// The step screens are opened from that list, so it is where the user
+  /// expects to land, and the card their submission changes lives there. The
+  /// path taken to the step is dropped so Back does not lead to a form that
+  /// has already been sent. When the list is not in this navigator's history
+  /// — the step was deep-linked, as `/account/tier/bvn` is — the step screen
+  /// is replaced by it instead.
+  void _returnToTierList() {
+    final index = _history.lastIndexOf(AppScreen.tiers);
+    if (index >= 0) _history.removeRange(index, _history.length);
+    _go(AppScreen.tiers, replace: true);
+  }
+
   void _cancelFlowForScreen(AppScreen screen) {
     if (screen == AppScreen.kycIdentity) {
       ref.read(identityVerificationProvider.notifier).cancelPendingRequest();

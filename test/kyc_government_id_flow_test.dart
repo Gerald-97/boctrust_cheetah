@@ -2,6 +2,7 @@ import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/service/user_service.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_provider_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_providers.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,11 +26,13 @@ class _FakeKycService implements KycService {
 
   final List<NotifierState<KycInitiationData>> _responses;
   int initiateCalls = 0;
+  GovernmentIdVerificationRequest? lastRequest;
 
   @override
   Future<NotifierState<KycInitiationData>> initiateGovernmentId(
     GovernmentIdVerificationRequest request,
   ) async {
+    lastRequest = request;
     final response = _responses[initiateCalls.clamp(0, _responses.length - 1)];
     initiateCalls++;
     return response;
@@ -79,7 +82,10 @@ void main() {
 
     final initiation = await container
         .read(governmentIdVerificationProvider.notifier)
-        .submit(documentType: GovernmentIdDocumentType.voterId);
+        .submit(
+          documentType: GovernmentIdDocumentType.voterId,
+          documentNumber: 'A1234567',
+        );
 
     expect(initiation, isNotNull);
     expect(initiation!.smileJobId, 'smile-job-1');
@@ -103,12 +109,16 @@ void main() {
     final container = containerWith(kyc);
     final notifier = container.read(governmentIdVerificationProvider.notifier);
 
-    await notifier.submit(documentType: GovernmentIdDocumentType.voterId);
+    await notifier.submit(
+      documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
+    );
     // The user backed out of the capture screen.
     notifier.markAwaitingProvider();
 
     final resumed = await notifier.submit(
       documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
     );
 
     expect(resumed, isNotNull, reason: 'the cached job must reopen capture');
@@ -137,6 +147,7 @@ void main() {
 
     final resumed = await notifier.submit(
       documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
     );
 
     expect(resumed, isNull);
@@ -166,6 +177,7 @@ void main() {
 
     final resumed = await notifier.submit(
       documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
     );
 
     expect(resumed, isNull);
@@ -191,7 +203,10 @@ void main() {
 
     final resumed = await container
         .read(governmentIdVerificationProvider.notifier)
-        .submit(documentType: GovernmentIdDocumentType.voterId);
+        .submit(
+          documentType: GovernmentIdDocumentType.voterId,
+          documentNumber: 'A1234567',
+        );
 
     expect(resumed, isNotNull);
     expect(resumed!.smileUserId, 'smile-user-1');
@@ -227,7 +242,10 @@ void main() {
     final container = containerWith(kyc);
     final notifier = container.read(governmentIdVerificationProvider.notifier);
 
-    await notifier.submit(documentType: GovernmentIdDocumentType.voterId);
+    await notifier.submit(
+      documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
+    );
     notifier.markProviderFailure();
 
     expect(
@@ -236,19 +254,71 @@ void main() {
     );
   });
 
-  test('only voter ID is cleared for enhanced document verification', () {
+  test('Dojah accepts every document type the app offers', () {
+    for (final type in GovernmentIdDocumentType.values) {
+      expect(
+        type.isEnabledFor(KycProvider.dojah),
+        isTrue,
+        reason: '${type.wireValue} is configured on the Dojah widget',
+      );
+    }
+  });
+
+  test('Smile ID still clears only voter ID', () {
     expect(
-      GovernmentIdDocumentType.voterId.isEnhancedDocumentVerificationEnabled,
+      GovernmentIdDocumentType.voterId.isEnabledFor(KycProvider.smileId),
       isTrue,
     );
     for (final type in GovernmentIdDocumentType.values.where(
       (type) => type != GovernmentIdDocumentType.voterId,
     )) {
       expect(
-        type.isEnhancedDocumentVerificationEnabled,
+        type.isEnabledFor(KycProvider.smileId),
         isFalse,
         reason: '${type.wireValue} has no successful sandbox submission yet',
       );
     }
+  });
+
+  test('choosing a different document does not reuse the cached job', () async {
+    final kyc = _FakeKycService([
+      NotifierState.done(KycInitiationData.fromJson(_initiationJson())),
+      NotifierState.done(KycInitiationData.fromJson(_initiationJson())),
+    ]);
+    final container = containerWith(kyc);
+    final notifier = container.read(governmentIdVerificationProvider.notifier);
+
+    await notifier.submit(
+      documentType: GovernmentIdDocumentType.voterId,
+      documentNumber: 'A1234567',
+    );
+    notifier.markAwaitingProvider();
+    await notifier.submit(
+      documentType: GovernmentIdDocumentType.ninSlip,
+      documentNumber: 'A1234567',
+    );
+
+    expect(
+      kyc.initiateCalls,
+      2,
+      reason: 'a different document needs its own attempt',
+    );
+  });
+
+  test('the entered document number reaches the backend', () async {
+    final kyc = _FakeKycService([
+      NotifierState.done(KycInitiationData.fromJson(_initiationJson())),
+    ]);
+    final container = containerWith(kyc);
+
+    await container
+        .read(governmentIdVerificationProvider.notifier)
+        .submit(
+          documentType: GovernmentIdDocumentType.ninSlip,
+          documentNumber: ' 12345678901 ',
+        );
+
+    expect(kyc.lastRequest!.toJson()['documentNumber'], '12345678901');
+    expect(kyc.lastRequest!.toJson()['documentType'], 'nin_slip');
   });
 }

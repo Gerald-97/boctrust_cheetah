@@ -106,10 +106,17 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
         // this account, or an identity number already bound to a different
         // account. Only the first is resumable, and only the server's message
         // can tell them apart, so never assert a cause of our own.
-        final resumable = identityType == IdentityType.bvn
-            ? null
-            : previous.initiation ??
-                  GovernmentIdVerificationNotifier._resumableFrom(data);
+        final resumable =
+            _dojahInProgressFrom(
+              result.errorCode,
+              data,
+              identityType: identityType,
+              identityNumber: number,
+            ) ??
+            (identityType == IdentityType.bvn
+                ? null
+                : previous.initiation ??
+                      GovernmentIdVerificationNotifier._resumableFrom(data));
 
         if (resumable != null) {
           state = NotifierState.done(
@@ -153,6 +160,26 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
     } finally {
       if (isCurrent(token)) _inFlight = false;
     }
+  }
+
+  /// The Dojah attempt a `VERIFICATION_IN_PROGRESS` conflict returns, when it
+  /// was issued for the number just entered. Its masked last four digits are
+  /// the only link to that number, so a mismatch never reopens it.
+  static KycInitiationData? _dojahInProgressFrom(
+    String? errorCode,
+    KycInitiationData? data, {
+    required IdentityType identityType,
+    required String identityNumber,
+  }) {
+    if (errorCode != 'VERIFICATION_IN_PROGRESS' ||
+        data == null ||
+        data.provider != 'dojah' ||
+        data.identityType != identityType.wireValue) {
+      return null;
+    }
+    final last4 = data.identityLast4?.trim() ?? '';
+    if (last4.isEmpty || !identityNumber.endsWith(last4)) return null;
+    return data;
   }
 
   void markPendingReview() => _setStage(KycFlowStage.pendingReview);
@@ -480,7 +507,7 @@ class GovernmentIdVerificationNotifier
   /// context leaves an existing verification in progress.
   Future<KycInitiationData?> submit({
     required GovernmentIdDocumentType documentType,
-    String? documentNumber,
+    required String documentNumber,
   }) async {
     if (_inFlight) return null;
 
@@ -488,7 +515,9 @@ class GovernmentIdVerificationNotifier
 
     // Case 1: this process still holds the job the user backed out of. Reopen
     // capture against it directly. Initiating again would only earn a 409, so
-    // the request is skipped rather than made and recovered from.
+    // the request is skipped rather than made and recovered from. A job for a
+    // different document is not reopened: the attempt is bound to the
+    // document it was created for.
     final cached = previous.initiation;
     if (cached != null && cached.documentType == documentType.wireValue) {
       state = NotifierState.done(
@@ -509,7 +538,7 @@ class GovernmentIdVerificationNotifier
           .initiateGovernmentId(
             GovernmentIdVerificationRequest(
               documentType: documentType,
-              documentNumber: documentNumber?.trim(),
+              documentNumber: documentNumber,
             ),
           );
       if (!isCurrent(token)) return null;

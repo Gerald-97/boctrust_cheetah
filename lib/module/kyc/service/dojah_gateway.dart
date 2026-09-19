@@ -8,12 +8,16 @@ typedef DojahNativeLaunch =
     Future<String?> Function(
       String widgetId, {
       required Map<String, Object?> metadata,
+      String? bvn,
     });
 
 abstract interface class DojahGateway {
+  /// [bvn] prefills the number the user already entered, so Dojah does not
+  /// ask for it again.
   Future<KycCaptureOutcome> launch({
     required String widgetId,
     required String referenceId,
+    String? bvn,
   });
 }
 
@@ -27,6 +31,7 @@ class NativeDojahGateway implements DojahGateway {
   Future<KycCaptureOutcome> launch({
     required String widgetId,
     required String referenceId,
+    String? bvn,
   }) async {
     if (widgetId.trim().isEmpty || referenceId.trim().isEmpty) {
       throw const FormatException('Invalid capture configuration.');
@@ -38,6 +43,7 @@ class NativeDojahGateway implements DojahGateway {
       final result = await _launch(
         widgetId.trim(),
         metadata: dojahAttemptMetadata(referenceId),
+        bvn: dojahBvnPrefill(bvn),
       );
       return dojahNativeOutcome(result);
     } finally {
@@ -56,6 +62,18 @@ Map<String, Object?> dojahAttemptMetadata(String referenceId) => {
   'reference': referenceId.trim(),
 };
 
+/// The known email address to prefill, or null when there is none to send.
+String? dojahEmailPrefill(String? email) {
+  final value = email?.trim() ?? '';
+  return value.isEmpty ? null : value;
+}
+
+/// The entered BVN to prefill, or null when there is none to send.
+String? dojahBvnPrefill(String? bvn) {
+  final value = bvn?.trim() ?? '';
+  return value.isEmpty ? null : value;
+}
+
 /// Classifies the Android SDK's result string.
 ///
 /// Only the `DOJAH_*_RESULT` constants in `com.dojah.kyc_sdk_kotlin.DojahSdkKt`
@@ -73,9 +91,14 @@ KycCaptureOutcome dojahNativeOutcome(String? result) =>
 
 final dojahGatewayProvider = Provider<DojahGateway>(
   (ref) => NativeDojahGateway(
-    (widgetId, {required metadata}) => DojahKyc.launch(
+    (widgetId, {required metadata, bvn}) => DojahKyc.launch(
       widgetId,
-      extraUserData: ExtraUserData(metadata: metadata),
+      // SDK 0.4.2's ExtraUserData has no country field, so Android cannot
+      // preset Nigeria here; the widget's dashboard configuration must.
+      extraUserData: ExtraUserData(
+        govData: bvn == null ? null : GovData(bvn: bvn),
+        metadata: metadata,
+      ),
     ),
   ),
 );

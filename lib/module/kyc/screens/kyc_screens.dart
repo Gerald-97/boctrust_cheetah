@@ -590,6 +590,12 @@ extension KycScreens on AppFlowNavigatorState {
       final outcome = await _openDojahCapture(
         initiation,
         KycOperation.identity,
+        bvn: identityType == IdentityType.bvn
+            ? dojahCaptureBvn(
+                identityNumber,
+                environment: initiation.environment,
+              )
+            : null,
       );
       if (!mounted || outcome == null) return;
       await _handleIdentityCaptureOutcome(notifier, outcome);
@@ -640,12 +646,15 @@ extension KycScreens on AppFlowNavigatorState {
     switch (outcome) {
       case KycCaptureOutcome.submitted:
         notifier.markPendingReview();
-        // Submitted is not verified; only the refreshed aggregates decide.
-        await ref.read(kycAuthoritativeRefreshProvider)();
-        if (!mounted) return;
+        // There is nothing left to do on this form, so the user goes back to
+        // the tier list they started from and watches it reload there rather
+        // than waiting on a screen they are finished with.
+        _returnToTierList();
         _showSuccessMessage(
           'Identity submitted. We will update you once it is checked.',
         );
+        // Submitted is not verified; only the refreshed aggregates decide.
+        await ref.read(kycAuthoritativeRefreshProvider)();
       case KycCaptureOutcome.cancelled:
         notifier.markAwaitingProvider();
       case KycCaptureOutcome.failed:
@@ -704,7 +713,9 @@ extension KycScreens on AppFlowNavigatorState {
             icon: Icons.badge_outlined,
             value: status?.documentNumberLast4 != null
                 ? '•••• ${status!.documentNumberLast4}'
-                : (initiated ? _selectedDocumentType.label : null),
+                : GovernmentIdDocumentType.tryParse(
+                    status?.documentType,
+                  )?.label,
           ),
           const SizedBox(height: 14),
           _kycRefreshAction(statusState),
@@ -733,9 +744,12 @@ extension KycScreens on AppFlowNavigatorState {
               tone: ApiStateTone.info,
             ),
             const SizedBox(height: 14),
-            _governmentIdForm(submitting),
+            _governmentIdForm(submitting, true),
           ] else
-            _governmentIdForm(submitting),
+            _governmentIdForm(
+              submitting,
+              serverStatus == KycVerificationStatus.pending,
+            ),
           if (flowState.isError && flowState.message != null) ...[
             const SizedBox(height: 14),
             ApiStateCard(
@@ -749,7 +763,7 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
-  Widget _governmentIdForm(bool submitting) {
+  Widget _governmentIdForm(bool submitting, bool pending) {
     return SurfaceCard(
       child: Form(
         key: _governmentIdFormKey,
@@ -757,56 +771,67 @@ extension KycScreens on AppFlowNavigatorState {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Choose your document',
+              'Verify your document',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 5),
             Text(
-              'Use a document that is current and matches your legal name.',
+              'Have a current ID that matches your legal name ready.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 14),
+            // The backend requires a document type on initiation, so the user
+            // declares one here. Every type is offered: these attempts route to
+            // Dojah, whose widget accepts them all, and a backend that answers
+            // with Smile instead is caught at launch.
             FormDropdown<GovernmentIdDocumentType>(
               label: 'Document type',
               value: _selectedDocumentType,
               items: GovernmentIdDocumentType.values
                   .map(
-                    (type) => DropdownMenuItem(
-                      value: type,
-                      enabled: type.isEnhancedDocumentVerificationEnabled,
-                      child: Text(
-                        type.isEnhancedDocumentVerificationEnabled
-                            ? type.label
-                            : '${type.label} — not supported for this '
-                                  'verification method',
-                        style: type.isEnhancedDocumentVerificationEnabled
-                            ? null
-                            : TextStyle(color: Theme.of(context).disabledColor),
-                      ),
-                    ),
+                    (type) =>
+                        DropdownMenuItem(value: type, child: Text(type.label)),
                   )
                   .toList(growable: false),
               onChanged: submitting
                   ? null
                   : (value) => refreshKycFormState(() {
-                      if (value != null &&
-                          value.isEnhancedDocumentVerificationEnabled) {
-                        _selectedDocumentType = value;
-                      }
+                      if (value != null) _selectedDocumentType = value;
                     }),
             ),
+            const SizedBox(height: 8),
+            // The provider's own capture asks for the document again from its
+            // configured list and is never told this choice. Naming it here
+            // keeps the declared document and the captured one together.
+            Text(
+              'Select ${_selectedDocumentType.label} again when verification '
+              'opens, so it matches what we record.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
             const SizedBox(height: 12),
+            // Required by the backend, which rejects an initiation without it.
             AppTextField(
-              label: 'Document number (optional)',
+              key: const ValueKey('document-number'),
+              label: 'Document number',
               controller: _documentNumberController,
               enabled: !submitting,
-              hintText: 'As printed on the document',
+              hintText: 'As printed on your ${_selectedDocumentType.label}',
+              validator: (value) => (value ?? '').trim().isEmpty
+                  ? 'Enter the document number as printed on your '
+                        '${_selectedDocumentType.label}.'
+                  : null,
             ),
             const SizedBox(height: 18),
             PrimaryButton(
-              label: submitting ? 'Submitting…' : 'Submit for verification',
+              label: switch ((submitting, pending)) {
+                (true, _) => 'Starting…',
+                (false, true) => 'Continue verification',
+                (false, false) => 'Start verification',
+              },
               onPressed: submitting ? null : _submitGovernmentId,
             ),
           ],
@@ -816,6 +841,8 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitGovernmentId() async {
+    if (!(_governmentIdFormKey.currentState?.validate() ?? false)) return;
+
     final notifier = ref.read(governmentIdVerificationProvider.notifier);
     final initiation = await notifier.submit(
       documentType: _selectedDocumentType,
@@ -828,9 +855,6 @@ extension KycScreens on AppFlowNavigatorState {
       _showErrorMessage(result.message ?? 'Verification could not start.');
       return;
     }
-
-    // The document number is never held while the camera is open.
-    _documentNumberController.clear();
 
     if (initiation == null) {
       // A verification is already running and this process cannot reopen it.
@@ -863,6 +887,19 @@ extension KycScreens on AppFlowNavigatorState {
       _showErrorMessage(
         'We could not start document capture. Please contact support.',
       );
+      return;
+    }
+
+    // The provider is only known now. A document the user already chose can
+    // be one this provider cannot verify, so say which one works instead of
+    // launching a capture that must fail.
+    final unsupported = governmentIdUnsupportedMessage(
+      GovernmentIdDocumentType.tryParse(initiation.documentType),
+      provider,
+    );
+    if (unsupported != null) {
+      notifier.markProviderFailure();
+      _showErrorMessage(unsupported);
       return;
     }
 
@@ -907,8 +944,9 @@ extension KycScreens on AppFlowNavigatorState {
 
   Future<KycCaptureOutcome?> _openDojahCapture(
     KycInitiationData initiation,
-    KycOperation operation,
-  ) async {
+    KycOperation operation, {
+    String? bvn,
+  }) async {
     final config = ref.read(dojahConfigProvider);
     final widgetId = config.widgetIdFor(operation);
     final referenceId = initiation.referenceId?.trim() ?? '';
@@ -918,12 +956,17 @@ extension KycScreens on AppFlowNavigatorState {
       );
       return null;
     }
+    // The flow has a required Email step. The address the user signed up
+    // with satisfies it, so Dojah skips asking for what we already hold.
+    final email = ref.read(userProfileProvider).data?.email;
     return Navigator.of(context).push<KycCaptureOutcome>(
       MaterialPageRoute(
         builder: (_) => DojahCaptureScreen(
           widgetId: widgetId,
           referenceId: referenceId,
           operation: operation,
+          bvn: bvn,
+          email: email,
         ),
       ),
     );
@@ -936,15 +979,17 @@ extension KycScreens on AppFlowNavigatorState {
     switch (outcome) {
       case KycCaptureOutcome.submitted:
         notifier.markPendingReview();
-        // Submitted means the job reached Smile, never verified. Only the
-        // refreshed aggregates may move this card forward.
-        // WidgetRef, not Ref, so the refresh object is read directly; the
-        // refreshKycAuthoritativeState helper is for notifier call sites.
-        await ref.read(kycAuthoritativeRefreshProvider)();
-        if (!mounted) return;
+        // Nothing is left to do on this form, so the user returns to the tier
+        // list they started from and watches it reload there.
+        _returnToTierList();
         _showSuccessMessage(
           'Document submitted. We will update you once it is reviewed.',
         );
+        // Submitted means the job reached the provider, never verified. Only
+        // the refreshed aggregates may move this card forward.
+        // WidgetRef, not Ref, so the refresh object is read directly; the
+        // refreshKycAuthoritativeState helper is for notifier call sites.
+        await ref.read(kycAuthoritativeRefreshProvider)();
       case KycCaptureOutcome.cancelled:
         notifier.markAwaitingProvider();
       case KycCaptureOutcome.failed:

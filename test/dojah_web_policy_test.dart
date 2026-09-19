@@ -17,9 +17,44 @@ void main() {
       expect(uri.queryParametersAll, {
         'widget_id': ['selfie-widget'],
         'metadata[reference]': ['boc attempt&1+'],
+        'user_data[residence_country]': ['NG'],
         'loading': ['async'],
       });
       expect(uri.toString(), isNot(contains('null')));
+    });
+
+    test('prefills the entered BVN', () {
+      final uri = buildDojahIdentityUri(
+        widgetId: 'selfie-widget',
+        referenceId: 'boc-attempt-000001',
+        bvn: ' 00000000006 ',
+      );
+
+      expect(uri.queryParameters['gov_data[bvn]'], '00000000006');
+      expect(uri.queryParameters['user_data[residence_country]'], 'NG');
+    });
+
+    test('a known email skips the hosted flow email step', () {
+      // The selfie widget's flow has a required Email step. Supplying the
+      // address the user already signed in with satisfies it, so Dojah goes
+      // straight to the BVN page instead of asking again.
+      final uri = buildDojahIdentityUri(
+        widgetId: 'selfie-widget',
+        referenceId: 'boc-attempt-000001',
+        email: '  Person@Example.test ',
+      );
+
+      expect(uri.queryParameters['user_data[email]'], 'Person@Example.test');
+    });
+
+    test('no known email leaves the address out', () {
+      final uri = buildDojahIdentityUri(
+        widgetId: 'selfie-widget',
+        referenceId: 'boc-attempt-000001',
+        email: '   ',
+      );
+
+      expect(uri.queryParameters.containsKey('user_data[email]'), isFalse);
     });
 
     test('rejects a blank widget or reference', () {

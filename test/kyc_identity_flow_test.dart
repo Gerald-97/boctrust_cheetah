@@ -57,7 +57,84 @@ class _Home extends HomeService {
       const NotifierState.error('stub');
 }
 
+Map<String, Object?> _dojahInProgress() => {
+  'verificationId': 'kiv-1',
+  'provider': 'dojah',
+  'product': 'bvn_selfie',
+  'environment': 'sandbox',
+  'identityType': 'bvn',
+  'identityLast4': '0006',
+  'providerJobId': 'dojah-ref-1',
+};
+
+NotifierState<KycInitiationData> _conflict(
+  Map<String, Object?> body, {
+  String code = 'VERIFICATION_IN_PROGRESS',
+}) => NotifierState(
+  status: ServiceStatus.error,
+  data: KycInitiationData.fromJson(body),
+  message: 'Verification already in progress.',
+  statusCode: 409,
+  errorCode: code,
+);
+
+ProviderContainer _container(_Kyc service) {
+  final container = ProviderContainer(
+    overrides: [
+      kycServiceProvider.overrideWithValue(service),
+      userServiceProvider.overrideWithValue(_Users()),
+      homeServiceProvider.overrideWithValue(_Home()),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
 void main() {
+  group('BVN verification already in progress', () {
+    test('reopens the Dojah attempt the 409 returns', () async {
+      final container = _container(_Kyc([_conflict(_dojahInProgress())]));
+
+      final resumed = await container
+          .read(identityVerificationProvider.notifier)
+          .submit(
+            identityType: IdentityType.bvn,
+            identityNumber: '00000000006',
+          );
+
+      expect(resumed?.verificationId, 'kiv-1');
+      expect(resumed?.referenceId, 'dojah-ref-1');
+    });
+
+    test('does not reopen it for a BVN with different last digits', () async {
+      final container = _container(_Kyc([_conflict(_dojahInProgress())]));
+
+      final resumed = await container
+          .read(identityVerificationProvider.notifier)
+          .submit(
+            identityType: IdentityType.bvn,
+            identityNumber: '00000000007',
+          );
+
+      expect(resumed, isNull);
+    });
+
+    test('does not reopen it for another conflict code', () async {
+      final container = _container(
+        _Kyc([_conflict(_dojahInProgress(), code: 'CONFLICT')]),
+      );
+
+      final resumed = await container
+          .read(identityVerificationProvider.notifier)
+          .submit(
+            identityType: IdentityType.bvn,
+            identityNumber: '00000000006',
+          );
+
+      expect(resumed, isNull);
+    });
+  });
+
   test(
     'BVN retries ask the server for a job instead of reusing cache',
     () async {

@@ -229,26 +229,29 @@ void main() {
       ]);
     });
 
-    test('government-ID request defaults country and omits a blank number', () {
+    test('government-ID request sends document, number and country', () {
+      // The backend requires documentType and documentNumber; both are the
+      // user's own entry rather than anything the app invents.
       expect(
         const GovernmentIdVerificationRequest(
           documentType: GovernmentIdDocumentType.driversLicense,
+          documentNumber: 'ABC123',
         ).toJson(),
-        {'documentType': 'drivers_license', 'country': 'NG'},
+        {
+          'documentType': 'drivers_license',
+          'documentNumber': 'ABC123',
+          'country': 'NG',
+        },
       );
-      expect(
-        const GovernmentIdVerificationRequest(
-          documentType: GovernmentIdDocumentType.voterId,
-          documentNumber: '   ',
-        ).toJson().containsKey('documentNumber'),
-        isFalse,
-      );
+    });
+
+    test('government-ID request trims the document number', () {
       expect(
         const GovernmentIdVerificationRequest(
           documentType: GovernmentIdDocumentType.ninSlip,
-          documentNumber: ' ABC123 ',
+          documentNumber: '  12345678901  ',
         ).toJson()['documentNumber'],
-        'ABC123',
+        '12345678901',
       );
     });
 
