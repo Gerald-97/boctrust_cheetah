@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,11 +33,18 @@ class DojahWebView extends StatefulWidget {
   State<DojahWebView> createState() => _DojahWebViewState();
 }
 
+/// How long the first load may take before the screen offers a way out.
+/// A stalled load reports no error, so nothing else would end the wait.
+const _initialLoadTimeout = Duration(seconds: 25);
+
 class _DojahWebViewState extends State<DojahWebView> {
   late final WebViewController _controller;
   String? _pageUrl;
   var _progress = 0;
   var _failed = false;
+  var _loaded = false;
+  var _reported = false;
+  Timer? _stallTimer;
 
   @override
   void initState() {
@@ -62,10 +70,26 @@ class _DojahWebViewState extends State<DojahWebView> {
             },
           )
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..addJavaScriptChannel(
+            dojahWebOutcomeChannel,
+            onMessageReceived: _onOutcomeMessage,
+          )
           ..setNavigationDelegate(
             NavigationDelegate(
               onNavigationRequest: _onNavigationRequest,
               onPageStarted: (url) => _pageUrl = url,
+              onPageFinished: (url) {
+                _pageUrl = url;
+                _loaded = true;
+                _stallTimer?.cancel();
+                // Reinstalled per load: a redirect drops the listener with
+                // the old document.
+                unawaited(
+                  _controller
+                      .runJavaScript(dojahWebOutcomeListener)
+                      .catchError((_) {}),
+                );
+              },
               onUrlChange: (change) => _pageUrl = change.url ?? _pageUrl,
               onProgress: (progress) {
                 if (mounted) setState(() => _progress = progress);
@@ -78,6 +102,29 @@ class _DojahWebViewState extends State<DojahWebView> {
             ),
           )
           ..loadRequest(widget.uri);
+    _stallTimer = Timer(_initialLoadTimeout, () {
+      if (!_loaded && mounted) setState(() => _failed = true);
+    });
+  }
+
+  /// The hosted flow reporting how it ended, so capture closes itself
+  /// instead of waiting for the user to back out of a finished page.
+  void _onOutcomeMessage(JavaScriptMessage message) {
+    if (_reported) return;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(message.message);
+    } on FormatException {
+      return;
+    }
+    if (decoded is! Map) return;
+    final type = decoded['type'];
+    final origin = decoded['origin'];
+    if (type is! String || origin is! String) return;
+    final outcome = dojahWebOutcomeFor(type: type, origin: origin);
+    if (outcome == null || !mounted) return;
+    _reported = true;
+    widget.onFinished(outcome);
   }
 
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
@@ -87,8 +134,13 @@ class _DojahWebViewState extends State<DojahWebView> {
       case DojahWebNavigation.allow:
         return NavigationDecision.navigate;
       case DojahWebNavigation.finish:
-        // A redirect out of Dojah ends capture but is not a verdict.
-        widget.onFinished(KycCaptureOutcome.unknown);
+        // A redirect out of Dojah ends capture but is not a verdict. Dojah
+        // navigates away before it posts its result when the flow has a
+        // confirmation URL, so this is the ending the backend reconciles.
+        if (!_reported) {
+          _reported = true;
+          widget.onFinished(KycCaptureOutcome.unknown);
+        }
         return NavigationDecision.prevent;
       case DojahWebNavigation.block:
         return NavigationDecision.prevent;
@@ -97,6 +149,7 @@ class _DojahWebViewState extends State<DojahWebView> {
 
   @override
   void dispose() {
+    _stallTimer?.cancel();
     // Keep one user's provider session from reaching the next attempt.
     unawaited(_clearBrowsingData());
     super.dispose();

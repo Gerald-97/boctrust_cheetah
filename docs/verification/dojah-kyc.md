@@ -133,9 +133,8 @@ configured before reaching either platform path. Open questions: whether
 `reference_id` in the hosted URL correlates with the backend attempt and
 webhook as intended (Dojah documents it as tying the session to your user),
 the confirmation redirect and its status values, whether the flow requests
-media from a third-party iframe, and the other section 1.1 plan questions. The
-WebView has no initial-load stall warning or WebKit process-termination
-handling yet.
+media from a third-party iframe, and the other section 1.1 plan questions. (Both were
+addressed on 2026-09-20; see below.)
 
 ## Correlation and result mapping from the Baobab review — 2026-09-15
 
@@ -421,3 +420,61 @@ and keeps the step available for users whose profile has no address.
 The browser walk-through used the staging widget in sandbox mode with
 placeholder data; no real user data was entered and no verification was
 completed.
+
+## WebView completion and stalls — 2026-09-20
+
+### The hosted flow reports how it ended
+
+Read from the published `identity.dojah.io` bundle: on finishing, the page
+calls `window.parent.postMessage({type, response: {referenceId, sessionId,
+...}}, '*')` with one of `connect.account.success`,
+`connect.account.error`, or `connect.widget.close`. Dojah documents these
+callbacks only for its JavaScript widget, but the hosted page emits them too,
+and inside the WebView that page is the top frame — so `window.parent` is its
+own window and the message can be listened for there.
+
+`DojahWebView` now installs a listener on every page load (a redirect drops
+the old document's listener) that forwards `{type, origin}` over a JavaScript
+channel. `dojahWebOutcomeFor` maps the three events to `submitted`, `failed`
+and `cancelled`. Any cross-origin frame can post to the top window, so the
+origin is checked exactly as a navigation is, and an unrecognised event is
+ignored rather than guessed at. Capture therefore closes itself instead of
+leaving the user on a finished page whose only exit was Back — which reported
+`cancelled` for a completed verification.
+
+Which signal arrives depends on the flow's configuration. The bundle
+schedules a redirect to the configured confirmation URL at 2.5s and the
+success message at 3.0s, so **a flow with a confirmation URL navigates away
+first** and capture ends through the existing "left Dojah" path as `unknown`,
+which the backend reconciles. A flow without one ends on the posted message.
+Both paths report once: whichever happens first sets the guard.
+
+### Stalled first load
+
+A load that hangs raises no error, so nothing ended the wait and the user was
+left with a progress bar and the back arrow. A 25-second timer now marks the
+screen failed if the first load has not finished, reusing the existing
+"couldn't load verification" screen whose Close returns `unknown`. The timer
+is cancelled on first load and on dispose.
+
+### Correction
+
+The earlier note that the WebView has "no WebKit process-termination
+handling" was wrong by the time it was written:
+`webview_flutter_wkwebview` 3.26.1 routes
+`webViewWebContentProcessDidTerminate` into `onWebResourceError` with
+`isForMainFrame: true`, which the existing handler already treats as a failed
+load.
+
+### Checks run
+
+- `dart format --output=none --set-exit-if-changed lib test`: no changes.
+- `flutter analyze`: no issues.
+- `flutter test --no-pub`: 993 tests passed.
+- `flutter build apk --debug --dart-define-from-file=.env.stage`: passed.
+- `flutter build ios --simulator --debug --dart-define-from-file=.env.stage`:
+  passed.
+
+The listener, the channel and the stall timer are wired inside `DojahWebView`,
+which no test drives (capture tests inject a fake browser). Only
+`dojahWebOutcomeFor` is covered by tests; the wiring needs a device run.

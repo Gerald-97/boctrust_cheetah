@@ -1,3 +1,4 @@
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_provider_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_web_policy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -140,6 +141,63 @@ void main() {
           types: const {},
         ),
         isFalse,
+      );
+    });
+  });
+
+  group('dojahWebOutcomeFor', () {
+    // The hosted page posts these to window.parent when it finishes. In the
+    // WebView it is the top frame, so the message lands on its own window.
+    test('reports how the flow ended', () {
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.account.success',
+          origin: 'https://identity.dojah.io',
+        ),
+        KycCaptureOutcome.submitted,
+      );
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.account.error',
+          origin: 'https://identity.dojah.io',
+        ),
+        KycCaptureOutcome.failed,
+      );
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.widget.close',
+          origin: 'https://identity.dojah.io',
+        ),
+        KycCaptureOutcome.cancelled,
+      );
+    });
+
+    test('ignores a message from anywhere but Dojah', () {
+      // Any cross-origin frame can post to the top window, so the origin is
+      // the only thing separating Dojah's report from an attacker's.
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.account.success',
+          origin: 'https://identity.dojah.io.evil.test',
+        ),
+        isNull,
+      );
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.account.success',
+          origin: 'http://identity.dojah.io',
+        ),
+        isNull,
+      );
+    });
+
+    test('ignores an event this build does not know', () {
+      expect(
+        dojahWebOutcomeFor(
+          type: 'connect.account.somethingelse',
+          origin: 'https://identity.dojah.io',
+        ),
+        isNull,
       );
     });
   });

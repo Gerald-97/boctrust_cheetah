@@ -1,5 +1,6 @@
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../model/kyc_provider_models.dart';
 import 'dojah_gateway.dart';
 
 const _dojahDomain = 'dojah.io';
@@ -44,6 +45,60 @@ Uri buildDojahIdentityUri({
     'loading': 'async',
   });
 }
+
+/// How the hosted flow reports its own ending.
+///
+/// The page posts these to `window.parent` when it finishes. Inside the
+/// WebView it is the top frame, so `window.parent` is its own window and the
+/// message arrives there. Read from the published bundle: Dojah documents the
+/// equivalent callbacks only for its JavaScript widget.
+const _successEvent = 'connect.account.success';
+const _errorEvent = 'connect.account.error';
+const _closeEvent = 'connect.widget.close';
+
+/// The name of the channel the listener reports through.
+const dojahWebOutcomeChannel = 'BoctrustDojahOutcome';
+
+/// What a posted message means, or null when it is not Dojah reporting.
+///
+/// Any cross-origin frame may post to the top window, so [origin] is the only
+/// thing separating Dojah's own report from an attacker's, and it is checked
+/// the way a navigation is. An event this build does not know is ignored
+/// rather than guessed at: the backend decides verification, and a wrong
+/// guess would close capture on a page still being used.
+KycCaptureOutcome? dojahWebOutcomeFor({
+  required String type,
+  required String origin,
+}) {
+  final uri = Uri.tryParse(origin);
+  if (uri == null || uri.userInfo.isNotEmpty || !_isTrustedDojahPage(uri)) {
+    return null;
+  }
+  return switch (type.trim()) {
+    _successEvent => KycCaptureOutcome.submitted,
+    _errorEvent => KycCaptureOutcome.failed,
+    _closeEvent => KycCaptureOutcome.cancelled,
+    _ => null,
+  };
+}
+
+/// Script that forwards the hosted flow's completion messages to Dart.
+///
+/// Installed on every page load; the guard keeps a redirect or a re-entered
+/// page from stacking listeners that would report one ending twice. The
+/// origin travels with the message because only the browser can set it.
+const dojahWebOutcomeListener =
+    '(function(){'
+    'if(window.__boctrustDojahListener)return;'
+    'window.__boctrustDojahListener=true;'
+    "window.addEventListener('message',function(event){"
+    'var data=event&&event.data;'
+    "if(!data||typeof data.type!=='string')return;"
+    '$dojahWebOutcomeChannel.postMessage(JSON.stringify({'
+    'type:data.type,origin:String(event.origin)'
+    '}));'
+    '});'
+    '})();';
 
 enum DojahWebNavigation {
   /// A Dojah page; load it.
