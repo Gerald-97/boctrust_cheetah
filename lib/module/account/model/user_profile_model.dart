@@ -91,7 +91,7 @@ class UserOwnProfileData extends Equatable {
       lastName,
     ].whereType<String>().where((part) => part.trim().isNotEmpty);
     final name = parts.join(' ');
-    return name.isEmpty ? 'Cheetah customer' : name;
+    return name.isEmpty ? 'BOCTRUST customer' : name;
   }
 
   UserOwnProfileData copyWith({bool? isCreatedPin}) => UserOwnProfileData(

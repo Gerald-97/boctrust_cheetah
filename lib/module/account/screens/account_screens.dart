@@ -193,13 +193,9 @@ extension AccountScreens on AppFlowNavigatorState {
           summary: 'Preview customer support channels and escalation details.',
           actionLabel: 'Preview support contact',
           rows: [
-            (
-              Icons.chat_bubble_outline_rounded,
-              'Chat',
-              'Average reply: 2 minutes',
-            ),
+            (Icons.chat_bubble_outline_rounded, 'Chat', 'Not available yet'),
             (Icons.phone_outlined, 'Call', '+234 906 464 1439'),
-            (Icons.mail_outline_rounded, 'Email', 'info@cheetahmfb.com'),
+            (Icons.mail_outline_rounded, 'Email', 'info@boctrustmfb.com'),
           ],
         );
       case AppPreviewRoute.privacyPolicy:
@@ -256,14 +252,11 @@ extension AccountScreens on AppFlowNavigatorState {
           icon: Icons.public_rounded,
           color: BocColors.green,
           section: AppSection.account,
-          summary:
-              'Preview outbound social profiles without launching an external app.',
-          actionLabel: 'Preview social link',
-          rows: [
-            (Icons.facebook_rounded, 'Facebook', '@cheetahmfb'),
-            (Icons.alternate_email_rounded, 'X', '@cheetahmfb'),
-            (Icons.business_center_outlined, 'LinkedIn', 'Cheetah MFB'),
-          ],
+          // Official BOCTRUST handles have not been supplied; no rows are
+          // shown rather than another brand's accounts.
+          summary: 'BOCTRUST social profiles will be listed here.',
+          actionLabel: 'Back',
+          rows: <(IconData, String, String)>[],
         );
       case AppPreviewRoute.themeSettings:
         return (
@@ -991,7 +984,7 @@ extension AccountScreens on AppFlowNavigatorState {
                     Text(
                       awaitingOtp
                           ? 'Enter the 6-digit code sent to ${state.data?.identifier}.'
-                          : 'Cheetah will send a one-time verification code.',
+                          : 'BOCTRUST will send a one-time verification code.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 18),

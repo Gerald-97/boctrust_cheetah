@@ -27,11 +27,19 @@ class BocLogo extends StatelessWidget {
             ),
           ),
           SizedBox(width: height * .22),
-          Text(
-            'Cheetah',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontSize: height * .45,
-              fontWeight: FontWeight.w900,
+          // The wordmark is part of the logo: it keeps its size regardless of
+          // text scaling and shrinks only if the space is too narrow.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'BOCTRUST',
+                textScaler: TextScaler.noScaling,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: height * .45,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ],

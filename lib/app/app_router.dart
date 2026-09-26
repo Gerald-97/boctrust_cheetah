@@ -294,7 +294,7 @@ class AppRouter {
         )
         .join(' • ');
     return _RouteFallbackScreen(
-      title: title.isEmpty ? 'Cheetah' : title,
+      title: title.isEmpty ? 'BOCTRUST' : title,
       description: 'This route is not registered in the app route map.',
     );
   }
