@@ -501,6 +501,9 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     AppScreen.lock ||
     AppScreen.group ||
     AppScreen.savingsPlanDetail ||
+    AppScreen.smartSaveCreate ||
+    AppScreen.fixedDepositCreate ||
+    AppScreen.padiCreate ||
     AppScreen.addMoney => true,
     AppScreen.routePreview =>
       widget.initialRouteName?.startsWith('/savings/') == true ||
@@ -575,6 +578,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _transactionDetailScreen();
       case AppScreen.savingsPlanDetail:
         return _savingsPlanDetailScreen();
+      case AppScreen.smartSaveCreate:
+        return _planCreationScreen(SavingsProductType.smartSave);
+      case AppScreen.fixedDepositCreate:
+        return _planCreationScreen(SavingsProductType.fixed);
+      case AppScreen.padiCreate:
+        return _planCreationScreen(SavingsProductType.padi);
       case AppScreen.preferences:
         return _preferencesScreen();
       case AppScreen.notificationPreferences:

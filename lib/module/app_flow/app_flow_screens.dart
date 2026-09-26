@@ -24,6 +24,9 @@ enum AppScreen {
   accessibilityPreferences,
   savingsPlanDetail,
   transactionDetail,
+  smartSaveCreate,
+  fixedDepositCreate,
+  padiCreate,
   nextOfKin,
   linkedBanks,
   home,
@@ -60,12 +63,9 @@ enum AppPreviewRoute {
   flexWithdraw,
   flexStatement,
   flexSettings,
-  targetCreate,
   targetSort,
-  lockCreate,
   lockDetails,
   lockAddMoney,
-  groupCreate,
   groupContribute,
   groupInvite,
   groupMembers,
@@ -98,18 +98,12 @@ AppPreviewRoute? appPreviewRouteForRoute(String? routeName) {
       return AppPreviewRoute.flexStatement;
     case '/savings/flex/settings':
       return AppPreviewRoute.flexSettings;
-    case '/savings/target/create':
-      return AppPreviewRoute.targetCreate;
     case '/savings/target/sort':
       return AppPreviewRoute.targetSort;
-    case '/savings/lock/create':
-      return AppPreviewRoute.lockCreate;
     case '/savings/lock/details':
       return AppPreviewRoute.lockDetails;
     case '/savings/lock/add-money':
       return AppPreviewRoute.lockAddMoney;
-    case '/savings/group/create':
-      return AppPreviewRoute.groupCreate;
     case '/savings/group/contribute':
       return AppPreviewRoute.groupContribute;
     case '/savings/group/invite':
@@ -189,6 +183,12 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.group;
     case '/savings/plan':
       return AppScreen.savingsPlanDetail;
+    case '/savings/target/create':
+      return AppScreen.smartSaveCreate;
+    case '/savings/lock/create':
+      return AppScreen.fixedDepositCreate;
+    case '/savings/group/create':
+      return AppScreen.padiCreate;
     case '/wallet/add-money':
       return AppScreen.addMoney;
     case '/send':

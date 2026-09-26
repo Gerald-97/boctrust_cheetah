@@ -696,3 +696,51 @@ class _ArcPainter extends CustomPainter {
   bool shouldRepaint(_ArcPainter old) =>
       old.progress != progress || old.track != track || old.fill != fill;
 }
+
+/// Pill choices for durations, frequencies and days. Single-select by
+/// default; [multiSelect] allows several (e.g. Padi contribution days).
+class BocChoiceChips<T> extends StatelessWidget {
+  const BocChoiceChips({
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.multiSelect = false,
+    super.key,
+  });
+
+  final List<({T value, String label})> options;
+  final Set<T> selected;
+  final ValueChanged<Set<T>> onChanged;
+  final bool multiSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: BocSpace.xs,
+      runSpacing: BocSpace.xs,
+      children: [
+        for (final option in options)
+          ChoiceChip(
+            label: Text(option.label),
+            selected: selected.contains(option.value),
+            showCheckmark: multiSelect,
+            labelStyle: theme.textTheme.titleSmall?.copyWith(
+              color: selected.contains(option.value)
+                  ? BocColors.goldLight
+                  : null,
+            ),
+            onSelected: (isSelected) {
+              if (!multiSelect) {
+                onChanged({option.value});
+                return;
+              }
+              final next = {...selected};
+              isSelected ? next.add(option.value) : next.remove(option.value);
+              onChanged(next);
+            },
+          ),
+      ],
+    );
+  }
+}

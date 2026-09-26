@@ -130,17 +130,40 @@ extension SavingsScreens on AppFlowNavigatorState {
     );
   }
 
-  /// Opens a product's creation wizard, or explains that it is not
-  /// available yet.
-  Future<void> _startPlanCreation(SavingsProductType type) async {
+  bool _canCreatePlan(SavingsProductType type) {
     final capability = type.createCapability;
-    if (capability == null ||
-        !ref.read(featureAvailabilityProvider(capability)).isAvailable) {
+    return capability != null &&
+        ref.read(featureAvailabilityProvider(capability)).isAvailable;
+  }
+
+  /// Opens a product's creation wizard once it can be created; until then
+  /// the customer learns that up front instead of after filling a form.
+  Future<void> _startPlanCreation(SavingsProductType type) async {
+    if (!_canCreatePlan(type)) {
       await BocUnavailableSheet.show(
         context,
         title: '${type.displayName} is not available yet',
       );
+      return;
     }
+    _go(switch (type) {
+      SavingsProductType.fixed => AppScreen.fixedDepositCreate,
+      SavingsProductType.padi => AppScreen.padiCreate,
+      _ => AppScreen.smartSaveCreate,
+    });
+  }
+
+  /// Deep links to a create route show the wizard only for a product that
+  /// can be created.
+  Widget _planCreationScreen(SavingsProductType type) {
+    if (_canCreatePlan(type)) {
+      return _SavingsPlanWizard(type: type, onExit: _back);
+    }
+    return _savingsUnavailableScreen(
+      capability: type.createCapability!,
+      title: type.displayName,
+      message: '${type.displayName} is not available yet.',
+    );
   }
 
   Widget _addMoneyScreen() {

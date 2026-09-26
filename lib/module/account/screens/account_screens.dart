@@ -154,12 +154,9 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.flexWithdraw:
       case AppPreviewRoute.flexStatement:
       case AppPreviewRoute.flexSettings:
-      case AppPreviewRoute.targetCreate:
       case AppPreviewRoute.targetSort:
-      case AppPreviewRoute.lockCreate:
       case AppPreviewRoute.lockDetails:
       case AppPreviewRoute.lockAddMoney:
-      case AppPreviewRoute.groupCreate:
       case AppPreviewRoute.groupContribute:
       case AppPreviewRoute.groupInvite:
       case AppPreviewRoute.groupMembers:
