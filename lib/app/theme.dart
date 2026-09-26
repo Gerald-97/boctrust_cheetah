@@ -45,6 +45,14 @@ class CheetahTheme {
   static ThemeData get darkTheme =>
       _theme(Brightness.dark, BocSemanticColors.dark);
 
+  /// Themes for the High contrast accessibility preference.
+  static ThemeData theme(Brightness brightness, {bool highContrast = false}) {
+    final base = brightness == Brightness.dark
+        ? BocSemanticColors.dark
+        : BocSemanticColors.light;
+    return _theme(brightness, highContrast ? base.highContrast() : base);
+  }
+
   /// Effective text scale: the system setting times the in-app Accessibility
   /// preference, kept within bounds every screen is laid out for.
   static TextScaler clampTextScaler(

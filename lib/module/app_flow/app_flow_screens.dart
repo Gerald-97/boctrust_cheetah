@@ -19,6 +19,9 @@ enum AppScreen {
   securityCenter,
   deleteAccount,
   accountStatement,
+  preferences,
+  notificationPreferences,
+  accessibilityPreferences,
   nextOfKin,
   linkedBanks,
   home,
@@ -230,6 +233,12 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.deleteAccount;
     case '/account/statement':
       return AppScreen.accountStatement;
+    case '/account/preferences':
+      return AppScreen.preferences;
+    case '/account/preferences/notifications':
+      return AppScreen.notificationPreferences;
+    case '/account/preferences/accessibility':
+      return AppScreen.accessibilityPreferences;
     case '/account/tier/cac':
       return AppScreen.kycCacDocument;
     case '/account/tier/bank-statement':

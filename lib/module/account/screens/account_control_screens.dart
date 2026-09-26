@@ -243,6 +243,177 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return verified ?? false;
   }
 
+  Widget _preferencesScreen() {
+    final themeMode = ref.watch(themeControllerProvider).mode;
+    return AppScaffold(
+      title: 'Preferences',
+      activeSection: AppSection.account,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      showBottomNavigation: false,
+      body: ListView(
+        padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
+        children: [
+          SettingsGroup(
+            children: [
+              SettingsTile(
+                icon: Icons.notifications_none_rounded,
+                title: 'Notifications',
+                subtitle: 'Choose what we tell you about',
+                onTap: () => _go(AppScreen.notificationPreferences),
+              ),
+              SettingsTile(
+                icon: Icons.accessibility_new_rounded,
+                title: 'Accessibility',
+                subtitle: 'Text size, contrast and bold text',
+                onTap: () => _go(AppScreen.accessibilityPreferences),
+              ),
+            ],
+          ),
+          const SectionHeader(title: 'Appearance'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: BocSpace.gutter),
+            child: ThemeSelector(
+              value: themeMode,
+              onChanged: (mode) =>
+                  ref.read(themeControllerProvider.notifier).selectMode(mode),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notificationPreferencesScreen() {
+    final prefs = ref.watch(notificationPreferencesProvider);
+    final notifier = ref.read(notificationPreferencesProvider.notifier);
+    return AppScaffold(
+      title: 'Notifications',
+      activeSection: AppSection.account,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      showBottomNavigation: false,
+      body: ListView(
+        padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BocSpace.gutter,
+              0,
+              BocSpace.gutter,
+              BocSpace.md,
+            ),
+            child: Text(
+              'These choices are saved on this device.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          SettingsGroup(
+            children: [
+              SettingsTile.toggle(
+                icon: Icons.swap_vert_rounded,
+                title: 'Transactions',
+                subtitle: 'Money in and out of your accounts',
+                value: prefs.transactions,
+                onChanged: (value) =>
+                    notifier.update(prefs.copyWith(transactions: value)),
+              ),
+              SettingsTile.toggle(
+                icon: Icons.savings_outlined,
+                title: 'Savings reminders',
+                subtitle: 'Upcoming auto-saves and goal progress',
+                value: prefs.savingsReminders,
+                onChanged: (value) =>
+                    notifier.update(prefs.copyWith(savingsReminders: value)),
+              ),
+              SettingsTile.toggle(
+                icon: Icons.campaign_outlined,
+                title: 'Offers and news',
+                subtitle: 'New products and promotions',
+                value: prefs.marketing,
+                onChanged: (value) =>
+                    notifier.update(prefs.copyWith(marketing: value)),
+              ),
+              const SettingsTile.toggle(
+                icon: Icons.shield_outlined,
+                title: 'Security alerts',
+                subtitle: 'Sign-ins and account changes are always sent',
+                value: true,
+                onChanged: null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _accessibilityPreferencesScreen() {
+    final prefs = ref.watch(accessibilityPreferencesProvider);
+    final notifier = ref.read(accessibilityPreferencesProvider.notifier);
+    return AppScaffold(
+      title: 'Accessibility',
+      activeSection: AppSection.account,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      showBottomNavigation: false,
+      body: ListView(
+        padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BocSpace.gutter,
+              0,
+              BocSpace.gutter,
+              BocSpace.xs,
+            ),
+            child: Text(
+              'Text size',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BocSpace.gutter,
+              0,
+              BocSpace.gutter,
+              BocSpace.lg,
+            ),
+            child: BocSegmentedControl<TextSizePreference>(
+              segments: [
+                for (final size in TextSizePreference.values)
+                  (value: size, label: size.label),
+              ],
+              selected: prefs.textSize,
+              onChanged: (size) =>
+                  notifier.update(prefs.copyWith(textSize: size)),
+            ),
+          ),
+          SettingsGroup(
+            children: [
+              SettingsTile.toggle(
+                icon: Icons.contrast_rounded,
+                title: 'High contrast',
+                subtitle: 'Darker text and borders',
+                value: prefs.highContrast,
+                onChanged: (value) =>
+                    notifier.update(prefs.copyWith(highContrast: value)),
+              ),
+              SettingsTile.toggle(
+                icon: Icons.format_bold_rounded,
+                title: 'Bold text',
+                subtitle: 'Make all text bold',
+                value: prefs.boldText,
+                onChanged: (value) =>
+                    notifier.update(prefs.copyWith(boldText: value)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _accountStatementScreen() {
     _assertPlaceholderFor(
       FeatureCapability.accountStatement,

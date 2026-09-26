@@ -71,6 +71,9 @@ class AppRoutes {
   static const securitySettings = '/account/security';
   static const deleteAccount = '/account/delete';
   static const accountStatement = '/account/statement';
+  static const preferences = '/account/preferences';
+  static const notificationPreferences = '/account/preferences/notifications';
+  static const accessibilityPreferences = '/account/preferences/accessibility';
   static const support = '/account/support';
   static const supportChat = '/account/support/chat';
   static const supportCall = '/account/support/call';
@@ -154,6 +157,9 @@ class AppRoutes {
     securitySettings,
     deleteAccount,
     accountStatement,
+    preferences,
+    notificationPreferences,
+    accessibilityPreferences,
     support,
     supportChat,
     supportCall,

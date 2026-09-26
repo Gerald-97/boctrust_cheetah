@@ -21,7 +21,9 @@ import '../../utils/auth_input.dart';
 import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
 import '../account/model/user_tier_model.dart';
+import '../account/model/account_preferences.dart';
 import '../account/provider/account_deletion_provider.dart';
+import '../account/provider/account_preferences_provider.dart';
 import '../account/provider/user_providers.dart';
 import '../account/model/withdrawal_bank_models.dart';
 import '../account/provider/withdrawal_bank_providers.dart';
@@ -559,6 +561,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _deleteAccountScreen();
       case AppScreen.accountStatement:
         return _accountStatementScreen();
+      case AppScreen.preferences:
+        return _preferencesScreen();
+      case AppScreen.notificationPreferences:
+        return _notificationPreferencesScreen();
+      case AppScreen.accessibilityPreferences:
+        return _accessibilityPreferencesScreen();
       case AppScreen.kycCacDocument:
         return _documentVerificationScreen(DocumentVerificationType.cac);
       case AppScreen.kycBankStatement:

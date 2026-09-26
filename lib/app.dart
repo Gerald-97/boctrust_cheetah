@@ -9,6 +9,7 @@ import 'app/preferences.dart';
 import 'app/theme.dart';
 import 'app/theme_controller.dart';
 import 'helper/fcm_service.dart';
+import 'module/account/provider/account_preferences_provider.dart';
 
 class CheetahApp extends StatelessWidget {
   const CheetahApp({
@@ -67,12 +68,19 @@ class _CheetahMaterialApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeControllerProvider).themeMode;
+    final accessibility = ref.watch(accessibilityPreferencesProvider);
     return MaterialApp(
       title: 'Cheetah',
       debugShowCheckedModeBanner: false,
       navigatorKey: rootNavigatorKey,
-      theme: CheetahTheme.lightTheme,
-      darkTheme: CheetahTheme.darkTheme,
+      theme: CheetahTheme.theme(
+        Brightness.light,
+        highContrast: accessibility.highContrast,
+      ),
+      darkTheme: CheetahTheme.theme(
+        Brightness.dark,
+        highContrast: accessibility.highContrast,
+      ),
       themeMode: themeMode,
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
@@ -81,7 +89,11 @@ class _CheetahMaterialApp extends ConsumerWidget {
         final media = MediaQuery.of(context);
         return MediaQuery(
           data: media.copyWith(
-            textScaler: CheetahTheme.clampTextScaler(media.textScaler),
+            textScaler: CheetahTheme.clampTextScaler(
+              media.textScaler,
+              preferenceMultiplier: accessibility.textSize.multiplier,
+            ),
+            boldText: media.boldText || accessibility.boldText,
           ),
           child: child!,
         );

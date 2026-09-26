@@ -229,9 +229,13 @@ class BocSemanticColors extends ThemeExtension<BocSemanticColors> {
     padiContainer: Color(0xFF123424),
   );
 
-  /// Raises faint text to [textSecondary] for the High contrast preference.
-  BocSemanticColors highContrast() =>
-      copyWith(textTertiary: textSecondary, textHint: textSecondary);
+  /// Raises faint text to [textSecondary] and darkens hairlines for the High
+  /// contrast preference.
+  BocSemanticColors highContrast() => copyWith(
+    textTertiary: textSecondary,
+    textHint: textSecondary,
+    border: textTertiary,
+  );
 
   final Color textMain;
   final Color goldPale;

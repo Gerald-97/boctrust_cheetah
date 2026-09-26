@@ -592,14 +592,16 @@ extension AccountScreens on AppFlowNavigatorState {
                 ),
               ],
             ),
-            const SectionHeader(title: 'Appearance'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 15),
-              child: ThemeSelector(
-                value: currentThemeMode,
-                onChanged: (mode) =>
-                    ref.read(themeControllerProvider.notifier).selectMode(mode),
-              ),
+            const SectionHeader(title: 'Preferences'),
+            SettingsGroup(
+              children: [
+                SettingsTile(
+                  icon: Icons.tune_rounded,
+                  title: 'Preferences',
+                  subtitle: 'Notifications, accessibility and theme',
+                  onTap: () => _go(AppScreen.preferences),
+                ),
+              ],
             ),
             const SectionHeader(title: 'Security'),
             SettingsGroup(
@@ -639,21 +641,6 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Security checks',
                   subtitle: 'Verify your current password or PIN',
                   onTap: _showSecurityCheckChooser,
-                ),
-              ],
-            ),
-            const SectionHeader(title: 'Notifications'),
-            SettingsGroup(
-              children: [
-                SettingsTile(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Notification settings',
-                  subtitle: 'Not supported by the current API',
-                  trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => _showMessage(
-                    'Notification preferences are unavailable in this API '
-                    'release.',
-                  ),
                 ),
               ],
             ),
