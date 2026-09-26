@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../module/account/provider/account_deletion_provider.dart';
 import '../module/account/provider/user_providers.dart';
 import '../module/account/provider/withdrawal_bank_providers.dart';
 import '../module/home/provider/home_provider.dart';
@@ -20,6 +21,8 @@ void clearPrivateUserState(Ref ref) {
   ref.read(utilityBillUploadProvider.notifier).clear();
   ref.read(kycStatusProvider.notifier).clear();
   ref.invalidate(documentVerificationProvider);
+  ref.read(accountDeletionEligibilityProvider.notifier).clear();
+  ref.read(accountDeletionProvider.notifier).clear();
   ref.read(bankCatalogueProvider.notifier).clear();
   ref.read(withdrawalBankAccountsProvider.notifier).clear();
   ref.read(withdrawalBankDraftProvider.notifier).clear();

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/api_logger.dart';
 import '../../app/app_router.dart';
@@ -20,6 +21,7 @@ import '../../utils/auth_input.dart';
 import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
 import '../account/model/user_tier_model.dart';
+import '../account/provider/account_deletion_provider.dart';
 import '../account/provider/user_providers.dart';
 import '../account/model/withdrawal_bank_models.dart';
 import '../account/provider/withdrawal_bank_providers.dart';
@@ -99,6 +101,7 @@ part '../notifications/screens/notifications_screen.dart';
 
 part '../account/screens/account_screens.dart';
 part '../account/screens/linked_bank_accounts_screen.dart';
+part '../account/screens/account_control_screens.dart';
 
 class AppFlowRouteScreen extends StatelessWidget {
   const AppFlowRouteScreen({
@@ -550,6 +553,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _nextOfKinScreen();
       case AppScreen.kycUtilityBill:
         return _kycUtilityBillScreen();
+      case AppScreen.securityCenter:
+        return _securityCenterScreen();
+      case AppScreen.deleteAccount:
+        return _deleteAccountScreen();
+      case AppScreen.accountStatement:
+        return _accountStatementScreen();
       case AppScreen.kycCacDocument:
         return _documentVerificationScreen(DocumentVerificationType.cac);
       case AppScreen.kycBankStatement:

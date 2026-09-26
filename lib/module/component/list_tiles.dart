@@ -369,6 +369,9 @@ class SettingsTile extends StatelessWidget {
     final onToggle = _onToggle;
     final isToggle = toggleValue != null;
     final enabled = isToggle ? onToggle != null : true;
+    // At large text sizes a tag beside the chevron or switch would squeeze
+    // the title, so it moves under the subtitle instead.
+    final stackTrailing = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final Widget end = isToggle
         ? ExcludeSemantics(
             child: Switch(value: toggleValue, onChanged: onToggle),
@@ -408,10 +411,14 @@ class SettingsTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(subtitle, style: theme.textTheme.bodySmall),
                   ],
+                  if (trailing != null && stackTrailing) ...[
+                    const SizedBox(height: BocSpace.xxs),
+                    trailing!,
+                  ],
                 ],
               ),
             ),
-            if (trailing != null) ...[
+            if (trailing != null && !stackTrailing) ...[
               const SizedBox(width: BocSpace.xs),
               trailing!,
             ],

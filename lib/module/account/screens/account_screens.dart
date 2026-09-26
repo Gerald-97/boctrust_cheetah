@@ -177,21 +177,6 @@ extension AccountScreens on AppFlowNavigatorState {
           actionLabel: 'Back',
           rows: <(IconData, String, String)>[],
         );
-      case AppPreviewRoute.accountSecurity:
-        return (
-          title: 'Security settings',
-          icon: Icons.security_rounded,
-          color: BocColors.purple,
-          section: AppSection.account,
-          summary:
-              'Preview security controls that are not yet fully represented by the current API.',
-          actionLabel: 'Preview security options',
-          rows: [
-            (Icons.password_rounded, 'Password', 'Change password'),
-            (Icons.pin_outlined, 'Transaction PIN', 'Change or recover PIN'),
-            (Icons.face_rounded, 'Biometric login', 'Unavailable in API'),
-          ],
-        );
       case AppPreviewRoute.accountSupport:
       case AppPreviewRoute.supportChat:
       case AppPreviewRoute.supportCall:
@@ -620,6 +605,12 @@ extension AccountScreens on AppFlowNavigatorState {
             SettingsGroup(
               children: [
                 SettingsTile(
+                  icon: Icons.shield_outlined,
+                  title: 'Security Center',
+                  subtitle: 'Sign-in, devices and account protection',
+                  onTap: () => _go(AppScreen.securityCenter),
+                ),
+                SettingsTile(
                   icon: Icons.password_rounded,
                   title: 'Password',
                   subtitle: 'Change your account password',
@@ -648,24 +639,6 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Security checks',
                   subtitle: 'Verify your current password or PIN',
                   onTap: _showSecurityCheckChooser,
-                ),
-                SettingsTile(
-                  icon: Icons.face_rounded,
-                  title: 'Biometric login',
-                  subtitle: 'Not supported by the current API',
-                  trailing: const SmallPill(text: 'Unavailable'),
-                  onTap: () => _showMessage(
-                    'Biometric login is unavailable in this API release.',
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.block_rounded,
-                  title: 'Freeze account',
-                  subtitle: 'Not supported by the current API',
-                  trailing: const SmallPill(text: 'Unavailable'),
-                  onTap: () => _showMessage(
-                    'Account freezing is unavailable in this API release.',
-                  ),
                 ),
               ],
             ),
@@ -733,6 +706,34 @@ extension AccountScreens on AppFlowNavigatorState {
                   onTap: () => _showMessage(
                     'The terms and conditions are not available in the app yet.',
                   ),
+                ),
+              ],
+            ),
+            const SectionHeader(title: 'Your account'),
+            SettingsGroup(
+              children: [
+                SettingsTile(
+                  icon: Icons.description_outlined,
+                  title: 'Account statement',
+                  subtitle: 'Request a statement by email',
+                  onTap: () => _go(AppScreen.accountStatement),
+                ),
+                SettingsTile(
+                  icon: Icons.trending_up_rounded,
+                  title: 'Request limit increase',
+                  subtitle: 'Raise your daily transfer limit',
+                  trailing: const SmallPill(text: 'Not available yet'),
+                  onTap: () => BocUnavailableSheet.show(
+                    context,
+                    title: 'Limit increases are not available yet',
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.delete_outline_rounded,
+                  title: 'Delete account',
+                  subtitle: 'Close your account permanently',
+                  titleColor: context.bocColors.errorText,
+                  onTap: () => _go(AppScreen.deleteAccount),
                 ),
               ],
             ),

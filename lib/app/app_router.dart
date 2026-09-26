@@ -69,6 +69,8 @@ class AppRoutes {
   static const manageBeneficiaries = '/account/beneficiaries';
   static const linkedBanks = '/account/linked-banks';
   static const securitySettings = '/account/security';
+  static const deleteAccount = '/account/delete';
+  static const accountStatement = '/account/statement';
   static const support = '/account/support';
   static const supportChat = '/account/support/chat';
   static const supportCall = '/account/support/call';
@@ -150,6 +152,8 @@ class AppRoutes {
     manageBeneficiaries,
     linkedBanks,
     securitySettings,
+    deleteAccount,
+    accountStatement,
     support,
     supportChat,
     supportCall,
