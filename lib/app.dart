@@ -77,6 +77,15 @@ class _CheetahMaterialApp extends ConsumerWidget {
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
       onUnknownRoute: AppRouter.onUnknownRoute,
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: CheetahTheme.clampTextScaler(media.textScaler),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

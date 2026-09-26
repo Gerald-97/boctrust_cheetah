@@ -33,6 +33,8 @@ class AppActionSheet extends StatelessWidget {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
+    // The sheet draws its own handle inside its scroll view.
+    showDragHandle: false,
     backgroundColor: Colors.transparent,
     builder: builder,
   );

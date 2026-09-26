@@ -770,6 +770,9 @@ extension AccountScreens on AppFlowNavigatorState {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
+          // Title and actions scroll with the form when the keyboard and
+          // large text leave too little height.
+          scrollable: true,
           title: const Text('Change password'),
           content: SingleChildScrollView(
             child: Form(

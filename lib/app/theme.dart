@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 export 'colors.dart';
+export 'tokens.dart';
 
 import 'colors.dart';
+import 'tokens.dart';
 
 SystemUiOverlayStyle kOverlayLight({Color? statusColor, Color? navColor}) =>
     SystemUiOverlayStyle(
@@ -37,161 +39,242 @@ extension BocFigureTextStyle on TextStyle {
 class CheetahTheme {
   const CheetahTheme._();
 
-  static ThemeData get lightTheme => _theme(
-    brightness: Brightness.light,
-    scaffold: kScaffoldLight,
-    card: kCardLight,
-    border: kBorderLight,
-    text: kPrimaryText,
-    bodyText: kTextInk,
-    bodySoft: kTextInkSoft,
-    semanticColors: BocSemanticColors.light,
-  );
+  static ThemeData get lightTheme =>
+      _theme(Brightness.light, BocSemanticColors.light);
 
-  static ThemeData get darkTheme => _theme(
-    brightness: Brightness.dark,
-    scaffold: kScaffoldDark,
-    card: kCardDark,
-    border: kBorderDark,
-    text: const Color(0xFFF5F2E8),
-    bodyText: kDarkInk,
-    bodySoft: kDarkSoft,
-    semanticColors: BocSemanticColors.dark,
-  );
+  static ThemeData get darkTheme =>
+      _theme(Brightness.dark, BocSemanticColors.dark);
 
-  static ThemeData _theme({
-    required Brightness brightness,
-    required Color scaffold,
-    required Color card,
-    required Color border,
-    required Color text,
-    required Color bodyText,
-    required Color bodySoft,
-    required BocSemanticColors semanticColors,
+  /// Effective text scale: the system setting times the in-app Accessibility
+  /// preference, kept within bounds every screen is laid out for.
+  static TextScaler clampTextScaler(
+    TextScaler system, {
+    double preferenceMultiplier = 1.0,
   }) {
+    final scale = (system.scale(14) / 14) * preferenceMultiplier;
+    return TextScaler.linear(scale.clamp(0.9, 2.0));
+  }
+
+  static ThemeData _theme(Brightness brightness, BocSemanticColors c) {
+    final dark = brightness == Brightness.dark;
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: brightness == Brightness.dark ? kBlueColor : kPrimaryColor,
+      seedColor: BocColors.navy,
       brightness: brightness,
-      primary: kPrimaryColor,
-      secondary: kGoldColor,
-      error: kErrorColor,
-      surface: card,
+      primary: dark ? BocColors.goldLight : BocColors.navy,
+      onPrimary: dark ? BocColors.navy : BocColors.goldLight,
+      secondary: BocColors.goldLight,
+      onSecondary: BocColors.navy,
+      error: c.errorText,
+      surface: c.surface,
+      onSurface: c.textPrimary,
+      onSurfaceVariant: c.textTertiary,
+      outline: c.border,
+      outlineVariant: c.border,
     );
+    final text = _textTheme(c);
+    final radiusSm = BorderRadius.circular(BocRadius.sm);
+    OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: radiusSm,
+          borderSide: BorderSide(color: color, width: width),
+        );
+    final buttonShape = RoundedRectangleBorder(borderRadius: radiusSm);
+    final buttonText = text.labelLarge;
+
     return ThemeData(
       useMaterial3: true,
       fontFamily: kFontFamily,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: scaffold,
-      cardColor: card,
-      dividerColor: border,
-      extensions: <ThemeExtension<dynamic>>[semanticColors],
+      scaffoldBackgroundColor: c.background,
+      cardColor: c.surface,
+      dividerColor: c.border,
+      extensions: <ThemeExtension<dynamic>>[c],
+      textTheme: text,
+      // Every button gets a 48px hit area without growing visually;
+      // full-width PrimaryButton sets its own 56px height.
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       appBarTheme: AppBarTheme(
-        centerTitle: false,
+        centerTitle: true,
         elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: scaffold,
-        foregroundColor: text,
+        scrolledUnderElevation: 0.5,
+        backgroundColor: c.background,
+        foregroundColor: c.textPrimary,
         surfaceTintColor: Colors.transparent,
-        systemOverlayStyle: brightness == Brightness.dark
-            ? kOverlayDark(statusColor: scaffold, navColor: scaffold)
-            : kOverlayLight(statusColor: scaffold, navColor: kCardLight),
+        titleTextStyle: text.titleMedium,
+        systemOverlayStyle: dark
+            ? kOverlayDark(statusColor: c.background, navColor: c.background)
+            : kOverlayLight(statusColor: c.background, navColor: c.surface),
       ),
-      dividerTheme: DividerThemeData(color: border),
+      dividerTheme: DividerThemeData(color: c.border, space: 1, thickness: 1),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: buttonShape,
+          textStyle: buttonText,
+          backgroundColor: BocColors.navy,
+          foregroundColor: BocColors.goldLight,
+          disabledBackgroundColor: BocColors.navy.withValues(alpha: 0.38),
+          disabledForegroundColor: c.textDisabled,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: buttonShape,
+          textStyle: buttonText,
+          backgroundColor: c.surfaceMuted,
+          foregroundColor: dark ? c.textPrimary : BocColors.navy,
+          side: BorderSide(color: c.border),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: c.blueStrong,
+          textStyle: text.titleSmall,
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: card,
+        fillColor: c.surface,
+        isDense: false,
+        constraints: const BoxConstraints(minHeight: 56),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
+          horizontal: BocSpace.md,
           vertical: 14,
         ),
-        hintStyle: TextStyle(color: bodySoft),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
+        hintStyle: text.bodyLarge?.copyWith(color: c.textHint),
+        labelStyle: text.labelMedium?.copyWith(color: c.textTertiary),
+        floatingLabelStyle: text.labelMedium?.copyWith(color: c.textPrimary),
+        helperStyle: text.bodySmall?.copyWith(color: c.textTertiary),
+        errorStyle: text.bodySmall?.copyWith(color: c.errorText),
+        border: fieldBorder(c.border),
+        enabledBorder: fieldBorder(c.border),
+        disabledBorder: fieldBorder(c.border.withValues(alpha: 0.5)),
+        focusedBorder: fieldBorder(
+          dark ? BocColors.goldLight : BocColors.navy,
+          1.5,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
+        errorBorder: fieldBorder(c.error),
+        focusedErrorBorder: fieldBorder(c.error, 1.5),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? c.success : c.border,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kBlueColor, width: 1.5),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: c.surfaceMuted,
+        selectedColor: BocColors.navy,
+        side: BorderSide(color: c.border),
+        shape: const StadiumBorder(),
+        labelStyle: text.titleSmall,
+        secondaryLabelStyle: text.titleSmall?.copyWith(
+          color: BocColors.goldLight,
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kErrorColor),
+        checkmarkColor: BocColors.goldLight,
+        padding: const EdgeInsets.symmetric(
+          horizontal: BocSpace.sm,
+          vertical: BocSpace.xs,
         ),
       ),
-      textTheme: TextTheme(
-        // Display styles are reserved for figures (balances and amounts).
-        displayLarge: TextStyle(
-          fontFamily: kFigureFontFamily,
-          fontFeatures: kFigureFeatures,
-          fontSize: 32,
-          height: 1.15,
-          fontWeight: FontWeight.w600,
-          color: text,
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        // Dialogs are the tightest surface at large text; one step smaller.
+        titleTextStyle: text.titleLarge?.copyWith(fontSize: 18),
+        contentTextStyle: text.bodyMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BocRadius.md),
         ),
-        displayMedium: TextStyle(
-          fontFamily: kFigureFontFamily,
-          fontFeatures: kFigureFeatures,
-          fontSize: 28,
-          height: 1.15,
-          fontWeight: FontWeight.w600,
-          color: text,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        dragHandleColor: c.border,
+        dragHandleSize: const Size(36, 4),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(BocRadius.lg),
+          ),
         ),
-        displaySmall: TextStyle(
-          fontFamily: kFigureFontFamily,
-          fontFeatures: kFigureFeatures,
-          fontSize: 24,
-          height: 1.2,
-          fontWeight: FontWeight.w600,
-          color: text,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: BocColors.navy,
+        contentTextStyle: text.bodyMedium?.copyWith(color: c.onNavy),
+        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => text.labelMedium?.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? (dark ? c.textPrimary : BocColors.navy)
+                : c.textTertiary,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w600,
+          ),
         ),
-        headlineSmall: TextStyle(
-          fontSize: 22,
-          height: 1.25,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.2,
-          color: text,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 24,
+            color: states.contains(WidgetState.selected)
+                ? (dark ? c.textPrimary : BocColors.navy)
+                : c.textTertiary,
+          ),
         ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          height: 1.35,
-          fontWeight: FontWeight.w800,
-          color: text,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 15,
-          height: 1.35,
-          fontWeight: FontWeight.w800,
-          color: text,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          height: 1.45,
-          fontWeight: FontWeight.w400,
-          color: bodyText,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          height: 1.45,
-          fontWeight: FontWeight.w400,
-          color: bodyText,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          height: 1.35,
-          fontWeight: FontWeight.w400,
-          color: bodySoft,
-        ),
-        labelLarge: const TextStyle(
-          fontSize: 15,
-          height: 1.2,
-          fontWeight: FontWeight.w800,
-          color: kGoldColor,
-        ),
+      ),
+    );
+  }
+
+  /// Plus Jakarta Sans for text; the display styles are FH Oscar figures.
+  static TextTheme _textTheme(BocSemanticColors c) {
+    TextStyle figure(double size, double height) => TextStyle(
+      fontFamily: kFigureFontFamily,
+      fontFeatures: kFigureFeatures,
+      fontSize: size,
+      height: height,
+      fontWeight: FontWeight.w600,
+      color: c.textPrimary,
+    );
+    TextStyle style(
+      double size,
+      FontWeight weight,
+      double height,
+      Color color, {
+      double letterSpacing = 0,
+    }) => TextStyle(
+      fontSize: size,
+      fontWeight: weight,
+      height: height,
+      color: color,
+      letterSpacing: letterSpacing,
+    );
+    return TextTheme(
+      // Display styles are reserved for figures (balances and amounts).
+      displayLarge: figure(32, 1.15),
+      displayMedium: figure(28, 1.15),
+      displaySmall: figure(24, 1.2),
+      headlineSmall: style(24, FontWeight.w700, 1.2, c.textPrimary),
+      titleLarge: style(20, FontWeight.w700, 1.25, c.textPrimary),
+      titleMedium: style(16, FontWeight.w700, 1.3, c.textPrimary),
+      titleSmall: style(14, FontWeight.w600, 1.35, c.textPrimary),
+      bodyLarge: style(16, FontWeight.w500, 1.45, c.textSecondary),
+      bodyMedium: style(14, FontWeight.w500, 1.45, c.textSecondary),
+      bodySmall: style(12, FontWeight.w500, 1.4, c.textTertiary),
+      labelLarge: style(16, FontWeight.w700, 1.2, BocColors.goldLight),
+      labelMedium: style(
+        12,
+        FontWeight.w600,
+        1.3,
+        c.textTertiary,
+        letterSpacing: 0.24,
       ),
     );
   }
