@@ -39,6 +39,7 @@ class AppRoutes {
   static const groupContribute = '/savings/group/contribute';
   static const groupInvite = '/savings/group/invite';
   static const groupMembers = '/savings/group/members';
+  static const savingsPlanDetail = '/savings/plan';
   static const addMoney = '/wallet/add-money';
   static const bankTransferFunding = '/wallet/bank-transfer';
   static const cardFunding = '/wallet/card';
@@ -125,6 +126,7 @@ class AppRoutes {
     groupContribute,
     groupInvite,
     groupMembers,
+    savingsPlanDetail,
     addMoney,
     bankTransferFunding,
     cardFunding,

@@ -22,6 +22,7 @@ enum AppScreen {
   preferences,
   notificationPreferences,
   accessibilityPreferences,
+  savingsPlanDetail,
   nextOfKin,
   linkedBanks,
   home,
@@ -185,6 +186,8 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.lock;
     case '/savings/group':
       return AppScreen.group;
+    case '/savings/plan':
+      return AppScreen.savingsPlanDetail;
     case '/wallet/add-money':
       return AppScreen.addMoney;
     case '/send':

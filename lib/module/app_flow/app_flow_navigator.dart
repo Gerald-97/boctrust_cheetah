@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -29,6 +30,8 @@ import '../account/model/withdrawal_bank_models.dart';
 import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
+import '../savings/model/savings_plan_models.dart';
+import '../savings/provider/savings_plan_provider.dart';
 import '../savings/provider/savings_provider.dart';
 import '../kyc/model/document_verification_models.dart';
 import '../kyc/model/kyc_models.dart';
@@ -94,6 +97,7 @@ part '../home/screens/home_screen.dart';
 
 part '../savings/screens/savings_screens.dart';
 part '../savings/screens/savings_access_gate.dart';
+part '../savings/screens/savings_plan_screens.dart';
 
 part '../send/screens/send_screens.dart';
 
@@ -491,6 +495,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     AppScreen.target ||
     AppScreen.lock ||
     AppScreen.group ||
+    AppScreen.savingsPlanDetail ||
     AppScreen.addMoney => true,
     AppScreen.routePreview =>
       widget.initialRouteName?.startsWith('/savings/') == true ||
@@ -561,6 +566,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _deleteAccountScreen();
       case AppScreen.accountStatement:
         return _accountStatementScreen();
+      case AppScreen.savingsPlanDetail:
+        return _savingsPlanDetailScreen();
       case AppScreen.preferences:
         return _preferencesScreen();
       case AppScreen.notificationPreferences:

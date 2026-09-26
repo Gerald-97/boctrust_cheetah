@@ -388,3 +388,90 @@ class MemberRow extends StatelessWidget {
     );
   }
 }
+
+/// Semicircular progress toward a savings target, with start and target
+/// labels. Progress comes from the server; the arc only draws it.
+class BocProgressArc extends StatelessWidget {
+  const BocProgressArc({
+    required this.progress,
+    required this.targetLabel,
+    required this.color,
+    super.key,
+  });
+
+  /// 0–1.
+  final double progress;
+  final String targetLabel;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final value = progress.clamp(0.0, 1.0);
+    final percent = (value * 100).round();
+    return Semantics(
+      label: '$percent percent of $targetLabel saved',
+      excludeSemantics: true,
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 2,
+            child: CustomPaint(
+              painter: _ArcPainter(
+                progress: value,
+                track: colors.successContainer,
+                fill: color,
+              ),
+              child: Align(
+                alignment: const Alignment(0, 0.7),
+                child: Text('$percent%', style: theme.textTheme.displaySmall),
+              ),
+            ),
+          ),
+          const SizedBox(height: BocSpace.xs),
+          Row(
+            children: [
+              Text('0%', style: theme.textTheme.bodySmall?.figures),
+              const Spacer(),
+              Text(targetLabel, style: theme.textTheme.bodySmall?.figures),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  _ArcPainter({
+    required this.progress,
+    required this.track,
+    required this.fill,
+  });
+
+  final double progress;
+  final Color track;
+  final Color fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 18.0;
+    final radius = math.min(size.width / 2, size.height) - stroke / 2;
+    final center = Offset(size.width / 2, size.height);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    Paint paint(Color color) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, math.pi, math.pi, false, paint(track));
+    if (progress > 0) {
+      canvas.drawArc(rect, math.pi, math.pi * progress, false, paint(fill));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) =>
+      old.progress != progress || old.track != track || old.fill != fill;
+}
