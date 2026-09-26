@@ -26,7 +26,7 @@ class LimitRow extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
-              ),
+              ).figures,
             ),
           ),
         ],

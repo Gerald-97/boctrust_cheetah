@@ -93,7 +93,7 @@ class TransactionTile extends StatelessWidget {
                   : Theme.of(context).textTheme.bodyMedium?.color,
               fontWeight: FontWeight.w800,
               fontSize: 12.5,
-            ),
+            ).figures,
           ),
         ],
       ),

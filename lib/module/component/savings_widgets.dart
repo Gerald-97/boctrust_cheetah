@@ -53,7 +53,7 @@ class SavingsHeroCard extends StatelessWidget {
             amount,
             style: Theme.of(
               context,
-            ).textTheme.headlineSmall?.copyWith(fontSize: 29),
+            ).textTheme.headlineSmall?.copyWith(fontSize: 29).figures,
           ),
           const SizedBox(height: 5),
           Row(
@@ -230,9 +230,9 @@ class GoalCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   amount,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w700)
+                      .figures,
                 ),
               ],
             ),
@@ -378,7 +378,10 @@ class MemberRow extends StatelessWidget {
           ),
           Text(
             amount,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ).figures,
           ),
         ],
       ),

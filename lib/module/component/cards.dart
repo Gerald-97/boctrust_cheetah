@@ -183,7 +183,7 @@ class BalanceCard extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
-                          ),
+                          ).figures,
                         ),
                       ),
                     ],
@@ -218,10 +218,9 @@ class BalanceCard extends StatelessWidget {
           key: ValueKey('$text-$hidden'),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
+            fontSize: 28,
+            fontWeight: FontWeight.w600,
+          ).figures,
         ),
       ),
     );
@@ -369,7 +368,7 @@ class SavingsOverviewCard extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: Theme.of(context).textTheme.bodySmall?.color,
-                ),
+                ).figures,
               ),
             ),
           ],
@@ -496,7 +495,7 @@ class ActivePlanCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                  ),
+                  ).figures,
                 ),
               ],
             ),

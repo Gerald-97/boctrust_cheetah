@@ -25,7 +25,7 @@ class AmountDisplay extends StatelessWidget {
           amount,
           style: Theme.of(
             context,
-          ).textTheme.headlineSmall?.copyWith(fontSize: 34),
+          ).textTheme.headlineSmall?.copyWith(fontSize: 34).figures,
         ),
         const SizedBox(height: 6),
         Text(

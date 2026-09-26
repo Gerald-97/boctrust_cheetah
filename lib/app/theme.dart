@@ -25,6 +25,15 @@ SystemUiOverlayStyle kOverlayDark({Color? statusColor, Color? navColor}) =>
       systemNavigationBarContrastEnforced: true,
     );
 
+/// FH Oscar with fixed-width digits, so amounts line up and do not shift
+/// width as they change. Use for figures only; labels stay in [kFontFamily].
+const kFigureFeatures = [FontFeature.tabularFigures()];
+
+extension BocFigureTextStyle on TextStyle {
+  TextStyle get figures =>
+      copyWith(fontFamily: kFigureFontFamily, fontFeatures: kFigureFeatures);
+}
+
 class CheetahTheme {
   const CheetahTheme._();
 
@@ -115,18 +124,29 @@ class CheetahTheme {
         ),
       ),
       textTheme: TextTheme(
+        // Display styles are reserved for figures (balances and amounts).
         displayLarge: TextStyle(
+          fontFamily: kFigureFontFamily,
+          fontFeatures: kFigureFeatures,
           fontSize: 32,
           height: 1.15,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.4,
+          fontWeight: FontWeight.w600,
           color: text,
         ),
         displayMedium: TextStyle(
-          fontSize: 26,
+          fontFamily: kFigureFontFamily,
+          fontFeatures: kFigureFeatures,
+          fontSize: 28,
+          height: 1.15,
+          fontWeight: FontWeight.w600,
+          color: text,
+        ),
+        displaySmall: TextStyle(
+          fontFamily: kFigureFontFamily,
+          fontFeatures: kFigureFeatures,
+          fontSize: 24,
           height: 1.2,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.3,
+          fontWeight: FontWeight.w600,
           color: text,
         ),
         headlineSmall: TextStyle(

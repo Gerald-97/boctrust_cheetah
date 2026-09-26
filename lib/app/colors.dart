@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 const kFontFamily = 'PlusJakartaSans';
 
+/// Figures only: balances, amounts, limits and account numbers.
+const kFigureFontFamily = 'FHOscar';
+
 const Color kPrimaryBlue = Color(0xFF4F7EB4);
 const Color kPrimaryBlueDeep = Color(0xFF3A6497);
 const Color kPrimaryBluePale = Color(0xFFE9F0F7);
