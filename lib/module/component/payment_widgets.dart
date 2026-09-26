@@ -38,7 +38,14 @@ class PaymentActionCard extends StatelessWidget {
                 ),
                 child: SizedBox.square(
                   dimension: 40,
-                  child: Icon(icon, color: BocColors.navy, size: 22),
+                  // Navy on light tiles; light text colour on dark tiles.
+                  child: Icon(
+                    icon,
+                    color: color.computeLuminance() < 0.3
+                        ? context.bocColors.textPrimary
+                        : BocColors.navy,
+                    size: 22,
+                  ),
                 ),
               ),
               const SizedBox(width: BocSpace.sm),
