@@ -182,6 +182,11 @@ extension HomeScreen on AppFlowNavigatorState {
                 ),
               ),
             ],
+            // Funding details follow the everyday actions, as in the design.
+            if (homeState.data case final home?) ...[
+              const SizedBox(height: BocSpace.sm),
+              _dedicatedVirtualAccountCard(home.dedicatedVirtualAccount),
+            ],
           ],
         ),
       ),
@@ -223,8 +228,6 @@ extension HomeScreen on AppFlowNavigatorState {
         const SizedBox(height: 14),
       ],
       _flexWalletCard(home.flexWallet, loading: homeState.isLoading),
-      const SizedBox(height: 14),
-      _dedicatedVirtualAccountCard(home.dedicatedVirtualAccount),
     ];
   }
 

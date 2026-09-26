@@ -454,7 +454,7 @@ extension AccountScreens on AppFlowNavigatorState {
               child: Column(
                 children: [
                   ProfileAvatar(
-                    displayName: displayName,
+                    displayName: profile?.displayName ?? '',
                     hasImage: profile?.imageUrl?.isNotEmpty ?? false,
                     radius: 40,
                   ),
@@ -644,17 +644,6 @@ extension AccountScreens on AppFlowNavigatorState {
                     : _confirmSignOut,
               ),
             ),
-            SettingsGroup(
-              children: [
-                SettingsTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: 'Delete account',
-                  subtitle: 'Close your account permanently',
-                  titleColor: colors.errorText,
-                  onTap: () => _go(AppScreen.deleteAccount),
-                ),
-              ],
-            ),
             const Padding(
               padding: EdgeInsets.fromLTRB(
                 BocSpace.gutter,
@@ -668,6 +657,14 @@ extension AccountScreens on AppFlowNavigatorState {
         ),
       ),
     );
+  }
+
+  String? _profileName(UserOwnProfileData? profile) {
+    final parts = [
+      profile?.firstName,
+      profile?.lastName,
+    ].whereType<String>().map((part) => part.trim()).where((p) => p.isNotEmpty);
+    return parts.isEmpty ? null : parts.join(' ');
   }
 
   /// Personal details and email/phone verification.
@@ -694,8 +691,9 @@ extension AccountScreens on AppFlowNavigatorState {
               SettingsTile(
                 icon: Icons.badge_outlined,
                 title: 'Name',
-                subtitle: profile?.displayName ?? 'Not available',
-                trailing: const SizedBox.shrink(),
+                // displayName falls back to a generic label; show the gap
+                // honestly instead of presenting that label as a name.
+                subtitle: _profileName(profile) ?? 'Not provided yet',
               ),
               SettingsTile(
                 icon: Icons.alternate_email_rounded,
@@ -710,7 +708,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       ? 'Verified'
                       : 'Verify ${profile.email}',
                   trailing: profile.isVerifiedEmail
-                      ? const SmallPill(text: 'Verified')
+                      ? SmallPill.success('Verified')
                       : null,
                   onTap: profile.isVerifiedEmail
                       ? null
@@ -727,7 +725,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       ? 'Verified'
                       : 'Verify ${profile.phoneNumber}',
                   trailing: profile.isVerifiedPhoneNumber
-                      ? const SmallPill(text: 'Verified')
+                      ? SmallPill.success('Verified')
                       : null,
                   onTap: profile.isVerifiedPhoneNumber
                       ? null
@@ -736,6 +734,21 @@ extension AccountScreens on AppFlowNavigatorState {
                           initialIdentifier: profile.phoneNumber,
                         ),
                 ),
+            ],
+          ),
+          // Kept apart from everyday actions (and from Sign out on the
+          // Account hub) so it cannot be hit by mistake.
+          const SizedBox(height: BocSpace.lg),
+          SettingsGroup(
+            caption: 'Close account',
+            children: [
+              SettingsTile(
+                icon: Icons.delete_outline_rounded,
+                title: 'Delete account',
+                subtitle: 'Close your account permanently',
+                titleColor: context.bocColors.errorText,
+                onTap: () => _go(AppScreen.deleteAccount),
+              ),
             ],
           ),
         ],

@@ -390,6 +390,7 @@ class QuickAction extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: InkWell(
         borderRadius: BorderRadius.circular(BocRadius.sm),

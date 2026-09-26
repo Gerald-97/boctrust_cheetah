@@ -135,6 +135,9 @@ class AppBottomNavigation extends StatelessWidget {
                       button: true,
                       selected: item.section == selected,
                       label: item.label,
+                      // The label replaces the inner InkWell's semantics, so
+                      // the tap action has to be declared here.
+                      onTap: () => onSelected(item.section),
                       excludeSemantics: true,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(BocRadius.sm),

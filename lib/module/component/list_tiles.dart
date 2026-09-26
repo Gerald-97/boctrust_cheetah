@@ -231,6 +231,7 @@ class BankRow extends StatelessWidget {
       button: interactive,
       enabled: interactive,
       label: semanticsLabel ?? '$name. $subtitle',
+      onTap: interactive ? onTap : null,
       excludeSemantics: true,
       child: ListTile(
         contentPadding: EdgeInsets.zero,
@@ -432,6 +433,8 @@ class SettingsTile extends StatelessWidget {
         ? ExcludeSemantics(
             child: Switch(value: toggleValue, onChanged: onToggle),
           )
+        : onTap == null
+        ? const SizedBox.shrink()
         : Icon(Icons.chevron_right_rounded, color: colors.textTertiary);
     final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 56),

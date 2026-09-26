@@ -87,6 +87,7 @@ class BillGridItem extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: Material(
         color: colors.surface,

@@ -31,57 +31,63 @@ class RoundedIcon extends StatelessWidget {
 /// Defaults to the brand gold so existing callers are unchanged. Pass
 /// [foreground]/[background] for semantic states. The chip always carries its
 /// own text, so colour is never the only status signal.
+enum _PillTone { neutral, success, failed, unavailable }
+
+/// A short status tag. Tones resolve from the theme so every tag stays
+/// legible in light, dark and high-contrast modes.
 class SmallPill extends StatelessWidget {
   const SmallPill({
     required this.text,
     this.foreground,
     this.background,
     super.key,
-  });
+  }) : _tone = _PillTone.neutral;
+
+  const SmallPill._tone(this.text, this._tone)
+    : foreground = null,
+      background = null;
 
   final String text;
   final Color? foreground;
   final Color? background;
+  final _PillTone _tone;
 
   /// Verified, active, or otherwise complete.
-  factory SmallPill.success(String text) => SmallPill(
-    text: text,
-    foreground: BocColors.green,
-    background: BocColors.greenPale,
-  );
+  factory SmallPill.success(String text) =>
+      SmallPill._tone(text, _PillTone.success);
 
   /// Pending, in progress, or awaiting review.
   factory SmallPill.pending(String text) => SmallPill(text: text);
 
   /// Failed or rejected.
-  factory SmallPill.failed(String text) => SmallPill(
-    text: text,
-    foreground: BocColors.red,
-    background: BocColors.red.withValues(alpha: 0.12),
-  );
+  factory SmallPill.failed(String text) =>
+      SmallPill._tone(text, _PillTone.failed);
 
   /// Unavailable, locked, or blocked by a missing backend contract.
-  factory SmallPill.unavailable(String text) => SmallPill(
-    text: text,
-    foreground: BocColors.grey,
-    background: BocColors.greyPale,
-  );
+  factory SmallPill.unavailable(String text) =>
+      SmallPill._tone(text, _PillTone.unavailable);
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final (fg, bg) = switch (_tone) {
+      _PillTone.success => (colors.successText, colors.successContainer),
+      _PillTone.failed => (colors.errorText, colors.errorContainer),
+      _PillTone.unavailable => (colors.textTertiary, colors.surfaceMuted),
+      _PillTone.neutral => (
+        foreground ?? colors.goldStrong,
+        background ?? colors.goldPale,
+      ),
+    };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: BocSpace.xs, vertical: 2),
       decoration: BoxDecoration(
-        color: background ?? context.bocColors.goldPale,
-        borderRadius: BorderRadius.circular(30),
+        color: bg,
+        borderRadius: BorderRadius.circular(BocRadius.pill),
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          color: foreground ?? BocColors.gold,
-        ),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg),
       ),
     );
   }
@@ -134,13 +140,16 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
       radius: widget.radius,
       backgroundColor: BocColors.navy,
       foregroundColor: BocColors.goldLight,
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: widget.radius * 0.55,
-        ),
-      ),
+      // Without a name there are no honest initials to show.
+      child: initials.isEmpty
+          ? Icon(Icons.person_rounded, size: widget.radius)
+          : Text(
+              initials,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: widget.radius * 0.55,
+              ),
+            ),
     );
 
     if (!widget.hasImage || signed == null || signed.isExpired) {
@@ -184,7 +193,7 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
         .where((word) => word.isNotEmpty)
         .take(2);
     final result = words.map((word) => word[0].toUpperCase()).join();
-    return result.isEmpty ? 'BC' : result;
+    return result;
   }
 }
 

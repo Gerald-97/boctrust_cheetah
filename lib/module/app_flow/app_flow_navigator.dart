@@ -22,6 +22,7 @@ import '../../app/theme_controller.dart';
 import '../../utils/auth_input.dart';
 import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
+import '../account/model/user_profile_model.dart';
 import '../account/model/user_tier_model.dart';
 import '../account/model/account_preferences.dart';
 import '../account/provider/account_deletion_provider.dart';

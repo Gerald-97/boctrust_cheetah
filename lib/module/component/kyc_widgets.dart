@@ -76,6 +76,7 @@ class TierCard extends StatelessWidget {
       button: enabled,
       enabled: enabled,
       label: '$title. $status${reason == null ? '' : '. $reason'}',
+      onTap: onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: enabled ? 1 : 0.62,
@@ -407,6 +408,7 @@ class DashedLikeUpload extends StatelessWidget {
       label: selected == null
           ? '$title. $helperText'
           : '$title. Selected file $selected',
+      onTap: interactive ? onTap : null,
       excludeSemantics: true,
       child: InkWell(
         onTap: interactive ? onTap : null,
