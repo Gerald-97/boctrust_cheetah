@@ -75,6 +75,8 @@ part '../component/misc_widgets.dart';
 
 part '../component/api_state_widgets.dart';
 
+part '../component/private_route_gate.dart';
+
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
 part '../kyc/screens/kyc_screens.dart';

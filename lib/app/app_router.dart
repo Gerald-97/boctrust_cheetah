@@ -166,6 +166,34 @@ class AppRoutes {
     receipt,
     paymentWebView,
   };
+
+  /// Routes reachable without a signed-in session: entry, sign-in and
+  /// recovery, first-PIN setup (which needs a session but no PIN yet), and
+  /// static support and legal pages that hold no customer data.
+  static const publicRoutes = <String>{
+    bootstrap,
+    onboarding,
+    verificationMethod,
+    otp,
+    createPassword,
+    login,
+    biometricLogin,
+    passwordReset,
+    newDeviceOtp,
+    createFirstPin,
+    support,
+    supportChat,
+    supportCall,
+    supportEmail,
+    privacyPolicy,
+    terms,
+    socialFacebook,
+    socialX,
+    socialLinkedIn,
+  };
+
+  /// Every other registered route needs a session and a created PIN.
+  static final privateRoutes = allRoutes.difference(publicRoutes);
 }
 
 class AppRouter {
@@ -219,14 +247,18 @@ class AppRouter {
       return const _BiometricCompatibilityRedirect();
     }
     if (settings.name != null && AppRoutes.allRoutes.contains(settings.name)) {
+      final name = settings.name!;
       final arguments = settings.arguments;
-      return AppFlowRouteScreen(
-        initialScreen: appScreenForRoute(settings.name),
-        initialRouteName: settings.name,
+      final screen = AppFlowRouteScreen(
+        initialScreen: appScreenForRoute(name),
+        initialRouteName: name,
         routeArguments: arguments is AppRouteArguments
             ? arguments
             : const AppRouteArguments(),
       );
+      return AppRoutes.privateRoutes.contains(name)
+          ? PrivateRouteGate(routeName: name, child: screen)
+          : screen;
     }
 
     return _placeholder(settings.name ?? 'Unknown route');
