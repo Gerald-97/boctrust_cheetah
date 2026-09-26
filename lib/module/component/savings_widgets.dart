@@ -127,45 +127,266 @@ class InfoBanner extends StatelessWidget {
   }
 }
 
+/// Two-column label/value tiles for server-supplied facts about an account.
 class GridViewInfo extends StatelessWidget {
   const GridViewInfo({required this.items, super.key});
-  final List<(String, String)> items;
+
+  final List<({String label, String value})> items;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
     return ResponsiveTiles(
       maxColumns: 2,
       minTileWidth: 150,
-      spacing: 10,
-      children: items
-          .map(
-            (item) => SurfaceCard(
-              padding: const EdgeInsets.all(11),
+      spacing: BocSpace.xs,
+      children: [
+        for (final item in items)
+          Container(
+            padding: const EdgeInsets.all(BocSpace.md),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(BocRadius.md),
+            ),
+            child: MergeSemantics(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    item.$1.toUpperCase(),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.$2,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  Text(item.label, style: theme.textTheme.bodySmall),
+                  const SizedBox(height: BocSpace.xxs),
+                  Text(item.value, style: theme.textTheme.titleSmall?.figures),
                 ],
               ),
             ),
-          )
-          .toList(),
+          ),
+      ],
+    );
+  }
+}
+
+/// The Flex entry on the Save hub: gold card with the live balance.
+class FlexSavingsTile extends StatelessWidget {
+  const FlexSavingsTile({
+    required this.title,
+    required this.balance,
+    required this.hidden,
+    required this.onTap,
+    super.key,
+  });
+
+  final String title;
+
+  /// Preformatted balance, or null when none has been returned yet.
+  final String? balance;
+  final bool hidden;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final value = balance;
+    return Material(
+      color: colors.flexAccent,
+      borderRadius: BorderRadius.circular(BocRadius.md),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(BocSpace.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: BocColors.navy,
+                      ),
+                    ),
+                    const SizedBox(height: BocSpace.xs),
+                    if (value == null)
+                      Text(
+                        'Balance unavailable',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: BocColors.navy,
+                        ),
+                      )
+                    else
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: BocMoneyText(
+                          value,
+                          hidden: hidden,
+                          semanticsLabel: '$title balance',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            color: BocColors.navy,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: BocColors.navy),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A savings product in the "Choose a plan" carousel.
+class PlanTypeCard extends StatelessWidget {
+  const PlanTypeCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.accent,
+    required this.container,
+    required this.onTap,
+    super.key,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color accent;
+  final Color container;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 168,
+      child: Material(
+        color: context.bocColors.surface,
+        borderRadius: BorderRadius.circular(BocRadius.md),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(BocSpace.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: container,
+                    borderRadius: BorderRadius.circular(BocRadius.sm),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Icon(icon, color: accent),
+                  ),
+                ),
+                const SizedBox(height: BocSpace.sm),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: BocSpace.xxs),
+                Expanded(
+                  child: Text(
+                    description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Flex detail hero: gold gradient with the live balance and its actions.
+class FlexHeroCard extends StatelessWidget {
+  const FlexHeroCard({
+    required this.balance,
+    required this.hidden,
+    required this.onToggle,
+    required this.primary,
+    this.secondary,
+    super.key,
+  });
+
+  final String? balance;
+  final bool hidden;
+  final VoidCallback onToggle;
+  final Widget primary;
+  final Widget? secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final value = balance;
+    final secondary = this.secondary;
+    return Container(
+      padding: const EdgeInsets.all(BocSpace.md),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(BocRadius.md),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.flexContainer, colors.surface],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Available balance', style: theme.textTheme.bodySmall),
+          Row(
+            children: [
+              Flexible(
+                child: value == null
+                    ? Text('—', style: theme.textTheme.displayMedium)
+                    : FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: BocMoneyText(
+                          value,
+                          hidden: hidden,
+                          semanticsLabel: 'Flex balance',
+                        ),
+                      ),
+              ),
+              IconButton(
+                tooltip: hidden ? 'Show balance' : 'Hide balance',
+                onPressed: onToggle,
+                icon: Icon(
+                  hidden
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BocSpace.md),
+          if (secondary == null)
+            primary
+          else
+            Row(
+              children: [
+                Expanded(child: primary),
+                const SizedBox(width: BocSpace.xs),
+                Expanded(child: secondary),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

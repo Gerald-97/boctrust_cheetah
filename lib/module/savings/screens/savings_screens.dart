@@ -41,8 +41,10 @@ extension SavingsScreens on AppFlowNavigatorState {
   Widget _saveHubScreen() {
     final home = ref.watch(userHomeProvider);
     final products = ref.watch(savingsProductsProvider);
+    final flexProduct = products.where((p) => p.canOpenFlex).firstOrNull;
+    final theme = Theme.of(context);
     return AppScaffold(
-      title: 'Savings',
+      title: 'Save',
       activeSection: AppSection.save,
       onSectionSelected: _goSection,
       actions: [_savingsRefreshAction(home)],
@@ -50,52 +52,95 @@ extension SavingsScreens on AppFlowNavigatorState {
         onRefresh: _refreshSavings,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.gutter,
+            BocSpace.xxs,
+            BocSpace.gutter,
+            BocSpace.lg,
+          ),
           children: [
             ..._savingsLoadStatus(home),
-            if (home.data != null || home.isDone)
-              _flexWalletCard(home.data?.flexWallet, loading: home.isLoading),
-            const SizedBox(height: 20),
-            Text(
-              'Savings products',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            if (products.isEmpty)
+            if (flexProduct != null)
+              FlexSavingsTile(
+                title: flexProduct.name,
+                balance: formatApiAmount(
+                  home.data?.flexWallet?.availableBalance,
+                  currency: home.data?.flexWallet?.currency,
+                ),
+                hidden: ref.watch(homeBalanceHiddenProvider),
+                onTap: () => _go(AppScreen.flex),
+              )
+            else if (home.isDone || home.data != null)
               const ApiStateCard(
                 title: 'Product catalogue unavailable',
                 message: 'Savings products will appear here when available.',
                 tone: ApiStateTone.info,
               ),
-            for (final product in products)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: SurfaceCard(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.savings_outlined),
-                      title: Text(product.name),
-                      subtitle: Text(
-                        product.canOpenFlex
-                            ? 'View your Flex wallet'
-                            : 'Unavailable in this release',
-                      ),
-                      trailing: product.canOpenFlex
-                          ? const Icon(Icons.chevron_right_rounded)
-                          : null,
-                      onTap: product.canOpenFlex
-                          ? () => _go(AppScreen.flex)
-                          : null,
+            const SizedBox(height: BocSpace.lg),
+            Semantics(
+              header: true,
+              child: Text('Choose a plan', style: theme.textTheme.titleMedium),
+            ),
+            const SizedBox(height: BocSpace.sm),
+            SizedBox(
+              height: 168,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                children: [
+                  for (final (type, icon, description) in const [
+                    (
+                      SavingsProductType.smartSave,
+                      Icons.track_changes_rounded,
+                      'Daily, weekly or monthly auto-save toward a goal',
                     ),
-                  ),
-                ),
+                    (
+                      SavingsProductType.fixed,
+                      Icons.lock_outline_rounded,
+                      'Fixed term, higher rate, locked until maturity',
+                    ),
+                    (
+                      SavingsProductType.padi,
+                      Icons.groups_outlined,
+                      'Save with friends and take turns receiving the pot',
+                    ),
+                  ]) ...[
+                    PlanTypeCard(
+                      title: type.displayName,
+                      description: description,
+                      icon: icon,
+                      accent: _productAccent(type),
+                      container: switch (type) {
+                        SavingsProductType.fixed =>
+                          context.bocColors.fixedContainer,
+                        SavingsProductType.padi =>
+                          context.bocColors.padiContainer,
+                        _ => context.bocColors.smartSaveContainer,
+                      },
+                      onTap: () => _startPlanCreation(type),
+                    ),
+                    const SizedBox(width: BocSpace.sm),
+                  ],
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// Opens a product's creation wizard, or explains that it is not
+  /// available yet.
+  Future<void> _startPlanCreation(SavingsProductType type) async {
+    final capability = type.createCapability;
+    if (capability == null ||
+        !ref.read(featureAvailabilityProvider(capability)).isAvailable) {
+      await BocUnavailableSheet.show(
+        context,
+        title: '${type.displayName} is not available yet',
+      );
+    }
   }
 
   Widget _addMoneyScreen() {
@@ -123,8 +168,18 @@ extension SavingsScreens on AppFlowNavigatorState {
 
   Widget _flexScreen() {
     final home = ref.watch(userHomeProvider);
+    final wallet = home.data?.flexWallet;
+    final hidden = ref.watch(homeBalanceHiddenProvider);
+    final canWithdraw = ref
+        .watch(featureAvailabilityProvider(FeatureCapability.flexWithdraw))
+        .isAvailable;
+    final ledger = formatApiAmount(
+      wallet?.ledgerBalance,
+      currency: wallet?.currency,
+    );
+    final status = wallet?.status;
     return AppScaffold(
-      title: 'Flex Savings',
+      title: 'Boc Flex Savings',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,
@@ -133,16 +188,46 @@ extension SavingsScreens on AppFlowNavigatorState {
         onRefresh: _refreshSavings,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.gutter,
+            0,
+            BocSpace.gutter,
+            BocSpace.lg,
+          ),
           children: [
             ..._savingsLoadStatus(home),
             if (home.data != null || home.isDone)
-              _flexWalletCard(home.data?.flexWallet, loading: home.isLoading),
-            const SizedBox(height: 16),
-            PrimaryButton(
-              label: 'Add money',
-              onPressed: () => _go(AppScreen.addMoney),
-            ),
+              FlexHeroCard(
+                balance: formatApiAmount(
+                  wallet?.availableBalance,
+                  currency: wallet?.currency,
+                ),
+                hidden: hidden,
+                onToggle: () =>
+                    ref.read(homeBalanceHiddenProvider.notifier).toggle(),
+                primary: PrimaryButton(
+                  label: 'Add money',
+                  onPressed: () => _go(AppScreen.addMoney),
+                ),
+                secondary: canWithdraw
+                    ? SecondaryButton(label: 'Withdraw', onPressed: () {})
+                    : null,
+              ),
+            if (ledger != null ||
+                (status != null && wallet?.isActive == false)) ...[
+              const SizedBox(height: BocSpace.sm),
+              GridViewInfo(
+                items: [
+                  if (ledger != null)
+                    (
+                      label: 'Ledger balance',
+                      value: hidden ? '₦ ••••••' : ledger,
+                    ),
+                  if (status != null && wallet?.isActive == false)
+                    (label: 'Wallet status', value: status),
+                ],
+              ),
+            ],
           ],
         ),
       ),

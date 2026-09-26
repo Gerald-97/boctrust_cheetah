@@ -66,7 +66,7 @@ void main() {
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      final reachedHome = find.textContaining('Welcome,').evaluate().isNotEmpty;
+      final reachedHome = find.textContaining('Hi, ').evaluate().isNotEmpty;
       final paths = requests.map((request) => request.path).toList();
       for (var i = 0; i < handlers.length; i++) {
         handlers[i].resolve(
@@ -154,7 +154,7 @@ void main() {
     await open(tester, AppRoutes.flexSave);
     await tester.tap(find.byType(BocBackButton));
     await tester.pumpAndSettle();
-    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.text('Choose a plan'), findsOneWidget);
   });
   for (final route in [
     AppRoutes.newSavingsChooser,
