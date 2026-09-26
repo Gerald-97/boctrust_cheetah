@@ -17,32 +17,25 @@ class LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: Theme.of(context).textTheme.bodySmall?.color,
-          ),
-        ),
-        const SizedBox(height: 6),
+        // Sentence case: uppercase labels are harder to read and are spelled
+        // out letter by letter by some screen readers.
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: BocSpace.xs),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Theme.of(context).dividerColor),
+            color: context.bocColors.surface,
+            borderRadius: BorderRadius.circular(BocRadius.sm),
+            border: Border.all(color: context.bocColors.border),
           ),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: context.bocColors.textPrimary,
                   ),
                 ),
               ),
@@ -98,16 +91,10 @@ class AppTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: Theme.of(context).textTheme.bodySmall?.color,
-          ),
-        ),
-        const SizedBox(height: 6),
+        // Sentence case: uppercase labels are harder to read and are spelled
+        // out letter by letter by some screen readers.
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: BocSpace.xs),
         TextFormField(
           controller: controller,
           initialValue: controller == null ? initialValue : null,
@@ -122,12 +109,10 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           validator: validator,
           autovalidateMode: autovalidateMode,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hintText,
-            suffixIcon: suffix,
-            isDense: true,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: context.bocColors.textPrimary),
+          decoration: InputDecoration(hintText: hintText, suffixIcon: suffix),
         ),
       ],
     );
@@ -287,21 +272,23 @@ class OtpBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 43,
-      height: 52,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: 48,
+      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: BocSpace.xxs),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: context.bocColors.surface,
+        borderRadius: BorderRadius.circular(BocRadius.xs),
         border: Border.all(
-          color: value == '•' ? Theme.of(context).dividerColor : BocColors.navy,
-          width: 1.5,
+          color: value == '•'
+              ? context.bocColors.goldPale
+              : BocColors.goldLight,
+          width: value == '•' ? 1 : 1.5,
         ),
       ),
       child: Text(
         value,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
+        style: Theme.of(context).textTheme.titleLarge?.figures,
       ),
     );
   }

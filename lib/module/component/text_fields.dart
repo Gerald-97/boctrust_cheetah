@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
+import '../../app/theme.dart';
 import '../../utils/input_formatters.dart';
 
 class PinInputField extends StatefulWidget {
@@ -82,9 +83,9 @@ class _PinInputFieldState extends State<PinInputField> {
           fieldHeight: (scale.scale(20) + 24).clamp(50, double.infinity),
           fieldWidth: ((constraints.maxWidth - 3 * (pinLength - 1)) / pinLength)
               .clamp(1, 50),
-          inactiveColor: Theme.of(context).dividerColor,
-          activeColor: colorScheme.primary,
-          selectedColor: colorScheme.primary,
+          inactiveColor: context.bocColors.goldPale,
+          activeColor: BocColors.goldLight,
+          selectedColor: BocColors.goldLight,
           errorBorderColor: colorScheme.error,
           disabledColor: colorScheme.outlineVariant,
           inactiveFillColor: colorScheme.surface,

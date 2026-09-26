@@ -68,19 +68,19 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
         icon: Icons.savings_outlined,
         title: 'Save without thinking about it',
         description:
-            'Flex Save grows every day with no lock-in. Target, Lock and Group Save help you commit to a goal, on your terms.',
+            'Boc Flex Savings grows every day with no lock-in. SmartSave, Fixed Deposit and Padi help you commit to a goal, on your terms.',
       ),
       (
         icon: Icons.track_changes_rounded,
         title: 'Reach any goal, your way',
         description:
-            'Set a Target, lock in a fixed term for a higher rate, or save together with a Group — pick whichever fits.',
+            'Save toward a goal, lock in a fixed term for a higher rate, or save together with friends — pick whichever fits.',
       ),
       (
         icon: Icons.send_rounded,
         title: 'Send and pay, instantly',
         description:
-            'Move money between your Cheetah accounts, send to friends and family, or pay bills — all in one place.',
+            'Move money between your BOCTRUST accounts, send to friends and family, or pay bills — all in one place.',
       ),
     ];
     final slide = slides[_onboardingIndex];

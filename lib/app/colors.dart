@@ -456,6 +456,13 @@ class BocSemanticColors extends ThemeExtension<BocSemanticColors> {
 }
 
 extension BocThemeContext on BuildContext {
-  BocSemanticColors get bocColors =>
-      Theme.of(this).extension<BocSemanticColors>()!;
+  /// The app's semantic colours; falls back to the default palette for the
+  /// current brightness when a widget is hosted outside the Boc theme.
+  BocSemanticColors get bocColors {
+    final theme = Theme.of(this);
+    return theme.extension<BocSemanticColors>() ??
+        (theme.brightness == Brightness.dark
+            ? BocSemanticColors.dark
+            : BocSemanticColors.light);
+  }
 }

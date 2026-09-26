@@ -54,7 +54,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('PASSWORD'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
     expect(find.text('Log in'), findsOneWidget);
   });
 
