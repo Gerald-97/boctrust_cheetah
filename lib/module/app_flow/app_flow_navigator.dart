@@ -611,7 +611,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       case AppScreen.sendBeneficiary:
         return _sendBeneficiaryScreen();
       case AppScreen.sendBank:
-        return _sendBankScreen();
+        return ref
+                .watch(featureAvailabilityProvider(FeatureCapability.transfers))
+                .isAvailable
+            ? _TransferFlow(onExit: _back)
+            : _sendBankScreen();
       case AppScreen.authPin:
         return _authPinScreen();
       case AppScreen.success:

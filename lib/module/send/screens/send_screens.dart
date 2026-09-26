@@ -4,40 +4,58 @@ part of '../../app_flow/app_flow_navigator.dart';
 /// details, resolves a recipient, or reports a result.
 extension SendScreens on AppFlowNavigatorState {
   Widget _sendHubScreen() {
+    final transfers = ref
+        .watch(featureAvailabilityProvider(FeatureCapability.transfers))
+        .isAvailable;
     return AppScaffold(
       title: 'Send money',
       activeSection: AppSection.send,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: const EdgeInsets.fromLTRB(
+          BocSpace.gutter,
+          BocSpace.xxs,
+          BocSpace.gutter,
+          BocSpace.lg,
+        ),
         children: [
-          const ApiStateCard(
-            title: 'Transfers are unavailable',
-            message: 'Sending money is not available in this release.',
-            tone: ApiStateTone.blocked,
-          ),
-          const SizedBox(height: 18),
-          ProductTile(
-            icon: Icons.swap_horiz_rounded,
-            title: 'To my own account',
-            subtitle: 'Not available yet',
-            color: BocColors.gold,
-            onTap: () => _go(AppScreen.sendOwn),
-          ),
-          ProductTile(
-            icon: Icons.person_outline_rounded,
-            title: 'To a Cheetah beneficiary',
-            subtitle: 'Not available yet',
-            color: BocColors.blue,
-            onTap: () => _go(AppScreen.sendBeneficiary),
-          ),
-          ProductTile(
-            icon: Icons.account_balance_outlined,
-            title: 'To another bank',
-            subtitle: 'Not available yet',
-            color: BocColors.purple,
-            onTap: () => _go(AppScreen.sendBank),
-          ),
+          if (!transfers) ...[
+            const ApiStateCard(
+              title: 'Transfers are unavailable',
+              message: 'Sending money is not available in this release.',
+              tone: ApiStateTone.blocked,
+            ),
+            const SizedBox(height: BocSpace.md),
+          ],
+          for (final (icon, title, subtitle, screen) in const [
+            (
+              Icons.swap_horiz_rounded,
+              'Between my accounts',
+              'Between your Flex, SmartSave, Fixed and Padi plans',
+              AppScreen.sendOwn,
+            ),
+            (
+              Icons.person_outline_rounded,
+              'To a BOCTRUST account',
+              'Free and instant to another BOCTRUST customer',
+              AppScreen.sendBeneficiary,
+            ),
+            (
+              Icons.account_balance_outlined,
+              'To another bank',
+              'Send to any Nigerian bank account',
+              AppScreen.sendBank,
+            ),
+          ]) ...[
+            PaymentActionCard(
+              icon: icon,
+              title: title,
+              subtitle: transfers ? subtitle : 'Not available yet',
+              color: BocColors.goldLight,
+              onTap: () => _go(screen),
+            ),
+            const SizedBox(height: BocSpace.xs),
+          ],
         ],
       ),
     );
@@ -56,7 +74,7 @@ extension SendScreens on AppFlowNavigatorState {
     title: 'Send to beneficiary',
     section: AppSection.send,
     heading: 'Transfers are unavailable',
-    message: 'Sending money to another Cheetah user is not available yet.',
+    message: 'Sending money to another BOCTRUST user is not available yet.',
   );
 
   Widget _sendBankScreen() => _transactionUnavailableScreen(

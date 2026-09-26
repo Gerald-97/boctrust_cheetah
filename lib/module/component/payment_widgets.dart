@@ -1,5 +1,7 @@
 part of '../app_flow/app_flow_navigator.dart';
 
+/// A payment or transfer option: tinted icon tile, title and one-line
+/// description in a full-width tappable card.
 class PaymentActionCard extends StatelessWidget {
   const PaymentActionCard({
     required this.icon,
@@ -18,25 +20,45 @@ class PaymentActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RoundedIcon(icon: icon, color: color),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+    final theme = Theme.of(context);
+    return Material(
+      color: context.bocColors.surface,
+      borderRadius: BorderRadius.circular(BocRadius.md),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(BocSpace.md),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: Icon(icon, color: BocColors.navy, size: 22),
+                ),
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.bocColors.textTertiary,
+              ),
+            ],
           ),
-          const SizedBox(height: 3),
-          Text(
-            subtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(height: 1.35),
-          ),
-        ],
+        ),
       ),
     );
   }

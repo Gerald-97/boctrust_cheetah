@@ -105,3 +105,30 @@ class TransactionRecord extends Equatable {
     receipt,
   ];
 }
+
+/// A transfer the customer has reviewed and authorised with their PIN.
+class TransferRequest {
+  const TransferRequest({
+    required this.accountNumber,
+    required this.bankName,
+    required this.amount,
+    required this.pin,
+    this.narration,
+  });
+
+  final String accountNumber;
+  final String bankName;
+
+  /// Naira amount as typed, validated as a positive number.
+  final String amount;
+  final String? narration;
+
+  /// Transaction PIN; never logged or shown.
+  final String pin;
+
+  @override
+  String toString() =>
+      'TransferRequest(to: $bankName ••••'
+      '${accountNumber.length > 4 ? accountNumber.substring(accountNumber.length - 4) : ''}'
+      ', amount: $amount)';
+}
