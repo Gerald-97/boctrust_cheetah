@@ -219,6 +219,31 @@ extension KycScreens on AppFlowNavigatorState {
               onTap: _tierCardDestination(data.tiers[index]),
             ),
           ],
+          const SizedBox(height: BocSpace.lg),
+          SettingsGroup(
+            caption: 'Business and income documents',
+            padding: EdgeInsets.zero,
+            children: [
+              for (final (type, route, icon) in const [
+                (
+                  DocumentVerificationType.cac,
+                  AppScreen.kycCacDocument,
+                  Icons.business_outlined,
+                ),
+                (
+                  DocumentVerificationType.bankStatement,
+                  AppScreen.kycBankStatement,
+                  Icons.receipt_long_outlined,
+                ),
+              ])
+                SettingsTile(
+                  icon: icon,
+                  title: type.fieldLabel,
+                  subtitle: 'PDF, maximum 10 MB',
+                  onTap: () => _go(route),
+                ),
+            ],
+          ),
         ],
       ),
     );

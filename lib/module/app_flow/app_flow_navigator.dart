@@ -26,9 +26,11 @@ import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
 import '../savings/provider/savings_provider.dart';
+import '../kyc/model/document_verification_models.dart';
 import '../kyc/model/kyc_models.dart';
 import '../kyc/model/kyc_provider_models.dart';
 import '../kyc/model/kyc_status_models.dart';
+import '../kyc/provider/document_verification_provider.dart';
 import '../kyc/provider/kyc_providers.dart';
 import '../kyc/provider/kyc_status_provider.dart';
 import '../kyc/screens/smile_id_capture_screen.dart';
@@ -82,6 +84,7 @@ part '../component/flow_widgets.dart';
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
 part '../kyc/screens/kyc_screens.dart';
+part '../kyc/screens/document_verification_screens.dart';
 
 part '../home/screens/home_screen.dart';
 
@@ -547,6 +550,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _nextOfKinScreen();
       case AppScreen.kycUtilityBill:
         return _kycUtilityBillScreen();
+      case AppScreen.kycCacDocument:
+        return _documentVerificationScreen(DocumentVerificationType.cac);
+      case AppScreen.kycBankStatement:
+        return _documentVerificationScreen(
+          DocumentVerificationType.bankStatement,
+        );
       case AppScreen.linkedBanks:
         return _linkedBankAccountsScreen();
       case AppScreen.home:

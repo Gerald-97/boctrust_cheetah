@@ -247,22 +247,30 @@ class ReceiptRow extends StatelessWidget {
 
 /// A grouped card of [SettingsTile]s with an optional caption above it.
 class SettingsGroup extends StatelessWidget {
-  const SettingsGroup({required this.children, this.caption, super.key});
+  const SettingsGroup({
+    required this.children,
+    this.caption,
+    this.padding = const EdgeInsets.fromLTRB(
+      BocSpace.gutter,
+      0,
+      BocSpace.gutter,
+      BocSpace.md,
+    ),
+    super.key,
+  });
 
   final List<Widget> children;
   final String? caption;
+
+  /// Outer padding; pass [EdgeInsets.zero] inside an already padded list.
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.bocColors;
     final caption = this.caption;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        BocSpace.gutter,
-        0,
-        BocSpace.gutter,
-        BocSpace.md,
-      ),
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

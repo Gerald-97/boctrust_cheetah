@@ -14,6 +14,8 @@ enum AppScreen {
   kycIdentity,
   kycGovernmentId,
   kycUtilityBill,
+  kycCacDocument,
+  kycBankStatement,
   nextOfKin,
   linkedBanks,
   home,
@@ -222,6 +224,10 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.nextOfKin;
     case '/account/tier/address':
       return AppScreen.kycUtilityBill;
+    case '/account/tier/cac':
+      return AppScreen.kycCacDocument;
+    case '/account/tier/bank-statement':
+      return AppScreen.kycBankStatement;
     case '/account/linked-banks':
       return AppScreen.linkedBanks;
     case '/account/loans':

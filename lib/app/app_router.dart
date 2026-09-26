@@ -64,6 +64,8 @@ class AppRoutes {
   static const governmentIdVerification = '/account/tier/government-id';
   static const nextOfKin = '/account/tier/next-of-kin';
   static const tier3Address = '/account/tier/address';
+  static const kycCacDocument = '/account/tier/cac';
+  static const kycBankStatement = '/account/tier/bank-statement';
   static const manageBeneficiaries = '/account/beneficiaries';
   static const linkedBanks = '/account/linked-banks';
   static const securitySettings = '/account/security';
@@ -143,6 +145,8 @@ class AppRoutes {
     governmentIdVerification,
     nextOfKin,
     tier3Address,
+    kycCacDocument,
+    kycBankStatement,
     manageBeneficiaries,
     linkedBanks,
     securitySettings,
