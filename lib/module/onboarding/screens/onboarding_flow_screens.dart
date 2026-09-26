@@ -344,6 +344,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           AppTextField(
             label: _verifyByPhone ? 'Phone number' : 'Email address',
             controller: _identifierController,
+            focusNode: _identifierFocus,
             hintText: _verifyByPhone ? '0803 000 0000' : 'you@example.com',
             keyboardType: _verifyByPhone
                 ? TextInputType.phone

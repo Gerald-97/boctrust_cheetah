@@ -172,6 +172,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   PhoneVerificationChannel _phoneChannel = PhoneVerificationChannel.sms;
 
   final _identifierController = TextEditingController();
+  final _identifierFocus = FocusNode();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _otpController = TextEditingController();
@@ -239,6 +240,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   void dispose() {
     _identifierController.dispose();
+    _identifierFocus.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _otpController.dispose();
@@ -417,10 +419,22 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   }
 
   void _selectVerificationMethod({required bool phone}) {
+    if (phone == _verifyByPhone) return;
+    final wasTyping = _identifierFocus.hasFocus;
     setState(() {
       _verifyByPhone = phone;
       _identifierController.clear();
     });
+    // An open soft keyboard keeps its layout when keyboardType changes (on
+    // Android the IME is not restarted). Dropping focus closes the input
+    // connection; restoring it next frame reopens the keyboard as the new
+    // type, so choosing email shows the email keyboard.
+    if (wasTyping) {
+      _identifierFocus.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _identifierFocus.requestFocus();
+      });
+    }
   }
 
   Future<void> _openAuthDestination(
