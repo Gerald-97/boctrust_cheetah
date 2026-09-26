@@ -235,7 +235,6 @@ AppScreen appScreenForRoute(String? routeName) {
     case '/transaction/authorize':
       return AppScreen.authPin;
     case '/transaction/receipt':
-    case '/transaction/receipt/demo':
       return AppScreen.success;
     default:
       return AppScreen.home;

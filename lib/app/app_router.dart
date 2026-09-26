@@ -85,7 +85,6 @@ class AppRoutes {
   static const transactionHistory = '/transactions';
   static const transactionAuthorization = '/transaction/authorize';
   static const receipt = '/transaction/receipt';
-  static const receiptDemo = '/transaction/receipt/demo';
   static const paymentWebView = '/payment/webview';
 
   static const allRoutes = <String>{
@@ -165,7 +164,6 @@ class AppRoutes {
     transactionHistory,
     transactionAuthorization,
     receipt,
-    receiptDemo,
     paymentWebView,
   };
 }

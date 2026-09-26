@@ -79,7 +79,6 @@ void main() {
     AppRoutes.transactionAuthorization:
         'Transaction authorization is unavailable',
     AppRoutes.receipt: 'Transaction receipts are unavailable',
-    AppRoutes.receiptDemo: 'Transaction receipts are unavailable',
     AppRoutes.transactionHistory: 'Transaction history is unavailable',
     AppRoutes.paymentWebView: 'Payment checkout is unavailable',
     AppRoutes.manageBeneficiaries: 'Beneficiaries are unavailable',

@@ -26,6 +26,13 @@ extension AccountScreens on AppFlowNavigatorState {
           route == AppPreviewRoute.flexSettings ||
           route == AppPreviewRoute.cardFunding;
       return _savingsUnavailableScreen(
+        capability: switch (route) {
+          AppPreviewRoute.flexWithdraw => FeatureCapability.flexWithdraw,
+          AppPreviewRoute.flexStatement => FeatureCapability.flexStatement,
+          AppPreviewRoute.flexSettings => FeatureCapability.flexAutoSave,
+          AppPreviewRoute.cardFunding => FeatureCapability.cardFunding,
+          _ => FeatureCapability.savingsPlansView,
+        },
         title: title,
         message: '$title ${singular ? 'is' : 'are'} not available yet.',
       );
@@ -35,6 +42,7 @@ extension AccountScreens on AppFlowNavigatorState {
     switch (route) {
       case AppPreviewRoute.transactionHistory:
         return _transactionUnavailableScreen(
+          capability: FeatureCapability.transactionHistory,
           title: 'Transactions',
           section: AppSection.payments,
           heading: 'Transaction history is unavailable',
@@ -42,6 +50,7 @@ extension AccountScreens on AppFlowNavigatorState {
         );
       case AppPreviewRoute.paymentWebView:
         return _transactionUnavailableScreen(
+          capability: FeatureCapability.cardFunding,
           title: 'Payment',
           section: AppSection.payments,
           heading: 'Payment checkout is unavailable',
@@ -49,6 +58,7 @@ extension AccountScreens on AppFlowNavigatorState {
         );
       case AppPreviewRoute.accountBeneficiaries:
         return _transactionUnavailableScreen(
+          capability: FeatureCapability.beneficiaries,
           title: 'Beneficiaries',
           section: AppSection.account,
           heading: 'Beneficiaries are unavailable',
@@ -308,10 +318,12 @@ extension AccountScreens on AppFlowNavigatorState {
   }
 
   Widget _comingSoonScreen({
+    required FeatureCapability capability,
     required String title,
     required IconData icon,
     required String message,
   }) {
+    _assertPlaceholderFor(capability, FeatureAvailability.comingSoon);
     return AppScaffold(
       title: title,
       activeSection: AppSection.account,

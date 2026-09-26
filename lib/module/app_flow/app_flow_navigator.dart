@@ -9,6 +9,7 @@ import '../../app/api_logger.dart';
 import '../../app/app_router.dart';
 import '../../app/auth_navigation_provider.dart';
 import '../../app/bootstrap_provider.dart';
+import '../../app/feature_capability.dart';
 import '../../app/preferences.dart';
 import '../../app/response_handler.dart';
 import '../../app/route_arguments.dart';
@@ -586,6 +587,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _notificationsScreen();
       case AppScreen.loans:
         return _comingSoonScreen(
+          capability: FeatureCapability.loans,
           title: 'Loans',
           icon: Icons.percent_rounded,
           message:
@@ -593,6 +595,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         );
       case AppScreen.cards:
         return _comingSoonScreen(
+          capability: FeatureCapability.cards,
           title: 'Cards',
           icon: Icons.credit_card_rounded,
           message:

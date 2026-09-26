@@ -514,24 +514,3 @@ class SearchField extends StatelessWidget {
     );
   }
 }
-
-class DemoToggle extends StatefulWidget {
-  const DemoToggle({required this.initialValue, super.key});
-
-  final bool initialValue;
-
-  @override
-  State<DemoToggle> createState() => _DemoToggleState();
-}
-
-class _DemoToggleState extends State<DemoToggle> {
-  late bool value = widget.initialValue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Switch(
-      value: value,
-      onChanged: (nextValue) => setState(() => value = nextValue),
-    );
-  }
-}

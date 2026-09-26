@@ -150,39 +150,46 @@ extension SavingsScreens on AppFlowNavigatorState {
   }
 
   Widget _savingsUnavailableScreen({
+    required FeatureCapability capability,
     required String title,
     required String message,
-  }) => AppScaffold(
-    title: title,
-    activeSection: AppSection.save,
-    onBack: _back,
-    onSectionSelected: _goSection,
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      children: [
-        ApiStateCard(
-          title: 'Unavailable',
-          message: message,
-          tone: ApiStateTone.blocked,
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: () => _go(AppScreen.saveHub),
-          child: const Text('Back to Savings'),
-        ),
-      ],
-    ),
-  );
+  }) {
+    _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
+    return AppScaffold(
+      title: title,
+      activeSection: AppSection.save,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        children: [
+          ApiStateCard(
+            title: 'Unavailable',
+            message: message,
+            tone: ApiStateTone.blocked,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => _go(AppScreen.saveHub),
+            child: const Text('Back to Savings'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _targetScreen() => _savingsUnavailableScreen(
+    capability: FeatureCapability.savingsPlansView,
     title: 'Target Savings',
     message: 'Target Savings is unavailable in this release.',
   );
   Widget _lockScreen() => _savingsUnavailableScreen(
+    capability: FeatureCapability.savingsPlansView,
     title: 'Fixed Deposit',
     message: 'Fixed Deposit is unavailable in this release.',
   );
   Widget _groupScreen() => _savingsUnavailableScreen(
+    capability: FeatureCapability.savingsPlansView,
     title: 'Group Savings',
     message: 'Group Savings is unavailable in this release.',
   );

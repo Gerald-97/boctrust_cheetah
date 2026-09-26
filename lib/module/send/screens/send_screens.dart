@@ -44,6 +44,7 @@ extension SendScreens on AppFlowNavigatorState {
   }
 
   Widget _sendOwnScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.transfers,
     title: 'Move between savings',
     section: AppSection.send,
     heading: 'Transfers are unavailable',
@@ -51,6 +52,7 @@ extension SendScreens on AppFlowNavigatorState {
   );
 
   Widget _sendBeneficiaryScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.transfers,
     title: 'Send to beneficiary',
     section: AppSection.send,
     heading: 'Transfers are unavailable',
@@ -58,6 +60,7 @@ extension SendScreens on AppFlowNavigatorState {
   );
 
   Widget _sendBankScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.transfers,
     title: 'Send to other bank',
     section: AppSection.send,
     heading: 'Transfers are unavailable',
@@ -67,6 +70,7 @@ extension SendScreens on AppFlowNavigatorState {
   /// Checking a PIN is not a transaction contract: without a server-bound
   /// authorization there is nothing to confirm, so no PIN is collected.
   Widget _authPinScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.transfers,
     title: 'Authorize transaction',
     section: AppSection.send,
     heading: 'Transaction authorization is unavailable',
@@ -76,6 +80,7 @@ extension SendScreens on AppFlowNavigatorState {
   /// Receipts may only ever render confirmed server data. None exists, so a
   /// direct or notification entry — with or without an id — shows this.
   Widget _successScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.transactionReceipts,
     title: 'Receipt',
     section: AppSection.send,
     heading: 'Transaction receipts are unavailable',
@@ -85,11 +90,13 @@ extension SendScreens on AppFlowNavigatorState {
   );
 
   Widget _transactionUnavailableScreen({
+    required FeatureCapability capability,
     required String title,
     required AppSection section,
     required String heading,
     required String message,
   }) {
+    _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
     return AppScaffold(
       title: title,
       activeSection: section,
@@ -105,6 +112,19 @@ extension SendScreens on AppFlowNavigatorState {
           ),
         ],
       ),
+    );
+  }
+
+  /// A placeholder screen may only stand in for a capability the registry
+  /// still reports in [expected]; switching one on without building its real
+  /// screen fails fast in debug builds.
+  void _assertPlaceholderFor(
+    FeatureCapability capability,
+    FeatureAvailability expected,
+  ) {
+    assert(
+      ref.read(featureAvailabilityProvider(capability)) == expected,
+      '$capability is no longer $expected but still shows a placeholder.',
     );
   }
 }

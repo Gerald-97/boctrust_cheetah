@@ -128,6 +128,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
   }
 
   Widget _scanScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.scanToPay,
     title: 'Scan to pay',
     section: AppSection.payments,
     heading: 'Scan to pay is unavailable',
@@ -137,6 +138,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
   );
 
   Widget _airtimeScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.airtime,
     title: 'Airtime',
     section: AppSection.payments,
     heading: 'Airtime purchases are unavailable',
@@ -144,6 +146,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
   );
 
   Widget _dataScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.data,
     title: 'Data',
     section: AppSection.payments,
     heading: 'Data purchases are unavailable',
@@ -151,6 +154,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
   );
 
   Widget _billerListScreen() => _transactionUnavailableScreen(
+    capability: FeatureCapability.bills,
     title: 'Bill payments',
     section: AppSection.payments,
     heading: 'Bill payments are unavailable',
