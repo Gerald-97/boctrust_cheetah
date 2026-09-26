@@ -97,6 +97,9 @@ class BocColors {
   static const grey = Color(0xFF9AA3AC);
   static const greyPale = Color(0xFFEEEEEC);
 
+  /// Soft upward shadow under the bottom navigation bar.
+  static const navShadow = Color(0x1AB4B4B4);
+
   static const darkPaper = Color(0xFF101E30);
   static const darkCard = Color(0xFF17293D);
   static const darkLine = Color(0xFF2A3D52);

@@ -111,7 +111,7 @@ class AppBottomNavigation extends StatelessWidget {
         color: colors.surface,
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1AB4B4B4),
+            color: BocColors.navShadow,
             offset: Offset(0, -1),
             blurRadius: 2,
           ),
