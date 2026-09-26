@@ -31,6 +31,8 @@ import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
 import '../savings/model/savings_plan_models.dart';
+import '../send/model/transaction_models.dart';
+import '../send/provider/transaction_provider.dart';
 import '../savings/provider/savings_plan_provider.dart';
 import '../savings/provider/savings_provider.dart';
 import '../kyc/model/document_verification_models.dart';
@@ -88,6 +90,8 @@ part '../component/private_route_gate.dart';
 
 part '../component/flow_widgets.dart';
 
+part '../component/transaction_widgets.dart';
+
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
 part '../kyc/screens/kyc_screens.dart';
@@ -100,6 +104,7 @@ part '../savings/screens/savings_access_gate.dart';
 part '../savings/screens/savings_plan_screens.dart';
 
 part '../send/screens/send_screens.dart';
+part '../send/screens/transaction_flow_screens.dart';
 
 part '../payments/screens/payments_screens.dart';
 
@@ -566,6 +571,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _deleteAccountScreen();
       case AppScreen.accountStatement:
         return _accountStatementScreen();
+      case AppScreen.transactionDetail:
+        return _transactionDetailScreen();
       case AppScreen.savingsPlanDetail:
         return _savingsPlanDetailScreen();
       case AppScreen.preferences:

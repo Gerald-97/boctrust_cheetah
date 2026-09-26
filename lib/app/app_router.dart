@@ -91,6 +91,7 @@ class AppRoutes {
   static const cardsNotifyMe = '/account/cards/notify-me';
   static const notifications = '/notifications';
   static const transactionHistory = '/transactions';
+  static const transactionDetail = '/transactions/detail';
   static const transactionAuthorization = '/transaction/authorize';
   static const receipt = '/transaction/receipt';
   static const paymentWebView = '/payment/webview';
@@ -178,6 +179,7 @@ class AppRoutes {
     cardsNotifyMe,
     notifications,
     transactionHistory,
+    transactionDetail,
     transactionAuthorization,
     receipt,
     paymentWebView,

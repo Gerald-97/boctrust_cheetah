@@ -40,65 +40,114 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// One transaction in a list. The sign and tint follow [direction] from the
+/// server, never the amount text, so a withdrawal can never read as money in.
 class TransactionTile extends StatelessWidget {
   const TransactionTile({
-    required this.icon,
-    required this.name,
-    required this.date,
+    required this.title,
+    required this.subtitle,
     required this.amount,
-    this.incoming = false,
+    required this.direction,
+    this.pending = false,
+    this.onTap,
     super.key,
   });
 
-  final IconData icon;
-  final String name;
-  final String date;
+  final String title;
+  final String subtitle;
+
+  /// Server-formatted, unsigned amount.
   final String amount;
-  final bool incoming;
+  final TransactionDirection direction;
+  final bool pending;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      child: Row(
-        children: [
-          RoundedIcon(icon: icon, color: BocColors.gold, size: 37),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  date,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontSize: 10.5),
-                ),
-              ],
-            ),
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final (icon, tint, container, sign, amountColor) = switch (direction) {
+      TransactionDirection.credit => (
+        Icons.south_rounded,
+        colors.success,
+        colors.successContainer,
+        '+',
+        colors.successText,
+      ),
+      TransactionDirection.debit => (
+        Icons.north_rounded,
+        colors.error,
+        colors.errorContainer,
+        '−',
+        colors.textPrimary,
+      ),
+      TransactionDirection.internal => (
+        Icons.swap_horiz_rounded,
+        colors.smartSaveAccent,
+        colors.smartSaveContainer,
+        '',
+        colors.textPrimary,
+      ),
+    };
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: BocSpace.md,
+            vertical: BocSpace.sm,
           ),
-          const SizedBox(width: 8),
-          Text(
-            amount,
-            style: TextStyle(
-              color: incoming
-                  ? BocColors.green
-                  : Theme.of(context).textTheme.bodyMedium?.color,
-              fontWeight: FontWeight.w800,
-              fontSize: 12.5,
-            ).figures,
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: container,
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: Icon(icon, color: tint, size: 20),
+                ),
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text.rich(
+                      TextSpan(
+                        text: subtitle,
+                        children: [
+                          if (pending)
+                            TextSpan(
+                              text: '  Pending',
+                              style: TextStyle(color: colors.warningText),
+                            ),
+                        ],
+                      ),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: BocSpace.xs),
+              Text(
+                '$sign$amount',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: amountColor)
+                    .figures,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

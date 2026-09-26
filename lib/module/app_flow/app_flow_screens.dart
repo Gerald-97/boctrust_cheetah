@@ -23,6 +23,7 @@ enum AppScreen {
   notificationPreferences,
   accessibilityPreferences,
   savingsPlanDetail,
+  transactionDetail,
   nextOfKin,
   linkedBanks,
   home,
@@ -256,6 +257,8 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.cards;
     case '/notifications':
       return AppScreen.notifications;
+    case '/transactions/detail':
+      return AppScreen.transactionDetail;
     case '/transaction/authorize':
       return AppScreen.authPin;
     case '/transaction/receipt':
