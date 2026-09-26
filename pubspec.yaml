@@ -27,6 +27,7 @@ dependencies:
   logger: ^2.7.0
   intl: ^0.20.2
   dio: ^5.9.0
+  flutter_svg: ^2.3.0
 
 
   dojah_kyc_sdk_flutter:

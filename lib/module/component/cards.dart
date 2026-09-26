@@ -38,18 +38,19 @@ class SurfaceCard extends StatelessWidget {
 /// or supplies a placeholder amount — [balance] must already be formatted by
 /// the screen or view model. While [loading] with no balance yet, it shows a
 /// neutral placeholder rather than inventing a number.
-/// The navy wallet card. Renders only the preformatted values it is given;
-/// a missing balance shows as unavailable, never as a sample amount.
+/// The navy wallet card (Figma "Main Wallet"). Renders only the values it is
+/// given; a missing balance shows as unavailable, never as a sample amount.
 class BalanceCard extends StatelessWidget {
   const BalanceCard({
     required this.label,
     required this.balance,
     required this.hidden,
     required this.onToggle,
-    this.secondaryLabel,
-    this.secondaryValue,
+    this.accountNumber,
+    this.onCopyAccountNumber,
+    this.tier,
+    this.note,
     this.statusLabel,
-    this.footer,
     this.loading = false,
     super.key,
   });
@@ -60,20 +61,31 @@ class BalanceCard extends StatelessWidget {
   final String? balance;
   final bool hidden;
   final VoidCallback onToggle;
-  final String? secondaryLabel;
-  final String? secondaryValue;
+
+  /// Shown after the label with a copy button, when the server supplied it.
+  final String? accountNumber;
+  final VoidCallback? onCopyAccountNumber;
+
+  /// The customer's current KYC tier, shown as a badge.
+  final int? tier;
+
+  /// A server-supplied line under the balance, e.g. interest earned today.
+  final String? note;
   final String? statusLabel;
-  final Widget? footer;
   final bool loading;
+
+  /// Figma frame size the decorative layer is laid out against.
+  static const _designSize = Size(358, 126);
 
   @override
   Widget build(BuildContext context) {
     final colors = context.bocColors;
     final theme = Theme.of(context);
-    final secondary = secondaryValue;
-    final status = statusLabel;
-    final footerWidget = footer;
     final value = balance;
+    final account = accountNumber;
+    final tier = this.tier;
+    final note = this.note;
+    final status = statusLabel;
     final muted = theme.textTheme.bodyMedium?.copyWith(
       color: colors.onNavyMuted,
     );
@@ -83,26 +95,33 @@ class BalanceCard extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 126),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        color: BocColors.navy,
         borderRadius: BorderRadius.circular(BocRadius.md),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [BocColors.navy, BocColors.navy2],
-        ),
       ),
       child: Stack(
         children: [
-          Positioned(
-            right: -48,
-            bottom: -64,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: BocColors.goldLight.withValues(alpha: 0.10),
-                  width: 16,
+          // Decorative art from the Figma frame, scaled with the card.
+          Positioned.fill(
+            child: ExcludeSemantics(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                alignment: Alignment.topLeft,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox.fromSize(
+                  size: _designSize,
+                  child: const _WalletCardArt(),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: ExcludeSemantics(
+              child: Opacity(
+                opacity: 0.1,
+                child: Image.asset(
+                  'assets/img/wallet_noise.png',
+                  repeat: ImageRepeat.repeat,
+                  filterQuality: FilterQuality.none,
                 ),
               ),
             ),
@@ -110,7 +129,7 @@ class BalanceCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               BocSpace.md,
-              BocSpace.md,
+              BocSpace.xs,
               BocSpace.xs,
               BocSpace.md,
             ),
@@ -119,10 +138,43 @@ class BalanceCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text(label, style: muted)),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(
+                          text: account == null ? label : '$label - ',
+                          children: [
+                            if (account != null)
+                              TextSpan(
+                                text: account,
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: colors.onNavy,
+                                      fontWeight: FontWeight.w700,
+                                    )
+                                    .figures,
+                              ),
+                          ],
+                        ),
+                        style: muted,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (account != null && onCopyAccountNumber != null)
+                      IconButton(
+                        tooltip: 'Copy account number',
+                        onPressed: onCopyAccountNumber,
+                        icon: SvgPicture.asset(
+                          'assets/svg/copy.svg',
+                          width: 20,
+                          height: 20,
+                        ),
+                      )
+                    else
+                      const SizedBox(height: BocSpace.minTouch),
                     if (loading)
                       Padding(
-                        padding: const EdgeInsets.only(right: BocSpace.xs),
+                        padding: const EdgeInsets.only(left: BocSpace.xs),
                         child: SizedBox.square(
                           dimension: 14,
                           child: CircularProgressIndicator(
@@ -160,59 +212,156 @@ class BalanceCard extends StatelessWidget {
                               ),
                             ),
                     ),
+                    const SizedBox(width: BocSpace.xs),
                     IconButton(
                       tooltip: hidden ? 'Show balance' : 'Hide balance',
                       onPressed: onToggle,
-                      color: colors.onNavyMuted,
-                      icon: Icon(
+                      icon: SvgPicture.asset(
                         hidden
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        size: 20,
+                            ? 'assets/svg/eye_slash.svg'
+                            : 'assets/svg/eye.svg',
+                        width: 20,
+                        height: 20,
                       ),
                     ),
                   ],
                 ),
-                if (status != null)
-                  Text(
-                    status,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: BocColors.goldLight,
-                    ),
-                  ),
-                if (secondary != null) ...[
-                  const SizedBox(height: BocSpace.xxs),
-                  Padding(
-                    padding: const EdgeInsets.only(right: BocSpace.xs),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            secondaryLabel ?? '',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.onNavyMuted,
-                            ),
-                          ),
+                Padding(
+                  padding: const EdgeInsets.only(right: BocSpace.xs),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (note != null)
+                              Text(
+                                note,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onNavyMuted,
+                                ),
+                              ),
+                            if (status != null)
+                              Text(
+                                status,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: BocColors.goldLight,
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(width: BocSpace.sm),
-                        Flexible(
-                          child: Text(
-                            hidden ? '••••••' : secondary,
-                            textAlign: TextAlign.right,
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(color: colors.onNavy)
-                                .figures,
+                      ),
+                      if (tier != null) ...[
+                        const SizedBox(width: BocSpace.xs),
+                        BocTierBadge(tier: tier),
+                        const SizedBox(width: BocSpace.xs),
+                        Text(
+                          'Tier $tier',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: colors.onNavyMuted,
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-                ?footerWidget,
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Wave lines and the soft rounded highlight from the Figma wallet frame,
+/// positioned in the frame's 358×126 coordinate space.
+class _WalletCardArt extends StatelessWidget {
+  const _WalletCardArt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 239.22,
+          top: 83.89,
+          width: 183.367,
+          height: 132.292,
+          child: Center(
+            child: Transform.rotate(
+              angle: -167.62 * math.pi / 180,
+              child: Container(
+                width: 166,
+                height: 99,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F4F9).withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(58.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: -192,
+          top: -179,
+          width: 709.933,
+          height: 535.65,
+          child: Center(
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.diagonal3Values(1, -1, 1)
+                ..rotateZ(-6.56 * math.pi / 180),
+              child: SvgPicture.asset(
+                'assets/svg/wallet_waves.svg',
+                width: 662.338,
+                height: 464.099,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The scalloped KYC tier badge with the tier number.
+class BocTierBadge extends StatelessWidget {
+  const BocTierBadge({required this.tier, this.size = 24, super.key});
+
+  final int tier;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Tier $tier',
+      excludeSemantics: true,
+      child: SizedBox.square(
+        dimension: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/svg/tier_badge.svg',
+              width: size,
+              height: size,
+            ),
+            Text(
+              '$tier',
+              textScaler: TextScaler.noScaling,
+              style: TextStyle(
+                fontFamily: kFigureFontFamily,
+                fontSize: size * 0.5,
+                fontWeight: FontWeight.w600,
+                color: BocColors.blue,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

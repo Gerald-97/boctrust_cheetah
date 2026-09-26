@@ -243,25 +243,54 @@ extension HomeScreen on AppFlowNavigatorState {
       wallet.availableBalance,
       currency: wallet.currency,
     );
-    final ledger = formatApiAmount(
-      wallet.ledgerBalance,
-      currency: wallet.currency,
-    );
     final status = wallet.status;
+    // The customer's funding account number, shown only once the server has
+    // confirmed complete details for it.
+    final funding = ref.watch(userHomeProvider).data?.dedicatedVirtualAccount;
+    final accountNumber =
+        funding != null &&
+            funding.status == DedicatedVirtualAccountStatus.available &&
+            funding.canDisplayDetails
+        ? funding.accountNumber?.trim()
+        : null;
 
     return BalanceCard(
-      label: 'Flex wallet balance',
+      label: 'Wallet balance',
       balance: available,
       hidden: hidden,
       onToggle: () => ref.read(homeBalanceHiddenProvider.notifier).toggle(),
-      secondaryLabel: ledger == null ? null : 'Ledger balance',
-      secondaryValue: ledger,
+      accountNumber: accountNumber,
+      onCopyAccountNumber: accountNumber == null || funding == null
+          ? null
+          : () => _copyFundingAccountNumber(funding),
+      tier: ref.watch(userTierProvider).data?.currentTier,
       // Surface a non-active wallet status; it never enables an action.
       statusLabel: wallet.isActive || status == null
           ? null
           : 'Wallet status: $status',
       loading: loading,
     );
+  }
+
+  /// Copies the funding account number only while the session and the Home
+  /// data it came from are still current.
+  Future<void> _copyFundingAccountNumber(
+    DedicatedVirtualAccountData account,
+  ) async {
+    final current = ref.read(userHomeProvider);
+    final session = ref.read(authSessionProvider);
+    final number = account.accountNumber?.trim();
+    if (number == null ||
+        session == null ||
+        session.isExpired ||
+        !current.isDone ||
+        current.data?.dedicatedVirtualAccount != account) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: number));
+    if (mounted && ref.read(authSessionProvider) == session) {
+      _showSuccessMessage('Account number copied.');
+    }
   }
 
   Widget _dedicatedVirtualAccountCard(DedicatedVirtualAccountData? account) {

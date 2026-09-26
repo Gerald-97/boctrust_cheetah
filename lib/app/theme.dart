@@ -31,9 +31,15 @@ SystemUiOverlayStyle kOverlayDark({Color? statusColor, Color? navColor}) =>
 /// width as they change. Use for figures only; labels stay in [kFontFamily].
 const kFigureFeatures = [FontFeature.tabularFigures()];
 
+/// FH Oscar has no naira sign (₦); glyphs it lacks come from the text font.
+const kFigureFontFallback = [kFontFamily];
+
 extension BocFigureTextStyle on TextStyle {
-  TextStyle get figures =>
-      copyWith(fontFamily: kFigureFontFamily, fontFeatures: kFigureFeatures);
+  TextStyle get figures => copyWith(
+    fontFamily: kFigureFontFamily,
+    fontFamilyFallback: kFigureFontFallback,
+    fontFeatures: kFigureFeatures,
+  );
 }
 
 class CheetahTheme {
@@ -247,6 +253,7 @@ class CheetahTheme {
   static TextTheme _textTheme(BocSemanticColors c) {
     TextStyle figure(double size, double height) => TextStyle(
       fontFamily: kFigureFontFamily,
+      fontFamilyFallback: kFigureFontFallback,
       fontFeatures: kFigureFeatures,
       fontSize: size,
       height: height,
