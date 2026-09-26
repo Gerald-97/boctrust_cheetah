@@ -464,13 +464,16 @@ class _HomeLimitLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: BocSpace.xxs),
       // Wraps the value under its label when large text leaves no room.
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        spacing: BocSpace.sm,
-        children: [
-          Text(label, style: theme.textTheme.bodySmall),
-          Text(value, style: theme.textTheme.titleSmall?.figures),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: BocSpace.sm,
+          children: [
+            Text(label, style: theme.textTheme.bodySmall),
+            Text(value, style: theme.textTheme.titleSmall?.figures),
+          ],
+        ),
       ),
     );
   }

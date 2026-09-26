@@ -205,7 +205,8 @@ class BalanceCard extends StatelessWidget {
                               child: BocMoneyText(
                                 value,
                                 hidden: hidden,
-                                semanticsLabel: label,
+                                // The visible label is read just before this.
+                                semanticsLabel: 'Available',
                                 style: theme.textTheme.displayMedium?.copyWith(
                                   color: colors.onNavy,
                                 ),
@@ -254,7 +255,8 @@ class BalanceCard extends StatelessWidget {
                       ),
                       if (tier != null) ...[
                         const SizedBox(width: BocSpace.xs),
-                        BocTierBadge(tier: tier),
+                        // "Tier N" beside it already names the tier.
+                        ExcludeSemantics(child: BocTierBadge(tier: tier)),
                         const SizedBox(width: BocSpace.xs),
                         Text(
                           'Tier $tier',
