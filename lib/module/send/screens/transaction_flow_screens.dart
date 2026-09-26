@@ -3,6 +3,82 @@ part of '../../app_flow/app_flow_navigator.dart';
 /// Transaction detail. Shows only a record the server returned; a receipt
 /// card appears only when the server supplied a completed receipt.
 extension TransactionFlowScreens on AppFlowNavigatorState {
+  /// History grouped by month, newest first. Only records the server
+  /// returned are listed; a failed load shows the error, never a sample.
+  Widget _transactionHistoryScreen() {
+    final history = ref.watch(transactionHistoryProvider);
+    if (history.status == ServiceStatus.idle) {
+      Future<void>.microtask(
+        ref.read(transactionHistoryProvider.notifier).load,
+      );
+    }
+    final records = [...?history.data]
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final months = <String, List<TransactionRecord>>{};
+    for (final record in records) {
+      months
+          .putIfAbsent(
+            DateFormat('MMMM y').format(record.occurredAt.toLocal()),
+            () => [],
+          )
+          .add(record);
+    }
+    return AppScaffold(
+      title: 'Transaction history',
+      activeSection: AppSection.payments,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      body: RefreshIndicator(
+        onRefresh: ref.read(transactionHistoryProvider.notifier).load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(BocSpace.gutter),
+          children: [
+            if (history.isLoading && records.isEmpty)
+              const ApiLoadingSection(label: 'Loading your transactions'),
+            if (history.isError)
+              ApiStateCard(
+                title: 'Transaction history unavailable',
+                message: history.message ?? 'We could not load your history.',
+                tone: ApiStateTone.error,
+                actionLabel: 'Retry',
+                onAction: ref.read(transactionHistoryProvider.notifier).load,
+              ),
+            if (history.isDone && records.isEmpty)
+              const ApiStateCard(
+                title: 'No transactions',
+                message: 'Your transactions will appear here.',
+                tone: ApiStateTone.info,
+              ),
+            for (final MapEntry(key: month, value: items)
+                in months.entries) ...[
+              SettingsGroup(
+                caption: month,
+                padding: const EdgeInsets.only(bottom: BocSpace.md),
+                children: [
+                  for (final record in items)
+                    TransactionTile(
+                      title: record.title,
+                      subtitle: DateFormat(
+                        'd MMM, h:mm a',
+                      ).format(record.occurredAt.toLocal()),
+                      amount: record.amount,
+                      direction: record.direction,
+                      pending: record.status == TransactionStatus.pending,
+                      onTap: () => Navigator.of(context).pushNamed(
+                        AppRoutes.transactionDetail,
+                        arguments: AppRouteArguments(entityId: record.id),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _transactionDetailScreen() {
     final id = widget.routeArguments.entityId;
     final history = ref.watch(transactionHistoryProvider);

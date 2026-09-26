@@ -41,6 +41,13 @@ extension AccountScreens on AppFlowNavigatorState {
     // transaction or beneficiary service they only explain the gap.
     switch (route) {
       case AppPreviewRoute.transactionHistory:
+        if (ref
+            .watch(
+              featureAvailabilityProvider(FeatureCapability.transactionHistory),
+            )
+            .isAvailable) {
+          return _transactionHistoryScreen();
+        }
         return _transactionUnavailableScreen(
           capability: FeatureCapability.transactionHistory,
           title: 'Transactions',

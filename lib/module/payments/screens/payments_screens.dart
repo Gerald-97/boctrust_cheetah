@@ -4,124 +4,57 @@ part of '../../app_flow/app_flow_navigator.dart';
 /// server contract, so their routes explain that instead of taking input.
 extension PaymentsScreens on AppFlowNavigatorState {
   Widget _paymentsScreen() {
+    final colors = context.bocColors;
     return AppScaffold(
       title: 'Payments',
       activeSection: AppSection.payments,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.fromLTRB(
+          BocSpace.gutter,
+          BocSpace.xxs,
+          BocSpace.gutter,
+          BocSpace.lg,
+        ),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: RegulatoryBadge(),
+          PaymentActionCard(
+            icon: Icons.qr_code_scanner_rounded,
+            title: 'Scan to pay',
+            subtitle: 'Not available yet',
+            color: colors.smartSaveContainer,
+            onTap: () => _go(AppScreen.scan),
           ),
-          const SizedBox(height: 18),
-          const SectionHeader(title: 'Send & receive'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: PaymentActionCard(
-                    icon: Icons.send_rounded,
-                    title: 'Send money',
-                    subtitle: 'Not available yet',
-                    color: BocColors.gold,
-                    onTap: () => _go(AppScreen.sendHub),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: PaymentActionCard(
-                    icon: Icons.add_card_rounded,
-                    title: 'Add money',
-                    subtitle: 'Top up your wallet balance',
-                    color: BocColors.blue,
-                    onTap: () => _go(AppScreen.addMoney),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: BocSpace.xs),
+          PaymentActionCard(
+            icon: Icons.add_card_rounded,
+            title: 'Add money',
+            subtitle: 'Top up your wallet by bank transfer',
+            color: BocColors.goldLight,
+            onTap: () => _go(AppScreen.addMoney),
           ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: PaymentActionCard(
-              icon: Icons.qr_code_scanner_rounded,
-              title: 'Scan to pay',
-              subtitle: 'Not available yet',
-              color: BocColors.purple,
-              onTap: () => _go(AppScreen.scan),
-            ),
-          ),
-          const SizedBox(height: 22),
+          const SizedBox(height: BocSpace.lg),
           const SectionHeader(title: 'Bill payments'),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
-            child: ApiStateCard(
-              title: 'Bill payments are unavailable',
-              message:
-                  'Airtime, data, and bill payments are not available yet.',
-              tone: ApiStateTone.blocked,
-            ),
+          const ApiStateCard(
+            title: 'Bill payments are unavailable',
+            message: 'Airtime, data, and bill payments are not available yet.',
+            tone: ApiStateTone.blocked,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ResponsiveTiles(
-              minTileWidth: 72,
-              spacing: 16,
-              children: [
-                BillGridItem(
-                  icon: Icons.phone_android_rounded,
-                  label: 'Airtime',
-                  color: BocColors.gold,
-                  onTap: () => _go(AppScreen.airtime),
-                ),
-                BillGridItem(
-                  icon: Icons.signal_cellular_alt_rounded,
-                  label: 'Data',
-                  color: BocColors.blue,
-                  onTap: () => _go(AppScreen.data),
-                ),
-                BillGridItem(
-                  icon: Icons.bolt_outlined,
-                  label: 'Electricity',
-                  color: BocColors.purple,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-                BillGridItem(
-                  icon: Icons.water_drop_outlined,
-                  label: 'Water',
-                  color: BocColors.green,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-                BillGridItem(
-                  icon: Icons.tv_outlined,
-                  label: 'Cable TV',
-                  color: BocColors.gold,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-                BillGridItem(
-                  icon: Icons.wifi_rounded,
-                  label: 'Internet',
-                  color: BocColors.blue,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-                BillGridItem(
-                  icon: Icons.school_outlined,
-                  label: 'Education',
-                  color: BocColors.purple,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-                BillGridItem(
-                  icon: Icons.more_horiz_rounded,
-                  label: 'More',
-                  color: BocColors.green,
-                  onTap: () => _go(AppScreen.billerList),
-                ),
-              ],
-            ),
+          const SizedBox(height: BocSpace.md),
+          _BillerGrid(
+            billers: [
+              (Icons.phone_android_rounded, 'Airtime', AppScreen.airtime),
+              (Icons.signal_cellular_alt_rounded, 'Data', AppScreen.data),
+              (Icons.bolt_outlined, 'Electricity', AppScreen.billerList),
+              (Icons.water_drop_outlined, 'Water', AppScreen.billerList),
+              (Icons.tv_outlined, 'Cable TV', AppScreen.billerList),
+              (Icons.wifi_rounded, 'Internet', AppScreen.billerList),
+              (Icons.school_outlined, 'Education', AppScreen.billerList),
+              (Icons.more_horiz_rounded, 'More', AppScreen.billerList),
+            ],
+            onSelected: _go,
           ),
+          const SizedBox(height: BocSpace.lg),
+          const RegulatoryBadge(),
         ],
       ),
     );
@@ -164,4 +97,79 @@ extension PaymentsScreens on AppFlowNavigatorState {
   );
 
   Widget _billPayScreen() => _billerListScreen();
+}
+
+/// Searchable biller grid: four columns, three on narrow screens.
+class _BillerGrid extends StatefulWidget {
+  const _BillerGrid({required this.billers, required this.onSelected});
+
+  final List<(IconData, String, AppScreen)> billers;
+  final ValueChanged<AppScreen> onSelected;
+
+  @override
+  State<_BillerGrid> createState() => _BillerGridState();
+}
+
+class _BillerGridState extends State<_BillerGrid> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.trim().toLowerCase();
+    final iconColor = Theme.of(context).brightness == Brightness.dark
+        ? context.bocColors.textPrimary
+        : BocColors.navy2;
+    final visible = [
+      for (final biller in widget.billers)
+        if (query.isEmpty || biller.$2.toLowerCase().contains(query)) biller,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          onChanged: (value) => setState(() => _query = value),
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            hintText: 'Search billers',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+        ),
+        const SizedBox(height: BocSpace.sm),
+        if (visible.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: BocSpace.md),
+            child: Text(
+              'No billers match "$_query".',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth < 328 ? 3 : 4;
+              const gap = BocSpace.xs;
+              final width =
+                  (constraints.maxWidth - gap * (columns - 1)) / columns;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final (icon, label, screen) in visible)
+                    SizedBox(
+                      width: width,
+                      child: BillGridItem(
+                        icon: icon,
+                        label: label,
+                        color: iconColor,
+                        onTap: () => widget.onSelected(screen),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+      ],
+    );
+  }
 }

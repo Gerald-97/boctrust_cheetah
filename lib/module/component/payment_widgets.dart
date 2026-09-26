@@ -64,6 +64,7 @@ class PaymentActionCard extends StatelessWidget {
   }
 }
 
+/// A biller category tile in the Payments grid.
 class BillGridItem extends StatelessWidget {
   const BillGridItem({
     required this.icon,
@@ -75,28 +76,50 @@ class BillGridItem extends StatelessWidget {
 
   final IconData icon;
   final String label;
+
+  /// Accent for the icon.
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          RoundedIcon(icon: icon, color: color, size: 48),
-          const SizedBox(height: 7),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+    final colors = context.bocColors;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(BocRadius.md),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 80),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BocSpace.xxs,
+                vertical: BocSpace.sm,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color, size: 26),
+                  const SizedBox(height: BocSpace.xs),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

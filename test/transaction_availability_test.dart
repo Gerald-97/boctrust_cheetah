@@ -144,7 +144,11 @@ void main() {
     expect(find.text('Recent transactions'), findsNothing);
     expectNothingFabricated();
 
-    await tester.scrollUntilVisible(find.text('Electricity'), 200);
+    await tester.scrollUntilVisible(
+      find.text('Electricity'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     // Clear the bottom navigation bar so the tap lands on the tile.
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
     await tester.pump();
