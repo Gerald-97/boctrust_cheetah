@@ -51,10 +51,11 @@ const _currencySymbols = <String, String>{'NGN': '₦'};
 
 /// Formats an API-authoritative decimal amount string for display.
 ///
-/// The amount is grouped and prefixed by pure string manipulation so the
-/// server's exact precision is preserved. It is deliberately never parsed to
-/// `double` — binary floating point cannot represent decimal money exactly,
-/// and the client must not restate a balance the API did not send.
+/// Amounts always show two decimal places (kobo), rounded half-up from the
+/// server's precision: `2500.0000` → `₦2,500.00`, `9.995` → `₦10.00`. The
+/// rounding is done on the decimal digits themselves; the amount is
+/// deliberately never parsed to `double`, because binary floating point
+/// cannot represent decimal money exactly.
 ///
 /// Returns null when [amount] is absent or is not a plain decimal number, so
 /// callers render an explicit unavailable state instead of a wrong figure.
@@ -66,8 +67,7 @@ String? formatApiAmount(String? amount, {String? currency}) {
   if (match == null) return null;
 
   final sign = match.group(1)!;
-  final whole = match.group(2)!;
-  final fraction = match.group(3);
+  final (whole, fraction) = _roundToKobo(match.group(2)!, match.group(3) ?? '');
 
   final grouped = StringBuffer();
   for (var i = 0; i < whole.length; i++) {
@@ -79,7 +79,24 @@ String? formatApiAmount(String? amount, {String? currency}) {
   final suffix = symbol.isEmpty && currency != null && currency.isNotEmpty
       ? ' $currency'
       : '';
-  return '$sign$symbol$grouped${fraction == null ? '' : '.$fraction'}$suffix';
+  final signed = sign.isNotEmpty && '$whole$fraction'.contains(RegExp('[1-9]'))
+      ? sign
+      : '';
+  return '$signed$symbol$grouped.$fraction$suffix';
+}
+
+/// Rounds a decimal given as digit strings to two places, half-up, without
+/// floating point. Returns the whole part (no leading zeros) and exactly two
+/// fraction digits.
+(String, String) _roundToKobo(String whole, String fraction) {
+  final padded = fraction.padRight(3, '0');
+  var cents = BigInt.parse('$whole${padded.substring(0, 2)}');
+  if (padded.codeUnitAt(2) >= 0x35) cents += BigInt.one; // third digit ≥ 5
+  final digits = cents.toString().padLeft(3, '0');
+  return (
+    digits.substring(0, digits.length - 2),
+    digits.substring(digits.length - 2),
+  );
 }
 
 /// Masks all but the last [visible] characters of an identifier.

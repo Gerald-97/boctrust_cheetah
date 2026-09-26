@@ -12,21 +12,23 @@ void main() {
     test('groups a decimal string without parsing to double', () {
       expect(formatApiAmount('1248530.75', currency: 'NGN'), '₦1,248,530.75');
       expect(formatApiAmount('0.00', currency: 'NGN'), '₦0.00');
-      expect(formatApiAmount('999', currency: 'NGN'), '₦999');
-      expect(formatApiAmount('1000', currency: 'NGN'), '₦1,000');
-      expect(formatApiAmount('1000000', currency: 'NGN'), '₦1,000,000');
+      expect(formatApiAmount('999', currency: 'NGN'), '₦999.00');
+      expect(formatApiAmount('1000', currency: 'NGN'), '₦1,000.00');
+      expect(formatApiAmount('1000000', currency: 'NGN'), '₦1,000,000.00');
       expect(formatApiAmount('-2500.50', currency: 'NGN'), '-₦2,500.50');
     });
 
-    test('preserves precision a double round-trip would destroy', () {
+    test('rounds to kobo without a double round-trip', () {
       // Beyond 2^53: parsing to double and back would change this value.
       expect(
         formatApiAmount('9007199254740993.01', currency: 'NGN'),
         '₦9,007,199,254,740,993.01',
       );
-      // Trailing decimal digits are preserved exactly as sent.
+      // Always two decimals, rounded half-up on the digits (a double would
+      // store 1.005 as 1.00499… and round it down).
       expect(formatApiAmount('0.10', currency: 'NGN'), '₦0.10');
-      expect(formatApiAmount('1.005', currency: 'NGN'), '₦1.005');
+      expect(formatApiAmount('1.005', currency: 'NGN'), '₦1.01');
+      expect(formatApiAmount('2500.0000', currency: 'NGN'), '₦2,500.00');
     });
 
     test('falls back to a currency suffix when the symbol is unknown', () {

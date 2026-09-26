@@ -107,7 +107,7 @@ void main() {
     expect(requests, hasLength(1));
     expect(requests.single.uri.path, '/api/v1/users/me/home');
     expect(requests.single.headers['Authorization'], 'Bearer synthetic-layout');
-    expect(find.text('₦2,500.0000'), findsWidgets);
+    expect(find.text('₦2,500.00'), findsWidgets);
     expect(find.text('Server Flex Product'), findsOneWidget);
     expect(find.textContaining('99.99'), findsNothing);
 
@@ -122,7 +122,7 @@ void main() {
     await tester.tap(find.byTooltip('Refresh'));
     await tester.pumpAndSettle();
     expect(requests, hasLength(2));
-    expect(find.text('₦3,000.0000'), findsWidgets);
+    expect(find.text('₦3,000.00'), findsWidgets);
 
     await tester.tap(find.text('Add money'));
     await tester.pumpAndSettle();
