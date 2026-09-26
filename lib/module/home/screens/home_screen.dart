@@ -2,7 +2,6 @@ part of '../../app_flow/app_flow_navigator.dart';
 
 extension HomeScreen on AppFlowNavigatorState {
   Widget _homeScreen() {
-    final currentThemeMode = ref.watch(themeControllerProvider).mode;
     final profileState = ref.watch(userProfileProvider);
     final tierState = ref.watch(userTierProvider);
     final homeState = ref.watch(userHomeProvider);
@@ -20,50 +19,35 @@ extension HomeScreen on AppFlowNavigatorState {
       Future<void>.microtask(ref.read(userHomeProvider.notifier).load);
     }
 
-    final themeIcon = switch (currentThemeMode) {
-      AppThemeMode.light => Icons.light_mode_outlined,
-      AppThemeMode.dark => Icons.dark_mode_outlined,
-      AppThemeMode.system => Icons.settings_brightness_outlined,
-    };
     final displayName = profile?.firstName?.trim().isNotEmpty == true
         ? profile!.firstName!.trim()
         : 'there';
     final identifier =
-        profile?.email ??
         profile?.phoneNumber ??
-        session?.email ??
+        profile?.email ??
         session?.phoneNumber ??
-        'Account details unavailable';
+        session?.email;
     final tierSummary = tier?.currentTierSummary;
+    final topTier = tier?.tiers.fold<int>(
+      0,
+      (highest, card) => card.tier > highest ? card.tier : highest,
+    );
+    final canUpgrade =
+        tier != null && topTier != null && tier.currentTier < topTier;
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
 
     return AppScaffold(
       titleWidget: const BocLogo(height: 26),
       activeSection: AppSection.home,
       onSectionSelected: _goSection,
       actions: [
-        IconButton.filledTonal(
-          style: IconButton.styleFrom(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
-            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          tooltip: 'Change theme',
-          onPressed: () =>
-              ref.read(themeControllerProvider.notifier).cycleMode(),
-          icon: Icon(themeIcon, size: 18),
-        ),
-        IconButton.filledTonal(
-          style: IconButton.styleFrom(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
-            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+        IconButton(
           tooltip: 'Notifications',
           onPressed: () => _go(AppScreen.notifications),
           icon: const Icon(Icons.notifications_none_rounded),
         ),
+        const SizedBox(width: BocSpace.xs),
       ],
       body: RefreshIndicator(
         onRefresh: () async {
@@ -75,135 +59,129 @@ extension HomeScreen on AppFlowNavigatorState {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.gutter,
+            BocSpace.xs,
+            BocSpace.gutter,
+            BocSpace.lg,
+          ),
           children: [
-            Text(
-              'Welcome, $displayName',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              identifier,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).textTheme.bodySmall?.color,
+            Semantics(
+              header: true,
+              child: Text(
+                'Hi, $displayName',
+                style: theme.textTheme.titleLarge,
               ),
             ),
-            const SizedBox(height: 18),
+            if (identifier != null) ...[
+              const SizedBox(height: BocSpace.xxs),
+              Text(identifier, style: theme.textTheme.bodySmall),
+            ],
+            const SizedBox(height: BocSpace.md),
             if (profileState.isError || tierState.isError) ...[
-              MaterialBanner(
-                content: Text(
-                  profileState.message ??
-                      tierState.message ??
-                      'Unable to refresh your account details.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () async {
-                      await Future.wait([
-                        ref.read(userProfileProvider.notifier).load(),
-                        ref.read(userTierProvider.notifier).load(),
-                      ]);
-                    },
-                    child: const Text('Retry'),
-                  ),
+              ApiStateCard(
+                title: 'Some account details did not load',
+                message:
+                    profileState.message ??
+                    tierState.message ??
+                    'Unable to refresh your account details.',
+                tone: ApiStateTone.warning,
+                actionLabel: 'Retry',
+                onAction: () async {
+                  await Future.wait([
+                    ref.read(userProfileProvider.notifier).load(),
+                    ref.read(userTierProvider.notifier).load(),
+                  ]);
+                },
+              ),
+              const SizedBox(height: BocSpace.md),
+            ],
+            ..._homeWalletSection(homeState),
+            const SizedBox(height: BocSpace.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BocSpace.xs,
+                vertical: BocSpace.sm,
+              ),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(BocRadius.md),
+              ),
+              child: Row(
+                children: [
+                  for (final (icon, label, screen) in const [
+                    (Icons.add_rounded, 'Add money', AppScreen.addMoney),
+                    (Icons.send_rounded, 'Send', AppScreen.sendHub),
+                    (Icons.savings_outlined, 'Save', AppScreen.saveHub),
+                    (Icons.receipt_long_outlined, 'Pay', AppScreen.payments),
+                  ])
+                    Expanded(
+                      child: QuickAction(
+                        icon: icon,
+                        label: label,
+                        background: colors.smartSaveContainer,
+                        foreground: theme.brightness == Brightness.dark
+                            ? colors.textPrimary
+                            : BocColors.navy,
+                        onTap: () => _go(screen),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 14),
-            ],
-            SurfaceCard(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ProfileAvatar(
-                    displayName: profile?.displayName ?? 'Your account',
-                    hasImage: profile?.imageUrl?.isNotEmpty ?? false,
-                    radius: 22,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            if (canUpgrade && tierSummary != null) ...[
+              const SizedBox(height: BocSpace.sm),
+              Container(
+                padding: const EdgeInsets.all(BocSpace.md),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(BocRadius.md),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          profile?.displayName ?? 'Your account',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.smartSaveContainer,
+                            borderRadius: BorderRadius.circular(BocRadius.sm),
+                          ),
+                          child: SizedBox.square(
+                            dimension: 40,
+                            child: Icon(
+                              Icons.verified_user_outlined,
+                              color: colors.smartSaveAccent,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        Text(
-                          profile == null
-                              ? 'Loading verified profile details…'
-                              : 'Tier ${profile.tier} · '
-                                    '${profile.isVerifiedAccount ? 'Verified' : 'Verification pending'}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 10),
-                        TextButton.icon(
-                          onPressed: () => _go(AppScreen.account),
-                          icon: const Icon(Icons.manage_accounts_outlined),
-                          label: const Text('Manage account'),
+                        const SizedBox(width: BocSpace.sm),
+                        Expanded(
+                          child: Text(
+                            tierSummary.tierLabel,
+                            style: theme.textTheme.titleMedium,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            ..._homeWalletSection(homeState),
-            const SizedBox(height: 14),
-            SurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const RoundedIcon(
-                        icon: Icons.shield_outlined,
-                        color: BocColors.blue,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          tierSummary?.tierLabel ?? 'Account tier',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (tierSummary != null) ...[
-                    LimitRow(
+                    const SizedBox(height: BocSpace.sm),
+                    _HomeLimitLine(
                       label: 'Daily transfer limit',
                       value: tierSummary.dailyTransferLimit.displayValue,
                     ),
-                    LimitRow(
+                    _HomeLimitLine(
                       label: 'Max wallet balance',
                       value: tierSummary.maxWalletBalance.displayValue,
                     ),
-                  ] else
-                    Text(
-                      tierState.isLoading
-                          ? 'Loading tier details…'
-                          : 'Tier details are unavailable.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    const SizedBox(height: BocSpace.sm),
+                    SecondaryButton(
+                      label: 'Complete KYC',
+                      onPressed: () => _go(AppScreen.tiers),
                     ),
-                  const SizedBox(height: 10),
-                  TextButton.icon(
-                    onPressed: () => _go(AppScreen.tiers),
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    label: const Text('View account tiers'),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -271,23 +249,18 @@ extension HomeScreen on AppFlowNavigatorState {
     );
     final status = wallet.status;
 
-    return Padding(
-      // BalanceCard carries its own page-edge margin; this section is already
-      // inset by the surrounding ListView padding.
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: BalanceCard(
-        label: 'Flex wallet balance',
-        balance: available,
-        hidden: hidden,
-        onToggle: () => ref.read(homeBalanceHiddenProvider.notifier).toggle(),
-        secondaryLabel: ledger == null ? null : 'Ledger balance',
-        secondaryValue: ledger,
-        // Surface a non-active wallet status; it never enables an action.
-        statusLabel: wallet.isActive || status == null
-            ? null
-            : 'Wallet status: $status',
-        loading: loading,
-      ),
+    return BalanceCard(
+      label: 'Flex wallet balance',
+      balance: available,
+      hidden: hidden,
+      onToggle: () => ref.read(homeBalanceHiddenProvider.notifier).toggle(),
+      secondaryLabel: ledger == null ? null : 'Ledger balance',
+      secondaryValue: ledger,
+      // Surface a non-active wallet status; it never enables an action.
+      statusLabel: wallet.isActive || status == null
+          ? null
+          : 'Wallet status: $status',
+      loading: loading,
     );
   }
 
@@ -441,6 +414,30 @@ extension HomeScreen on AppFlowNavigatorState {
               label: const Text('Copy account number'),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeLimitLine extends StatelessWidget {
+  const _HomeLimitLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BocSpace.xxs),
+      // Wraps the value under its label when large text leaves no room.
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: BocSpace.sm,
+        children: [
+          Text(label, style: theme.textTheme.bodySmall),
+          Text(value, style: theme.textTheme.titleSmall?.figures),
         ],
       ),
     );

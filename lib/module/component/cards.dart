@@ -38,6 +38,8 @@ class SurfaceCard extends StatelessWidget {
 /// or supplies a placeholder amount — [balance] must already be formatted by
 /// the screen or view model. While [loading] with no balance yet, it shows a
 /// neutral placeholder rather than inventing a number.
+/// The navy wallet card. Renders only the preformatted values it is given;
+/// a missing balance shows as unavailable, never as a sample amount.
 class BalanceCard extends StatelessWidget {
   const BalanceCard({
     required this.label,
@@ -64,130 +66,148 @@ class BalanceCard extends StatelessWidget {
   final Widget? footer;
   final bool loading;
 
-  static const _mutedText = Color(0xFFC7D3E0);
-
   @override
   Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
     final secondary = secondaryValue;
     final status = statusLabel;
     final footerWidget = footer;
+    final value = balance;
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: colors.onNavyMuted,
+    );
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 126),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(BocRadius.md),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [BocColors.navy, BocColors.navy2, Color(0xFF234A72)],
+          colors: [BocColors.navy, BocColors.navy2],
         ),
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -40,
-            top: -40,
+            right: -48,
+            bottom: -64,
             child: Container(
-              width: 160,
-              height: 160,
+              width: 180,
+              height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: BocColors.goldLight.withValues(alpha: 0.18),
-                  width: 14,
+                  color: BocColors.goldLight.withValues(alpha: 0.10),
+                  width: 16,
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            padding: const EdgeInsets.fromLTRB(
+              BocSpace.md,
+              BocSpace.md,
+              BocSpace.xs,
+              BocSpace.md,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: const TextStyle(color: _mutedText, fontSize: 12),
-                      ),
-                    ),
+                    Expanded(child: Text(label, style: muted)),
                     if (loading)
-                      const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _mutedText,
+                      Padding(
+                        padding: const EdgeInsets.only(right: BocSpace.xs),
+                        child: SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.onNavyMuted,
+                          ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Expanded(child: _balanceText(context)),
-                    IconButton.filledTonal(
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.16),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(48, 48),
-                      ),
-                      onPressed: balance == null ? null : onToggle,
+                    Flexible(
+                      child: value == null
+                          ? Semantics(
+                              label: '$label unavailable',
+                              excludeSemantics: true,
+                              child: Text(
+                                '—',
+                                style: theme.textTheme.displayMedium?.copyWith(
+                                  color: colors.onNavy,
+                                ),
+                              ),
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: BocMoneyText(
+                                value,
+                                hidden: hidden,
+                                semanticsLabel: label,
+                                style: theme.textTheme.displayMedium?.copyWith(
+                                  color: colors.onNavy,
+                                ),
+                              ),
+                            ),
+                    ),
+                    IconButton(
                       tooltip: hidden ? 'Show balance' : 'Hide balance',
+                      onPressed: onToggle,
+                      color: colors.onNavyMuted,
                       icon: Icon(
                         hidden
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
+                        size: 20,
                       ),
                     ),
                   ],
                 ),
-                if (status != null) ...[
-                  const SizedBox(height: 2),
+                if (status != null)
                   Text(
                     status,
-                    style: const TextStyle(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: BocColors.goldLight,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                if (secondary != null) ...[
+                  const SizedBox(height: BocSpace.xxs),
+                  Padding(
+                    padding: const EdgeInsets.only(right: BocSpace.xs),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            secondaryLabel ?? '',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onNavyMuted,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: BocSpace.sm),
+                        Flexible(
+                          child: Text(
+                            hidden ? '••••••' : secondary,
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(color: colors.onNavy)
+                                .figures,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-                if (secondary != null || footerWidget != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
-                  const SizedBox(height: 13),
-                ],
-                if (secondary != null)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          secondaryLabel ?? '',
-                          style: const TextStyle(
-                            color: _mutedText,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          hidden ? '••••••' : secondary,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ).figures,
-                        ),
-                      ),
-                    ],
-                  ),
                 ?footerWidget,
               ],
             ),
@@ -196,37 +216,10 @@ class BalanceCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _balanceText(BuildContext context) {
-    final value = balance;
-    final text = value == null
-        ? '—'
-        : hidden
-        ? '••••••••••'
-        : value;
-    return Semantics(
-      label: value == null
-          ? '$label unavailable'
-          : hidden
-          ? '$label hidden'
-          : '$label $value',
-      excludeSemantics: true,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
-        child: Text(
-          text,
-          key: ValueKey('$text-$hidden'),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w600,
-          ).figures,
-        ),
-      ),
-    );
-  }
 }
 
+/// One of the Home quick actions: a tinted icon tile over a label, tappable
+/// across the whole column.
 class QuickAction extends StatelessWidget {
   const QuickAction({
     required this.icon,
@@ -245,35 +238,41 @@ class QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: SizedBox(
-        width: 78,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: background,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: foreground, size: 22),
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(BocRadius.sm),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72, minWidth: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: BocSpace.xxs),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(BocRadius.sm),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 48,
+                    child: Icon(icon, color: foreground, size: 24),
+                  ),
+                ),
+                const SizedBox(height: BocSpace.xs),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ],
             ),
-            const SizedBox(height: 7),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
