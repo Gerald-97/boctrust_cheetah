@@ -14,23 +14,26 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final action = this.action;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+      padding: const EdgeInsets.fromLTRB(
+        BocSpace.gutter,
+        BocSpace.xxs,
+        BocSpace.xs,
+        BocSpace.xs,
+      ),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 16),
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
           ),
-          if (action != null)
-            TextButton(
-              onPressed: onAction,
-              child: Text(action!, style: const TextStyle(fontSize: 12)),
-            ),
+          if (action != null) BocTextButton(label: action, onPressed: onAction),
         ],
       ),
     );
@@ -242,33 +245,74 @@ class ReceiptRow extends StatelessWidget {
   }
 }
 
+/// A grouped card of [SettingsTile]s with an optional caption above it.
 class SettingsGroup extends StatelessWidget {
-  const SettingsGroup({required this.children, super.key});
+  const SettingsGroup({required this.children, this.caption, super.key});
+
   final List<Widget> children;
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
+    final colors = context.bocColors;
+    final caption = this.caption;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        BocSpace.gutter,
+        0,
+        BocSpace.gutter,
+        BocSpace.md,
       ),
-      clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index != children.length - 1)
-              Divider(height: 1, color: Theme.of(context).dividerColor),
-          ],
+          if (caption != null)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: BocSpace.xxs,
+                bottom: BocSpace.xs,
+              ),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  caption,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              ),
+            ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(BocRadius.md),
+              border: Theme.of(context).brightness == Brightness.dark
+                  ? Border.all(color: colors.border)
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(BocRadius.md),
+              child: Column(
+                children: [
+                  for (var index = 0; index < children.length; index++) ...[
+                    children[index],
+                    if (index != children.length - 1)
+                      Divider(
+                        height: 1,
+                        indent: BocSpace.md + 24 + BocSpace.sm,
+                        color: colors.border,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+/// One settings row: icon, title, subtitle and a trailing chevron, switch or
+/// tag. Rows are at least 56px tall and tappable across their full width.
 class SettingsTile extends StatelessWidget {
   const SettingsTile({
     required this.icon,
@@ -276,51 +320,111 @@ class SettingsTile extends StatelessWidget {
     required this.subtitle,
     this.trailing,
     this.onTap,
+    this.titleColor,
     super.key,
-  });
+  }) : _toggleValue = null,
+       _onToggle = null;
+
+  /// A row whose whole surface toggles [value]. A null [onChanged] disables
+  /// the row, e.g. for a capability that is not available yet.
+  const SettingsTile.toggle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required bool value,
+    required ValueChanged<bool>? onChanged,
+    this.trailing,
+    this.titleColor,
+    super.key,
+  }) : onTap = null,
+       _toggleValue = value,
+       _onToggle = onChanged;
 
   final IconData icon;
   final String title;
   final String subtitle;
+
+  /// Shown before the chevron or switch, e.g. a "Not available yet" tag.
   final Widget? trailing;
   final VoidCallback? onTap;
 
+  /// Overrides the title colour, e.g. error text for "Delete account".
+  final Color? titleColor;
+  final bool? _toggleValue;
+  final ValueChanged<bool>? _onToggle;
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final toggleValue = _toggleValue;
+    final onToggle = _onToggle;
+    final isToggle = toggleValue != null;
+    final enabled = isToggle ? onToggle != null : true;
+    final Widget end = isToggle
+        ? ExcludeSemantics(
+            child: Switch(value: toggleValue, onChanged: onToggle),
+          )
+        : Icon(Icons.chevron_right_rounded, color: colors.textTertiary);
+    final row = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: BocSpace.md,
+          vertical: BocSpace.sm,
+        ),
         child: Row(
           children: [
-            RoundedIcon(icon: icon, color: BocColors.gold, size: 34),
-            const SizedBox(width: 11),
+            Icon(
+              icon,
+              size: 24,
+              color:
+                  titleColor ??
+                  (theme.brightness == Brightness.dark
+                      ? colors.textPrimary
+                      : BocColors.navy),
+            ),
+            const SizedBox(width: BocSpace.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color:
+                          titleColor ?? (enabled ? null : colors.textDisabled),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: theme.textTheme.bodySmall),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            trailing ?? const Icon(Icons.chevron_right_rounded, size: 18),
+            if (trailing != null) ...[
+              const SizedBox(width: BocSpace.xs),
+              trailing!,
+            ],
+            const SizedBox(width: BocSpace.xs),
+            end,
           ],
         ),
       ),
     );
+    if (isToggle) {
+      return MergeSemantics(
+        child: Semantics(
+          toggled: toggleValue,
+          enabled: enabled,
+          child: InkWell(
+            onTap: onToggle == null ? null : () => onToggle(!toggleValue),
+            child: row,
+          ),
+        ),
+      );
+    }
+    return InkWell(onTap: onTap, child: row);
   }
 }

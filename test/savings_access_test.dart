@@ -152,7 +152,7 @@ void main() {
   });
   testWidgets('cold Savings child Back returns to hub', (tester) async {
     await open(tester, AppRoutes.flexSave);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+    await tester.tap(find.byType(BocBackButton));
     await tester.pumpAndSettle();
     expect(find.text('Savings products'), findsOneWidget);
   });

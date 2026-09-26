@@ -24,22 +24,18 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onBack = this.onBack;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: false,
         leading: onBack == null
             ? null
-            : IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+            : Padding(
+                padding: const EdgeInsets.only(left: BocSpace.xs),
+                child: BocBackButton(onPressed: onBack),
               ),
+        leadingWidth: onBack == null ? null : BocSpace.minTouch + BocSpace.md,
         automaticallyImplyLeading: false,
-        title:
-            titleWidget ??
-            Text(
-              title ?? '',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
+        title: titleWidget ?? Text(title ?? ''),
         actions: actions,
       ),
       body: SafeArea(top: false, child: ResponsiveContent(child: body)),
@@ -65,77 +61,127 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = <({AppSection section, IconData icon, String label})>[
-      (section: AppSection.home, icon: Icons.home_outlined, label: 'Home'),
-      (section: AppSection.save, icon: Icons.savings_outlined, label: 'Save'),
-      (section: AppSection.send, icon: Icons.send_outlined, label: 'Send'),
-      (
-        section: AppSection.payments,
-        icon: Icons.receipt_long_outlined,
-        label: 'Pay',
-      ),
-      (
-        section: AppSection.account,
-        icon: Icons.person_outline_rounded,
-        label: 'Account',
-      ),
-    ];
-    return Container(
+    const items =
+        <
+          ({
+            AppSection section,
+            IconData icon,
+            IconData activeIcon,
+            String label,
+          })
+        >[
+          (
+            section: AppSection.home,
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Home',
+          ),
+          (
+            section: AppSection.save,
+            icon: Icons.savings_outlined,
+            activeIcon: Icons.savings_rounded,
+            label: 'Save',
+          ),
+          (
+            section: AppSection.send,
+            icon: Icons.send_outlined,
+            activeIcon: Icons.send_rounded,
+            label: 'Send',
+          ),
+          (
+            section: AppSection.payments,
+            icon: Icons.receipt_long_outlined,
+            activeIcon: Icons.receipt_long_rounded,
+            label: 'Pay',
+          ),
+          (
+            section: AppSection.account,
+            icon: Icons.person_outline_rounded,
+            activeIcon: Icons.person_rounded,
+            label: 'Account',
+          ),
+        ];
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final activeColor = theme.brightness == Brightness.dark
+        ? colors.textPrimary
+        : BocColors.navy;
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        color: colors.surface,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1AB4B4B4),
+            offset: Offset(0, -1),
+            blurRadius: 2,
+          ),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(4, 10, 4, 18),
       child: SafeArea(
         top: false,
-        child: ResponsiveContent(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: items.map((item) {
-              final active = item.section == selected;
-              return Expanded(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => onSelected(item.section),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          width: active ? 6 : 0,
-                          height: active ? 6 : 0,
-                          margin: EdgeInsets.only(bottom: active ? 4 : 0),
-                          decoration: const BoxDecoration(
-                            color: BocColors.gold,
-                            shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.xs,
+            BocSpace.xs,
+            BocSpace.xs,
+            BocSpace.xs,
+          ),
+          child: ResponsiveContent(
+            child: Row(
+              children: [
+                for (final item in items)
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      selected: item.section == selected,
+                      label: item.label,
+                      excludeSemantics: true,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(BocRadius.sm),
+                        onTap: () => onSelected(item.section),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: BocSpace.minTouch,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: BocSpace.xxs,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  item.section == selected
+                                      ? item.activeIcon
+                                      : item.icon,
+                                  size: 24,
+                                  color: item.section == selected
+                                      ? activeColor
+                                      : colors.textTertiary,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: item.section == selected
+                                        ? activeColor
+                                        : colors.textTertiary,
+                                    fontWeight: item.section == selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        Icon(
-                          item.icon,
-                          size: 20,
-                          color: active
-                              ? Theme.of(context).textTheme.titleMedium?.color
-                              : Theme.of(context).textTheme.bodySmall?.color,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: active
-                                ? Theme.of(context).textTheme.titleMedium?.color
-                                : Theme.of(context).textTheme.bodySmall?.color,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+              ],
+            ),
           ),
         ),
       ),

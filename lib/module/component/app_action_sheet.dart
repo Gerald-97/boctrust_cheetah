@@ -169,3 +169,79 @@ class AppActionSheetOption extends StatelessWidget {
     );
   }
 }
+
+/// A confirmation sheet that resolves `true` only from its labelled confirm
+/// action; the scrim, Back and the cancel action all resolve `false`. It
+/// invokes nothing itself, so callers act only on an explicit confirmation.
+abstract final class AppConfirmSheet {
+  static Future<bool> show(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+    String cancelLabel = 'Cancel',
+    bool destructive = false,
+  }) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        void close(bool value) => Navigator.of(sheetContext).pop(value);
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.gutter,
+            0,
+            BocSpace.gutter,
+            BocSpace.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge,
+                ),
+              ),
+              const SizedBox(height: BocSpace.xs),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: BocSpace.lg),
+              // The safe choice leads; a destructive confirm never looks
+              // like the default.
+              if (destructive) ...[
+                PrimaryButton(
+                  label: cancelLabel,
+                  onPressed: () => close(false),
+                ),
+                const SizedBox(height: BocSpace.xs),
+                DestructiveButton(
+                  label: confirmLabel,
+                  onPressed: () => close(true),
+                ),
+              ] else ...[
+                PrimaryButton(
+                  label: confirmLabel,
+                  onPressed: () => close(true),
+                ),
+                const SizedBox(height: BocSpace.xs),
+                SecondaryButton(
+                  label: cancelLabel,
+                  onPressed: () => close(false),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+    return confirmed ?? false;
+  }
+}
