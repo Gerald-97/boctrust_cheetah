@@ -33,7 +33,16 @@ extension PaymentsScreens on AppFlowNavigatorState {
             onTap: () => _go(AppScreen.addMoney),
           ),
           const SizedBox(height: BocSpace.lg),
-          const SectionHeader(title: 'Bill payments'),
+          Padding(
+            padding: const EdgeInsets.only(bottom: BocSpace.sm),
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Bill payments',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ),
           const ApiStateCard(
             title: 'Bill payments are unavailable',
             message: 'Airtime, data, and bill payments are not available yet.',
