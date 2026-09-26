@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Cheetah uses the camera to capture your selfie and identity document for account verification.</string>
+	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Cheetah uses the microphone while recording the liveness video required for identity verification.</string>
+	<string>BOCTRUST uses the microphone while recording the liveness video required for identity verification.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Cheetah</string>
+	<string>BOCTRUST</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -19,7 +19,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Cheetah</string>
+	<string>BOCTRUST</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

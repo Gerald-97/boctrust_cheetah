@@ -56,7 +56,11 @@ class CheetahTheme {
     final base = brightness == Brightness.dark
         ? BocSemanticColors.dark
         : BocSemanticColors.light;
-    return _theme(brightness, highContrast ? base.highContrast() : base);
+    return _theme(
+      brightness,
+      highContrast ? base.highContrast() : base,
+      highContrast: highContrast,
+    );
   }
 
   /// Effective text scale: the system setting times the in-app Accessibility
@@ -69,7 +73,14 @@ class CheetahTheme {
     return TextScaler.linear(scale.clamp(0.9, 2.0));
   }
 
-  static ThemeData _theme(Brightness brightness, BocSemanticColors c) {
+  static ThemeData _theme(
+    Brightness brightness,
+    BocSemanticColors c, {
+    bool highContrast = false,
+  }) {
+    // High contrast doubles every hairline so edges read without relying on
+    // colour alone.
+    final line = highContrast ? 2.0 : 1.0;
     final dark = brightness == Brightness.dark;
     final colorScheme = ColorScheme.fromSeed(
       seedColor: BocColors.navy,
@@ -87,10 +98,10 @@ class CheetahTheme {
     );
     final text = _textTheme(c);
     final radiusSm = BorderRadius.circular(BocRadius.sm);
-    OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
+    OutlineInputBorder fieldBorder(Color color, [double? width]) =>
         OutlineInputBorder(
           borderRadius: radiusSm,
-          borderSide: BorderSide(color: color, width: width),
+          borderSide: BorderSide(color: color, width: width ?? line),
         );
     final buttonShape = RoundedRectangleBorder(borderRadius: radiusSm);
     final buttonText = text.labelLarge;
@@ -120,15 +131,24 @@ class CheetahTheme {
             ? kOverlayDark(statusColor: c.background, navColor: c.background)
             : kOverlayLight(statusColor: c.background, navColor: c.surface),
       ),
-      dividerTheme: DividerThemeData(color: c.border, space: 1, thickness: 1),
+      dividerTheme: DividerThemeData(
+        color: c.border,
+        space: line,
+        thickness: line,
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           shape: buttonShape,
           textStyle: buttonText,
-          backgroundColor: BocColors.navy,
-          foregroundColor: BocColors.goldLight,
-          disabledBackgroundColor: BocColors.navy.withValues(alpha: 0.38),
-          disabledForegroundColor: c.textDisabled,
+          // Navy on light; gold on dark, where navy would vanish into the
+          // navy background.
+          backgroundColor: dark ? BocColors.goldLight : BocColors.navy,
+          foregroundColor: dark ? BocColors.navy : BocColors.goldLight,
+          disabledBackgroundColor: (dark ? BocColors.goldLight : BocColors.navy)
+              .withValues(alpha: 0.38),
+          disabledForegroundColor: dark
+              ? BocColors.navy.withValues(alpha: 0.6)
+              : c.textDisabled,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -137,7 +157,7 @@ class CheetahTheme {
           textStyle: buttonText,
           backgroundColor: c.surfaceMuted,
           foregroundColor: dark ? c.textPrimary : BocColors.navy,
-          side: BorderSide(color: c.border),
+          side: BorderSide(color: c.border, width: line),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -165,10 +185,10 @@ class CheetahTheme {
         disabledBorder: fieldBorder(c.border.withValues(alpha: 0.5)),
         focusedBorder: fieldBorder(
           dark ? BocColors.goldLight : BocColors.navy,
-          1.5,
+          line + 0.5,
         ),
         errorBorder: fieldBorder(c.error),
-        focusedErrorBorder: fieldBorder(c.error, 1.5),
+        focusedErrorBorder: fieldBorder(c.error, line + 0.5),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: const WidgetStatePropertyAll(Colors.white),
@@ -183,7 +203,7 @@ class CheetahTheme {
         // Selected chips need a fill that stands out from the surface in
         // both themes: navy on light, gold on dark.
         selectedColor: dark ? BocColors.goldLight : BocColors.navy,
-        side: BorderSide(color: c.border),
+        side: BorderSide(color: c.border, width: line),
         shape: const StadiumBorder(),
         labelStyle: text.titleSmall,
         secondaryLabelStyle: text.titleSmall?.copyWith(
@@ -267,6 +287,9 @@ class CheetahTheme {
       Color color, {
       double letterSpacing = 0,
     }) => TextStyle(
+      // Explicit, because component themes take these styles directly and
+      // would otherwise fall back to the platform font.
+      fontFamily: kFontFamily,
       fontSize: size,
       fontWeight: weight,
       height: height,

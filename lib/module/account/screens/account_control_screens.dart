@@ -11,11 +11,15 @@ extension AccountControlScreens on AppFlowNavigatorState {
 
   Widget _securityCenterScreen() {
     final profile = ref.watch(userProfileProvider).data;
-    final biometricLogin = _isAvailable(FeatureCapability.biometricLogin);
-    final biometricTransfers = _isAvailable(
+    // These controls are shells until each feature is built; switching a
+    // capability on without a real handler fails fast in debug.
+    for (final capability in const [
+      FeatureCapability.biometricLogin,
       FeatureCapability.biometricTransfers,
-    );
-    final freeze = _isAvailable(FeatureCapability.freezeAccount);
+      FeatureCapability.freezeAccount,
+    ]) {
+      _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
+    }
     return AppScaffold(
       title: 'Security Center',
       activeSection: AppSection.account,
@@ -33,16 +37,16 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 title: 'Face ID login',
                 subtitle: 'Use face recognition to sign in',
                 value: false,
-                onChanged: biometricLogin ? (_) {} : null,
-                trailing: biometricLogin ? null : _notAvailableTag(),
+                onChanged: null,
+                trailing: _notAvailableTag(),
               ),
               SettingsTile.toggle(
                 icon: Icons.fingerprint_rounded,
                 title: 'Fingerprint for transfers',
                 subtitle: 'Approve transfers with your fingerprint',
                 value: false,
-                onChanged: biometricTransfers ? (_) {} : null,
-                trailing: biometricTransfers ? null : _notAvailableTag(),
+                onChanged: null,
+                trailing: _notAvailableTag(),
               ),
               SettingsTile(
                 icon: Icons.password_rounded,
@@ -107,8 +111,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 title: 'Freeze account',
                 subtitle: 'Temporarily block all transactions',
                 value: false,
-                onChanged: freeze ? (_) {} : null,
-                trailing: freeze ? null : _notAvailableTag(),
+                onChanged: null,
+                trailing: _notAvailableTag(),
               ),
             ],
           ),

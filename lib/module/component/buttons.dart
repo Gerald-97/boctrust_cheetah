@@ -22,13 +22,13 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spinner = Theme.of(context).brightness == Brightness.dark
+        ? BocColors.navy
+        : BocColors.goldLight;
     final Widget child = isLoading
-        ? const SizedBox.square(
+        ? SizedBox.square(
             dimension: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: BocColors.goldLight,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: spinner),
           )
         : _ButtonLabel(label: label, icon: icon);
     return SizedBox(
