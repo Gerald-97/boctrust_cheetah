@@ -61,6 +61,18 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     : () =>
                           _openAuthDestination(AuthDestination.createFirstPin),
               ),
+              SettingsTile(
+                icon: Icons.lock_reset_rounded,
+                title: 'Forgot transaction PIN',
+                subtitle: 'Verify your account and choose a new PIN',
+                onTap: _showPinRecoverySheet,
+              ),
+              SettingsTile(
+                icon: Icons.verified_user_outlined,
+                title: 'Security checks',
+                subtitle: 'Verify your current password or PIN',
+                onTap: _showSecurityCheckChooser,
+              ),
             ],
           ),
           SettingsGroup(

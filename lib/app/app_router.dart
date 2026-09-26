@@ -72,6 +72,7 @@ class AppRoutes {
   static const securitySettings = '/account/security';
   static const deleteAccount = '/account/delete';
   static const accountStatement = '/account/statement';
+  static const myProfile = '/account/profile';
   static const preferences = '/account/preferences';
   static const notificationPreferences = '/account/preferences/notifications';
   static const accessibilityPreferences = '/account/preferences/accessibility';
@@ -160,6 +161,7 @@ class AppRoutes {
     securitySettings,
     deleteAccount,
     accountStatement,
+    myProfile,
     preferences,
     notificationPreferences,
     accessibilityPreferences,

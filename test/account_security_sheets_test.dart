@@ -25,7 +25,7 @@ Future<void> _pumpAccount(WidgetTester tester) async {
       ],
       child: MaterialApp(
         theme: CheetahTheme.lightTheme,
-        home: const AppFlowNavigator(initialScreen: AppScreen.account),
+        home: const AppFlowNavigator(initialScreen: AppScreen.securityCenter),
       ),
     ),
   );

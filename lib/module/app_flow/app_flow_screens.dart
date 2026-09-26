@@ -20,6 +20,7 @@ enum AppScreen {
   deleteAccount,
   accountStatement,
   preferences,
+  myProfile,
   notificationPreferences,
   accessibilityPreferences,
   savingsPlanDetail,
@@ -237,6 +238,8 @@ AppScreen appScreenForRoute(String? routeName) {
       return AppScreen.deleteAccount;
     case '/account/statement':
       return AppScreen.accountStatement;
+    case '/account/profile':
+      return AppScreen.myProfile;
     case '/account/preferences':
       return AppScreen.preferences;
     case '/account/preferences/notifications':

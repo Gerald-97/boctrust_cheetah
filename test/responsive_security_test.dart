@@ -64,7 +64,11 @@ void main() {
                 ).copyWith(textScaler: TextScaler.linear(2)),
                 child: child!,
               ),
-              home: const AppFlowNavigator(initialScreen: AppScreen.account),
+              home: AppFlowNavigator(
+                initialScreen: label == 'Email verification'
+                    ? AppScreen.myProfile
+                    : AppScreen.securityCenter,
+              ),
             ),
           ),
         );

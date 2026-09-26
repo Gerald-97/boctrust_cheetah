@@ -158,22 +158,19 @@ extension KycScreens on AppFlowNavigatorState {
               ),
             ),
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            padding: const EdgeInsets.all(BocSpace.md),
             decoration: BoxDecoration(
               color: BocColors.navy,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(BocRadius.md),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'YOUR CURRENT TIER',
-                  style: TextStyle(
-                    color: BocColors.goldLight,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
+                Text(
+                  'Your current tier',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: BocColors.goldLight),
                 ),
                 const SizedBox(height: 14),
                 LimitRow(label: 'Tier', value: summary.tierLabel),

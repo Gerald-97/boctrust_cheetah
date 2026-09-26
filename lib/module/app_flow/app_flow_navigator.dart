@@ -584,6 +584,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _planCreationScreen(SavingsProductType.fixed);
       case AppScreen.padiCreate:
         return _planCreationScreen(SavingsProductType.padi);
+      case AppScreen.myProfile:
+        return _myProfileScreen();
       case AppScreen.preferences:
         return _preferencesScreen();
       case AppScreen.notificationPreferences:

@@ -397,7 +397,6 @@ extension AccountScreens on AppFlowNavigatorState {
   }
 
   Widget _accountScreen() {
-    final currentThemeMode = ref.watch(themeControllerProvider).mode;
     final profileState = ref.watch(userProfileProvider);
     final profile = profileState.data;
     final session = ref.watch(authSessionProvider);
@@ -410,32 +409,20 @@ extension AccountScreens on AppFlowNavigatorState {
     if (profileState.status == ServiceStatus.idle && session != null) {
       Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
     }
-    final themeIcon = switch (currentThemeMode) {
-      AppThemeMode.light => Icons.light_mode_outlined,
-      AppThemeMode.dark => Icons.dark_mode_outlined,
-      AppThemeMode.system => Icons.settings_brightness_outlined,
-    };
-    final displayName = profile?.displayName ?? 'Cheetah customer';
+    final theme = Theme.of(context);
+    final colors = context.bocColors;
+    final displayName = profile?.displayName ?? 'BOCTRUST customer';
     final identifier =
         profile?.email ??
         profile?.phoneNumber ??
         session?.email ??
-        session?.phoneNumber ??
-        'Not available';
+        session?.phoneNumber;
     final verified = profile?.isVerifiedAccount == true;
 
     return AppScaffold(
       title: 'Account',
       activeSection: AppSection.account,
       onSectionSelected: _goSection,
-      actions: [
-        IconButton(
-          tooltip: 'Cycle theme',
-          onPressed: () =>
-              ref.read(themeControllerProvider.notifier).cycleMode(),
-          icon: Icon(themeIcon),
-        ),
-      ],
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([
@@ -445,140 +432,144 @@ extension AccountScreens on AppFlowNavigatorState {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: BocSpace.lg),
           children: [
             if (profileState.isError)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: MaterialBanner(
-                  content: Text(
-                    profileState.message ?? 'Unable to load your profile.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () =>
-                          ref.read(userProfileProvider.notifier).load(),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(
+                  BocSpace.gutter,
+                  0,
+                  BocSpace.gutter,
+                  BocSpace.sm,
+                ),
+                child: ApiStateCard(
+                  title: 'Profile unavailable',
+                  message:
+                      profileState.message ?? 'Unable to load your profile.',
+                  tone: ApiStateTone.warning,
+                  actionLabel: 'Retry',
+                  onAction: () => ref.read(userProfileProvider.notifier).load(),
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(
+                BocSpace.gutter,
+                BocSpace.xs,
+                BocSpace.gutter,
+                BocSpace.lg,
+              ),
+              child: Column(
                 children: [
                   ProfileAvatar(
                     displayName: displayName,
                     hasImage: profile?.imageUrl?.isNotEmpty ?? false,
+                    radius: 40,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(
-                              verified
-                                  ? Icons.verified_user_outlined
-                                  : Icons.info_outline_rounded,
-                              color: verified
-                                  ? BocColors.green
-                                  : BocColors.gold,
-                              size: 15,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Tier ${profile?.tier ?? '—'} · '
-                                '${verified ? 'Verified' : 'Verification pending'}',
-                                style: TextStyle(
-                                  color: verified
-                                      ? BocColors.green
-                                      : BocColors.gold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  const SizedBox(height: BocSpace.sm),
+                  Text(
+                    displayName,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  if (identifier != null) ...[
+                    const SizedBox(height: BocSpace.xxs),
+                    Text(
+                      identifier,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
                     ),
-                  ),
-                  if (profileState.isLoading)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
+                  ],
+                  const SizedBox(height: BocSpace.xs),
+                  if (profileState.isLoading && profile == null)
+                    const SizedBox.square(
+                      dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    SmallPill(
+                      text:
+                          'Tier ${profile?.tier ?? '—'} · '
+                          '${verified ? 'Verified' : 'Verification pending'}',
+                      foreground: verified
+                          ? colors.successText
+                          : colors.warningText,
+                      background: verified
+                          ? colors.successContainer
+                          : colors.warningContainer,
                     ),
                 ],
               ),
             ),
-            const SectionHeader(title: 'Account details'),
             SettingsGroup(
+              caption: 'Account details',
               children: [
                 SettingsTile(
-                  icon: Icons.shield_outlined,
+                  icon: Icons.person_outline_rounded,
+                  title: 'My profile',
+                  subtitle: 'Personal details and verification',
+                  onTap: () => _go(AppScreen.myProfile),
+                ),
+                SettingsTile(
+                  icon: Icons.verified_user_outlined,
                   title: 'Account tier',
                   subtitle: 'Tier ${profile?.tier ?? '—'} · View limits',
                   onTap: () => _go(AppScreen.tiers),
                 ),
                 SettingsTile(
-                  icon: Icons.alternate_email_rounded,
-                  title: 'Registered identifier',
-                  subtitle: identifier,
+                  icon: Icons.trending_up_rounded,
+                  title: 'Request limit increase',
+                  subtitle: 'Raise your daily transfer limit',
+                  trailing: const SmallPill(text: 'Not available yet'),
+                  onTap: () => BocUnavailableSheet.show(
+                    context,
+                    title: 'Limit increases are not available yet',
+                  ),
                 ),
-                if (profile?.email != null)
-                  SettingsTile(
-                    icon: Icons.mark_email_read_outlined,
-                    title: 'Email verification',
-                    subtitle: profile!.isVerifiedEmail
-                        ? 'Verified'
-                        : 'Verify ${profile.email}',
-                    trailing: profile.isVerifiedEmail
-                        ? const SmallPill(text: 'Verified')
-                        : null,
-                    onTap: profile.isVerifiedEmail
-                        ? null
-                        : () => _showIdentifierVerificationSheet(
-                            phone: false,
-                            initialIdentifier: profile.email,
-                          ),
-                  ),
-                if (profile?.phoneNumber != null)
-                  SettingsTile(
-                    icon: Icons.phone_android_rounded,
-                    title: 'Phone verification',
-                    subtitle: profile!.isVerifiedPhoneNumber
-                        ? 'Verified'
-                        : 'Verify ${profile.phoneNumber}',
-                    trailing: profile.isVerifiedPhoneNumber
-                        ? const SmallPill(text: 'Verified')
-                        : null,
-                    onTap: profile.isVerifiedPhoneNumber
-                        ? null
-                        : () => _showIdentifierVerificationSheet(
-                            phone: true,
-                            initialIdentifier: profile.phoneNumber,
-                          ),
-                  ),
+                SettingsTile(
+                  icon: Icons.description_outlined,
+                  title: 'Account statement',
+                  subtitle: 'Request a statement by email',
+                  onTap: () => _go(AppScreen.accountStatement),
+                ),
               ],
             ),
-            const SectionHeader(title: 'Wallet'),
-            SettingsGroup(children: [_virtualAccountTile(virtualAccount)]),
-            const SectionHeader(title: 'More services'),
             SettingsGroup(
+              caption: 'Wallet',
+              children: [_virtualAccountTile(virtualAccount)],
+            ),
+            SettingsGroup(
+              caption: 'Settings',
+              children: [
+                SettingsTile(
+                  icon: Icons.people_outline_rounded,
+                  title: 'Manage beneficiaries',
+                  subtitle: 'People you send money to',
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pushNamed(AppRoutes.manageBeneficiaries),
+                ),
+                SettingsTile(
+                  icon: Icons.account_balance_outlined,
+                  title: 'Linked banks',
+                  subtitle: 'Accounts you withdraw to',
+                  onTap: () => _go(AppScreen.linkedBanks),
+                ),
+                SettingsTile(
+                  icon: Icons.shield_outlined,
+                  title: 'Security Center',
+                  subtitle: 'Password, PIN, devices and protection',
+                  onTap: () => _go(AppScreen.securityCenter),
+                ),
+                SettingsTile(
+                  icon: Icons.tune_rounded,
+                  title: 'Preferences',
+                  subtitle: 'Notifications, accessibility and theme',
+                  onTap: () => _go(AppScreen.preferences),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              caption: 'More services',
               children: [
                 SettingsTile(
                   icon: Icons.percent_rounded,
@@ -596,71 +587,19 @@ extension AccountScreens on AppFlowNavigatorState {
                 ),
               ],
             ),
-            const SectionHeader(title: 'Preferences'),
             SettingsGroup(
-              children: [
-                SettingsTile(
-                  icon: Icons.tune_rounded,
-                  title: 'Preferences',
-                  subtitle: 'Notifications, accessibility and theme',
-                  onTap: () => _go(AppScreen.preferences),
-                ),
-              ],
-            ),
-            const SectionHeader(title: 'Security'),
-            SettingsGroup(
-              children: [
-                SettingsTile(
-                  icon: Icons.shield_outlined,
-                  title: 'Security Center',
-                  subtitle: 'Sign-in, devices and account protection',
-                  onTap: () => _go(AppScreen.securityCenter),
-                ),
-                SettingsTile(
-                  icon: Icons.password_rounded,
-                  title: 'Password',
-                  subtitle: 'Change your account password',
-                  onTap: _showChangePasswordDialog,
-                ),
-                SettingsTile(
-                  icon: Icons.lock_outline_rounded,
-                  title: 'Transaction PIN',
-                  subtitle: profile?.isCreatedPin == true
-                      ? 'Change your 4-digit PIN'
-                      : 'Create your 4-digit PIN',
-                  onTap: profile?.isCreatedPin == true
-                      ? _showChangePinDialog
-                      : () => _openAuthDestination(
-                          AuthDestination.createFirstPin,
-                        ),
-                ),
-                SettingsTile(
-                  icon: Icons.lock_reset_rounded,
-                  title: 'Forgot transaction PIN',
-                  subtitle: 'Verify your account and choose a new PIN',
-                  onTap: _showPinRecoverySheet,
-                ),
-                SettingsTile(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Security checks',
-                  subtitle: 'Verify your current password or PIN',
-                  onTap: _showSecurityCheckChooser,
-                ),
-              ],
-            ),
-            const SectionHeader(title: 'Support'),
-            SettingsGroup(
+              caption: 'Support',
               children: [
                 // No support API exists, so there is no ticket state or reply
                 // time to report. Only the published contact details are shown.
                 SettingsTile(
                   icon: Icons.chat_bubble_outline_rounded,
                   title: 'Chat with support',
-                  subtitle: 'Not supported by the current API',
+                  subtitle: 'Not available yet',
                   trailing: SmallPill.unavailable('Unavailable'),
                   onTap: () => _showMessage(
-                    'In-app chat is unavailable in this API release. Please '
-                    'call or email support.',
+                    'In-app chat is not available yet. Please call or email '
+                    'support.',
                   ),
                 ),
                 const SettingsTile(
@@ -673,11 +612,6 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Email support',
                   subtitle: 'info@boctrustmfb.com',
                 ),
-              ],
-            ),
-            const SectionHeader(title: 'Legal'),
-            SettingsGroup(
-              children: [
                 // No policy-content endpoint and no bundled copy, so these
                 // cannot open anything yet.
                 SettingsTile(
@@ -700,54 +634,118 @@ extension AccountScreens on AppFlowNavigatorState {
                 ),
               ],
             ),
-            const SectionHeader(title: 'Your account'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                BocSpace.gutter,
+                BocSpace.xs,
+                BocSpace.gutter,
+                BocSpace.xs,
+              ),
+              child: SecondaryButton(
+                icon: Icons.logout_rounded,
+                label: ref.watch(logoutProvider).isLoading
+                    ? 'Signing out…'
+                    : 'Sign out',
+                onPressed: ref.watch(logoutProvider).isLoading
+                    ? null
+                    : _confirmSignOut,
+              ),
+            ),
             SettingsGroup(
               children: [
-                SettingsTile(
-                  icon: Icons.description_outlined,
-                  title: 'Account statement',
-                  subtitle: 'Request a statement by email',
-                  onTap: () => _go(AppScreen.accountStatement),
-                ),
-                SettingsTile(
-                  icon: Icons.trending_up_rounded,
-                  title: 'Request limit increase',
-                  subtitle: 'Raise your daily transfer limit',
-                  trailing: const SmallPill(text: 'Not available yet'),
-                  onTap: () => BocUnavailableSheet.show(
-                    context,
-                    title: 'Limit increases are not available yet',
-                  ),
-                ),
                 SettingsTile(
                   icon: Icons.delete_outline_rounded,
                   title: 'Delete account',
                   subtitle: 'Close your account permanently',
-                  titleColor: context.bocColors.errorText,
+                  titleColor: colors.errorText,
                   onTap: () => _go(AppScreen.deleteAccount),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: OutlinedButton.icon(
-                onPressed: ref.watch(logoutProvider).isLoading
-                    ? null
-                    : _confirmSignOut,
-                icon: const Icon(Icons.logout_rounded),
-                label: Text(
-                  ref.watch(logoutProvider).isLoading
-                      ? 'Signing out…'
-                      : 'Sign out',
-                ),
-              ),
-            ),
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
+              padding: EdgeInsets.fromLTRB(
+                BocSpace.gutter,
+                BocSpace.xs,
+                BocSpace.gutter,
+                0,
+              ),
               child: RegulatoryBadge(),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Personal details and email/phone verification.
+  Widget _myProfileScreen() {
+    final profile = ref.watch(userProfileProvider).data;
+    final session = ref.watch(authSessionProvider);
+    final identifier =
+        profile?.email ??
+        profile?.phoneNumber ??
+        session?.email ??
+        session?.phoneNumber ??
+        'Not available';
+    return AppScaffold(
+      title: 'My profile',
+      activeSection: AppSection.account,
+      onBack: _back,
+      onSectionSelected: _goSection,
+      showBottomNavigation: false,
+      body: ListView(
+        padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
+        children: [
+          SettingsGroup(
+            children: [
+              SettingsTile(
+                icon: Icons.badge_outlined,
+                title: 'Name',
+                subtitle: profile?.displayName ?? 'Not available',
+                trailing: const SizedBox.shrink(),
+              ),
+              SettingsTile(
+                icon: Icons.alternate_email_rounded,
+                title: 'Registered identifier',
+                subtitle: identifier,
+              ),
+              if (profile?.email != null)
+                SettingsTile(
+                  icon: Icons.mark_email_read_outlined,
+                  title: 'Email verification',
+                  subtitle: profile!.isVerifiedEmail
+                      ? 'Verified'
+                      : 'Verify ${profile.email}',
+                  trailing: profile.isVerifiedEmail
+                      ? const SmallPill(text: 'Verified')
+                      : null,
+                  onTap: profile.isVerifiedEmail
+                      ? null
+                      : () => _showIdentifierVerificationSheet(
+                          phone: false,
+                          initialIdentifier: profile.email,
+                        ),
+                ),
+              if (profile?.phoneNumber != null)
+                SettingsTile(
+                  icon: Icons.phone_android_rounded,
+                  title: 'Phone verification',
+                  subtitle: profile!.isVerifiedPhoneNumber
+                      ? 'Verified'
+                      : 'Verify ${profile.phoneNumber}',
+                  trailing: profile.isVerifiedPhoneNumber
+                      ? const SmallPill(text: 'Verified')
+                      : null,
+                  onTap: profile.isVerifiedPhoneNumber
+                      ? null
+                      : () => _showIdentifierVerificationSheet(
+                          phone: true,
+                          initialIdentifier: profile.phoneNumber,
+                        ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
