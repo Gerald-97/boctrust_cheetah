@@ -307,7 +307,9 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                       child: LinearProgressIndicator(
                         minHeight: 4,
                         value: (_index + 1) / steps.length,
-                        color: BocColors.navy,
+                        color: theme.brightness == Brightness.dark
+                            ? BocColors.goldLight
+                            : BocColors.navy,
                         backgroundColor: context.bocColors.border,
                       ),
                     ),

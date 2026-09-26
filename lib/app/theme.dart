@@ -174,14 +174,16 @@ class CheetahTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: c.surfaceMuted,
-        selectedColor: BocColors.navy,
+        // Selected chips need a fill that stands out from the surface in
+        // both themes: navy on light, gold on dark.
+        selectedColor: dark ? BocColors.goldLight : BocColors.navy,
         side: BorderSide(color: c.border),
         shape: const StadiumBorder(),
         labelStyle: text.titleSmall,
         secondaryLabelStyle: text.titleSmall?.copyWith(
-          color: BocColors.goldLight,
+          color: dark ? BocColors.navy : BocColors.goldLight,
         ),
-        checkmarkColor: BocColors.goldLight,
+        checkmarkColor: dark ? BocColors.navy : BocColors.goldLight,
         padding: const EdgeInsets.symmetric(
           horizontal: BocSpace.sm,
           vertical: BocSpace.xs,

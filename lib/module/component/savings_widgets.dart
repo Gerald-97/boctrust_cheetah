@@ -716,6 +716,9 @@ class BocChoiceChips<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selectedLabel = theme.brightness == Brightness.dark
+        ? BocColors.navy
+        : BocColors.goldLight;
     return Wrap(
       spacing: BocSpace.xs,
       runSpacing: BocSpace.xs,
@@ -726,9 +729,7 @@ class BocChoiceChips<T> extends StatelessWidget {
             selected: selected.contains(option.value),
             showCheckmark: multiSelect,
             labelStyle: theme.textTheme.titleSmall?.copyWith(
-              color: selected.contains(option.value)
-                  ? BocColors.goldLight
-                  : null,
+              color: selected.contains(option.value) ? selectedLabel : null,
             ),
             onSelected: (isSelected) {
               if (!multiSelect) {
