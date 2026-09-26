@@ -237,16 +237,23 @@ class BankRow extends StatelessWidget {
         minTileHeight: 48,
         enabled: interactive,
         onTap: interactive ? onTap : null,
-        leading: RoundedIcon(
-          icon: Icons.account_balance_outlined,
-          color: interactive ? BocColors.blue : BocColors.grey,
-          size: 38,
+        leading: DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.bocColors.smartSaveContainer,
+            borderRadius: BorderRadius.circular(BocRadius.sm),
+          ),
+          child: SizedBox.square(
+            dimension: 40,
+            child: Icon(
+              Icons.account_balance_outlined,
+              color: interactive
+                  ? context.bocColors.smartSaveAccent
+                  : context.bocColors.textDisabled,
+            ),
+          ),
         ),
-        title: Text(
-          name,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(subtitle),
+        title: Text(name, style: Theme.of(context).textTheme.titleSmall),
+        subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
         trailing:
             trailing ??
             (interactive ? const Icon(Icons.chevron_right_rounded) : null),

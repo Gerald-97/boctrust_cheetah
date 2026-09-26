@@ -335,7 +335,9 @@ void main() {
     await tester.ensureVisible(remove);
     await tester.tap(remove);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Remove'));
+    // Let the confirmation sheet finish sliding in.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.widgetWithText(DestructiveButton, 'Remove account'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 

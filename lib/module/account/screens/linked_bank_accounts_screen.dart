@@ -117,28 +117,18 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
   /// Deleting is only recoverable by adding the account again, so it is always
   /// confirmed and never applied optimistically.
   Future<void> _confirmDeleteAccount(WithdrawalBankAccount account) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove this account?'),
-        content: Text(
+    final confirmed = await AppConfirmSheet.show(
+      context,
+      title: 'Remove this account?',
+      message:
           'You will no longer be able to withdraw to '
           '${account.bankName} ${account.maskedAccountNumber}. You can add it '
           'again later.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Remove account',
+      cancelLabel: 'Keep account',
+      destructive: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final result = await ref
         .read(withdrawalBankAccountsProvider.notifier)
