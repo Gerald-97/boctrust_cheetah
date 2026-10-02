@@ -6,6 +6,7 @@ import '../module/account/provider/user_providers.dart';
 import '../module/account/provider/withdrawal_bank_providers.dart';
 import '../module/home/provider/home_provider.dart';
 import '../module/kyc/provider/document_verification_provider.dart';
+import '../module/kyc/provider/kyc_configuration_provider.dart';
 import '../module/kyc/provider/kyc_providers.dart';
 import '../module/kyc/provider/kyc_status_provider.dart';
 import '../module/savings/provider/savings_plan_provider.dart';
@@ -23,6 +24,8 @@ void clearPrivateUserState(Ref ref) {
   ref.read(governmentIdVerificationProvider.notifier).clear();
   ref.read(utilityBillUploadProvider.notifier).clear();
   ref.read(kycStatusProvider.notifier).clear();
+  ref.read(kycProviderConfigProvider.notifier).clear();
+  ref.read(governmentIdDocumentTypesProvider.notifier).clear();
   ref.invalidate(documentVerificationProvider);
   ref.read(accountDeletionEligibilityProvider.notifier).clear();
   ref.read(accountDeletionProvider.notifier).clear();
