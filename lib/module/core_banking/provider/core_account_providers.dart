@@ -87,6 +87,28 @@ class CustomerBankAccountsNotifier
   Future<NotifierState<CustomerBankAccountsData>> fetch(
     CoreAccountService service,
   ) => service.getBankAccounts();
+
+  /// Refreshes one account's live balance in place, so every screen reading
+  /// the list sees it. A failed or stale refresh leaves the list unchanged.
+  Future<void> refreshAccount(String accountNumber) async {
+    final accessToken = ref.read(authSessionProvider)?.accessToken;
+    final before = state.data;
+    // A full load already refreshes every balance; never compete with it.
+    if (before == null || accessToken == null || _inFlight != null) return;
+    final result = await ref
+        .read(coreAccountServiceProvider)
+        .getBankAccount(accountNumber);
+    final account = result.data;
+    // Dropped when the list changed meanwhile (a reload, clear or session
+    // change), so a late single result never overwrites newer data.
+    if (!ref.mounted ||
+        account == null ||
+        !identical(state.data, before) ||
+        ref.read(authSessionProvider)?.accessToken != accessToken) {
+      return;
+    }
+    state = NotifierState.done(before.withAccount(account));
+  }
 }
 
 class CoreBankProductsNotifier

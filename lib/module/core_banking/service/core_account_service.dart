@@ -32,6 +32,26 @@ class CoreAccountService {
     );
   }
 
+  /// One of the caller's accounts with a live balance. A number that is not
+  /// ten digits is never sent.
+  Future<NotifierState<CustomerBankAccount>> getBankAccount(
+    String accountNumber,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_coreUnavailable);
+    if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
+      return const NotifierState.error('Account not found.');
+    }
+    return NotifierState.fromResponse(
+      await api.getData<CustomerBankAccount>(
+        CoreApiEndpoints.bankAccount(accountNumber),
+        parser: (json) =>
+            CustomerBankAccount.tryParse(json) ??
+            (throw const FormatException('Invalid account.')),
+      ),
+    );
+  }
+
   Future<NotifierState<List<CoreBankProduct>>> getBankProducts() async {
     final api = _api;
     if (api == null) return const NotifierState.blocked(_coreUnavailable);

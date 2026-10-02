@@ -163,6 +163,19 @@ class CustomerBankAccountsData extends Equatable {
   final List<CustomerBankAccount> accounts;
   final List<MissingBankProduct> missingProducts;
 
+  /// This data with [account] replacing the row that has its account number;
+  /// unchanged when no row matches.
+  CustomerBankAccountsData withAccount(CustomerBankAccount account) =>
+      CustomerBankAccountsData(
+        accounts: List.unmodifiable([
+          for (final existing in accounts)
+            existing.accountNumber == account.accountNumber
+                ? account
+                : existing,
+        ]),
+        missingProducts: missingProducts,
+      );
+
   /// The single active Flex account, or null when it is absent, not active,
   /// or ambiguous.
   CustomerBankAccount? get activeFlexAccount {

@@ -90,27 +90,31 @@ void main() {
     final coreDio = _dio(
       'https://core.test/api/v1',
       coreRequests,
-      (request) => request.path == '/bank-products'
-          ? [
-              {
-                'code': 'bocFlex',
-                'name': 'Server Flex Product',
-                'interestRate': 99.99,
-              },
-            ]
-          : {
-              'totalAvailableBalance': 99.99,
-              'products': [
-                {
-                  'productCode': 'bocFlex',
-                  'productName': 'Server Flex Product',
-                  'accountNumber': '0000000001',
-                  'status': 'active',
-                  'availableBalance': amount,
-                  'ledgerBalance': amount,
-                },
-              ],
+      (request) {
+        final flex = {
+          'productCode': 'bocFlex',
+          'productName': 'Server Flex Product',
+          'accountNumber': '0000000001',
+          'status': 'active',
+          'availableBalance': amount,
+          'ledgerBalance': amount,
+        };
+        return switch (request.path) {
+          '/bank-products' => [
+            {
+              'code': 'bocFlex',
+              'name': 'Server Flex Product',
+              'interestRate': 99.99,
             },
+          ],
+          // Flex refresh reads just its own account.
+          '/me/bank-accounts/0000000001' => flex,
+          _ => {
+            'totalAvailableBalance': 99.99,
+            'products': [flex],
+          },
+        };
+      },
       token: token,
       core: true,
     );

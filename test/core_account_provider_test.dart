@@ -72,4 +72,56 @@ void main() {
       ServiceStatus.idle,
     );
   });
+
+  test('refreshing one account replaces only that balance', () async {
+    final accounts = _SingleAccount();
+    final container = _container([
+      authSessionProvider.overrideWith(SavingsSession.new),
+      coreAccountServiceProvider.overrideWithValue(accounts),
+    ]);
+    final notifier = container.read(customerBankAccountsProvider.notifier);
+    await notifier.load();
+
+    await notifier.refreshAccount('0000000001');
+
+    final data = container.read(customerBankAccountsProvider).data!;
+    expect(accounts.singleCalls, ['0000000001']);
+    expect(data.accounts.first.availableBalance, '900.00');
+    expect(data.accounts.last.availableBalance, '50.00');
+  });
+}
+
+Map<String, Object?> _row(String code, String number, String balance) => {
+  'productCode': code,
+  'productName': code,
+  'accountNumber': number,
+  'status': 'active',
+  'availableBalance': balance,
+};
+
+class _SingleAccount extends CoreAccountService {
+  _SingleAccount() : super(ApiService(Dio()));
+
+  final singleCalls = <String>[];
+
+  @override
+  Future<NotifierState<CustomerBankAccountsData>> getBankAccounts() async =>
+      NotifierState.done(
+        CustomerBankAccountsData.fromJson({
+          'products': [
+            _row('bocFlex', '0000000001', '100.00'),
+            _row('bocSmartSave', '0000000002', '50.00'),
+          ],
+        }),
+      );
+
+  @override
+  Future<NotifierState<CustomerBankAccount>> getBankAccount(
+    String accountNumber,
+  ) async {
+    singleCalls.add(accountNumber);
+    return NotifierState.done(
+      CustomerBankAccount.tryParse(_row('bocFlex', accountNumber, '900.00'))!,
+    );
+  }
 }

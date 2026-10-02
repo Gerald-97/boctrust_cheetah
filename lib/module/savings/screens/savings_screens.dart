@@ -342,6 +342,12 @@ extension SavingsScreens on AppFlowNavigatorState {
         .watch(featureAvailabilityProvider(FeatureCapability.flexWithdraw))
         .isAvailable;
     final ledger = formatApiAmount(flex?.ledgerBalance, currency: 'NGN');
+    // Only the Flex balance can change here, so refresh just that account.
+    Future<void> refresh() => flex == null
+        ? _refreshSavings()
+        : ref
+              .read(customerBankAccountsProvider.notifier)
+              .refreshAccount(flex.accountNumber);
     return AppScaffold(
       title: 'Boc Flex Savings',
       activeSection: AppSection.save,
@@ -350,12 +356,12 @@ extension SavingsScreens on AppFlowNavigatorState {
       actions: [
         IconButton(
           tooltip: 'Refresh',
-          onPressed: accountsState.isLoading ? null : _refreshSavings,
+          onPressed: accountsState.isLoading ? null : refresh,
           icon: const Icon(Icons.refresh_rounded),
         ),
       ],
       body: RefreshIndicator(
-        onRefresh: _refreshSavings,
+        onRefresh: refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(
