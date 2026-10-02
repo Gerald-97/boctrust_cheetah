@@ -174,6 +174,8 @@
 
 ### Task 7: Own-account transfer and savings withdrawal
 
+> Built (`f01dec4`), capabilities **not registered** (waiting on G2). Rulings: one `OwnAccountMoveDraft` with `OwnAccountDirection { toSavings, toFlex }` and one `ownAccountMoveProvider` instead of two drafts/providers (the endpoints share a shape); service method `CoreTransferService.moveBetweenOwnAccounts(draft)`. Both directions live in one screen (`lib/module/core_banking/screens/own_account_move_screen.dart`, a part of the app-flow library) behind Send → "Between my accounts"; a direction appears only when its capability is available. The Savings product-tile "Withdraw to Flex" entry is deferred to registration time. Limits come from the source account's balance via `balanceToKobo`. A blocked (unconfigured) reply now maps to a rejection, since nothing was sent. To enable after G2: register `ownAccountTransfers` (`POST /me/intrabank/transfers/own`) and `savingsWithdrawals` (`POST /me/intrabank/withdrawals`) and swap in the approved authorizer.
+
 **Files:**
 - Create: `lib/module/core_banking/model/intrabank_models.dart`, `lib/module/core_banking/service/core_transfer_service.dart`, `lib/module/core_banking/provider/intrabank_submission_providers.dart`
 - Modify: `lib/module/send/screens/transaction_flow_screens.dart` (route `sendOwnAccount`), `lib/module/savings/screens/savings_screens.dart` (product account "Withdraw to Flex"), `lib/app/feature_capability.dart`, `lib/app/private_user_state.dart`

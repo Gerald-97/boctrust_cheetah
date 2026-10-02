@@ -171,6 +171,7 @@ Plan: `docs/superpowers/plans/2026-10-02-core-mobile-endpoints-integration.md`. 
 | 5 Money/authorization/submission foundation | complete | `c0acdc3` |
 | 1/3 Account opening | blocked on G1 | — |
 | 6 Authorizer | blocked on G2 | — |
+| 7 Own-account move | built, unregistered until G2 | `f01dec4` |
 | 7–14 | blocked on G2/G3/G5/G6/G7 | — |
 | 15 KYC items | needs device run (debug log) | — |
 | 16 Backend tracking | open | — |
