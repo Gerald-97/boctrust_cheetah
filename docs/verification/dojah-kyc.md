@@ -478,3 +478,36 @@ load.
 The listener, the channel and the stall timer are wired inside `DojahWebView`,
 which no test drives (capture tests inject a fake browser). Only
 `dojahWebOutcomeFor` is covered by tests; the wiring needs a device run.
+
+## Live government-ID catalogue — 2026-10-02
+
+### Changes
+
+- The government-ID form now loads `GET /users/me/kyc/provider-config` and
+  `GET /users/me/kyc/government-id/document-types` and offers only active,
+  known catalogue rows that `governmentId.provider` can launch, in server
+  order. Failure, an empty intersection, or an environment mismatch
+  (`staging`↔`sandbox`, `prod`↔`live`) shows Retry and blocks initiation.
+- `national_id` is enabled for Dojah and shown as “NIN, National Identity
+  Number”; `nin_slip` stays separate. `documentNumber` is sent only when the
+  row requires it.
+- A Smile document job can only be built for a type Smile is enabled for and
+  has an SDK mapping for; `national_id` has none.
+
+### Gate
+
+- Dojah `national_id`: the product owner confirmed on 2 October 2026 that NIN
+  is enabled on the staging `DOJAH_GOVERNMENT_WIDGET_ID` and reaches
+  submitted/pending. No device evidence was captured in this change.
+
+### Checks run
+
+- `dart format --output=none --set-exit-if-changed lib test`: no changes.
+- `flutter analyze`: no issues.
+- `flutter test --no-pub`: 1106 tests passed.
+
+### Not verified
+
+Authenticated staging on physical devices: both GETs loading before the form
+is usable, Retry recovery, the initiation's provider launching, and
+logout/login as another user reloading configuration.
