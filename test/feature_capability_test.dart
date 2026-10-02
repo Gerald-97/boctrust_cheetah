@@ -82,4 +82,28 @@ void main() {
       expect(availabilityOf(capability), FeatureAvailability.unavailable);
     }
   });
+
+  test(
+    'mobile banking capabilities stay unavailable until their slice ships',
+    () {
+      for (final capability in [
+        FeatureCapability.coreAccountOpening,
+        FeatureCapability.ownAccountTransfers,
+        FeatureCapability.savingsWithdrawals,
+        FeatureCapability.boctrustTransfers,
+        FeatureCapability.interbankTransfers,
+        FeatureCapability.billerDirectoryView,
+        FeatureCapability.airtimePurchase,
+        FeatureCapability.dataPurchase,
+        FeatureCapability.billPayment,
+        FeatureCapability.beneficiariesManage,
+      ]) {
+        expect(
+          availabilityOf(capability),
+          FeatureAvailability.unavailable,
+          reason: '$capability has no registered contract yet',
+        );
+      }
+    },
+  );
 }

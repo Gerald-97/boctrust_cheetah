@@ -63,6 +63,19 @@ enum FeatureCapability {
   data,
   bills,
   scanToPay,
+  // Core mobile banking slices. Each is registered only when its slice
+  // (endpoint, models, service, provider, widgets, tests and gates) ships;
+  // until then it is unavailable.
+  coreAccountOpening,
+  ownAccountTransfers,
+  savingsWithdrawals,
+  boctrustTransfers,
+  interbankTransfers,
+  billerDirectoryView,
+  airtimePurchase,
+  dataPurchase,
+  billPayment,
+  beneficiariesManage,
   // Products that have not launched.
   loans,
   cards,

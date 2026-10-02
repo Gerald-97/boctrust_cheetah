@@ -91,6 +91,19 @@ void main() {
     );
   });
 
+  test('mobile banking paths match the Core contract', () {
+    expect(
+      CoreApiEndpoints.bankAccount('0000000001'),
+      '/me/bank-accounts/0000000001',
+    );
+    expect(CoreApiEndpoints.intrabankWithdrawals, '/me/intrabank/withdrawals');
+    expect(CoreApiEndpoints.intrabankTransfers, '/me/intrabank/transfers');
+    expect(CoreApiEndpoints.beneficiaries, '/me/beneficiaries');
+    expect(CoreApiEndpoints.beneficiary('a/b'), '/me/beneficiaries/a%2Fb');
+    expect(CoreApiEndpoints.snapToPay, '/me/snap-to-pay');
+    expect(CoreApiEndpoints.scanToPay, '/me/scan-to-pay');
+  });
+
   test('a Core capability is unavailable until Core is configured', () {
     const operation = (
       backend: ApiBackend.core,
