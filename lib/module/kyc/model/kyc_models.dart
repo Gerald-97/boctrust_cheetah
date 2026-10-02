@@ -65,29 +65,60 @@ class IdentityVerificationRequest {
   };
 }
 
+/// How the Smile ID v11 SDK names and captures one government document.
+class SmileIdDocumentSpec extends Equatable {
+  const SmileIdDocumentSpec({
+    required this.wireValue,
+    required this.captureBothSides,
+  });
+
+  final String wireValue;
+  final bool captureBothSides;
+
+  @override
+  List<Object?> get props => [wireValue, captureBothSides];
+}
+
 /// Government-issued document accepted for Tier 2 verification.
 ///
 /// Wire values are backend-confirmed. They are lower snake case and must be
-/// emitted exactly.
+/// emitted exactly. `national_id` and `nin_slip` are different documents and
+/// are never aliased.
 enum GovernmentIdDocumentType {
   voterId('voter_id', "Voter's card"),
   driversLicense('drivers_license', "Driver's licence"),
   internationalPassport('international_passport', 'International passport'),
-  ninSlip('nin_slip', 'NIN slip');
+  ninSlip('nin_slip', 'NIN slip'),
+  nationalId('national_id', 'NIN, National Identity Number');
 
   const GovernmentIdDocumentType(this.wireValue, this.label);
   final String wireValue;
   final String label;
 
-  /// Smile ID v11 SDK value for this document.
+  /// Smile ID v11 SDK name and capture mode for this document, or null when
+  /// no Smile mapping has been confirmed for it.
   ///
   /// The backend's wire values and Smile's SDK values are different
-  /// vocabularies; this is the only place they are bridged.
-  String get smileIdWireValue => switch (this) {
-    GovernmentIdDocumentType.voterId => 'VOTER_ID',
-    GovernmentIdDocumentType.driversLicense => 'DRIVERS_LICENSE',
-    GovernmentIdDocumentType.internationalPassport => 'PASSPORT',
-    GovernmentIdDocumentType.ninSlip => 'NIN_SLIP',
+  /// vocabularies; this is the only place they are bridged. A null spec is
+  /// never guessed at: Smile cannot launch that document.
+  SmileIdDocumentSpec? get smileIdDocumentSpec => switch (this) {
+    GovernmentIdDocumentType.voterId => const SmileIdDocumentSpec(
+      wireValue: 'VOTER_ID',
+      captureBothSides: true,
+    ),
+    GovernmentIdDocumentType.driversLicense => const SmileIdDocumentSpec(
+      wireValue: 'DRIVERS_LICENSE',
+      captureBothSides: true,
+    ),
+    GovernmentIdDocumentType.internationalPassport => const SmileIdDocumentSpec(
+      wireValue: 'PASSPORT',
+      captureBothSides: false,
+    ),
+    GovernmentIdDocumentType.ninSlip => const SmileIdDocumentSpec(
+      wireValue: 'NIN_SLIP',
+      captureBothSides: false,
+    ),
+    GovernmentIdDocumentType.nationalId => null,
   };
 
   /// The type for a backend wire value, or null when it names none this
@@ -98,13 +129,6 @@ enum GovernmentIdDocumentType {
     }
     return null;
   }
-
-  bool get smileIdCaptureBothSides => switch (this) {
-    GovernmentIdDocumentType.driversLicense ||
-    GovernmentIdDocumentType.voterId => true,
-    GovernmentIdDocumentType.internationalPassport ||
-    GovernmentIdDocumentType.ninSlip => false,
-  };
 }
 
 /// ISO 3166-1 alpha-2 country of issue. Nigeria is the only market today.
@@ -112,27 +136,30 @@ const kDefaultDocumentCountry = 'NG';
 
 /// Asks the backend to open a Tier 2 document attempt.
 ///
-/// `documentType` and `documentNumber` are both required: the backend
-/// rejects an initiation missing either with `VALIDATION_ERROR`. The
-/// provider's own capture asks for the document again from its configured
-/// list, so these declare what the user intends and the provider's webhook
-/// reports what they actually presented.
+/// `documentNumber` is optional in the contract. The live document catalogue
+/// says per document whether it is required; it is sent only then, and a
+/// blank value is never sent. The provider's own capture asks for the
+/// document again, so these declare what the user intends and the provider's
+/// webhook reports what they actually presented.
 class GovernmentIdVerificationRequest {
   const GovernmentIdVerificationRequest({
     required this.documentType,
-    required this.documentNumber,
+    this.documentNumber,
     this.country = kDefaultDocumentCountry,
   });
 
   final GovernmentIdDocumentType documentType;
-  final String documentNumber;
+  final String? documentNumber;
   final String country;
 
-  Map<String, Object?> toJson() => {
-    'documentType': documentType.wireValue,
-    'documentNumber': documentNumber.trim(),
-    'country': country,
-  };
+  Map<String, Object?> toJson() {
+    final number = documentNumber?.trim() ?? '';
+    return {
+      'documentType': documentType.wireValue,
+      if (number.isNotEmpty) 'documentNumber': number,
+      'country': country,
+    };
+  }
 }
 
 /// Response to an identity or government-ID initiation.

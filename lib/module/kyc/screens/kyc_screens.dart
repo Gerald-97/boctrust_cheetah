@@ -918,6 +918,8 @@ extension KycScreens on AppFlowNavigatorState {
     final unsupported = governmentIdUnsupportedMessage(
       GovernmentIdDocumentType.tryParse(initiation.documentType),
       provider,
+      // Replaced by the live catalogue in Task 4.
+      offeredTypes: GovernmentIdDocumentType.values,
     );
     if (unsupported != null) {
       notifier.markProviderFailure();

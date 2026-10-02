@@ -228,7 +228,34 @@ void main() {
         'drivers_license',
         'international_passport',
         'nin_slip',
+        'national_id',
       ]);
+    });
+
+    test('national_id is NIN and stays distinct from the NIN slip', () {
+      expect(GovernmentIdDocumentType.nationalId.wireValue, 'national_id');
+      expect(
+        GovernmentIdDocumentType.nationalId.label,
+        'NIN, National Identity Number',
+      );
+      expect(GovernmentIdDocumentType.ninSlip.wireValue, 'nin_slip');
+      expect(GovernmentIdDocumentType.ninSlip.label, 'NIN slip');
+    });
+
+    test('government-ID request omits a document number it does not need', () {
+      expect(
+        const GovernmentIdVerificationRequest(
+          documentType: GovernmentIdDocumentType.internationalPassport,
+        ).toJson(),
+        {'documentType': 'international_passport', 'country': 'NG'},
+      );
+      expect(
+        const GovernmentIdVerificationRequest(
+          documentType: GovernmentIdDocumentType.nationalId,
+          documentNumber: '   ',
+        ).toJson(),
+        {'documentType': 'national_id', 'country': 'NG'},
+      );
     });
 
     test('government-ID request sends document, number and country', () {

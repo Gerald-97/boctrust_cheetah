@@ -252,10 +252,16 @@ void main() {
   });
 
   group('unsupported document message', () {
+    const offered = GovernmentIdDocumentType.values;
+
     test('Dojah needs no message for any document type', () {
       for (final type in GovernmentIdDocumentType.values) {
         expect(
-          governmentIdUnsupportedMessage(type, KycProvider.dojah),
+          governmentIdUnsupportedMessage(
+            type,
+            KycProvider.dojah,
+            offeredTypes: offered,
+          ),
           isNull,
           reason: '${type.wireValue} is launchable on Dojah',
         );
@@ -268,6 +274,7 @@ void main() {
       final message = governmentIdUnsupportedMessage(
         GovernmentIdDocumentType.ninSlip,
         KycProvider.smileId,
+        offeredTypes: offered,
       );
 
       expect(message, contains(GovernmentIdDocumentType.ninSlip.label));
@@ -275,14 +282,77 @@ void main() {
       expect(message, isNot(contains('contact support')));
     });
 
+    test('Smile never suggests a document the catalogue does not offer', () {
+      final message = governmentIdUnsupportedMessage(
+        GovernmentIdDocumentType.ninSlip,
+        KycProvider.smileId,
+        offeredTypes: const [
+          GovernmentIdDocumentType.ninSlip,
+          GovernmentIdDocumentType.nationalId,
+        ],
+      );
+
+      expect(message, isNot(contains(GovernmentIdDocumentType.voterId.label)));
+      expect(message, contains('contact support'));
+    });
+
     test('Smile needs no message for voter ID', () {
       expect(
         governmentIdUnsupportedMessage(
           GovernmentIdDocumentType.voterId,
           KycProvider.smileId,
+          offeredTypes: offered,
         ),
         isNull,
       );
+    });
+
+    test('Smile cannot launch national_id', () {
+      expect(
+        GovernmentIdDocumentType.nationalId.isEnabledFor(KycProvider.smileId),
+        isFalse,
+      );
+      expect(
+        GovernmentIdDocumentType.nationalId.isEnabledFor(KycProvider.dojah),
+        isTrue,
+      );
+    });
+  });
+
+  group('Smile document spec', () {
+    test('known Smile documents keep their SDK values', () {
+      expect(
+        GovernmentIdDocumentType.voterId.smileIdDocumentSpec,
+        const SmileIdDocumentSpec(
+          wireValue: 'VOTER_ID',
+          captureBothSides: true,
+        ),
+      );
+      expect(
+        GovernmentIdDocumentType.driversLicense.smileIdDocumentSpec,
+        const SmileIdDocumentSpec(
+          wireValue: 'DRIVERS_LICENSE',
+          captureBothSides: true,
+        ),
+      );
+      expect(
+        GovernmentIdDocumentType.internationalPassport.smileIdDocumentSpec,
+        const SmileIdDocumentSpec(
+          wireValue: 'PASSPORT',
+          captureBothSides: false,
+        ),
+      );
+      expect(
+        GovernmentIdDocumentType.ninSlip.smileIdDocumentSpec,
+        const SmileIdDocumentSpec(
+          wireValue: 'NIN_SLIP',
+          captureBothSides: false,
+        ),
+      );
+    });
+
+    test('national_id has no invented Smile mapping', () {
+      expect(GovernmentIdDocumentType.nationalId.smileIdDocumentSpec, isNull);
     });
   });
 
@@ -299,7 +369,14 @@ void main() {
     test('an unnamed document is not reported as unsupported', () {
       // The backend need not name a document before capture: the provider
       // decides. Only a named, unlaunchable one is worth blocking.
-      expect(governmentIdUnsupportedMessage(null, KycProvider.smileId), isNull);
+      expect(
+        governmentIdUnsupportedMessage(
+          null,
+          KycProvider.smileId,
+          offeredTypes: GovernmentIdDocumentType.values,
+        ),
+        isNull,
+      );
     });
   });
 }
