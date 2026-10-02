@@ -5,6 +5,7 @@ import 'package:boctrust_savings_loan/module/account/provider/user_providers.dar
 import 'package:boctrust_savings_loan/module/account/provider/withdrawal_bank_providers.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'support/kyc_configuration_fixtures.dart';
 import 'support/responsive_fixtures.dart';
@@ -126,6 +127,10 @@ void main() {
                   userProfileProvider.overrideWith(LayoutProfile.new),
                 if (scenario.populated) ...[
                   userHomeProvider.overrideWith(LayoutHome.new),
+                  customerBankAccountsProvider.overrideWith(
+                    LayoutCoreAccounts.new,
+                  ),
+                  coreBankProductsProvider.overrideWith(LayoutCoreProducts.new),
                   userTierProvider.overrideWith(LayoutTiers.new),
                   kycStatusProvider.overrideWith(LayoutKyc.new),
                   kycServiceProvider.overrideWithValue(LayoutKycService()),

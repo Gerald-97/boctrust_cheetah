@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 /// Core product code of the customer's main Flex account.
 ///
-/// Shared with the User Service catalogue (`SavingsProductData.canOpenFlex`).
+/// The same code the User Service catalogue used for the Flex wallet.
 /// The Core contract publishes no example, so an account with any other code
 /// is never treated as Flex: a wrong constant shows the balance as
 /// unavailable rather than showing another account's balance.

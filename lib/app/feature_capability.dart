@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_endpoints.dart';
+import 'core_api_endpoints.dart';
 import 'services.dart';
 
 /// The service an operation belongs to. User and Core paths are never
@@ -95,12 +96,25 @@ const _completeUtilityBillUpload =
 const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   FeatureCapability.flexSavingsView: CapabilityRequirement(
     operations: {
-      (backend: ApiBackend.user, method: 'GET', path: ApiEndpoints.ownHome),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
     },
   ),
   FeatureCapability.savingsCatalogueView: CapabilityRequirement(
     operations: {
-      (backend: ApiBackend.user, method: 'GET', path: ApiEndpoints.ownHome),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankProducts,
+      ),
     },
   ),
   FeatureCapability.linkedBanksView: CapabilityRequirement(
