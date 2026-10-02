@@ -4,6 +4,7 @@ import '../module/account/provider/account_deletion_provider.dart';
 import '../module/account/provider/account_preferences_provider.dart';
 import '../module/account/provider/user_providers.dart';
 import '../module/account/provider/withdrawal_bank_providers.dart';
+import '../module/core_banking/provider/core_account_providers.dart';
 import '../module/home/provider/home_provider.dart';
 import '../module/kyc/provider/document_verification_provider.dart';
 import '../module/kyc/provider/kyc_configuration_provider.dart';
@@ -19,6 +20,8 @@ void clearPrivateUserState(Ref ref) {
   ref.read(userProfileProvider.notifier).clear();
   ref.read(userTierProvider.notifier).clear();
   ref.read(userHomeProvider.notifier).clear();
+  ref.read(customerBankAccountsProvider.notifier).clear();
+  ref.read(coreBankProductsProvider.notifier).clear();
   ref.read(profileImageSignedUrlProvider.notifier).clear();
   ref.read(identityVerificationProvider.notifier).clear();
   ref.read(governmentIdVerificationProvider.notifier).clear();
