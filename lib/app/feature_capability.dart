@@ -1,8 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_endpoints.dart';
+import 'services.dart';
 
-typedef ApiOperation = ({String method, String path});
+/// The service an operation belongs to. User and Core paths are never
+/// interchangeable, even when they look alike.
+enum ApiBackend { user, core }
+
+typedef ApiOperation = ({ApiBackend backend, String method, String path});
 
 enum FeatureAvailability { available, comingSoon, unavailable }
 
@@ -89,51 +94,119 @@ const _completeUtilityBillUpload =
 /// from this map has no contract and is unavailable.
 const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   FeatureCapability.flexSavingsView: CapabilityRequirement(
-    operations: {(method: 'GET', path: ApiEndpoints.ownHome)},
+    operations: {
+      (backend: ApiBackend.user, method: 'GET', path: ApiEndpoints.ownHome),
+    },
   ),
   FeatureCapability.savingsCatalogueView: CapabilityRequirement(
-    operations: {(method: 'GET', path: ApiEndpoints.ownHome)},
+    operations: {
+      (backend: ApiBackend.user, method: 'GET', path: ApiEndpoints.ownHome),
+    },
   ),
   FeatureCapability.linkedBanksView: CapabilityRequirement(
     operations: {
-      (method: 'GET', path: ApiEndpoints.withdrawalBankAccounts),
-      (method: 'GET', path: _withdrawalBankAccountById),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: ApiEndpoints.withdrawalBankAccounts,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: _withdrawalBankAccountById,
+      ),
     },
   ),
   FeatureCapability.linkedBanksManage: CapabilityRequirement(
     operations: {
-      (method: 'GET', path: ApiEndpoints.banks),
-      (method: 'POST', path: ApiEndpoints.resolveWithdrawalBankAccount),
-      (method: 'POST', path: ApiEndpoints.withdrawalBankAccounts),
-      (method: 'DELETE', path: _withdrawalBankAccountById),
+      (backend: ApiBackend.user, method: 'GET', path: ApiEndpoints.banks),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.resolveWithdrawalBankAccount,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.withdrawalBankAccounts,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'DELETE',
+        path: _withdrawalBankAccountById,
+      ),
     },
   ),
   FeatureCapability.kycIdentity: CapabilityRequirement(
     operations: {
-      (method: 'GET', path: ApiEndpoints.ownKycStatus),
-      (method: 'POST', path: ApiEndpoints.initiateIdentityVerification),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: ApiEndpoints.ownKycStatus,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.initiateIdentityVerification,
+      ),
     },
   ),
   FeatureCapability.kycGovernmentId: CapabilityRequirement(
     operations: {
-      (method: 'GET', path: ApiEndpoints.ownKycStatus),
-      (method: 'POST', path: ApiEndpoints.initiateGovernmentIdVerification),
-      (method: 'GET', path: ApiEndpoints.kycProviderConfig),
-      (method: 'GET', path: ApiEndpoints.governmentIdDocumentTypes),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: ApiEndpoints.ownKycStatus,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.initiateGovernmentIdVerification,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: ApiEndpoints.kycProviderConfig,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'GET',
+        path: ApiEndpoints.governmentIdDocumentTypes,
+      ),
     },
   ),
   FeatureCapability.kycUtilityBill: CapabilityRequirement(
     operations: {
-      (method: 'POST', path: ApiEndpoints.initiateUtilityBillUpload),
-      (method: 'POST', path: _completeUtilityBillUpload),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.initiateUtilityBillUpload,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: _completeUtilityBillUpload,
+      ),
     },
   ),
   FeatureCapability.passwordPinControls: CapabilityRequirement(
     operations: {
-      (method: 'POST', path: ApiEndpoints.changePassword),
-      (method: 'POST', path: ApiEndpoints.changePin),
-      (method: 'POST', path: ApiEndpoints.verifyCurrentPassword),
-      (method: 'POST', path: ApiEndpoints.verifyCurrentPin),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.changePassword,
+      ),
+      (backend: ApiBackend.user, method: 'POST', path: ApiEndpoints.changePin),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.verifyCurrentPassword,
+      ),
+      (
+        backend: ApiBackend.user,
+        method: 'POST',
+        path: ApiEndpoints.verifyCurrentPin,
+      ),
     },
   ),
   FeatureCapability.notificationPreferences: CapabilityRequirement(
@@ -146,21 +219,48 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   FeatureCapability.cards: CapabilityRequirement(comingSoon: true),
 };
 
-FeatureAvailability availabilityOf(FeatureCapability capability) {
-  final requirement = capabilityRequirements[capability];
+/// Availability of [requirement] given which backends this build can reach.
+///
+/// A capability is available only when every backend its operations need is
+/// configured; a missing Core transport never affects a User capability.
+FeatureAvailability availabilityFor(
+  CapabilityRequirement? requirement, {
+  required Set<ApiBackend> configuredBackends,
+}) {
   if (requirement == null) return FeatureAvailability.unavailable;
   if (requirement.comingSoon) return FeatureAvailability.comingSoon;
-  if (requirement.localOnly || requirement.operations.isNotEmpty) {
-    return FeatureAvailability.available;
-  }
-  return FeatureAvailability.unavailable;
+  if (requirement.localOnly) return FeatureAvailability.available;
+  if (requirement.operations.isEmpty) return FeatureAvailability.unavailable;
+  final reachable = requirement.operations.every(
+    (operation) => configuredBackends.contains(operation.backend),
+  );
+  return reachable
+      ? FeatureAvailability.available
+      : FeatureAvailability.unavailable;
 }
+
+/// The structural registry check: whether a contract is declared at all,
+/// regardless of which backends this build is configured for.
+FeatureAvailability availabilityOf(FeatureCapability capability) =>
+    availabilityFor(
+      capabilityRequirements[capability],
+      configuredBackends: ApiBackend.values.toSet(),
+    );
+
+/// The backends this build can reach. User is always configured; Core only
+/// when `CORE_BASE_URL` is set.
+final configuredApiBackendsProvider = Provider<Set<ApiBackend>>(
+  (ref) => {ApiBackend.user, if (Env.hasCoreBaseUrl) ApiBackend.core},
+);
 
 /// Screens read availability through this provider so tests can override a
 /// single capability without touching the registry.
 final featureAvailabilityProvider =
     Provider.family<FeatureAvailability, FeatureCapability>(
-      (ref, capability) => availabilityOf(capability),
+      (ref, capability) => availabilityFor(
+        capabilityRequirements[capability],
+        configuredBackends: ref.watch(configuredApiBackendsProvider),
+      ),
     );
 
 extension FeatureAvailabilityX on FeatureAvailability {

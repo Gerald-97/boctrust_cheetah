@@ -32,10 +32,26 @@ void main() {
     expect(
       operations,
       containsAll(<ApiOperation>{
-        (method: 'GET', path: ApiEndpoints.ownKycStatus),
-        (method: 'POST', path: ApiEndpoints.initiateGovernmentIdVerification),
-        (method: 'GET', path: ApiEndpoints.kycProviderConfig),
-        (method: 'GET', path: ApiEndpoints.governmentIdDocumentTypes),
+        (
+          backend: ApiBackend.user,
+          method: 'GET',
+          path: ApiEndpoints.ownKycStatus,
+        ),
+        (
+          backend: ApiBackend.user,
+          method: 'POST',
+          path: ApiEndpoints.initiateGovernmentIdVerification,
+        ),
+        (
+          backend: ApiBackend.user,
+          method: 'GET',
+          path: ApiEndpoints.kycProviderConfig,
+        ),
+        (
+          backend: ApiBackend.user,
+          method: 'GET',
+          path: ApiEndpoints.governmentIdDocumentTypes,
+        ),
       }),
     );
   });

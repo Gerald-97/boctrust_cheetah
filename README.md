@@ -17,6 +17,13 @@ widget for each environment. `PAYSTACK_PUBLIC_KEY` is reserved for the future
 card-funding integration. Copy `.env.example` for a new local setup;
 environment files remain gitignored.
 
+`CORE_BASE_URL=https://core-dev-api.centurysoftware.dev/api` points at the
+separate Core Service (accounts, products, transfers, bills) and follows the
+same `/api` convention; the app appends `/v1`. It is optional: left blank, the
+app boots, every User Service feature works, and every Core-backed capability
+is unavailable. Core requests carry the signed-in User Service bearer token,
+but a Core `401` never signs the customer out.
+
 ### iOS build setup
 
 iOS native dependencies use Swift Package Manager only, through Flutter's
