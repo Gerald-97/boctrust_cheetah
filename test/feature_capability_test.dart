@@ -1,4 +1,5 @@
 import 'package:boctrust_savings_loan/app/api_endpoints.dart';
+import 'package:boctrust_savings_loan/app/core_api_endpoints.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,5 +55,31 @@ void main() {
         ),
       }),
     );
+  });
+
+  test('no capability depends on a Core money-moving operation', () {
+    // Transfers, transfer status and bill payment stay unavailable until
+    // transaction-bound authorization and response semantics are published.
+    bool movesMoney(ApiOperation operation) =>
+        operation.backend == ApiBackend.core &&
+        (operation.path == CoreApiEndpoints.ownAccountTransfer ||
+            operation.path.startsWith(CoreApiEndpoints.interbankTransfers) ||
+            operation.path == CoreApiEndpoints.billPayments);
+
+    for (final MapEntry(:key, :value) in capabilityRequirements.entries) {
+      expect(
+        value.operations.where(movesMoney),
+        isEmpty,
+        reason: '$key must not require a money-moving Core operation',
+      );
+    }
+    for (final capability in [
+      FeatureCapability.transfers,
+      FeatureCapability.airtime,
+      FeatureCapability.data,
+      FeatureCapability.bills,
+    ]) {
+      expect(availabilityOf(capability), FeatureAvailability.unavailable);
+    }
   });
 }
