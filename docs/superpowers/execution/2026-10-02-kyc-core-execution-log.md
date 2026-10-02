@@ -160,3 +160,21 @@ launched; a fresh-context review is recommended before merge.
    Airtime/Data classification, string amounts, transaction-bound
    authorization, idempotency, and status enums.
 
+## Follow-on: Core mobile endpoints plan (2 October 2026)
+
+Plan: `docs/superpowers/plans/2026-10-02-core-mobile-endpoints-integration.md`. Executed inline on `feat/figma-flow-integration` (after merging `feat/kyc-catalogue-core-banking`). User directives: minimum necessary tests; log redaction deferred to production-launch prep.
+
+| Task | Status | Commit |
+|---|---|---|
+| 2 Endpoints and capabilities | complete | `797e07a` |
+| 4 Single-account refresh | complete | `b88411f` |
+| 5 Money/authorization/submission foundation | complete | `c0acdc3` |
+| 1/3 Account opening | blocked on G1 | — |
+| 6 Authorizer | blocked on G2 | — |
+| 7–14 | blocked on G2/G3/G5/G6/G7 | — |
+| 15 KYC items | needs device run (debug log) | — |
+| 16 Backend tracking | open | — |
+| 17 Release readiness | needs `flutter doctor --android-licenses` | — |
+
+Out-of-plan changes made this session (all committed): Tier 1 offers BVN only (`e1158de`), Android BVN liveness via the native Dojah SDK (`bcf0acf`, device-verified: Tier 1 success), Dojah WebView debug navigation log (`7f50606`), Android command-line tools reinstalled for the release `apkanalyzer` check, Core contract re-inspected (hash `f150ae00…`; bill-payment request simplified).
+

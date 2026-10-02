@@ -83,6 +83,8 @@
 
 ### Task 2: Extend endpoints and capabilities for the whole plan
 
+> Done (`797e07a`).
+
 > Ruling (2 October 2026, user): log redaction for `image`/`number` is deferred to production-launch preparation; Task 2 adds endpoints and capabilities only.
 
 **Files:**
@@ -121,6 +123,8 @@
 
 ### Task 4: Refresh one account and show product accounts with live balances
 
+> Done (`b88411f`). Ruling: no family provider; `CustomerBankAccountsNotifier.refreshAccount(accountNumber)` replaces that row in the shared list (`CustomerBankAccountsData.withAccount`), so Home/Savings/Flex stay consistent. It skips while a full load is in flight and drops a late reply if the list changed. Flex pull-to-refresh and the Refresh button use it.
+
 **Files:**
 - Modify: `lib/module/core_banking/service/core_account_service.dart`, `lib/module/core_banking/provider/core_account_providers.dart`, `lib/module/savings/screens/savings_screens.dart`
 - Test: `test/core_account_provider_test.dart`
@@ -134,6 +138,8 @@
 ## Phase B: Money-movement foundation
 
 ### Task 5: Money parsing, authorization seam, submission state machine and outcomes
+
+> Done (`c0acdc3`). Rulings: `CoreTransferAck` lives here (`core_submission_models.dart`), not in Task 7. Outcomes are the sealed classes `AcceptedSubmission(ack)`, `RejectedSubmission(reason)` and `UnknownSubmission()`, with customer-safe copy on `CoreRejection.message` (server messages are not shown verbatim). `transactionAuthorizerProvider` defaults to `DeniedTransactionAuthorizer` (authorizes nothing) instead of throwing, until G2. An accepted or unknown draft can never be resent; `reset()` only clears a rejection. Tests kept to the minimum (user directive).
 
 **Files:**
 - Create: `lib/module/core_banking/model/core_money.dart`, `lib/module/core_banking/model/core_submission_models.dart`, `lib/module/core_banking/service/transaction_authorizer.dart`, `lib/module/core_banking/provider/core_submission_notifier.dart`
