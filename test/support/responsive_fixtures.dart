@@ -10,6 +10,11 @@ import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
+import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
+import 'package:boctrust_savings_loan/app/network.dart';
+import 'package:dio/dio.dart';
+
+import 'kyc_configuration_fixtures.dart';
 
 // Deliberately long, synthetic customer data exercises real content layouts.
 class LayoutStartup extends StartupGateNotifier {
@@ -156,4 +161,9 @@ class LayoutAccounts extends WithdrawalBankAccountsNotifier {
           ],
         ),
       );
+}
+
+/// Serves the live KYC configuration so the government-ID form is laid out.
+class LayoutKycService extends KycService with KycConfigurationFixture {
+  LayoutKycService() : super(ApiService(Dio()));
 }

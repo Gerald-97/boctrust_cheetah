@@ -19,6 +19,13 @@ bool providerEnvironmentMatches(
   KycProviderEnvironment.live => isProd,
 };
 
+typedef AppBuildEnvironment = ({bool isStaging, bool isProd});
+
+/// The build's own environment, overridable in tests that cannot set ENV.
+final appBuildEnvironmentProvider = Provider<AppBuildEnvironment>(
+  (ref) => (isStaging: Env.isStaging, isProd: Env.isProd),
+);
+
 final kycProviderConfigProvider =
     NotifierProvider<
       KycProviderConfigNotifier,
@@ -92,10 +99,11 @@ class KycProviderConfigNotifier
   ) {
     final data = result.data;
     if (data == null || result.isError) return result;
+    final build = ref.read(appBuildEnvironmentProvider);
     final matches = providerEnvironmentMatches(
       data.environment,
-      isStaging: Env.isStaging,
-      isProd: Env.isProd,
+      isStaging: build.isStaging,
+      isProd: build.isProd,
     );
     return matches
         ? result

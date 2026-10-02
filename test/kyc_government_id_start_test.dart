@@ -2,6 +2,7 @@ import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/service/user_service.dart';
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_configuration_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
@@ -9,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/kyc_configuration_fixtures.dart';
 import 'support/flow_harness.dart';
 
 /// The `governmentId` section as `GET /users/me/kyc/status` returns it.
@@ -28,14 +30,31 @@ KycStatusData _status(Map<String, Object?> governmentId) =>
       'nextAction': 'verify_government_id',
     });
 
-class _Kyc extends KycService {
-  _Kyc(this.governmentId) : super(ApiService(Dio()));
+class _Kyc extends KycService with KycConfigurationFixture {
+  _Kyc(this.governmentId, {this.configFails = false})
+    : super(ApiService(Dio()));
 
   final Map<String, Object?> governmentId;
+  final bool configFails;
+  final requests = <Map<String, Object?>>[];
 
   @override
   Future<NotifierState<KycStatusData>> getStatus() async =>
       NotifierState.done(_status(governmentId));
+
+  @override
+  Future<NotifierState<KycProviderConfigData>> getProviderConfig() async =>
+      configFails
+      ? const NotifierState.error('Unavailable')
+      : super.getProviderConfig();
+
+  @override
+  Future<NotifierState<KycInitiationData>> initiateGovernmentId(
+    GovernmentIdVerificationRequest request,
+  ) async {
+    requests.add(request.toJson());
+    return const NotifierState.error('stop here');
+  }
 }
 
 class _Users extends UserService {
@@ -46,10 +65,12 @@ class _Users extends UserService {
       const NotifierState<UserTierInfoData>.error('stub');
 }
 
-Future<void> _pump(
+Future<_Kyc> _pump(
   WidgetTester tester, {
   required Map<String, Object?> governmentId,
+  bool configFails = false,
 }) async {
+  final kyc = _Kyc(governmentId, configFails: configFails);
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -59,40 +80,25 @@ Future<void> _pump(
     tester,
     route: '/account/tier/government-id',
     overrides: [
-      kycServiceProvider.overrideWithValue(_Kyc(governmentId)),
+      kycServiceProvider.overrideWithValue(kyc),
       userServiceProvider.overrideWithValue(_Users()),
     ],
   );
   await tester.pumpAndSettle();
+  return kyc;
+}
+
+Future<void> _choose(WidgetTester tester, String label) async {
+  await tester.tap(
+    find.byType(DropdownButtonFormField<GovernmentIdDocumentType>),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('every document type can be chosen by its own name', (
-    tester,
-  ) async {
-    await _pump(tester, governmentId: {'status': 'not_started'});
-
-    for (final type in GovernmentIdDocumentType.values) {
-      await tester.tap(
-        find.byType(DropdownButtonFormField<GovernmentIdDocumentType>),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(type.label).last);
-      await tester.pumpAndSettle();
-
-      expect(
-        tester
-            .widget<DropdownButtonFormField<GovernmentIdDocumentType>>(
-              find.byType(DropdownButtonFormField<GovernmentIdDocumentType>),
-            )
-            .initialValue,
-        type,
-        reason: 'selecting ${type.wireValue} left the dropdown unchanged',
-      );
-    }
-  });
-
-  testWidgets('each document type reads as words, never as a wire key', (
+  testWidgets('the dropdown follows the live catalogue in server order', (
     tester,
   ) async {
     await _pump(tester, governmentId: {'status': 'not_started'});
@@ -101,41 +107,68 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (final type in GovernmentIdDocumentType.values) {
-      expect(find.text(type.label), findsWidgets);
-      expect(find.textContaining(type.wireValue), findsNothing);
-    }
+    final labels = [
+      'International Passport',
+      "Driver's License",
+      "Voter's Card",
+      'NIN, National Identity Number',
+      'NIN Slip',
+    ];
+    final tops = [
+      for (final label in labels) tester.getTopLeft(find.text(label).last).dy,
+    ];
+    expect(tops, orderedEquals([...tops]..sort()));
+    expect(find.text('National ID'), findsNothing);
+    expect(find.textContaining('national_id'), findsNothing);
   });
 
-  testWidgets('a missing document number blocks the attempt', (tester) async {
-    // The backend rejects an initiation without one, so the form must catch
-    // it rather than spend a round trip discovering it.
-    await _pump(tester, governmentId: {'status': 'not_started'});
+  testWidgets('a document that needs no number never sends one', (
+    tester,
+  ) async {
+    final kyc = await _pump(tester, governmentId: {'status': 'not_started'});
+
+    // Type a number for the NIN slip, then switch to NIN, which needs none.
+    await _choose(tester, 'NIN Slip');
+    await tester.enterText(
+      find.byKey(const ValueKey('document-number')),
+      '12345678901',
+    );
+    await _choose(tester, 'NIN, National Identity Number');
+    expect(find.byKey(const ValueKey('document-number')), findsNothing);
+
+    await tester.tap(find.text('Start verification'));
+    await tester.pumpAndSettle();
+
+    expect(kyc.requests.single, {
+      'documentType': 'national_id',
+      'country': 'NG',
+    });
+  });
+
+  testWidgets('a document that needs a number blocks without one', (
+    tester,
+  ) async {
+    final kyc = await _pump(tester, governmentId: {'status': 'not_started'});
+    await _choose(tester, 'NIN Slip');
 
     await tester.tap(find.text('Start verification'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Enter the document number'), findsOneWidget);
+    expect(kyc.requests, isEmpty);
   });
 
-  testWidgets('the number field names the chosen document', (tester) async {
-    await _pump(tester, governmentId: {'status': 'not_started'});
-    await tester.tap(
-      find.byType(DropdownButtonFormField<GovernmentIdDocumentType>),
+  testWidgets('a configuration failure offers Retry instead of the form', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      governmentId: {'status': 'not_started'},
+      configFails: true,
     );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.text(GovernmentIdDocumentType.internationalPassport.label).last,
-    );
-    await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining(
-        'As printed on your '
-        '${GovernmentIdDocumentType.internationalPassport.label}',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Start verification'), findsNothing);
   });
 
   testWidgets('a fresh document step offers to start', (tester) async {

@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/kyc_configuration_fixtures.dart';
 import 'support/flow_harness.dart';
 
 Map<String, Object?> _limit(String display) => {
@@ -98,7 +99,7 @@ KycInitiationData _dojahGovernmentId() => KycInitiationData.fromJson({
       .toIso8601String(),
 });
 
-class _Kyc extends KycService {
+class _Kyc extends KycService with KycConfigurationFixture {
   _Kyc() : super(ApiService(Dio()));
 
   var statusCalls = 0;
@@ -266,10 +267,7 @@ void main() {
     if (route == '/account/tier') await openTierCard(tester, 2);
     expect(find.text('Government ID'), findsWidgets);
 
-    await tester.enterText(
-      find.byKey(const ValueKey('document-number')),
-      'A1234567',
-    );
+    // The first catalogue document needs no number.
     await tapAndSettle(tester, find.text('Start verification'));
     await settleToast(tester);
   }
