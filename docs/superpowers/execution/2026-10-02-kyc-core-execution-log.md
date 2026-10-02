@@ -48,13 +48,13 @@ Executor: inline (`superpowers:executing-plans`), started 2026-10-02.
 | KYC | 3 | complete | `7bfc295` | Session-scoped notifiers, env check |
 | KYC | 4 | complete | `7e87465` | Live-configured form |
 | KYC | 5 | complete (device check open) | `b9c8802` | README + dojah-kyc.md |
-| Core | 1 | pending | | |
-| Core | 2 | pending | | |
-| Core | 3 | pending | | |
+| Core | 1 | complete | `f07a3db` | Optional Core transport, ApiBackend capabilities, Core-401 isolation, customerid redaction |
+| Core | 2 | complete | `65a10d0` | Account/product models, service, session providers |
+| Core | 3 | complete | `de26ed2` | Home + Savings read balances from Core |
 | Core | 4 | blocked | — | Needs sanitized bank-list/name-enquiry fixtures. |
 | Core | 5 | blocked | — | Needs biller/category/payment-item fixtures, classification, string amounts; product decision. |
-| Core | 6 | pending | | |
-| Core | 7 | pending | | Device verification is a human checkpoint. |
+| Core | 6 | complete | `7057d3f` | Capability audit test, README, core-banking-integration.md |
+| Core | 7 | automated checks complete; device check open | — | format/analyze/1119 tests/apk/iOS sim all pass |
 
 ## Adjustments and rulings
 
@@ -105,4 +105,58 @@ Format: `Ruling: <what> — <why> — <cost if wrong>`.
   `plan/USER_SERVICE_CONTRACT_GAPS.md` exist only untracked in the main
   checkout, so the Smile v12 expiry blocker is recorded in the README instead.
 - KYC Task 5: device verification (human checkpoint) remains open.
+- Core Task 1: Ruling: URL validation is the pure `coreApiBaseUrl(String)`
+  (null when blank, `FormatException` when invalid); `AppBootstrap` calls it.
+- Core Task 1: Ruling: new `AuthInterceptor` parameters are optional with User
+  defaults, so the savings tests' three-argument construction compiled
+  unchanged.
+- Core Task 1: Ruling: `availabilityOf` stays structural (all backends assumed
+  configured); `featureAvailabilityProvider` applies
+  `configuredApiBackendsProvider`. Both use the pure `availabilityFor`.
+- Core Task 2: Ruling: Flex product code assumed `bocFlex` (User Service code;
+  Core publishes no example) as `kFlexProductCode`; no match shows the balance
+  as unavailable — cost if wrong: Home shows no balance until corrected.
+- Core Task 2: Ruling: unconfigured Core returns `NotifierState.blocked`;
+  balances are accepted only as plain decimal strings; a duplicated account
+  number drops every row claiming it.
+- Core Task 3: Ruling: `savings_provider.dart`, `savings_product_data.dart` and
+  their test deleted — nothing consumed the User Home catalogue after cutover.
+- Core Task 3: Ruling: Core balances format with currency `NGN` (Core publishes
+  none).
+- Core Task 3: Ruling: "restrict Send/Pay when Flex is missing" not built —
+  every money-moving capability is already unavailable; add it with transfers.
+- Core Task 3: Ruling: `savings_live_ui_test.dart` rewritten end to end for
+  Core + User hosts with the same bearer token.
+- Core Tasks 4-5: blocked on fixtures; their read-only capability enum members
+  were not added. Core Task 6 pins every money-moving capability unavailable.
+- Core Task 7: Ruling: builds used `--dart-define-from-file=.env.example`
+  (`.env.stage` is only in the main checkout).
+
+## Final review
+
+Self-review against the plans' Review Focus. No subagent reviewer was
+launched; a fresh-context review is recommended before merge.
+
+- No Critical/Important code defects found.
+- **Deployment requirement:** Home/Savings have no User-balance fallback.
+  `CORE_BASE_URL=https://core-dev-api.centurysoftware.dev/api` must be added
+  to `.env.stage` (and the production value to `.env.prod`) or Home shows
+  "Balance unavailable".
+- Deferred minors: KYC configuration is not re-fetched within a session after
+  a successful load (only Retry/logout); an unconfigured Core shows a Retry
+  that cannot succeed; RED was not observed for the KYC Task 4 widget tests or
+  the Core Task 6 guard test.
+
+## Open items for pick-up
+
+1. Add `CORE_BASE_URL` to `.env.stage` / `.env.prod`.
+2. Merge with the main checkout's uncommitted capture-launch work
+   (`_launchingKycCapture`, `_warmUpSmileId`); expect conflicts in
+   `kyc_screens.dart` (`_submitGovernmentId` was rewritten here) and
+   `app_flow_navigator.dart`.
+3. Human checkpoints still open: KYC Task 5 Step 3 and Core Task 7 Step 2
+   (physical-device staging verification).
+4. Core Tasks 4-5 and the money-moving plan: blocked on sanitized fixtures,
+   Airtime/Data classification, string amounts, transaction-bound
+   authorization, idempotency, and status enums.
 
