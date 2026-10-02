@@ -418,7 +418,7 @@ extension KycScreens on AppFlowNavigatorState {
               label: 'Identity type',
               key: const ValueKey('identity-type'),
               value: identityType,
-              items: IdentityType.values
+              items: kSupportedIdentityTypes
                   .map(
                     (type) =>
                         DropdownMenuItem(value: type, child: Text(type.label)),

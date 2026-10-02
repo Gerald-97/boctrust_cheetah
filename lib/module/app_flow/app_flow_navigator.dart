@@ -216,11 +216,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   void initState() {
     super.initState();
-    // `/account/tier/nin` preselects NIN; every other entry point defaults to
-    // BVN. Set once here so the user's own dropdown choice always wins after.
-    if (widget.initialRouteName == AppRoutes.tier2Nin) {
-      _selectedIdentityType = IdentityType.nin;
-    }
+    // `/account/tier/nin` opens the same BVN form: the identity contract
+    // accepts only BVN, so NIN is never preselected.
     // A KYC verdict arrives by webhook while the app is backgrounded, so the
     // authoritative state is re-read on resume. KycAuthoritativeRefresh shares
     // one in-flight round with the manual Refresh and the post-submission

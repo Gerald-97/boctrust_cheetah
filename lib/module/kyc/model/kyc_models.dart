@@ -26,6 +26,12 @@ enum IdentityType {
   };
 }
 
+/// Identity types Tier 1 may start with. The published
+/// `InitiateIdentityVerificationRequest` accepts only `bvn`; the backend
+/// rejects `nin` with a validation error, so NIN is not offered until the
+/// contract adds it.
+const kSupportedIdentityTypes = [IdentityType.bvn];
+
 /// Exact length required for both BVN and NIN.
 const kIdentityNumberLength = 11;
 
