@@ -283,7 +283,7 @@ extension KycScreens on AppFlowNavigatorState {
   Widget _kycIdentityScreen() {
     final flowState = ref.watch(identityVerificationProvider);
     final flow = flowState.data ?? const KycFlowData();
-    final submitting = flowState.isLoading;
+    final submitting = flowState.isLoading || _launchingKycCapture;
     final statusState = _watchKycStatus();
     final status = statusState.data?.identity;
 
@@ -546,6 +546,18 @@ extension KycScreens on AppFlowNavigatorState {
       return;
     }
 
+    _setLaunchingKycCapture(true);
+    try {
+      await _startIdentityVerification(identityType, consent);
+    } finally {
+      _setLaunchingKycCapture(false);
+    }
+  }
+
+  Future<void> _startIdentityVerification(
+    IdentityType identityType,
+    KycCaptureConsent consent,
+  ) async {
     // Held only until the SDK is handed it, then cleared below.
     final identityNumber = _identityNumberController.text.trim();
     final notifier = ref.read(identityVerificationProvider.notifier);
@@ -648,8 +660,10 @@ extension KycScreens on AppFlowNavigatorState {
     // in a live controller.
     _identityNumberController.clear();
 
-    final outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
-      MaterialPageRoute(builder: (_) => SmileIdCaptureScreen(job: job)),
+    await _warmUpSmileId();
+    if (!mounted) return;
+    final outcome = await _pushKycCapture<SmileIdFlowOutcome>(
+      SmileIdCaptureScreen(job: job),
     );
     if (!mounted) return;
 
@@ -698,7 +712,7 @@ extension KycScreens on AppFlowNavigatorState {
   Widget _kycGovernmentIdScreen() {
     final flowState = ref.watch(governmentIdVerificationProvider);
     final flow = flowState.data ?? const KycFlowData();
-    final submitting = flowState.isLoading;
+    final submitting = flowState.isLoading || _launchingKycCapture;
     final statusState = _watchKycStatus();
     final status = statusState.data?.governmentId;
 
@@ -865,6 +879,15 @@ extension KycScreens on AppFlowNavigatorState {
   Future<void> _submitGovernmentId() async {
     if (!(_governmentIdFormKey.currentState?.validate() ?? false)) return;
 
+    _setLaunchingKycCapture(true);
+    try {
+      await _startGovernmentIdVerification();
+    } finally {
+      _setLaunchingKycCapture(false);
+    }
+  }
+
+  Future<void> _startGovernmentIdVerification() async {
     final notifier = ref.read(governmentIdVerificationProvider.notifier);
     final initiation = await notifier.submit(
       documentType: _selectedDocumentType,
@@ -951,8 +974,10 @@ extension KycScreens on AppFlowNavigatorState {
       return;
     }
 
-    final outcome = await Navigator.of(context).push<SmileIdFlowOutcome>(
-      MaterialPageRoute(builder: (_) => SmileIdCaptureScreen(job: job)),
+    await _warmUpSmileId();
+    if (!mounted) return;
+    final outcome = await _pushKycCapture<SmileIdFlowOutcome>(
+      SmileIdCaptureScreen(job: job),
     );
     if (!mounted) return;
 
@@ -981,17 +1006,41 @@ extension KycScreens on AppFlowNavigatorState {
     // The flow has a required Email step. The address the user signed up
     // with satisfies it, so Dojah skips asking for what we already hold.
     final email = ref.read(userProfileProvider).data?.email;
-    return Navigator.of(context).push<KycCaptureOutcome>(
-      MaterialPageRoute(
-        builder: (_) => DojahCaptureScreen(
-          widgetId: widgetId,
-          referenceId: referenceId,
-          operation: operation,
-          bvn: bvn,
-          email: email,
-        ),
+    return _pushKycCapture<KycCaptureOutcome>(
+      DojahCaptureScreen(
+        widgetId: widgetId,
+        referenceId: referenceId,
+        operation: operation,
+        bvn: bvn,
+        email: email,
       ),
     );
+  }
+
+  /// Opens a capture screen and releases the submit button's busy state now
+  /// that the screen covers it, so the form is usable again on return.
+  Future<T?> _pushKycCapture<T>(Widget screen) {
+    final closed = Navigator.of(
+      context,
+    ).push<T>(MaterialPageRoute(builder: (_) => screen));
+    _setLaunchingKycCapture(false);
+    return closed;
+  }
+
+  void _setLaunchingKycCapture(bool launching) {
+    if (!mounted || _launchingKycCapture == launching) return;
+    refreshKycFormState(() => _launchingKycCapture = launching);
+  }
+
+  /// Starts the Smile ID SDK while the submit button is still busy, so the
+  /// capture screen opens ready instead of on a second spinner. A failure is
+  /// left to that screen, which reports it and offers a retry.
+  Future<void> _warmUpSmileId() async {
+    try {
+      await ref.read(smileIdGatewayProvider).ensureInitialized();
+    } catch (_) {
+      // Surfaced by SmileIdCaptureScreen's own initialization.
+    }
   }
 
   Future<void> _handleDocumentCaptureOutcome(

@@ -202,6 +202,11 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   AutovalidateMode _identityAutovalidate = AutovalidateMode.disabled;
   IdentityType _selectedIdentityType = IdentityType.bvn;
 
+  /// True from a KYC submission until its capture screen is on top. It keeps
+  /// the submit button busy through the work that follows a successful
+  /// initiation, after the notifier has already left its loading state.
+  bool _launchingKycCapture = false;
+
   @override
   void initState() {
     super.initState();
