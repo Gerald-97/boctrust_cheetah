@@ -38,10 +38,13 @@ enum KycOperation {
 extension GovernmentIdDocumentTypeCapability on GovernmentIdDocumentType {
   /// Whether [provider] can verify this document type.
   ///
+  /// This is a local SDK-compatibility gate layered under the server's
+  /// document catalogue, never a replacement for it.
+  ///
   /// Dojah accepts every type the app offers: its widget, not the launch
   /// call, decides which documents it presents, so the set here must match
   /// the documents enabled on `DOJAH_GOVERNMENT_WIDGET_ID` in the Dojah
-  /// dashboard. Smile's published Enhanced Document Verification matrix lists
+  /// dashboard. `national_id` was confirmed there on 2 October 2026. Smile's published Enhanced Document Verification matrix lists
   /// only Nigerian `VOTER_ID`; each other type stays disabled there until a
   /// sandbox submission succeeds for this partner on both platforms and its
   /// document webhook reaches pending or success. Never substitute job 6 or
@@ -58,16 +61,21 @@ extension GovernmentIdDocumentTypeCapability on GovernmentIdDocumentType {
 /// The provider is only known once initiation answers, so the document the
 /// user chose can turn out to be one this provider cannot verify. The user
 /// can pick another on the form, so the message names a document that works
-/// rather than sending them to support. A null [type] is not a problem: the
-/// backend need not echo a document for the attempt to be launchable.
+/// rather than sending them to support. Alternatives come only from
+/// [offeredTypes], the documents the live catalogue currently offers, so the
+/// copy never suggests one the server has turned off. A null [type] is not a
+/// problem: the backend need not echo a document for the attempt to be
+/// launchable.
 String? governmentIdUnsupportedMessage(
   GovernmentIdDocumentType? type,
-  KycProvider provider,
-) {
+  KycProvider provider, {
+  required Iterable<GovernmentIdDocumentType> offeredTypes,
+}) {
   if (type == null || type.isEnabledFor(provider)) return null;
-  final alternatives = GovernmentIdDocumentType.values
+  final alternatives = offeredTypes
       .where((candidate) => candidate.isEnabledFor(provider))
       .map((candidate) => candidate.label)
+      .toSet()
       .toList(growable: false);
   if (alternatives.isEmpty) {
     return '${type.label} cannot be verified right now. Please contact '

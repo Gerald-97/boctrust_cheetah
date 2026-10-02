@@ -2,7 +2,99 @@ part of '../../app_flow/app_flow_navigator.dart';
 
 extension SavingsScreens on AppFlowNavigatorState {
   Future<void> _refreshSavings() async {
-    await ref.read(userHomeProvider.notifier).load();
+    await Future.wait([
+      ref.read(userHomeProvider.notifier).load(),
+      ref.read(customerBankAccountsProvider.notifier).load(),
+      ref.read(coreBankProductsProvider.notifier).load(),
+    ]);
+  }
+
+  /// Starts the Core account and product reads the first time a savings
+  /// screen needs them.
+  NotifierState<CustomerBankAccountsData> _watchCoreAccounts() {
+    final accounts = ref.watch(customerBankAccountsProvider);
+    if (accounts.status == ServiceStatus.idle &&
+        ref.read(authSessionProvider) != null) {
+      Future<void>.microtask(
+        ref.read(customerBankAccountsProvider.notifier).load,
+      );
+    }
+    return accounts;
+  }
+
+  NotifierState<List<CoreBankProduct>> _watchCoreProducts() {
+    final products = ref.watch(coreBankProductsProvider);
+    if (products.status == ServiceStatus.idle &&
+        ref.read(authSessionProvider) != null) {
+      Future<void>.microtask(ref.read(coreBankProductsProvider.notifier).load);
+    }
+    return products;
+  }
+
+  /// Loading and failure notice for the Core balances. A failed refresh keeps
+  /// the last good balances visible beside it.
+  List<Widget> _coreAccountsStatus(
+    NotifierState<CustomerBankAccountsData> accounts,
+  ) => [
+    if (accounts.data == null &&
+        (accounts.isLoading || accounts.status == ServiceStatus.idle)) ...[
+      const LinearProgressIndicator(),
+      const SizedBox(height: 12),
+      const Text('Loading your accounts…'),
+      const SizedBox(height: 12),
+    ],
+    if (accounts.isError || accounts.status == ServiceStatus.blocked) ...[
+      ApiStateCard(
+        title: accounts.data == null
+            ? 'Unable to load your accounts'
+            : 'Refresh failed',
+        message: accounts.data == null
+            ? accounts.message ?? 'Please try again to load your accounts.'
+            : 'Showing previously loaded balances. Refresh to check for '
+                  'updates.',
+        tone: ApiStateTone.warning,
+        actionLabel: 'Retry',
+        onAction: _refreshSavings,
+      ),
+      const SizedBox(height: 12),
+    ],
+  ];
+
+  String _accountStatusLabel(CoreAccountStatus status) => switch (status) {
+    CoreAccountStatus.active => 'Active',
+    CoreAccountStatus.frozen => 'Frozen',
+    CoreAccountStatus.closed => 'Closed',
+    CoreAccountStatus.unknown => 'Unavailable',
+  };
+
+  /// One owned Core account other than Flex: name, balance and server status.
+  Widget _coreAccountTile(CustomerBankAccount account, {required bool hidden}) {
+    final theme = Theme.of(context);
+    final balance = formatApiAmount(account.availableBalance, currency: 'NGN');
+    return SurfaceCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(account.productName, style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(
+                  hidden ? '₦ ••••••' : balance ?? 'Balance unavailable',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          if (!account.isActive)
+            Text(
+              _accountStatusLabel(account.status),
+              style: theme.textTheme.labelMedium,
+            ),
+        ],
+      ),
+    );
   }
 
   List<Widget> _savingsLoadStatus(NotifierState<UserHomeData> home) => [
@@ -39,15 +131,36 @@ extension SavingsScreens on AppFlowNavigatorState {
   );
 
   Widget _saveHubScreen() {
-    final home = ref.watch(userHomeProvider);
-    final products = ref.watch(savingsProductsProvider);
-    final flexProduct = products.where((p) => p.canOpenFlex).firstOrNull;
+    final accountsState = _watchCoreAccounts();
+    final productsState = _watchCoreProducts();
+    final accounts = accountsState.data;
+    final flex = accounts?.activeFlexAccount;
+    final hidden = ref.watch(homeBalanceHiddenProvider);
+    final otherAccounts = [
+      for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
+        if (account.productCode != kFlexProductCode) account,
+    ];
+    final ownedCodes = {
+      for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
+        account.productCode,
+    };
+    // Account opening is out of scope, so unowned products are read-only.
+    final unowned = [
+      for (final product in productsState.data ?? const <CoreBankProduct>[])
+        if (!ownedCodes.contains(product.code)) product,
+    ];
     final theme = Theme.of(context);
     return AppScaffold(
       title: 'Save',
       activeSection: AppSection.save,
       onSectionSelected: _goSection,
-      actions: [_savingsRefreshAction(home)],
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: accountsState.isLoading ? null : _refreshSavings,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
       body: RefreshIndicator(
         onRefresh: _refreshSavings,
         child: ListView(
@@ -59,23 +172,55 @@ extension SavingsScreens on AppFlowNavigatorState {
             BocSpace.lg,
           ),
           children: [
-            ..._savingsLoadStatus(home),
-            if (flexProduct != null)
+            ..._coreAccountsStatus(accountsState),
+            if (flex != null)
               FlexSavingsTile(
-                title: flexProduct.name,
+                title: flex.productName,
                 balance: formatApiAmount(
-                  home.data?.flexWallet?.availableBalance,
-                  currency: home.data?.flexWallet?.currency,
+                  flex.availableBalance,
+                  currency: 'NGN',
                 ),
-                hidden: ref.watch(homeBalanceHiddenProvider),
+                hidden: hidden,
                 onTap: () => _go(AppScreen.flex),
               )
-            else if (home.isDone || home.data != null)
+            else if (accounts != null)
               const ApiStateCard(
-                title: 'Product catalogue unavailable',
-                message: 'Savings products will appear here when available.',
+                title: 'Flex account unavailable',
+                message: 'Your Flex account will appear here when available.',
                 tone: ApiStateTone.info,
               ),
+            for (final account in otherAccounts) ...[
+              const SizedBox(height: BocSpace.sm),
+              _coreAccountTile(account, hidden: hidden),
+            ],
+            if (unowned.isNotEmpty) ...[
+              const SizedBox(height: BocSpace.lg),
+              Semantics(
+                header: true,
+                child: Text(
+                  'Available products',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              for (final product in unowned) ...[
+                const SizedBox(height: BocSpace.sm),
+                SurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.name, style: theme.textTheme.titleSmall),
+                      if (product.description != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          product.description!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: BocSpace.lg),
             Semantics(
               header: true,
@@ -190,23 +335,25 @@ extension SavingsScreens on AppFlowNavigatorState {
   }
 
   Widget _flexScreen() {
-    final home = ref.watch(userHomeProvider);
-    final wallet = home.data?.flexWallet;
+    final accountsState = _watchCoreAccounts();
+    final flex = accountsState.data?.activeFlexAccount;
     final hidden = ref.watch(homeBalanceHiddenProvider);
     final canWithdraw = ref
         .watch(featureAvailabilityProvider(FeatureCapability.flexWithdraw))
         .isAvailable;
-    final ledger = formatApiAmount(
-      wallet?.ledgerBalance,
-      currency: wallet?.currency,
-    );
-    final status = wallet?.status;
+    final ledger = formatApiAmount(flex?.ledgerBalance, currency: 'NGN');
     return AppScaffold(
       title: 'Boc Flex Savings',
       activeSection: AppSection.save,
       onBack: _back,
       onSectionSelected: _goSection,
-      actions: [_savingsRefreshAction(home)],
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: accountsState.isLoading ? null : _refreshSavings,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
       body: RefreshIndicator(
         onRefresh: _refreshSavings,
         child: ListView(
@@ -218,12 +365,20 @@ extension SavingsScreens on AppFlowNavigatorState {
             BocSpace.lg,
           ),
           children: [
-            ..._savingsLoadStatus(home),
-            if (home.data != null || home.isDone)
+            ..._coreAccountsStatus(accountsState),
+            if (accountsState.data != null && flex == null)
+              const ApiStateCard(
+                title: 'Flex account unavailable',
+                message:
+                    'Your Flex account is unavailable right now. Refresh to '
+                    'try again.',
+                tone: ApiStateTone.info,
+              ),
+            if (flex != null)
               FlexHeroCard(
                 balance: formatApiAmount(
-                  wallet?.availableBalance,
-                  currency: wallet?.currency,
+                  flex.availableBalance,
+                  currency: 'NGN',
                 ),
                 hidden: hidden,
                 onToggle: () =>
@@ -236,18 +391,15 @@ extension SavingsScreens on AppFlowNavigatorState {
                     ? SecondaryButton(label: 'Withdraw', onPressed: () {})
                     : null,
               ),
-            if (ledger != null ||
-                (status != null && wallet?.isActive == false)) ...[
+            // Only an active Flex account is shown, so no status row is needed.
+            if (flex != null && ledger != null) ...[
               const SizedBox(height: BocSpace.sm),
               GridViewInfo(
                 items: [
-                  if (ledger != null)
-                    (
-                      label: 'Ledger balance',
-                      value: hidden ? '₦ ••••••' : ledger,
-                    ),
-                  if (status != null && wallet?.isActive == false)
-                    (label: 'Wallet status', value: status),
+                  (
+                    label: 'Ledger balance',
+                    value: hidden ? '₦ ••••••' : ledger,
+                  ),
                 ],
               ),
             ],

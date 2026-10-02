@@ -10,6 +10,15 @@ import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
+import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
+import 'package:boctrust_savings_loan/app/network.dart';
+import 'package:dio/dio.dart';
+
+import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+
+import 'kyc_configuration_fixtures.dart';
 
 // Deliberately long, synthetic customer data exercises real content layouts.
 class LayoutStartup extends StartupGateNotifier {
@@ -156,4 +165,43 @@ class LayoutAccounts extends WithdrawalBankAccountsNotifier {
           ],
         ),
       );
+}
+
+/// Serves the live KYC configuration so the government-ID form is laid out.
+class LayoutKycService extends KycService with KycConfigurationFixture {
+  LayoutKycService() : super(ApiService(Dio()));
+}
+
+/// Core accounts with the same Flex balance [LayoutHome] used to publish.
+class LayoutCoreAccounts extends CustomerBankAccountsNotifier {
+  @override
+  NotifierState<CustomerBankAccountsData> build() => NotifierState.done(
+    CustomerBankAccountsData.fromJson({
+      'products': [
+        {
+          'productCode': kFlexProductCode,
+          'productName': 'Boc Flex Savings with a Particularly Long Name',
+          'accountNumber': '0000000001',
+          'status': 'active',
+          'availableBalance': '1234567890.12',
+          'ledgerBalance': '1234567890.12',
+        },
+      ],
+    }),
+  );
+
+  @override
+  Future<NotifierState<CustomerBankAccountsData>> load() async => state;
+}
+
+class LayoutCoreProducts extends CoreBankProductsNotifier {
+  @override
+  NotifierState<List<CoreBankProduct>> build() => NotifierState.done(
+    CoreBankProduct.listFromJson([
+      {'code': kFlexProductCode, 'name': 'Boc Flex'},
+    ]),
+  );
+
+  @override
+  Future<NotifierState<List<CoreBankProduct>>> load() async => state;
 }

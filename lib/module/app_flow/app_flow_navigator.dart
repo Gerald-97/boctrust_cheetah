@@ -36,12 +36,16 @@ import '../savings/model/savings_plan_models.dart';
 import '../send/model/transaction_models.dart';
 import '../send/provider/transaction_provider.dart';
 import '../savings/provider/savings_plan_provider.dart';
-import '../savings/provider/savings_provider.dart';
+import '../core_banking/model/bank_product_models.dart';
+import '../core_banking/model/customer_bank_account_models.dart';
+import '../core_banking/provider/core_account_providers.dart';
 import '../kyc/model/document_verification_models.dart';
+import '../kyc/model/kyc_configuration_models.dart';
 import '../kyc/model/kyc_models.dart';
 import '../kyc/model/kyc_provider_models.dart';
 import '../kyc/model/kyc_status_models.dart';
 import '../kyc/provider/document_verification_provider.dart';
+import '../kyc/provider/kyc_configuration_provider.dart';
 import '../kyc/provider/kyc_providers.dart';
 import '../kyc/provider/kyc_status_provider.dart';
 import '../kyc/screens/smile_id_capture_screen.dart';
@@ -182,8 +186,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _identityNumberController = TextEditingController();
   final _documentNumberController = TextEditingController();
   final _governmentIdFormKey = GlobalKey<FormState>();
-  GovernmentIdDocumentType _selectedDocumentType =
-      GovernmentIdDocumentType.voterId;
+
+  /// The document the customer chose, or null before the live catalogue has
+  /// offered one. Resolved against the current catalogue on every build.
+  GovernmentIdDocumentType? _selectedDocumentType;
   final _addressController = TextEditingController();
   final _addressStateController = TextEditingController();
   final _lgaController = TextEditingController();

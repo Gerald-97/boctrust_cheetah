@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'kyc_configuration_fixtures.dart';
 import 'responsive_fixtures.dart';
 
 /// Overrides that let [AppFlowNavigator] mount without a network or device
@@ -35,6 +36,7 @@ Future<List<Override>> flowTestOverrides() async {
     sharedPreferencesProvider.overrideWithValue(preferences),
     dioProvider.overrideWithValue(dio),
     startupGateProvider.overrideWith(LayoutStartup.new),
+    stagingBuildOverride,
   ];
 }
 

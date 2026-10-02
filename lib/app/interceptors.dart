@@ -117,6 +117,8 @@ class LoggingInterceptor extends Interceptor {
     'accountnumber',
     'documentnumber',
     'resultjson',
+    // Core bill-payment and biller customer identifiers.
+    'customerid',
   };
 
   Object? _visible(Object? value) =>
@@ -235,18 +237,28 @@ class AuthInterceptor extends Interceptor {
     required this.readAccessToken,
     required this.readCurrentSession,
     required this.expireSessionOnce,
+    this.isPublicOperation = ApiEndpoints.isPublic,
+    this.expireSessionOnRemote401 = true,
   });
 
   final Future<String?> Function() readAccessToken;
   final AuthSession? Function() readCurrentSession;
   final Future<void> Function() expireSessionOnce;
 
+  /// Which operations on this transport carry no bearer token.
+  final bool Function(String method, String path) isPublicOperation;
+
+  /// Whether a server 401 for the current token ends the User session. Off
+  /// for Core: a Core rejection must never sign the customer out of the User
+  /// Service. A locally expired session still cancels every request.
+  final bool expireSessionOnRemote401;
+
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final isPublic = ApiEndpoints.isPublic(options.method, options.path);
+    final isPublic = isPublicOperation(options.method, options.path);
     options.extra['requiresAuth'] = !isPublic;
     if (isPublic) {
       handler.next(options);
@@ -286,7 +298,8 @@ class AuthInterceptor extends Interceptor {
   ) async {
     final options = err.requestOptions;
     final attachedToken = options.extra['attachedAccessToken'];
-    if (err.response?.statusCode == 401 &&
+    if (expireSessionOnRemote401 &&
+        err.response?.statusCode == 401 &&
         options.extra['requiresAuth'] == true &&
         options.extra['suppressSessionExpiry'] != true &&
         attachedToken is String &&

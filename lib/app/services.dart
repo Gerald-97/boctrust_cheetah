@@ -6,6 +6,12 @@ import 'response_handler.dart';
 abstract final class Env {
   static const environment = String.fromEnvironment('ENV');
   static const baseUrl = String.fromEnvironment('BASE_URL');
+
+  /// Core Service root using the same `/api` convention as [baseUrl]. Blank
+  /// means Core is not configured: the app boots and every Core capability
+  /// stays unavailable.
+  static const coreBaseUrl = String.fromEnvironment('CORE_BASE_URL');
+  static bool get hasCoreBaseUrl => coreBaseUrl.trim().isNotEmpty;
   static const secureStorageNamespace = String.fromEnvironment(
     'SECURE_STORAGE_NAMESPACE',
   );
@@ -27,6 +33,30 @@ final stagingModeProvider = Provider<bool>((ref) => Env.isStaging);
 
 String baseUrl({int version = 1}) => '${Env.baseUrl}/v$version';
 
+/// Whether [value] is an HTTPS service root following the `/api` convention,
+/// before the version segment is appended.
+bool _isValidServiceRoot(String value) {
+  final uri = Uri.tryParse(value);
+  return uri != null &&
+      uri.scheme == 'https' &&
+      uri.host.isNotEmpty &&
+      !value.endsWith('/v1') &&
+      !value.contains('/api/api/v1');
+}
+
+/// The versioned Core base URL for [configured], or null when it is blank.
+///
+/// Throws [FormatException] for a configured value that is not a valid
+/// service root, so a misconfigured build fails at bootstrap.
+String? coreApiBaseUrl(String configured) {
+  final value = configured.trim();
+  if (value.isEmpty) return null;
+  if (!_isValidServiceRoot(value)) {
+    throw const FormatException('Invalid CORE_BASE_URL configuration.');
+  }
+  return '$value/v1';
+}
+
 class AppBootstrap {
   const AppBootstrap._();
 
@@ -42,14 +72,10 @@ class AppBootstrap {
       throw const FormatException('Invalid ENV configuration.');
     }
 
-    final uri = Uri.tryParse(Env.baseUrl);
-    if (uri == null ||
-        uri.scheme != 'https' ||
-        uri.host.isEmpty ||
-        Env.baseUrl.endsWith('/v1') ||
-        Env.baseUrl.contains('/api/api/v1')) {
+    if (!_isValidServiceRoot(Env.baseUrl)) {
       throw const FormatException('Invalid BASE_URL configuration.');
     }
+    coreApiBaseUrl(Env.coreBaseUrl);
 
     if (Env.secureStorageNamespace.trim().isEmpty) {
       throw const FormatException(

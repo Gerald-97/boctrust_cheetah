@@ -780,9 +780,9 @@ extension KycScreens on AppFlowNavigatorState {
               tone: ApiStateTone.info,
             ),
             const SizedBox(height: 14),
-            _governmentIdForm(submitting, true),
+            _governmentIdFormSection(submitting, true),
           ] else
-            _governmentIdForm(
+            _governmentIdFormSection(
               submitting,
               serverStatus == KycVerificationStatus.pending,
             ),
@@ -799,7 +799,79 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
-  Widget _governmentIdForm(bool submitting, bool pending) {
+  /// Documents the live catalogue offers that the configured government-ID
+  /// provider can launch, in server order; null while configuration is not
+  /// usable. The initiation's own provider is re-checked at launch.
+  List<GovernmentIdDocumentOption>? _offeredGovernmentIdDocuments() {
+    final config = ref.read(kycProviderConfigProvider).data;
+    final catalogue = ref.read(governmentIdDocumentTypesProvider).data;
+    if (config == null || catalogue == null) return null;
+    final provider = config.governmentId.provider;
+    return catalogue.documentTypes
+        .where((option) => option.documentType.isEnabledFor(provider))
+        .toList(growable: false);
+  }
+
+  /// The chosen option if the catalogue still offers it, otherwise the first
+  /// offered one.
+  GovernmentIdDocumentOption _resolveDocumentOption(
+    List<GovernmentIdDocumentOption> offered,
+  ) {
+    for (final option in offered) {
+      if (option.documentType == _selectedDocumentType) return option;
+    }
+    _selectedDocumentType = offered.first.documentType;
+    return offered.first;
+  }
+
+  void _retryGovernmentIdConfiguration() {
+    ref.read(kycProviderConfigProvider.notifier).load();
+    ref.read(governmentIdDocumentTypesProvider.notifier).load();
+  }
+
+  Widget _governmentIdFormSection(bool submitting, bool pending) {
+    final configState = ref.watch(kycProviderConfigProvider);
+    final catalogueState = ref.watch(governmentIdDocumentTypesProvider);
+    if (configState.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(kycProviderConfigProvider.notifier).load);
+    }
+    if (catalogueState.status == ServiceStatus.idle) {
+      Future<void>.microtask(
+        ref.read(governmentIdDocumentTypesProvider.notifier).load,
+      );
+    }
+
+    final offered = _offeredGovernmentIdDocuments();
+    if (offered == null && !configState.isError && !catalogueState.isError) {
+      return const ApiLoadingSection(label: 'Loading document options');
+    }
+    if (offered == null || offered.isEmpty) {
+      final loading = configState.isLoading || catalogueState.isLoading;
+      return ApiStateCard(
+        title: 'Document verification unavailable',
+        message:
+            'We could not load the documents you can verify with right now. '
+            'Please try again.',
+        tone: ApiStateTone.error,
+        actionLabel: loading ? null : 'Retry',
+        onAction: loading ? null : _retryGovernmentIdConfiguration,
+      );
+    }
+    return _governmentIdForm(
+      submitting,
+      pending,
+      offered,
+      _resolveDocumentOption(offered),
+    );
+  }
+
+  Widget _governmentIdForm(
+    bool submitting,
+    bool pending,
+    List<GovernmentIdDocumentOption> offered,
+    GovernmentIdDocumentOption selected,
+  ) {
+    final label = selected.displayLabel;
     return SurfaceCard(
       child: Form(
         key: _governmentIdFormKey,
@@ -818,49 +890,69 @@ extension KycScreens on AppFlowNavigatorState {
               ).textTheme.bodySmall?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 14),
-            // The backend requires a document type on initiation, so the user
-            // declares one here. Every type is offered: these attempts route to
-            // Dojah, whose widget accepts them all, and a backend that answers
-            // with Smile instead is caught at launch.
+            // Only documents the server currently accepts and the configured
+            // provider can launch are offered, in server order. A backend that
+            // answers the initiation with a different provider is caught at
+            // launch.
             FormDropdown<GovernmentIdDocumentType>(
               label: 'Document type',
-              value: _selectedDocumentType,
-              items: GovernmentIdDocumentType.values
+              value: selected.documentType,
+              items: offered
                   .map(
-                    (type) =>
-                        DropdownMenuItem(value: type, child: Text(type.label)),
+                    (option) => DropdownMenuItem(
+                      value: option.documentType,
+                      child: Text(option.displayLabel),
+                    ),
                   )
                   .toList(growable: false),
               onChanged: submitting
                   ? null
                   : (value) => refreshKycFormState(() {
-                      if (value != null) _selectedDocumentType = value;
+                      if (value == null) return;
+                      _selectedDocumentType = value;
+                      final next = offered.firstWhere(
+                        (option) => option.documentType == value,
+                      );
+                      // A number typed for a document that needed one must
+                      // never travel with one that does not.
+                      if (!next.requiresDocumentNumber) {
+                        _documentNumberController.clear();
+                      }
                     }),
             ),
+            if (selected.description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                selected.description,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(height: 1.5),
+              ),
+            ],
             const SizedBox(height: 8),
             // The provider's own capture asks for the document again from its
             // configured list and is never told this choice. Naming it here
             // keeps the declared document and the captured one together.
             Text(
-              'Select ${_selectedDocumentType.label} again when verification '
-              'opens, so it matches what we record.',
+              'Select $label again when verification opens, so it matches '
+              'what we record.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(height: 1.5),
             ),
-            const SizedBox(height: 12),
-            // Required by the backend, which rejects an initiation without it.
-            AppTextField(
-              key: const ValueKey('document-number'),
-              label: 'Document number',
-              controller: _documentNumberController,
-              enabled: !submitting,
-              hintText: 'As printed on your ${_selectedDocumentType.label}',
-              validator: (value) => (value ?? '').trim().isEmpty
-                  ? 'Enter the document number as printed on your '
-                        '${_selectedDocumentType.label}.'
-                  : null,
-            ),
+            if (selected.requiresDocumentNumber) ...[
+              const SizedBox(height: 12),
+              AppTextField(
+                key: const ValueKey('document-number'),
+                label: 'Document number',
+                controller: _documentNumberController,
+                enabled: !submitting,
+                hintText: 'As printed on your $label',
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? 'Enter the document number as printed on your $label.'
+                    : null,
+              ),
+            ],
             const SizedBox(height: 18),
             PrimaryButton(
               label: switch ((submitting, pending)) {
@@ -888,10 +980,17 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _startGovernmentIdVerification() async {
+    // Never initiate without a current, usable configuration.
+    final offered = _offeredGovernmentIdDocuments();
+    if (offered == null || offered.isEmpty) return;
+    final selected = _resolveDocumentOption(offered);
+
     final notifier = ref.read(governmentIdVerificationProvider.notifier);
     final initiation = await notifier.submit(
-      documentType: _selectedDocumentType,
-      documentNumber: _documentNumberController.text,
+      documentType: selected.documentType,
+      documentNumber: selected.requiresDocumentNumber
+          ? _documentNumberController.text
+          : null,
     );
     if (!mounted) return;
 
@@ -941,6 +1040,8 @@ extension KycScreens on AppFlowNavigatorState {
     final unsupported = governmentIdUnsupportedMessage(
       GovernmentIdDocumentType.tryParse(initiation.documentType),
       provider,
+      offeredTypes:
+          ref.read(governmentIdDocumentTypesProvider).data?.types ?? const [],
     );
     if (unsupported != null) {
       notifier.markProviderFailure();

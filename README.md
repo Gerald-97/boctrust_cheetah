@@ -17,6 +17,13 @@ widget for each environment. `PAYSTACK_PUBLIC_KEY` is reserved for the future
 card-funding integration. Copy `.env.example` for a new local setup;
 environment files remain gitignored.
 
+`CORE_BASE_URL=https://core-dev-api.centurysoftware.dev/api` points at the
+separate Core Service (accounts, products, transfers, bills) and follows the
+same `/api` convention; the app appends `/v1`. It is optional: left blank, the
+app boots, every User Service feature works, and every Core-backed capability
+is unavailable. Core requests carry the signed-in User Service bearer token,
+but a Core `401` never signs the customer out.
+
 ### iOS build setup
 
 iOS native dependencies use Swift Package Manager only, through Flutter's
@@ -105,10 +112,33 @@ denied and re-granted, selfie liveness, a successful Voter ID capture, user
 cancellation, a native SDK error, submission acknowledgement, delayed and
 failed webhooks, manual refresh, background/resume refresh, and logout cleanup.
 
-Only `voter_id` is enabled. Smile's published matrix lists only Nigerian
-`VOTER_ID` for Enhanced Document Verification, so each other document type
-stays disabled until a sandbox submission succeeds for this partner on both
-platforms and its webhook reaches `pending` or `success`.
+### Government-ID documents
+
+The government-ID form is driven by two authenticated User Service reads,
+cleared on logout, expiry, and user switching:
+
+- `GET /users/me/kyc/government-id/document-types` is the catalogue. Only
+  active rows this build knows are offered, in server order. A failed,
+  malformed, or empty catalogue shows Retry; there is no hard-coded fallback.
+- `GET /users/me/kyc/provider-config` filters that catalogue by what
+  `governmentId.provider` can launch. A `staging` build accepts only a
+  `sandbox` environment and a `prod` build only `live`; any mismatch blocks
+  initiation.
+
+`national_id` is shown as “NIN, National Identity Number” and stays distinct
+from `nin_slip` (“NIN slip”). The document number field appears, and
+`documentNumber` is sent, only when the selected row has
+`requiresDocumentNumber: true`.
+
+The provider returned by `POST /users/me/kyc/government-id/initiate` remains
+authoritative for each attempt. Dojah is the default provider and accepts
+every known document, including `national_id` (confirmed on the staging
+government-ID widget on 2 October 2026). Smile is limited to `voter_id`:
+its published matrix lists only Nigerian `VOTER_ID` for Enhanced Document
+Verification, and `national_id` has no Smile mapping. Dojah widget IDs remain
+environment inputs because the provider config does not publish them, and the
+Dojah webhook is backend-only. Smile ID v12 token retrieval waits for the
+backend to publish token expiry (`expiresAt` or `expiresInSeconds`).
 
 ## Architecture
 
@@ -177,7 +207,7 @@ no contract in that API remain explicitly unavailable.
 | Next of kin | Submission endpoint | Route states plainly that it is a later step | Add a typed submission endpoint. |
 | Group Save invitations and schedules | Invitation, contribution schedule, roles, missed-payment endpoints | Group routes show blocked integration state where needed | Add typed models and service methods. |
 | Card funding | Paystack/provider handoff and callback contract | Card funding route shell marked blocked | Wire WebView URL creation and callback parser. |
-| Transfers, airtime, data, and bills | Catalogue/account lookup, fee and amount rules, transaction-bound authorization, idempotent submit, status, and server-issued receipts | Send and Pay hubs stay navigable, but every transfer, airtime, data, biller, authorization, and receipt route shows an unavailable state. No form, PIN, recipient, or receipt is shown | Add the transaction contract first; receipts may only render confirmed server data. `/auth/pin/verify-current` is not a substitute for transaction authorization. |
+| Transfers, airtime, data, and bills | Core publishes the endpoints, but bank-list, name-enquiry, biller, category and payment-item responses have no attached schema; there is no transaction-bound authorization, idempotency rule, or success/status enum (see `docs/verification/core-banking-integration.md`) | Send and Pay hubs stay navigable, but every transfer, airtime, data, biller, authorization, and receipt route shows an unavailable state. No form, PIN, recipient, or receipt is shown | Add the transaction contract first; receipts may only render confirmed server data. `/auth/pin/verify-current` is not a substitute for transaction authorization. |
 | Scan to pay | QR payload format, merchant lookup, payment submission and status, native scanning integration | Route shows an unavailable state; no camera or manual-code entry | Add the payment contract and a supported scanner. |
 | Transaction history and payment checkout | Transaction list and hosted-checkout contracts | `/transactions` and `/payment/webview` show unavailable states | Replace with service-backed state. |
 | Beneficiaries | CRUD endpoint details | Account route shows an unavailable state with no sample recipients | Replace with service-backed provider state. |
@@ -189,7 +219,7 @@ no contract in that API remain explicitly unavailable.
 
 - Home, Save, Send, Pay, and Account tabs are registered.
 - Onboarding, verification, OTP, password, login, password reset, and new-device OTP routes are registered.
-- Savings/Flex render the live wallet and catalogue. Target, Lock, Group and unsupported Savings action routes show availability states.
+- Home, Savings and Flex render balances and the product catalogue from the Core Service; Add money keeps the User Service virtual account. Target, Lock, Group and unsupported Savings action routes show availability states.
 - Live: Add Money and bank-transfer funding (virtual-account details), linked withdrawal bank accounts (list, resolve, save, delete), KYC tiers, login, and PIN flows.
 - Unavailable (routes registered, honest unavailable state): card funding, own-account/beneficiary/other-bank transfers, airtime, data, all biller categories, bill pay, scan-to-pay, transaction authorization, receipts (including `/transaction/receipt/demo`), transaction history, payment webview, and beneficiaries.
 - There is no live transaction service and no notification-history service. No route fabricates a transaction, recipient, receipt, or notification.

@@ -5,6 +5,7 @@ extension HomeScreen on AppFlowNavigatorState {
     final profileState = ref.watch(userProfileProvider);
     final tierState = ref.watch(userTierProvider);
     final homeState = ref.watch(userHomeProvider);
+    final accountsState = ref.watch(customerBankAccountsProvider);
     final session = ref.watch(authSessionProvider);
     final profile = profileState.data;
     final tier = tierState.data;
@@ -17,6 +18,11 @@ extension HomeScreen on AppFlowNavigatorState {
     }
     if (homeState.status == ServiceStatus.idle && session != null) {
       Future<void>.microtask(ref.read(userHomeProvider.notifier).load);
+    }
+    if (accountsState.status == ServiceStatus.idle && session != null) {
+      Future<void>.microtask(
+        ref.read(customerBankAccountsProvider.notifier).load,
+      );
     }
 
     final displayName = profile?.firstName?.trim().isNotEmpty == true
@@ -55,6 +61,7 @@ extension HomeScreen on AppFlowNavigatorState {
             ref.read(userProfileProvider.notifier).load(),
             ref.read(userTierProvider.notifier).load(),
             ref.read(userHomeProvider.notifier).load(),
+            ref.read(customerBankAccountsProvider.notifier).load(),
           ]);
         },
         child: ListView(
@@ -96,7 +103,7 @@ extension HomeScreen on AppFlowNavigatorState {
               ),
               const SizedBox(height: BocSpace.md),
             ],
-            ..._homeWalletSection(homeState),
+            ..._homeWalletSection(accountsState),
             const SizedBox(height: BocSpace.sm),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -193,46 +200,57 @@ extension HomeScreen on AppFlowNavigatorState {
     );
   }
 
-  /// Wallet hero and dedicated virtual account.
+  /// Wallet hero: the Core Flex balance beside the User Service funding
+  /// account.
   ///
-  /// Renders only API-authoritative values. A missing or unknown state is shown
-  /// as such — this section never substitutes a placeholder balance or account.
-  List<Widget> _homeWalletSection(NotifierState<UserHomeData> homeState) {
-    final home = homeState.data;
+  /// Core is the only balance authority. A Core failure shows as such and
+  /// never falls back to the User Service balance; the funding account number
+  /// still comes from the User Service and is unaffected.
+  List<Widget> _homeWalletSection(
+    NotifierState<CustomerBankAccountsData> accountsState,
+  ) {
+    final accounts = accountsState.data;
+    Future<void> retry() =>
+        ref.read(customerBankAccountsProvider.notifier).load();
 
-    if (home == null) {
-      if (homeState.isLoading || homeState.status == ServiceStatus.idle) {
+    if (accounts == null) {
+      if (accountsState.isLoading ||
+          accountsState.status == ServiceStatus.idle) {
         return [const ApiLoadingSection(label: 'Loading your wallet')];
       }
       return [
         ApiStateCard(
-          title: 'Wallet unavailable',
+          title: 'Balance unavailable',
           message:
-              homeState.message ?? 'We could not load your account overview.',
+              accountsState.message ?? 'We could not load your wallet balance.',
           tone: ApiStateTone.error,
           actionLabel: 'Retry',
-          onAction: () => ref.read(userHomeProvider.notifier).load(),
+          onAction: retry,
         ),
       ];
     }
 
     return [
-      if (homeState.isError) ...[
+      if (accountsState.isError) ...[
         ApiStateCard(
           title: 'Showing your last known balance',
-          message: homeState.message ?? 'We could not refresh your wallet.',
+          message: accountsState.message ?? 'We could not refresh your wallet.',
           tone: ApiStateTone.warning,
           actionLabel: 'Retry',
-          onAction: () => ref.read(userHomeProvider.notifier).load(),
+          onAction: retry,
         ),
         const SizedBox(height: 14),
       ],
-      _flexWalletCard(home.flexWallet, loading: homeState.isLoading),
+      _flexWalletCard(
+        accounts.activeFlexAccount,
+        loading: accountsState.isLoading,
+      ),
     ];
   }
 
-  Widget _flexWalletCard(FlexWalletData? wallet, {required bool loading}) {
-    if (wallet == null) {
+  Widget _flexWalletCard(CustomerBankAccount? flex, {required bool loading}) {
+    // Absent, frozen, closed or ambiguous: never shown as a usable balance.
+    if (flex == null) {
       return const ApiStateCard(
         title: 'Wallet information unavailable',
         message:
@@ -242,13 +260,9 @@ extension HomeScreen on AppFlowNavigatorState {
     }
 
     final hidden = ref.watch(homeBalanceHiddenProvider);
-    final available = formatApiAmount(
-      wallet.availableBalance,
-      currency: wallet.currency,
-    );
-    final status = wallet.status;
-    // The customer's funding account number, shown only once the server has
-    // confirmed complete details for it.
+    final available = formatApiAmount(flex.availableBalance, currency: 'NGN');
+    // The customer's funding account number, shown only once the User
+    // Service has confirmed complete details for it.
     final funding = ref.watch(userHomeProvider).data?.dedicatedVirtualAccount;
     final accountNumber =
         funding != null &&
@@ -267,10 +281,6 @@ extension HomeScreen on AppFlowNavigatorState {
           ? null
           : () => _copyFundingAccountNumber(funding),
       tier: ref.watch(userTierProvider).data?.currentTier,
-      // Surface a non-active wallet status; it never enables an action.
-      statusLabel: wallet.isActive || status == null
-          ? null
-          : 'Wallet status: $status',
       loading: loading,
     );
   }

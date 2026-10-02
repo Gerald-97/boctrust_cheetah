@@ -216,4 +216,17 @@ void main() {
       expect(logged, contains('12345678901'));
     },
   );
+
+  test('Core customer IDs are redacted even in staging', () {
+    interceptor.onRequest(
+      RequestOptions(
+        path: '/me/bills/payments',
+        data: {'customerId': '04512345678', 'amount': '1000.00'},
+      ),
+      RequestInterceptorHandler(),
+    );
+    final logged = output.lines.join();
+    expect(logged, isNot(contains('04512345678')));
+    expect(logged, contains('1000.00'));
+  });
 }

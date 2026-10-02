@@ -6,10 +6,10 @@ import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/kyc_configuration_fixtures.dart';
 import 'support/flow_harness.dart';
 
 /// A legacy Smile document initiation: no contract version, and the Smile job
@@ -40,7 +40,7 @@ KycStatusData _notStarted() => KycStatusData.fromJson({
   'nextAction': 'verify_government_id',
 });
 
-class _Kyc extends KycService {
+class _Kyc extends KycService with KycConfigurationFixture {
   _Kyc() : super(ApiService(Dio()));
 
   @override
@@ -97,12 +97,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // The backend answers with nin_slip, which Smile cannot verify.
-    await tester.enterText(
-      find.byKey(const ValueKey('document-number')),
-      'A1234567',
-    );
-    await tester.pumpAndSettle();
+    // The configuration says Dojah, but the backend answers with Smile and
+    // nin_slip, which Smile cannot verify. The initiation's provider decides.
     await tester.tap(find.text('Start verification'));
     // Bounded pumps: a pushed Smile capture screen animates forever, so
     // pumpAndSettle would time out instead of reporting the real failure.

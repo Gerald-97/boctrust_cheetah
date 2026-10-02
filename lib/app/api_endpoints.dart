@@ -34,6 +34,9 @@ abstract final class ApiEndpoints {
       '$withdrawalBankAccounts/${Uri.encodeComponent(bankAccountId)}';
 
   static const ownKycStatus = '/users/me/kyc/status';
+  static const kycProviderConfig = '/users/me/kyc/provider-config';
+  static const governmentIdDocumentTypes =
+      '/users/me/kyc/government-id/document-types';
 
   static const initiateIdentityVerification = '/users/me/kyc/identity/initiate';
   static const initiateGovernmentIdVerification =

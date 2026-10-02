@@ -1,4 +1,5 @@
 import 'package:boctrust_savings_loan/app/network.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
@@ -40,6 +41,8 @@ void main() {
           authSessionProvider.overrideWith(SavingsSession.new),
           userProfileProvider.overrideWith(LayoutProfile.new),
           userHomeProvider.overrideWith(LayoutHome.new),
+          customerBankAccountsProvider.overrideWith(LayoutCoreAccounts.new),
+          coreBankProductsProvider.overrideWith(LayoutCoreProducts.new),
         ],
         child: MaterialApp(
           theme: CheetahTheme.lightTheme,
@@ -50,7 +53,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Flex shows the live Home balance without sample interest', (
+  testWidgets('Flex shows the live Core balance without sample interest', (
     tester,
   ) async {
     await open(tester, AppScreen.flex);

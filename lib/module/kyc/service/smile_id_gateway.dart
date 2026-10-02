@@ -6,6 +6,7 @@ import 'package:smile_id/products/enhanceddocv/smile_id_enhanced_document_verifi
 import 'package:smile_id/smile_id.dart';
 
 import '../model/kyc_models.dart';
+import '../model/kyc_provider_models.dart';
 import 'smile_id_initializer.dart';
 
 enum SmileIdFlowOutcome { submitted, cancelled, failed }
@@ -244,11 +245,13 @@ final class SmileIdDocumentJob extends SmileIdCaptureJob {
       expectedJobType: 11,
     );
 
-    GovernmentIdDocumentType? selectedType;
-    for (final type in GovernmentIdDocumentType.values) {
-      if (type.wireValue == initiation.documentType) selectedType = type;
-    }
-    if (selectedType == null) {
+    final selectedType = GovernmentIdDocumentType.tryParse(
+      initiation.documentType,
+    );
+    final spec = selectedType?.smileIdDocumentSpec;
+    if (selectedType == null ||
+        !selectedType.isEnabledFor(KycProvider.smileId) ||
+        spec == null) {
       throw const SmileIdConfigurationException('Unsupported document type.');
     }
 
@@ -260,8 +263,8 @@ final class SmileIdDocumentJob extends SmileIdCaptureJob {
     return SmileIdDocumentJob(
       verificationId: context.verificationId,
       country: country,
-      documentType: selectedType.smileIdWireValue,
-      captureBothSides: selectedType.smileIdCaptureBothSides,
+      documentType: spec.wireValue,
+      captureBothSides: spec.captureBothSides,
       userId: context.userId,
       jobId: context.jobId,
       callbackUrl: context.callbackUrl,

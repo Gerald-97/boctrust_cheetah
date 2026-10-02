@@ -33,15 +33,14 @@ void main() {
   _biometricJobTests();
 
   group('SmileIdDocumentJob', () {
-    test('maps backend government ID context to Smile v11 values', () {
-      final job = SmileIdDocumentJob.fromInitiation(
+    KycInitiationData documentInitiation(String documentType) =>
         KycInitiationData.fromJson({
           'verificationId': 'verification-1',
           'product': 'enhanced_document_verification',
           'sdkJobType': 'enhancedDocumentVerification',
           'environment': 'sandbox',
           'country': 'NG',
-          'documentType': 'international_passport',
+          'documentType': documentType,
           'smileUserId': 'smile-user-1',
           'smileJobId': 'smile-job-1',
           'callbackUrl': 'https://user.example.test/document-webhook',
@@ -50,13 +49,37 @@ void main() {
             'job_id': 'smile-job-1',
             'job_type': 11,
           },
-        }),
+        });
+
+    test('maps backend government ID context to Smile v11 values', () {
+      final job = SmileIdDocumentJob.fromInitiation(
+        documentInitiation('voter_id'),
         useSandbox: true,
       );
-      expect(job.documentType, 'PASSPORT');
-      expect(job.captureBothSides, isFalse);
+      expect(job.documentType, 'VOTER_ID');
+      expect(job.captureBothSides, isTrue);
       expect(job.userId, 'smile-user-1');
       expect(job.jobId, 'smile-job-1');
+    });
+
+    test('rejects documents Smile is not enabled for', () {
+      // A Smile job is only ever built for a document Smile can verify; the
+      // capability gate and the SDK mapping must both agree.
+      for (final documentType in [
+        'national_id',
+        'international_passport',
+        'nin_slip',
+        'drivers_license',
+      ]) {
+        expect(
+          () => SmileIdDocumentJob.fromInitiation(
+            documentInitiation(documentType),
+            useSandbox: true,
+          ),
+          throwsA(isA<SmileIdConfigurationException>()),
+          reason: documentType,
+        );
+      }
     });
 
     test('rejects wrong products, HTTP callbacks, and conflicting IDs', () {

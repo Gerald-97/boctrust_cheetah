@@ -507,7 +507,7 @@ class GovernmentIdVerificationNotifier
   /// context leaves an existing verification in progress.
   Future<KycInitiationData?> submit({
     required GovernmentIdDocumentType documentType,
-    required String documentNumber,
+    String? documentNumber,
   }) async {
     if (_inFlight) return null;
 
