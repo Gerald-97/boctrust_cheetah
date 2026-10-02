@@ -1,3 +1,4 @@
+import 'package:boctrust_savings_loan/app/api_endpoints.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,5 +24,19 @@ void main() {
       FeatureCapability.notificationPreferences,
       FeatureCapability.accessibilityPreferences,
     });
+  });
+
+  test('the government-ID capability requires both configuration reads', () {
+    final operations =
+        capabilityRequirements[FeatureCapability.kycGovernmentId]!.operations;
+    expect(
+      operations,
+      containsAll(<ApiOperation>{
+        (method: 'GET', path: ApiEndpoints.ownKycStatus),
+        (method: 'POST', path: ApiEndpoints.initiateGovernmentIdVerification),
+        (method: 'GET', path: ApiEndpoints.kycProviderConfig),
+        (method: 'GET', path: ApiEndpoints.governmentIdDocumentTypes),
+      }),
+    );
   });
 }

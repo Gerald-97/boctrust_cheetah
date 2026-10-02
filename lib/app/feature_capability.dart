@@ -118,6 +118,8 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
     operations: {
       (method: 'GET', path: ApiEndpoints.ownKycStatus),
       (method: 'POST', path: ApiEndpoints.initiateGovernmentIdVerification),
+      (method: 'GET', path: ApiEndpoints.kycProviderConfig),
+      (method: 'GET', path: ApiEndpoints.governmentIdDocumentTypes),
     },
   ),
   FeatureCapability.kycUtilityBill: CapabilityRequirement(
