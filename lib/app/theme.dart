@@ -144,11 +144,10 @@ class CheetahTheme {
           // navy background.
           backgroundColor: dark ? BocColors.goldLight : BocColors.navy,
           foregroundColor: dark ? BocColors.navy : BocColors.goldLight,
-          disabledBackgroundColor: (dark ? BocColors.goldLight : BocColors.navy)
-              .withValues(alpha: 0.38),
-          disabledForegroundColor: dark
-              ? BocColors.navy.withValues(alpha: 0.6)
-              : c.textDisabled,
+          // Solid disabled colors keep text legible regardless of the surface
+          // behind the button while preserving a visibly inactive state.
+          disabledBackgroundColor: dark ? BocColors.navy2 : BocColors.grey,
+          disabledForegroundColor: dark ? c.textSecondary : BocColors.navy,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
