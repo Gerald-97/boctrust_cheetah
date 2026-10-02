@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -130,7 +131,16 @@ class _DojahWebViewState extends State<DojahWebView> {
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
     // Subframes cannot move the page; media is gated on the main frame.
     if (!request.isMainFrame) return NavigationDecision.navigate;
-    switch (decideDojahNavigation(request.url)) {
+    final decision = decideDojahNavigation(request.url);
+    if (kDebugMode) {
+      // Host and path only: the query carries the BVN, email and reference.
+      final uri = Uri.tryParse(request.url);
+      debugPrint(
+        '[DojahWebView] main-frame ${decision.name}: '
+        '${uri == null ? '<unparsable>' : '${uri.scheme}://${uri.host}${uri.path}'}',
+      );
+    }
+    switch (decision) {
       case DojahWebNavigation.allow:
         return NavigationDecision.navigate;
       case DojahWebNavigation.finish:
