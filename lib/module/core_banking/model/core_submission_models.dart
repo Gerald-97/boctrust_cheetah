@@ -106,6 +106,10 @@ CoreSubmissionOutcome mapCoreSubmission(
   if (response.status == ServiceStatus.success && ack != null) {
     return AcceptedSubmission(ack);
   }
+  // Never sent (Core not configured), so nothing can have moved.
+  if (response.status == ServiceStatus.blocked) {
+    return const RejectedSubmission(CoreRejection.other);
+  }
   final code = response.statusCode;
   return switch (code) {
     400 => RejectedSubmission(

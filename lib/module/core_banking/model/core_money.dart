@@ -60,3 +60,17 @@ MoneyInput parseNairaAmount(String text, {required String maxNaira}) {
   final split = digits.length - 2;
   return ValidMoney('${digits.substring(0, split)}.${digits.substring(split)}');
 }
+
+final _decimal = RegExp(r'^(\d+)(?:\.(\d+))?$');
+
+/// A server decimal Naira balance (e.g. `2500.0000`) as whole Kobo, rounded
+/// down so a limit derived from it is never above the real balance. Null when
+/// the balance is missing or not a plain non-negative decimal.
+String? balanceToKobo(String? amount) {
+  final match = _decimal.firstMatch(amount?.trim() ?? '');
+  if (match == null) return null;
+  final fraction = (match.group(2) ?? '').padRight(2, '0').substring(0, 2);
+  return (BigInt.parse(match.group(1)!) * BigInt.from(100) +
+          BigInt.parse(fraction))
+      .toString();
+}

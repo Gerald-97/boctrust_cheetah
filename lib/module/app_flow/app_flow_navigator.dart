@@ -37,8 +37,13 @@ import '../send/model/transaction_models.dart';
 import '../send/provider/transaction_provider.dart';
 import '../savings/provider/savings_plan_provider.dart';
 import '../core_banking/model/bank_product_models.dart';
+import '../core_banking/model/core_money.dart';
+import '../core_banking/model/core_submission_models.dart';
 import '../core_banking/model/customer_bank_account_models.dart';
+import '../core_banking/model/intrabank_models.dart';
 import '../core_banking/provider/core_account_providers.dart';
+import '../core_banking/provider/intrabank_submission_providers.dart';
+import '../core_banking/service/transaction_authorizer.dart';
 import '../kyc/model/document_verification_models.dart';
 import '../kyc/model/kyc_configuration_models.dart';
 import '../kyc/model/kyc_models.dart';
@@ -111,6 +116,7 @@ part '../savings/screens/savings_plan_screens.dart';
 
 part '../send/screens/send_screens.dart';
 part '../send/screens/transaction_flow_screens.dart';
+part '../core_banking/screens/own_account_move_screen.dart';
 
 part '../payments/screens/payments_screens.dart';
 
@@ -633,7 +639,22 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       case AppScreen.sendHub:
         return _sendHubScreen();
       case AppScreen.sendOwn:
-        return _sendOwnScreen();
+        final canMove =
+            ref
+                .watch(
+                  featureAvailabilityProvider(
+                    FeatureCapability.ownAccountTransfers,
+                  ),
+                )
+                .isAvailable ||
+            ref
+                .watch(
+                  featureAvailabilityProvider(
+                    FeatureCapability.savingsWithdrawals,
+                  ),
+                )
+                .isAvailable;
+        return canMove ? _OwnAccountMoveFlow(onExit: _back) : _sendOwnScreen();
       case AppScreen.sendBeneficiary:
         return _sendBeneficiaryScreen();
       case AppScreen.sendBank:
