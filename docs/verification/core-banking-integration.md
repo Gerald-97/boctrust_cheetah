@@ -9,6 +9,11 @@ Execution notes: `docs/superpowers/execution/2026-10-02-kyc-core-execution-log.m
   `swagger-ui-init.js` SHA-256
   `57f5cbf244f6d4d5ea0c99122e7f263053927b7ef69416c608c7b4b0fec6bee0`
   (unchanged between plan writing and execution on 2 October 2026).
+  Re-inspected later that day: SHA-256
+  `f150ae0096c4429a9a1626f396f5eb35556d66ed3ad21ca13cef084815dbf0ab`. No
+  endpoints were added or removed; `CustomerBillPaymentRequest` now requires
+  only `billerId`, `paymentItemId`, `customerId` and `amount`, and the
+  snap-to-pay OCR wording changed. See the plan's **Contract Update** section.
 - `CORE_BASE_URL=https://core-dev-api.centurysoftware.dev/api`; the app appends
   `/v1`. Blank is valid and leaves every Core capability unavailable.
 

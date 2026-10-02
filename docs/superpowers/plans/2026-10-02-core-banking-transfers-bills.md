@@ -8,7 +8,7 @@
 
 **Tech Stack:** Flutter, Dart 3.12+, Riverpod 3, Dio 5, Equatable, existing `ApiService`/`NotifierState`/`StaleResultGuard`, and Flutter unit/widget tests.
 
-**Spec:** The user’s 2 October 2026 endpoint/widget mapping and the live [BocTrust Core Service OpenAPI document](https://core-dev-api.centurysoftware.dev/api/v1/docs/#/), inspected 2 October 2026. Inspected `swagger-ui-init.js` SHA-256: `57f5cbf244f6d4d5ea0c99122e7f263053927b7ef69416c608c7b4b0fec6bee0`.
+**Spec:** The user’s 2 October 2026 endpoint/widget mapping and the live [BocTrust Core Service OpenAPI document](https://core-dev-api.centurysoftware.dev/api/v1/docs/#/), inspected 2 October 2026. Inspected `swagger-ui-init.js` SHA-256: `57f5cbf244f6d4d5ea0c99122e7f263053927b7ef69416c608c7b4b0fec6bee0`. Re-inspected later on 2 October 2026 (SHA-256 `f150ae0096c4429a9a1626f396f5eb35556d66ed3ad21ca13cef084815dbf0ab`); see **Contract Update** below.
 
 **Related delivery stream:** KYC remains on the User Service and is planned in `docs/superpowers/plans/2026-10-01-kyc-provider-document-catalogue.md`. Never route one service’s endpoints through the other service’s transport.
 
@@ -36,6 +36,39 @@
 | Send to other bank | `POST /me/interbank/transfers` | Same authorization gap; POST response semantics are incomplete. |
 | Transfer status | `GET /me/interbank/transfers/{reference}/status` | No reference can be created while submission is disabled. |
 | Buy Airtime/Data and Pay bill | `POST /me/bills/payments` | No transaction-bound authorization and success/response-code contract is incomplete. |
+
+## Contract Update (re-inspected 2 October 2026)
+
+A diff of the two snapshots shows **no endpoints added or removed**. Every endpoint below was already published at plan time; this section records the ones the plan did not scope, plus the three changed definitions.
+
+### Changed definitions
+
+| Item | Change | Effect on this plan |
+|---|---|---|
+| `CustomerBillPaymentRequest` (`POST /me/bills/payments`) | Required fields reduced to `billerId`, `paymentItemId`, `customerId`, `amount`. `billerName`, `billerCategoryId`, `billerCategoryName` and `paymentItemName` are resolved server-side from the IDs; `customerEmail` and `customerPhone` were removed. | The future bill-payment slice sends IDs only, never display names, and no longer collects or prefills email/phone. Supersedes "mandatory contact fields" wherever this plan mentions them. |
+| `POST /me/bills/payments` `404` | Now also returned when `billerId`/`paymentItemId` do not match a real catalogue entry, or the caller has no biodata on file. | A `404` is not only "no BocFlex account"; map it to a customer-safe catalogue/profile error, never retry. |
+| `POST /me/snap-to-pay` / `SnapToPayResponse` | OCR returns the longest run of 4+ digits found anywhere in the image; `400` means no such run was found. | Out of scope; recorded for a future Scan-to-pay plan. |
+
+### Mobile endpoints not in this plan's scope
+
+All require `bearerAuth` and use the same Core transport (`coreApiServiceProvider`) when scoped.
+
+| Endpoint | Purpose | Status / prerequisite |
+|---|---|---|
+| `POST /me/bank-accounts` | Opens a real BankOne CASA account for the caller, one per requested `productCodes` entry (all active catalogue products when omitted). The first successful account needs biodata: `lastName`, `firstName`, `city`, `address`, `gender`, `dateOfBirth`, `phoneNumber`, `bvn`, `email`; later calls reuse the stored record. Returns per-product `created`/`already_exists`/`failed`. | **Blocking dependency for Home/Savings.** Staging users have no Core accounts (`products: []`, `missingProducts: []`), so Task 3 cannot be device-verified until accounts exist. Backend/product must decide whether accounts are opened server-side (for example after Tier 1) or by an app flow; if app-side, write a new plan with its own biodata, consent and duplicate-submission rules. |
+| `GET /me/bank-accounts/{accountNumber}` | One owned account with a live balance (`CustomerBankAccountSummary`). | Not needed while Home/Savings use the list call; candidate for a Flex detail refresh. Encode `accountNumber` as one path segment; never log it. |
+| `POST /me/intrabank/transfers` | Sends money from the caller's BocFlex account to another BOCTRUST account (`toAccountNumber`, `amount`). | Money-moving; same authorization/idempotency gate as other transfers. Kept out (BOCTRUST-customer transfer was excluded). |
+| `POST /me/intrabank/withdrawals` | Moves money from one of the caller's other product accounts back into BocFlex (`fromProductCode`, `amount`). | Money-moving counterpart of `/transfers/own`; would back Savings "Withdraw". Same gate. |
+| `POST /me/beneficiaries` | Saves a beneficiary: a bank account (`type: bank_account`, `bankCode` from `GET /me/interbank/banks`, `number`, optional `nickname`) or a biller account. | Excluded (beneficiaries). Depends on the interbank directory fixtures (Task 4 gate). |
+| `GET /me/beneficiaries` | Lists the caller's saved beneficiaries (`BeneficiaryResponse[]`). | Excluded; would feed Send recipient pickers. |
+| `DELETE /me/beneficiaries/{beneficiaryId}` | Removes a saved beneficiary. | Excluded. |
+| `POST /me/snap-to-pay`, `POST /me/scan-to-pay` | OCR: read an account/meter number out of a photo (`image` body). | Excluded (Scan to pay); would prefill an account or customer-ID field only, never submit. |
+
+### Back-office endpoints the app must not call
+
+`PUT /customers`, `PUT /accounts/tier`, `POST /accounts`, `POST /customers/identification`, `POST /customers/passport`, `POST /accounts/supporting-documents`, `/account-management/*`, and the non-`/me` intrabank, interbank and bills operations declare no security and are service-to-service only.
+
+Address verification is **not** a Core mobile flow. The customer submits address and utility bill to the User Service (`/users/me/kyc/utility-bill/initiate` → upload → `/complete`) for manual admin review. Core only stores the address (`PUT /customers`: `address`, `city`) and raises the BankOne tier with `PUT /accounts/tier`, which takes a required `skipAddressVerification` flag. Open backend questions: does Tier 3 approval call these, with which flag value, and is the reviewed address (state → `city`) written back?
 
 ## Global Constraints
 
@@ -421,9 +454,10 @@ Do not execute this section in the current release. Once backend/security suppli
 1. implements `CoreMoneyInput.nairaToKobo` with tier/balance/int64 bounds;
 2. adds a dedicated own-account provider returning Submitted, never `TransactionReceipt`;
 3. adds interbank submission and status providers with no automatic POST retry, registering `interbankRecipientLookup` in the same change as `transfers`;
-4. adds shared typed Airtime/Data/bill-payment state without putting a PIN in Core JSON;
+4. adds shared typed Airtime/Data/bill-payment state without putting a PIN in Core JSON, sending only `billerId`, `paymentItemId`, `customerId` and `amount` (the server resolves names; email/phone are no longer part of the request);
 5. refreshes balances only after authoritative completion semantics;
-6. lists `transaction_flow_screens.dart`, `transaction_availability_test.dart`, `responsive_layout_test.dart`, and `route_arguments.dart` in every task that actually changes them.
+6. decides whether `POST /me/intrabank/withdrawals` (product account → BocFlex) ships with own-account transfers under the same authorization contract;
+7. lists `transaction_flow_screens.dart`, `transaction_availability_test.dart`, `responsive_layout_test.dart`, and `route_arguments.dart` in every task that actually changes them.
 
 ## Completion Criteria
 
