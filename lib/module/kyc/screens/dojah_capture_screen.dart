@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/kyc_provider_models.dart';
 import '../service/dojah_camera_permission.dart';
+import '../service/dojah_gateway.dart';
 import '../service/dojah_platform_route.dart';
 import '../service/dojah_web_policy.dart';
 import 'dojah_webview.dart';
@@ -41,18 +42,53 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
   /// built before the page can actually use the camera.
   bool? _cameraGranted;
 
+  /// The native SDK refused its configuration before opening.
+  var _nativeUnavailable = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _requestCamera());
   }
 
+  DojahCaptureMode get _mode =>
+      dojahCaptureMode(ref.read(dojahPlatformRouteProvider), widget.operation);
+
   Future<void> _requestCamera() async {
-    if (ref.read(dojahPlatformRouteProvider) != DojahPlatformRoute.webView) {
-      return;
+    switch (_mode) {
+      case DojahCaptureMode.nativeSdk:
+        await _launchNative();
+      case DojahCaptureMode.webView:
+        final granted = await ref.read(dojahCameraPermissionProvider)();
+        if (mounted) setState(() => _cameraGranted = granted);
+      case DojahCaptureMode.unsupported:
+        return;
     }
-    final granted = await ref.read(dojahCameraPermissionProvider)();
-    if (mounted) setState(() => _cameraGranted = granted);
+  }
+
+  /// Opens the native SDK, which asks for the camera itself, and closes this
+  /// route with its result. A native failure is not a verdict: the backend
+  /// still decides, so it is reported as unknown and reconciled.
+  Future<void> _launchNative() async {
+    KycCaptureOutcome outcome;
+    try {
+      outcome = await ref
+          .read(dojahGatewayProvider)
+          .launch(
+            widgetId: widget.widgetId,
+            referenceId: widget.referenceId,
+            bvn: widget.bvn,
+          );
+    } on FormatException {
+      if (mounted) setState(() => _nativeUnavailable = true);
+      return;
+    } on StateError {
+      // Another capture is already open; it reports its own result.
+      return;
+    } catch (_) {
+      outcome = KycCaptureOutcome.unknown;
+    }
+    _finish(outcome);
   }
 
   /// The only place this route closes, so duplicate or late provider events
@@ -84,13 +120,21 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
           ),
         ),
         body: SafeArea(
-          child: switch (ref.watch(dojahPlatformRouteProvider)) {
-            DojahPlatformRoute.webView => switch (_cameraGranted) {
+          child: switch (dojahCaptureMode(
+            ref.watch(dojahPlatformRouteProvider),
+            widget.operation,
+          )) {
+            // The SDK opens its own screen above this one.
+            DojahCaptureMode.nativeSdk =>
+              _nativeUnavailable
+                  ? _unavailable()
+                  : const Center(child: CircularProgressIndicator()),
+            DojahCaptureMode.webView => switch (_cameraGranted) {
               null => const Center(child: CircularProgressIndicator()),
               true => _browser(),
               false => _cameraRefused(),
             },
-            DojahPlatformRoute.unsupported => _unavailable(),
+            DojahCaptureMode.unsupported => _unavailable(),
           },
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_provider_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_platform_route.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,13 +10,22 @@ void main() {
     );
   });
 
-  test('Android chooses the embedded browser too', () {
+  test('Android runs BVN liveness natively and documents in the browser', () {
     // The native Android SDK (sdk-kotlin v0.4.2) throws "No stepNumber" from
     // its own coroutine when the user navigates back on the document pages,
-    // which kills the host process. The hosted flow cannot do that.
+    // which kills the host process, so only the document flow stays hosted.
+    final route = chooseDojahPlatformRoute(
+      isWeb: false,
+      isAndroid: true,
+      isIOS: false,
+    );
     expect(
-      chooseDojahPlatformRoute(isWeb: false, isAndroid: true, isIOS: false),
-      DojahPlatformRoute.webView,
+      dojahCaptureMode(route, KycOperation.identity),
+      DojahCaptureMode.nativeSdk,
+    );
+    expect(
+      dojahCaptureMode(route, KycOperation.governmentId),
+      DojahCaptureMode.webView,
     );
   });
 
