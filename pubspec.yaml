@@ -35,9 +35,11 @@ dependencies:
   local_auth: ^3.0.2
 
 dev_dependencies:
+  crypto: ^3.0.6
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  image: ^4.5.4
 
 flutter:
   uses-material-design: true
