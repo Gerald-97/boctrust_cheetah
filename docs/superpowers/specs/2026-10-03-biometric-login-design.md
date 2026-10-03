@@ -1,7 +1,8 @@
 # Biometric Login with Remembered Profile — Design Specification
 
 **Date:** 2026-10-03  
-**Status:** Approved design; implementation planning pending
+**Status:** Approved design; revised 2026-10-03 after plan review (enrollment
+verification, login-attempt cancellation, cleanup scope)
 
 ## 1. Objective
 
@@ -52,9 +53,11 @@ it is not a replacement backend authentication mechanism.
    account on that installation.
 2. Ordinary logout, inactivity logout, access-token expiry, HTTP 401 handling,
    and cold-start session cleanup preserve a valid biometric enrollment.
-3. Disabling biometrics, choosing another account, starting password recovery,
-   successfully changing the password, successfully deleting the account, or
-   detecting invalid enrollment data removes the full biometric enrollment.
+3. Disabling biometrics, choosing another account, starting password recovery
+   for the remembered identifier, successfully changing the password,
+   successfully deleting the account, or detecting invalid enrollment data
+   removes the full biometric enrollment. Recovery for a different account
+   leaves the enrollment intact.
 4. The personalized login screen always retains manual password login.
 5. Actual enrolled capability determines whether the UI says Face ID,
    Touch ID, or fingerprint. Platform type alone is not sufficient.
@@ -112,11 +115,14 @@ layered above it:
    behavior.
 5. `LoginFlowNotifier` remains the only owner of backend login, new-device OTP,
    authenticated-session establishment, and post-login routing. It gains a
-   structured completion contract that biometric flows can observe without
-   duplicating its implementation.
+   structured completion contract that remembered-account login observes
+   without duplicating its implementation.
 
 The biometric layer must not call `AuthService.login()` directly or construct
-its own device token.
+its own device token. Enrollment runs while the customer is signed in, so it
+confirms the password through the existing authenticated
+`AuthService.verifyCurrentPassword` (`/auth/password/verify-current`) and does
+not log in a second time.
 
 ## 6. Remembered Profile and Credential Model
 
@@ -203,23 +209,33 @@ Refactor `LoginFlowNotifier` only enough to expose a structured result for a
 specific login attempt while retaining its current validation, device identity,
 API request, new-device OTP, session establishment, and bootstrap behavior.
 
-The result must distinguish:
+`login` returns a future that resolves exactly once with one of:
 
 - completed authenticated login;
-- pending new-device verification;
+- invalid input;
 - invalid credentials;
 - device-identity failure;
 - network/server failure;
 - cancellation/disposal.
 
-Normal login, enrollment password verification, remembered-account password
-fallback, and biometric credential login all use the same identifier
-normalization and `DeviceIdentityService.getOrCreate()` path. No biometric
-component stores a device token or creates a second identifier.
+While new-device verification is in progress the future stays pending. Leaving
+the new-device OTP screen, calling `cancel()`, or disposing the notifier (for
+example `ref.invalidate(loginFlowProvider)` during logout) resolves it as
+cancelled, so no caller can wait forever.
 
-Enrollment must not persist credentials until the login attempt, including any
-new-device OTP, has completed successfully. Biometric login must not route or
-bootstrap twice when the shared login flow completes.
+Normal login, remembered-account password fallback, and biometric credential
+login all use the same identifier normalization and
+`DeviceIdentityService.getOrCreate()` path. No biometric component stores a
+device token or creates a second identifier.
+
+Enrollment does not use this contract (see §5 and §10): calling `/login` while
+signed in would mint a second session that the client must discard and,
+depending on backend policy, could revoke the current token, send a new-login
+alert, or count toward lockout. A signed-in device has already passed
+new-device approval, so enrollment never needs new-device OTP.
+
+Biometric login must not route or bootstrap twice when the shared login flow
+completes.
 
 The password exists only in the immediate operation and the encrypted storage
 write/read. It must not be retained in notifier state, emitted in diagnostic
@@ -239,11 +255,13 @@ Turning the setting on performs, in order:
 1. recheck biometric capability;
 2. read the signed-in user's ID, normalized identifier, and first name;
 3. ask for the current BOCTRUST password without allowing identifier edits;
-4. submit through the shared `LoginFlowNotifier` contract;
-5. finish new-device OTP if required;
-6. prompt for biometric confirmation;
-7. atomically persist the credential, profile, and enabled marker;
-8. clear the password controller and show success.
+4. confirm it with `AuthService.verifyCurrentPassword`, without touching the
+   current session or `LoginFlowNotifier`;
+5. prompt for biometric confirmation;
+6. atomically persist the credential, profile, and enabled marker;
+7. clear the password controller and show success.
+
+An incorrect password keeps the customer signed in and the dialog retryable.
 
 Failure or cancellation at any stage leaves the switch off and rolls back any
 partial enrollment. Duplicate submissions, dismissals that orphan work, and
@@ -302,6 +320,12 @@ Cancel active biometric work, clear enrollment, clear the password and form
 state, and rebuild standard mode with empty identifier and password fields. No
 backend logout request is needed from this unauthenticated screen.
 
+### Forgot password
+
+Cancel active biometric work and open recovery with the remembered identifier
+prefilled. The login page does not clear enrollment itself; recovery does so
+once the identifier is confirmed (§12).
+
 ## 12. Cleanup Semantics
 
 Keep authenticated-session cleanup separate from biometric-enrollment cleanup.
@@ -315,23 +339,33 @@ preserve biometric enrollment.
 
 ### Enrollment cleanup
 
-Use `BiometricLoginStorage.clearEnrollment()` for:
+Every caller outside `BiometricLoginNotifier` clears through
+`BiometricLoginNotifier.forgetEnrollment({onlyForIdentifier})`, never through
+`BiometricLoginStorage` directly, so provider state and storage cannot disagree.
+After cleanup the provider reports disabled even if a key deletion failed.
+
+Clear enrollment for:
 
 - disabling the Security Center setting;
 - `Sign in with another account`;
-- every entry into password recovery, before navigation;
+- password recovery for the remembered identifier;
 - successful in-app password change;
 - successful account deletion;
-- corrupt/inconsistent enrollment;
+- corrupt/inconsistent enrollment, including stored values that fail to
+  decrypt after a backup restore;
 - permanent removal of supported biometrics from the device.
 
-Password recovery captures the remembered identifier for prefilling, clears
-the enrollment, then navigates. Abandoning the recovery flow cannot restore the
-old biometric credential.
+`PasswordRecoveryNotifier.start` clears only after the identifier (and phone
+channel) validates, only when the normalized identifier matches the remembered
+profile, and before the first OTP request. A typo or recovery for another
+account leaves the enrollment intact. Abandoning a recovery that did clear it
+cannot restore the old biometric credential.
 
-Account deletion is currently feature-gated as unavailable. The cleanup hook
-must nevertheless be placed in the success path so enabling that capability
-later cannot leave deleted-account credentials on the device.
+Account deletion is currently feature-gated as unavailable, and
+`AccountDeletionNotifier.delete` is a stub. The cleanup hook goes in the
+screen's deletion success path before logout so enabling that capability later
+cannot leave deleted-account credentials on the device; move it into the
+notifier when the deletion contract lands.
 
 ## 13. Feature Availability and Routing
 
@@ -362,13 +396,15 @@ Security Center biometric control as actionable.
 - Retain the existing `FlutterFragmentActivity` base class.
 - Verify AppCompat theme and minimum-SDK requirements against the resolved
   package rather than changing them preemptively.
-- Configure secure-storage/backup behavior so encrypted biometric credentials
-  cannot be restored without their original device key.
+- Leave the app's backup policy unchanged. Keystore keys are never backed up,
+  so restored biometric values cannot decrypt on another device; treat any
+  biometric read or decryption error as invalid enrollment and clear it.
 
 ### iOS
 
 - Add `NSFaceIDUsageDescription` with BOCTRUST-specific login copy.
-- Use device-only Keychain accessibility for the remembered credential.
+- Write every biometric key with
+  `KeychainAccessibility.unlocked_this_device` so it never syncs or migrates.
 - Add entitlements or Xcode project settings only if required by the resolved
   `flutter_secure_storage` configuration.
 - Do not add a second in-app permission prompt before the system biometric
@@ -377,8 +413,9 @@ Security Center biometric control as actionable.
 ## 15. State and Error Handling
 
 `BiometricLoginNotifier` state must represent: hydrating, unavailable,
-disabled, verifying password, awaiting new-device verification, confirming
-biometric, enabling, enabled, authenticating, clearing, and recoverable error.
+disabled, verifying password, awaiting new-device verification (remembered
+login only), confirming biometric, enabling, enabled, authenticating, clearing,
+and recoverable error.
 
 State may contain the remembered non-secret profile and presentation type. It
 must not contain a password, decrypted credential, access token, device token,
@@ -395,7 +432,17 @@ Rules:
 - missing biometrics during hydration clears enrollment and uses standard
   login;
 - late async results after disposal do not navigate or show UI;
-- rapid taps cannot create overlapping prompts, writes, or login requests.
+- rapid taps cannot create overlapping prompts, writes, or login requests;
+- every login attempt resolves, including after OTP back-out or logout, so the
+  operation lock is always released.
+
+### Accepted risk
+
+`flutter_secure_storage` does not bind the stored password to a
+biometric-gated key, so the biometric prompt is an app-level gate. On a rooted
+or jailbroken device the password is readable without the prompt.
+Hardware-bound credentials need backend-issued biometric tokens, which are out
+of scope (§2).
 
 ## 16. Testing Strategy
 
@@ -411,7 +458,11 @@ Rules:
 
 - hydration into enabled, disabled, unavailable, and corrupt-state outcomes;
 - enrollment success and failure at each stage;
-- new-device OTP completion before persistence;
+- enrollment uses `verifyCurrentPassword`, never `/login`, and leaves the
+  current session untouched;
+- pending login attempts resolve as cancelled on `cancel()`, OTP back-out, and
+  disposal;
+- `forgetEnrollment` scoped to a matching versus different identifier;
 - biometric login through shared login orchestration;
 - operation locking and cancellation;
 - session-only logout preserving enrollment;
@@ -425,7 +476,8 @@ Rules:
 - identifier field absent in remembered mode;
 - manual password and biometric buttons with shared loading state;
 - switch-account restoration of empty standard form;
-- forgot-password cleanup ordering;
+- forgot-password prefill without clearing enrollment on the login page;
+- OTP back-out during remembered login leaves biometric login usable;
 - capability-specific labels, semantics, unavailable, and lockout states.
 
 ### Platform and regression verification
@@ -441,8 +493,8 @@ Rules:
 
 - A signed-in mobile customer with an enrolled biometric can enable biometric
   login from Security Center.
-- Enrollment succeeds only after current-password login, any required
-  new-device OTP, and a biometric prompt all succeed.
+- Enrollment succeeds only after `verifyCurrentPassword` and a biometric
+  prompt both succeed, without creating a second session.
 - The credential is stored only in encrypted, device-local storage.
 - Ordinary logout and session expiry preserve enrollment.
 - The next unauthenticated login shows a greeting with the persisted first name
@@ -455,7 +507,8 @@ Rules:
   post-login bootstrap behavior.
 - Switching account restores a blank standard login form and deletes all
   remembered biometric data.
-- Starting password recovery clears enrollment before navigation.
+- Starting password recovery for the remembered identifier clears enrollment
+  before the first OTP request; recovery for another account does not.
 - Successful password change and account deletion clear enrollment.
 - Missing, malformed, inconsistent, or unsupported stored data safely returns
   to standard login.

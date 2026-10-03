@@ -42,6 +42,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/branding/cheetah_app_icon.svg
     - assets/svg/
     - assets/img/
     - assets/font/

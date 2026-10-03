@@ -288,7 +288,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
 
   bool _validIdentifier(String value) {
     if (_verifyByPhone) {
-      return RegExp(r'^\+234\d{10}$').hasMatch(normalizeNigerianPhone(value));
+      return isValidNigerianPhone(value);
     }
     return validators.isEmail(value);
   }

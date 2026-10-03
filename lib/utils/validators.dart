@@ -27,6 +27,9 @@ String? nigerianPhone(String? value) {
   final normalized = normalizePhoneNumber(value ?? '');
   if (normalized.length != 11) return 'Input a valid phone number';
   if (!normalized.startsWith('0')) return "Phone number must start with '0'";
+  if (!auth_input.isValidNigerianPhone(normalized)) {
+    return 'Input a valid phone number';
+  }
   return null;
 }
 
