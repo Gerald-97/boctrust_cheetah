@@ -670,6 +670,9 @@ extension AccountScreens on AppFlowNavigatorState {
   /// Personal details and email/phone verification.
   Widget _myProfileScreen() {
     final profile = ref.watch(userProfileProvider).data;
+    final phoneNumber = profile?.phoneNumber?.trim();
+    final hasPhoneNumber = phoneNumber?.isNotEmpty == true;
+    final hasVerifiedPhone = isPhoneReadyForKyc(profile);
     final session = ref.watch(authSessionProvider);
     final identifier =
         profile?.email ??
@@ -717,21 +720,22 @@ extension AccountScreens on AppFlowNavigatorState {
                           initialIdentifier: profile.email,
                         ),
                 ),
-              if (profile?.phoneNumber != null)
+              if (profile != null)
                 SettingsTile(
                   icon: Icons.phone_android_rounded,
-                  title: 'Phone verification',
-                  subtitle: profile!.isVerifiedPhoneNumber
+                  title: hasPhoneNumber ? 'Phone verification' : 'Phone number',
+                  subtitle: hasVerifiedPhone
                       ? 'Verified'
-                      : 'Verify ${profile.phoneNumber}',
-                  trailing: profile.isVerifiedPhoneNumber
+                      : hasPhoneNumber
+                      ? 'Verify $phoneNumber'
+                      : 'Add phone number',
+                  trailing: hasVerifiedPhone
                       ? SmallPill.success('Verified')
                       : null,
-                  onTap: profile.isVerifiedPhoneNumber
+                  onTap: hasVerifiedPhone
                       ? null
-                      : () => _showIdentifierVerificationSheet(
-                          phone: true,
-                          initialIdentifier: profile.phoneNumber,
+                      : () => _showPhoneVerificationSheet(
+                          initialPhone: hasPhoneNumber ? phoneNumber : null,
                         ),
                 ),
             ],

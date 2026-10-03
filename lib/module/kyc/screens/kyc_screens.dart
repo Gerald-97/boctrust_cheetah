@@ -103,8 +103,12 @@ extension KycScreens on AppFlowNavigatorState {
 
   Widget _tiersScreen() {
     final state = ref.watch(userTierProvider);
+    final profileState = ref.watch(userProfileProvider);
     if (state.status == ServiceStatus.idle) {
       Future<void>.microtask(ref.read(userTierProvider.notifier).load);
+    }
+    if (profileState.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
     }
     // Warm the authoritative status here too, so the step screens opened from
     // this list already have it and the next action can be shown.
@@ -190,6 +194,11 @@ extension KycScreens on AppFlowNavigatorState {
           const SizedBox(height: 16),
           for (var index = 0; index < data.tiers.length; index++) ...[
             if (index > 0) const SizedBox(height: 12),
+            if (_tierPhoneRequirement(profileState, data.tiers[index])
+                case final requirement?) ...[
+              requirement,
+              const SizedBox(height: 12),
+            ],
             TierCard(
               tier: data.tiers[index].tier,
               title: data.tiers[index].title,
@@ -248,6 +257,36 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
+  Widget? _tierPhoneRequirement(
+    NotifierState<UserOwnProfileData> profileState,
+    TierCardData card,
+  ) {
+    if (card.tier != 1 || card.status != TierCardStatus.inProgress) return null;
+
+    final profile = profileState.data;
+    if (profile == null) {
+      if (profileState.isError) {
+        return ApiStateCard(
+          title: 'Profile unavailable',
+          message: profileState.message ?? 'We could not load your profile.',
+          tone: ApiStateTone.error,
+          actionLabel: 'Retry',
+          onAction: () => ref.read(userProfileProvider.notifier).load(),
+        );
+      }
+      return const ApiLoadingSection(label: 'Loading your profile');
+    }
+    if (isPhoneReadyForKyc(profile)) return null;
+
+    return ApiStateCard(
+      title: 'Phone number required',
+      message: 'Verify your phone number to start Tier 1.',
+      tone: ApiStateTone.info,
+      actionLabel: 'Verify',
+      onAction: _ensurePhoneForKyc,
+    );
+  }
+
   /// Resolves what a tier card does when tapped.
   ///
   /// Routing keys off the documented tier number and card status only — never
@@ -259,10 +298,14 @@ extension KycScreens on AppFlowNavigatorState {
         // Already satisfied: reading the summary in place, no resubmission.
         return null;
       case TierCardStatus.inProgress:
+        VoidCallback guarded(AppScreen screen) => () async {
+          if (await _ensurePhoneForKyc() && mounted) _go(screen);
+        };
+
         return switch (card.tier) {
-          1 => () => _go(AppScreen.kycIdentity),
-          2 => () => _go(AppScreen.kycGovernmentId),
-          3 => () => _go(AppScreen.kycUtilityBill),
+          1 => guarded(AppScreen.kycIdentity),
+          2 => guarded(AppScreen.kycGovernmentId),
+          3 => guarded(AppScreen.kycUtilityBill),
           _ => null,
         };
       case TierCardStatus.locked:

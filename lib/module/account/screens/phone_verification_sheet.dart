@@ -202,8 +202,6 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
     return verified ?? false;
   }
 
-  // Task 3 wires the first callers; keep Task 2 independently analyzable.
-  // ignore: unused_element
   Future<bool> _ensurePhoneForKyc() async {
     final profileNotifier = ref.read(userProfileProvider.notifier);
     var profileState = ref.read(userProfileProvider);

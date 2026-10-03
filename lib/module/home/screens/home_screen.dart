@@ -38,8 +38,12 @@ extension HomeScreen on AppFlowNavigatorState {
       0,
       (highest, card) => card.tier > highest ? card.tier : highest,
     );
+    final phoneReadyForKyc = isPhoneReadyForKyc(profile);
     final canUpgrade =
-        tier != null && topTier != null && tier.currentTier < topTier;
+        tier != null &&
+        topTier != null &&
+        tier.currentTier < topTier &&
+        phoneReadyForKyc;
     final colors = context.bocColors;
     final theme = Theme.of(context);
 
@@ -104,20 +108,20 @@ extension HomeScreen on AppFlowNavigatorState {
               const SizedBox(height: BocSpace.md),
             ],
             ..._homeWalletSection(accountsState, homeState),
-            if (homeState.data?.verification['nextAction'] ==
-                'verify_phone_number') ...[
+            if (profile != null && !phoneReadyForKyc) ...[
               const SizedBox(height: BocSpace.sm),
               ApiStateCard(
-                title: 'Verify your phone number',
+                title: 'Add your phone number',
                 message:
-                    'Add and confirm your phone number to complete your '
-                    'account setup.',
+                    "You'll need it to verify your identity and unlock higher "
+                    'limits.',
                 tone: ApiStateTone.info,
-                actionLabel: 'Verify',
-                onAction: () => _showIdentifierVerificationSheet(
-                  phone: true,
-                  initialIdentifier: profile?.phoneNumber,
-                ),
+                actionLabel: 'Add phone number',
+                onAction: () async {
+                  if (await _ensurePhoneForKyc() && mounted) {
+                    _go(AppScreen.tiers);
+                  }
+                },
               ),
             ],
             const SizedBox(height: BocSpace.sm),
