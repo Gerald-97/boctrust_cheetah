@@ -42,6 +42,18 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
+  /// Whether the backend already has a pending attempt for [step], which
+  /// the customer may resume without the phone gate.
+  bool _hasPendingKyc(KycVerificationStatus? Function(KycStatusData) step) {
+    final status = ref.read(kycStatusProvider).data;
+    return status != null && step(status) == KycVerificationStatus.pending;
+  }
+
+  /// [_ensurePhoneForKyc] for a new start; a pending attempt passes.
+  Future<bool> _phoneReadyOrResuming(
+    KycVerificationStatus? Function(KycStatusData) step,
+  ) async => _hasPendingKyc(step) || await _ensurePhoneForKyc();
+
   bool _isPhoneRequiredError(NotifierState<Object?> state) =>
       (state.errorCode ?? '').toUpperCase().contains('PHONE');
 
@@ -348,14 +360,17 @@ extension KycScreens on AppFlowNavigatorState {
         // Already satisfied: reading the summary in place, no resubmission.
         return null;
       case TierCardStatus.inProgress:
-        VoidCallback guarded(AppScreen screen) => () async {
-          if (await _ensurePhoneForKyc() && mounted) _go(screen);
+        VoidCallback guarded(
+          AppScreen screen,
+          KycVerificationStatus? Function(KycStatusData) step,
+        ) => () async {
+          if (await _phoneReadyOrResuming(step) && mounted) _go(screen);
         };
 
         return switch (card.tier) {
-          1 => guarded(AppScreen.kycIdentity),
-          2 => guarded(AppScreen.kycGovernmentId),
-          3 => guarded(AppScreen.kycUtilityBill),
+          1 => guarded(AppScreen.kycIdentity, (s) => s.identity.status),
+          2 => guarded(AppScreen.kycGovernmentId, (s) => s.governmentId.status),
+          3 => guarded(AppScreen.kycUtilityBill, (s) => s.utilityBill.status),
           _ => null,
         };
       case TierCardStatus.locked:
@@ -492,7 +507,10 @@ extension KycScreens on AppFlowNavigatorState {
     required bool lockType,
     required bool continuing,
   }) {
-    if (_kycPhoneGate() case final gate?) return gate;
+    // Resuming an attempt started before the phone rule is not a new start.
+    if (!continuing) {
+      if (_kycPhoneGate() case final gate?) return gate;
+    }
     return SurfaceCard(
       child: Form(
         key: _identityFormKey,
@@ -627,7 +645,9 @@ extension KycScreens on AppFlowNavigatorState {
   Future<void> _submitIdentityVerification([
     IdentityType? requestedType,
   ]) async {
-    if (!await _ensurePhoneForKyc() || !mounted) return;
+    if (!await _phoneReadyOrResuming((s) => s.identity.status) || !mounted) {
+      return;
+    }
     if (_identityFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _identityAutovalidate = AutovalidateMode.onUserInteraction,
@@ -935,7 +955,9 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Widget _governmentIdFormSection(bool submitting, bool pending) {
-    if (_kycPhoneGate() case final gate?) return gate;
+    if (!pending) {
+      if (_kycPhoneGate() case final gate?) return gate;
+    }
     final configState = ref.watch(kycProviderConfigProvider);
     final catalogueState = ref.watch(governmentIdDocumentTypesProvider);
     if (configState.status == ServiceStatus.idle) {
@@ -1101,7 +1123,10 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitGovernmentId() async {
-    if (!await _ensurePhoneForKyc() || !mounted) return;
+    if (!await _phoneReadyOrResuming((s) => s.governmentId.status) ||
+        !mounted) {
+      return;
+    }
     if (!(_governmentIdFormKey.currentState?.validate() ?? false)) return;
 
     _setLaunchingKycCapture(true);
@@ -1627,7 +1652,9 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitUtilityBill() async {
-    if (!await _ensurePhoneForKyc() || !mounted) return;
+    if (!await _phoneReadyOrResuming((s) => s.utilityBill.status) || !mounted) {
+      return;
+    }
     if (_utilityBillFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _utilityBillAutovalidate = AutovalidateMode.onUserInteraction,
