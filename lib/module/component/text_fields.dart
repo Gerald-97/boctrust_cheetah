@@ -221,9 +221,14 @@ class FormDropdownWidget<T> extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.onSaved,
+    this.selectedItemBuilder,
   });
 
   final List<DropdownMenuItem<T>> items;
+
+  /// How the closed field shows the selection, when it should differ from
+  /// the item in the open list (e.g. a label without its description).
+  final DropdownButtonBuilder? selectedItemBuilder;
   final T? value;
   final String? label;
   final String? hint;
@@ -238,6 +243,7 @@ class FormDropdownWidget<T> extends StatelessWidget {
       itemHeight: null,
       initialValue: value,
       items: items,
+      selectedItemBuilder: selectedItemBuilder,
       validator: validator,
       onChanged: onChanged,
       onSaved: onSaved,
@@ -267,5 +273,6 @@ class FormDropdown<T> extends FormDropdownWidget<T> {
     super.validator,
     super.onChanged,
     super.onSaved,
+    super.selectedItemBuilder,
   });
 }

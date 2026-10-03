@@ -111,14 +111,13 @@ void main() {
       'International Passport',
       "Driver's License",
       "Voter's Card",
-      'NIN, National Identity Number',
+      'National ID',
       'NIN Slip',
     ];
     final tops = [
       for (final label in labels) tester.getTopLeft(find.text(label).last).dy,
     ];
     expect(tops, orderedEquals([...tops]..sort()));
-    expect(find.text('National ID'), findsNothing);
     expect(find.textContaining('national_id'), findsNothing);
   });
 
@@ -133,7 +132,7 @@ void main() {
       find.byKey(const ValueKey('document-number')),
       '12345678901',
     );
-    await _choose(tester, 'NIN, National Identity Number');
+    await _choose(tester, 'National ID');
     expect(find.byKey(const ValueKey('document-number')), findsNothing);
 
     await tester.tap(find.text('Start verification'));

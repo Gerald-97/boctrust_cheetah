@@ -122,11 +122,8 @@ class GovernmentIdDocumentOption extends Equatable {
   final String description;
   final bool requiresDocumentNumber;
 
-  /// Customer-facing name. `national_id` always uses the exact local NIN
-  /// label so it can never be confused with the NIN slip.
-  String get displayLabel => documentType == GovernmentIdDocumentType.nationalId
-      ? documentType.label
-      : serverLabel;
+  /// Customer-facing name: the catalogue's exact label.
+  String get displayLabel => serverLabel;
 
   /// The option a well-formed active row describes, or null for a row this
   /// build must not offer.

@@ -159,14 +159,14 @@ void main() {
       expect(parsed.documentTypes.first.description, 'A description.');
     });
 
-    test('national_id always displays the exact NIN label', () {
+    test('options display the exact catalogue label', () {
       final parsed = GovernmentIdDocumentCatalogue.fromJson(
         catalogue([_row('national_id', label: 'National ID')]),
       );
       final option = parsed.documentTypes.single;
 
       expect(option.serverLabel, 'National ID');
-      expect(option.displayLabel, 'NIN, National Identity Number');
+      expect(option.displayLabel, 'National ID');
     });
 
     test('other rows display the trimmed server label', () {

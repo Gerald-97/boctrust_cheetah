@@ -897,14 +897,40 @@ extension KycScreens on AppFlowNavigatorState {
             FormDropdown<GovernmentIdDocumentType>(
               label: 'Document type',
               value: selected.documentType,
+              // Each option shows the catalogue label and description; the
+              // closed field shows just the label.
               items: offered
                   .map(
                     (option) => DropdownMenuItem(
                       value: option.documentType,
-                      child: Text(option.displayLabel),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(option.displayLabel),
+                            if (option.description.isNotEmpty)
+                              Text(
+                                option.description,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   )
                   .toList(growable: false),
+              selectedItemBuilder: (context) => [
+                for (final option in offered)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      option.displayLabel,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
               onChanged: submitting
                   ? null
                   : (value) => refreshKycFormState(() {
