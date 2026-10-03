@@ -39,18 +39,15 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
   }
 
   /// Resolves once the attempt ends: after session establishment, a terminal
-  /// failure, or cancellation. New-device verification keeps it pending.
+  /// failure, cancellation, or replacement by a newer attempt. New-device
+  /// verification keeps it pending.
   Future<LoginAttemptResult> login(String rawIdentifier, String password) {
     final identifier = normalizeIdentifier(rawIdentifier);
+    // A newer attempt supersedes one left waiting on new-device verification,
+    // so an abandoned OTP step can never lock sign-in.
     if (_attempt != null) {
-      _localError('A sign-in is already in progress.');
-      return Future.value(
-        LoginAttemptResult(
-          outcome: LoginAttemptOutcome.requestFailure,
-          identifier: identifier,
-          message: 'A sign-in is already in progress.',
-        ),
-      );
+      ref.read(testOtpProvider.notifier).clear(TestOtpFlow.newDeviceLogin);
+      _finish(LoginAttemptOutcome.cancelled);
     }
     final attempt = Completer<LoginAttemptResult>();
     _attempt = attempt;
