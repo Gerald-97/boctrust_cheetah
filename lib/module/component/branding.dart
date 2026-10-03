@@ -1,5 +1,26 @@
 part of '../app_flow/app_flow_navigator.dart';
 
+/// The approved Cheetah app icon. Decorative by default: give it a
+/// [semanticLabel] only where no adjacent BOCTRUST text names it.
+class BocBrandMark extends StatelessWidget {
+  const BocBrandMark({required this.size, this.semanticLabel, super.key});
+
+  final double size;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.asset(
+      'assets/branding/cheetah_app_icon.svg',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      semanticsLabel: semanticLabel,
+      excludeFromSemantics: semanticLabel == null,
+    );
+  }
+}
+
 class BocLogo extends StatelessWidget {
   const BocLogo({required this.height, super.key});
 
@@ -13,19 +34,7 @@ class BocLogo extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: height,
-            height: height,
-            decoration: BoxDecoration(
-              color: BocColors.navy,
-              borderRadius: BorderRadius.circular(height * .32),
-            ),
-            child: Icon(
-              Icons.savings_rounded,
-              color: BocColors.goldLight,
-              size: height * .58,
-            ),
-          ),
+          BocBrandMark(size: height),
           SizedBox(width: height * .22),
           // The wordmark is part of the logo: it keeps its size regardless of
           // text scaling and shrinks only if the space is too narrow.
