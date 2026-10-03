@@ -1,0 +1,16 @@
+# Regenerate with: dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+# Sources are the approved Cheetah masters; see
+# tool/branding/generate_derivatives.py for the generated inputs.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path_android: assets/branding/cheetah_app_icon.png
+  # iOS prohibits alpha: use the opaque master; alpha removal is defensive.
+  image_path_ios: assets/branding/generated/cheetah_app_icon_opaque.png
+  remove_alpha_ios: true
+  background_color_ios: "#4F7EB4"
+  adaptive_icon_background: "#4F7EB4"
+  adaptive_icon_foreground: assets/branding/generated/cheetah_adaptive_foreground.png
+  # adaptive_icon_monochrome is added only once the designer-approved
+  # assets/branding/cheetah_monochrome.svg exists.
+  min_sdk_android: 21
