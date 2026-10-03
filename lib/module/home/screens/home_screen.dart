@@ -39,6 +39,9 @@ extension HomeScreen on AppFlowNavigatorState {
       (highest, card) => card.tier > highest ? card.tier : highest,
     );
     final phoneReadyForKyc = isPhoneReadyForKyc(profile);
+    // Fully verified customers have no KYC left, so no phone prompt.
+    final kycRemaining =
+        tier == null || topTier == null || tier.currentTier < topTier;
     final canUpgrade =
         tier != null &&
         topTier != null &&
@@ -108,7 +111,7 @@ extension HomeScreen on AppFlowNavigatorState {
               const SizedBox(height: BocSpace.md),
             ],
             ..._homeWalletSection(accountsState, homeState),
-            if (profile != null && !phoneReadyForKyc) ...[
+            if (profile != null && !phoneReadyForKyc && kycRemaining) ...[
               const SizedBox(height: BocSpace.sm),
               ApiStateCard(
                 title: 'Add your phone number',
