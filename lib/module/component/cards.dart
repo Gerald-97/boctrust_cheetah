@@ -47,6 +47,7 @@ class BalanceCard extends StatelessWidget {
     required this.hidden,
     required this.onToggle,
     this.accountNumber,
+    this.bankName,
     this.onCopyAccountNumber,
     this.tier,
     this.note,
@@ -64,6 +65,9 @@ class BalanceCard extends StatelessWidget {
 
   /// Shown after the label with a copy button, when the server supplied it.
   final String? accountNumber;
+
+  /// The funding bank, shown after [accountNumber] when supplied.
+  final String? bankName;
   final VoidCallback? onCopyAccountNumber;
 
   /// The customer's current KYC tier, shown as a badge.
@@ -153,6 +157,8 @@ class BalanceCard extends StatelessWidget {
                                     )
                                     .figures,
                               ),
+                            if (account != null && bankName != null)
+                              TextSpan(text: ' · $bankName'),
                           ],
                         ),
                         style: muted,

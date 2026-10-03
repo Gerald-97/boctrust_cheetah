@@ -279,15 +279,16 @@ extension HomeScreen on AppFlowNavigatorState {
   Widget _flexWalletCard(FlexBalance flex, {required bool loading}) {
     final hidden = ref.watch(homeBalanceHiddenProvider);
     final available = formatApiAmount(flex.availableBalance, currency: 'NGN');
-    // The customer's funding account number, shown only once the User
-    // Service has confirmed complete details for it.
+    // The customer's funding account number and bank, shown whenever the
+    // User Service returns them.
     final funding = ref.watch(userHomeProvider).data?.dedicatedVirtualAccount;
-    final accountNumber =
-        funding != null &&
-            funding.status == DedicatedVirtualAccountStatus.available &&
-            funding.canDisplayDetails
-        ? funding.accountNumber?.trim()
-        : null;
+    String? present(String? value) {
+      final text = value?.trim() ?? '';
+      return text.isEmpty ? null : text;
+    }
+
+    final accountNumber = present(funding?.accountNumber);
+    final bankName = accountNumber == null ? null : present(funding?.bankName);
 
     return BalanceCard(
       label: 'Wallet balance',
@@ -295,6 +296,7 @@ extension HomeScreen on AppFlowNavigatorState {
       hidden: hidden,
       onToggle: () => ref.read(homeBalanceHiddenProvider.notifier).toggle(),
       accountNumber: accountNumber,
+      bankName: bankName,
       onCopyAccountNumber: accountNumber == null || funding == null
           ? null
           : () => _copyFundingAccountNumber(funding),
