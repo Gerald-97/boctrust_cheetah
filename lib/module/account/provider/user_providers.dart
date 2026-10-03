@@ -19,7 +19,13 @@ class UserProfileNotifier extends Notifier<NotifierState<UserOwnProfileData>>
     return const NotifierState.idle();
   }
 
-  Future<NotifierState<UserOwnProfileData>> load() async {
+  Future<NotifierState<UserOwnProfileData>>? _inFlight;
+
+  /// Concurrent callers share one in-flight request.
+  Future<NotifierState<UserOwnProfileData>> load() =>
+      _inFlight ??= _load().whenComplete(() => _inFlight = null);
+
+  Future<NotifierState<UserOwnProfileData>> _load() async {
     final previousImageUrl = state.data?.imageUrl;
     final token = beginRequest();
     state = NotifierState.loading(data: state.data);
@@ -43,7 +49,11 @@ class UserProfileNotifier extends Notifier<NotifierState<UserOwnProfileData>>
     }
   }
 
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    _inFlight = null;
+    state = const NotifierState.idle();
+  }
 }
 
 final userTierProvider =
