@@ -326,6 +326,23 @@ extension HomeScreen on AppFlowNavigatorState {
     }
   }
 
+  /// Whatever account details the User Service returned, as lines appended
+  /// to a funding status card; empty when it returned none.
+  String _virtualAccountDetails(DedicatedVirtualAccountData account) {
+    String? present(String? value) {
+      final text = value?.trim() ?? '';
+      return text.isEmpty ? null : text;
+    }
+
+    final lines = [
+      if (present(account.accountNumber) case final number?)
+        'Account number: $number',
+      if (present(account.bankName) case final bank?) 'Bank: $bank',
+      if (present(account.accountName) case final name?) 'Account name: $name',
+    ];
+    return lines.isEmpty ? '' : '\n\n${lines.join('\n')}';
+  }
+
   Widget _dedicatedVirtualAccountCard(DedicatedVirtualAccountData? account) {
     Future<void> refresh() => ref.read(userHomeProvider.notifier).load();
 
@@ -344,7 +361,7 @@ extension HomeScreen on AppFlowNavigatorState {
             title: 'Funding account incomplete',
             message:
                 'We could not confirm complete bank-transfer details. '
-                'Refresh to try again.',
+                'Refresh to try again.${_virtualAccountDetails(account)}',
             tone: ApiStateTone.warning,
             actionLabel: 'Refresh',
             onAction: refresh,
@@ -356,7 +373,8 @@ extension HomeScreen on AppFlowNavigatorState {
         return ApiStateCard(
           title: 'Funding account is being set up',
           message:
-              'Your bank-transfer account is being set up. Refresh to check its status.',
+              'Your bank-transfer account is being set up. Refresh to check '
+              'its status.${_virtualAccountDetails(account)}',
           tone: ApiStateTone.info,
           actionLabel: 'Refresh',
           onAction: refresh,
@@ -366,8 +384,9 @@ extension HomeScreen on AppFlowNavigatorState {
         return ApiStateCard(
           title: 'Funding account setup failed',
           message:
-              account.failureReason ??
-              'We could not create your dedicated account for bank transfers.',
+              '${account.failureReason ?? 'We could not create your dedicated '
+                      'account for bank transfers.'}'
+              '${_virtualAccountDetails(account)}',
           tone: ApiStateTone.error,
           actionLabel: 'Refresh',
           onAction: refresh,
@@ -375,11 +394,11 @@ extension HomeScreen on AppFlowNavigatorState {
 
       case DedicatedVirtualAccountStatus.notRequested:
         // No create/request operation is published, so there is no action.
-        return const ApiStateCard(
+        return ApiStateCard(
           title: 'Funding account not set up',
           message:
               'A dedicated account for bank transfers has not been requested '
-              'for your profile yet.',
+              'for your profile yet.${_virtualAccountDetails(account)}',
           tone: ApiStateTone.blocked,
         );
 
