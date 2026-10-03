@@ -391,6 +391,8 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
       presentation: state.presentation,
     );
     if (token == _operation) _operation++;
+    // Cleared before the first hydration finished: capability is unknown.
+    if (unavailable) unawaited(hydrate());
   }
 
   int _begin(BiometricLoginPhase phase) {

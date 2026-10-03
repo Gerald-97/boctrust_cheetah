@@ -353,6 +353,10 @@ extension AccountControlScreens on AppFlowNavigatorState {
       );
       return;
     }
+    // A deleted account must not stay remembered on this device. The
+    // deletion notifier is still a stub, so this is its only success path.
+    await ref.read(biometricLoginProvider.notifier).forgetEnrollment();
+    if (!mounted) return;
     await ref.read(logoutProvider.notifier).logout();
   }
 

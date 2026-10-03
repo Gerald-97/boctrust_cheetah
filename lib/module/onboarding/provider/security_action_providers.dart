@@ -9,6 +9,7 @@ import '../model/auth_requests.dart';
 import '../model/auth_responses.dart';
 import '../service/auth_service.dart';
 import 'auth_session_provider.dart';
+import 'biometric_login_provider.dart';
 import 'fcm_token_provider.dart';
 import 'identifier_verification_provider.dart';
 import 'login_flow_provider.dart';
@@ -64,7 +65,7 @@ class ChangePasswordNotifier extends Notifier<NotifierState<EmptyData>> {
       return;
     }
     state = const NotifierState.loading();
-    state = await ref
+    final result = await ref
         .read(authServiceProvider)
         .changePassword(
           ChangePasswordRequest(
@@ -72,6 +73,11 @@ class ChangePasswordNotifier extends Notifier<NotifierState<EmptyData>> {
             newPassword: newPassword,
           ),
         );
+    // The saved biometric password is now stale.
+    if (result.isDone) {
+      await ref.read(biometricLoginProvider.notifier).forgetEnrollment();
+    }
+    state = result;
   }
 }
 

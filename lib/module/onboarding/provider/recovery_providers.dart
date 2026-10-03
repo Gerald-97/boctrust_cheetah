@@ -8,6 +8,7 @@ import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
 import '../service/auth_service.dart';
+import 'biometric_login_provider.dart';
 import 'test_otp_provider.dart';
 
 final passwordRecoveryProvider =
@@ -51,6 +52,12 @@ class PasswordRecoveryNotifier
       phoneVerificationChannel: channel,
     );
     state = NotifierState.loading(data: context);
+    // Resetting the remembered account's password retires its saved one;
+    // recovering a different account leaves the enrollment alone.
+    await ref
+        .read(biometricLoginProvider.notifier)
+        .forgetEnrollment(onlyForIdentifier: identifier);
+    if (operationId != _operationId) return;
     final request = type == IdentifierType.phoneNumber
         ? ForgotRequest.phone(identifier, channel!)
         : ForgotRequest.email(identifier);
