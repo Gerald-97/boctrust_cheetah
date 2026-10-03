@@ -45,17 +45,16 @@ class LocalAuthBiometricGateway implements BiometricAuthGateway {
   LocalAuthBiometricGateway({
     LocalAuthentication? auth,
     TargetPlatform? platform,
-    bool isWeb = kIsWeb,
+    this.isWeb = kIsWeb,
   }) : _auth = auth ?? LocalAuthentication(),
-       _platform = platform ?? defaultTargetPlatform,
-       _isWeb = isWeb;
+       _platform = platform ?? defaultTargetPlatform;
 
   final LocalAuthentication _auth;
   final TargetPlatform _platform;
-  final bool _isWeb;
+  final bool isWeb;
 
   bool get _isMobile =>
-      !_isWeb &&
+      !isWeb &&
       (_platform == TargetPlatform.iOS || _platform == TargetPlatform.android);
 
   static const _unsupportedReason =
