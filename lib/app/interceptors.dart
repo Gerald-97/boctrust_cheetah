@@ -114,7 +114,8 @@ class LoggingInterceptor extends Interceptor {
     'partnerid',
     'smileconfig',
     'callbackurl',
-    'accountnumber',
+    // 'accountnumber' is redacted in production only (see _sensitiveKeyParts)
+    // until production-launch hardening; staging shows it for support.
     'documentnumber',
     'resultjson',
     // Core bill-payment and biller customer identifiers.

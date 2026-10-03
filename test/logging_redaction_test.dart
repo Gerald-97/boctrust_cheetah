@@ -201,7 +201,6 @@ void main() {
       );
       final logged = output.lines.join();
       for (final secret in [
-        '0123456789',
         'smile-auth-token',
         'partner-test',
         'AB1234567',
@@ -214,6 +213,8 @@ void main() {
       // flow is built, so staging shows it. The staging/production split has
       // its own test above.
       expect(logged, contains('12345678901'));
+      // Account numbers are likewise environment-gated until launch.
+      expect(logged, contains('0123456789'));
     },
   );
 
