@@ -184,3 +184,10 @@ Out-of-plan changes made this session (all committed): Tier 1 offers BVN only (`
 - `GET /users/me/home` now returns 200 (backend fixed `DATABASE_ERROR`): `flexWallet` active `0.0000`, `dedicatedVirtualAccount.status: not_requested` (provider `bankone`), `verification.nextAction: verify_phone_number`, `savingsProducts` = `bocFlex`, `bocSmartSave`, `boctrustFixedDeposit`, `bocPadi` (confirms the `bocFlex` Flex code). Core `/me/bank-accounts` still returns no accounts.
 - Ruling (`ed45221`): Home/Savings balance = Core Flex when present, else the User Service Flex wallet; Savings catalogue falls back to the User Home catalogue; Home shows a "Verify your phone number" prompt for `verify_phone_number` that opens the existing phone-verification sheet. Reverses the plan's "no User-balance fallback" rule — cost if wrong: a customer could briefly see a User wallet balance that differs from a later Core balance.
 
+
+### 3 October 2026: Email and phone before KYC, cleanup
+
+- `d379826`: KYC needs a verified email **and** phone (`areContactsReadyForKyc`); one contact sheet verifies either, email first. Open: whether `/auth/identifier-verification/initiate` can add an email to a phone-registered account, and the backend's exact codes for an unverified email/phone (gate P1).
+- `3ed28b6`: one `_contactRequirementCard` for Home, tiers and forms; submits no longer re-check the gate the forms already apply.
+- `a46dd54`: removed dead code. **Pick-up note:** Core endpoint constants and `FeatureCapability` members for unbuilt slices (intrabank/interbank transfers, transfer status, billers, bill payments, beneficiaries, snap/scan-to-pay, account opening) and `parseNairaAmount` / the interbank `500` mapping were deleted; re-add each with its task (paths are in the Core mobile endpoints plan).
+- `93bbcab`: `SessionScopedNotifier` (`lib/app/session_scoped_notifier.dart`) now backs `UserHomeNotifier` and the Core account/product notifiers.
