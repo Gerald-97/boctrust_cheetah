@@ -2,10 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>BOCTRUST uses the microphone while recording the liveness video required for identity verification.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -30,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>BOCTRUST uses Face ID to sign you in to your account.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BOCTRUST uses the microphone while recording the liveness video required for identity verification.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
