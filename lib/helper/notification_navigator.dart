@@ -1,6 +1,7 @@
 import '../app/app_router.dart';
 import '../app/navigators.dart';
 import '../app/route_arguments.dart';
+import 'notification_payload.dart';
 
 class NotificationIntent {
   const NotificationIntent({required this.routeName, this.entityId});
@@ -12,15 +13,20 @@ class NotificationNavigator {
   const NotificationNavigator._();
 
   static NotificationIntent parse(Map<String, dynamic> payload) {
-    final route = payload['route'] as String?;
+    final route = _bounded(payload['route']);
     if (route == null || !AppRoutes.allRoutes.contains(route)) {
       return const NotificationIntent(routeName: AppRoutes.notifications);
     }
     return NotificationIntent(
       routeName: route,
-      entityId: payload['id'] as String?,
+      entityId: _bounded(payload['id']),
     );
   }
+
+  static String? _bounded(Object? value) =>
+      value is String && value.length <= NotificationPayload.maxFieldLength
+      ? value
+      : null;
 
   static Future<void> dispatch(Map<String, dynamic> payload) async {
     final intent = parse(payload);
