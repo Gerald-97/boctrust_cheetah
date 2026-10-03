@@ -42,6 +42,28 @@ extension KycScreens on AppFlowNavigatorState {
     );
   }
 
+  bool _isPhoneRequiredError(NotifierState<Object?> state) =>
+      (state.errorCode ?? '').toUpperCase().contains('PHONE');
+
+  Future<void> _handlePhoneRequiredError(NotifierState<Object?> result) async {
+    final profileState = await ref.read(userProfileProvider.notifier).load();
+    if (!mounted) return;
+    if (profileState.isError || profileState.data == null) {
+      _showErrorMessage(
+        profileState.message ??
+            'We could not refresh your profile. Please retry.',
+      );
+      return;
+    }
+    if (isPhoneReadyForKyc(profileState.data)) {
+      _showErrorMessage(
+        result.message ?? 'Verification could not start. Please try again.',
+      );
+      return;
+    }
+    await _ensurePhoneForKyc();
+  }
+
   String _statusLabel(KycVerificationStatus status) => switch (status) {
     KycVerificationStatus.success => 'Verified',
     KycVerificationStatus.pending => 'Pending',
@@ -449,7 +471,9 @@ extension KycScreens on AppFlowNavigatorState {
               lockType: false,
               continuing: false,
             ),
-          if (flowState.isError && flowState.message != null) ...[
+          if (flowState.isError &&
+              flowState.message != null &&
+              !_isPhoneRequiredError(flowState)) ...[
             const SizedBox(height: 14),
             ApiStateCard(
               title: 'Verification could not start',
@@ -644,6 +668,10 @@ extension KycScreens on AppFlowNavigatorState {
 
     final result = ref.read(identityVerificationProvider);
     if (result.isError) {
+      if (_isPhoneRequiredError(result)) {
+        await _handlePhoneRequiredError(result);
+        return;
+      }
       _showErrorMessage(result.message ?? 'Verification could not start.');
       return;
     }
@@ -861,7 +889,9 @@ extension KycScreens on AppFlowNavigatorState {
               submitting,
               serverStatus == KycVerificationStatus.pending,
             ),
-          if (flowState.isError && flowState.message != null) ...[
+          if (flowState.isError &&
+              flowState.message != null &&
+              !_isPhoneRequiredError(flowState)) ...[
             const SizedBox(height: 14),
             ApiStateCard(
               title: 'Verification could not start',
@@ -1099,6 +1129,10 @@ extension KycScreens on AppFlowNavigatorState {
 
     final result = ref.read(governmentIdVerificationProvider);
     if (result.isError) {
+      if (_isPhoneRequiredError(result)) {
+        await _handlePhoneRequiredError(result);
+        return;
+      }
       _showErrorMessage(result.message ?? 'Verification could not start.');
       return;
     }
@@ -1398,7 +1432,9 @@ extension KycScreens on AppFlowNavigatorState {
             )
           else ...[
             _utilityBillForm(flow, busy),
-            if (uploadState.isError && uploadState.message != null) ...[
+            if (uploadState.isError &&
+                uploadState.message != null &&
+                !_isPhoneRequiredError(uploadState)) ...[
               const SizedBox(height: 14),
               ApiStateCard(
                 title: flow.uploadCompleted
@@ -1615,6 +1651,10 @@ extension KycScreens on AppFlowNavigatorState {
     if (result.isDone) {
       _showSuccessMessage(result.message ?? 'Utility bill submitted.');
     } else if (result.isError) {
+      if (_isPhoneRequiredError(result)) {
+        await _handlePhoneRequiredError(result);
+        return;
+      }
       _showErrorMessage(result.message ?? 'Submission failed.');
     }
   }
