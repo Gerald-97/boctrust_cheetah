@@ -181,4 +181,71 @@ void main() {
       expect([pixel.r, pixel.g, pixel.b], [255, 255, 255]);
     });
   });
+
+  group('Android notification configuration', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    const iconKey = 'com.google.firebase.messaging.default_notification_icon';
+    final smallIcons = {
+      for (final (density, size) in [
+        ('mdpi', 24),
+        ('hdpi', 36),
+        ('xhdpi', 48),
+        ('xxhdpi', 72),
+        ('xxxhdpi', 96),
+      ])
+        '$_res/drawable-$density/ic_stat_boctrust.png': size,
+    };
+
+    test('keeps the notification permission', () {
+      expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
+    });
+
+    test('routes OS-rendered messages to the BOCTRUST channel', () {
+      expect(
+        manifest,
+        matches(
+          RegExp(
+            r'android:name="com\.google\.firebase\.messaging\.'
+            r'default_notification_channel_id"\s+'
+            r'android:value="boctrust_general"',
+          ),
+        ),
+      );
+    });
+
+    // The small icon waits for the designer-approved monochrome silhouette;
+    // until then neither the drawables nor the Firebase default icon exist.
+    test('small icon and its Firebase default ship together', () {
+      final present = smallIcons.keys.where((p) => File(p).existsSync());
+      if (present.isEmpty) {
+        expect(manifest, isNot(contains(iconKey)));
+        return;
+      }
+      expect(present, hasLength(smallIcons.length));
+      expect(
+        manifest,
+        matches(
+          RegExp(
+            '${RegExp.escape(iconKey)}"\\s+'
+            'android:resource="@drawable/ic_stat_boctrust"',
+          ),
+        ),
+      );
+      for (final MapEntry(key: path, value: size) in smallIcons.entries) {
+        final icon = _png(path);
+        expect([icon.width, icon.height], [size, size], reason: path);
+        expect(icon.hasAlpha, isTrue, reason: path);
+        for (final p in icon) {
+          if (p.a == 0) continue;
+          expect(
+            [p.r, p.g, p.b],
+            [255, 255, 255],
+            reason: '$path ${p.x},${p.y}',
+          );
+        }
+      }
+    });
+  });
 }
