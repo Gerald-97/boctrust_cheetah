@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -22,22 +21,11 @@ Future<void> main() async {
     firebaseReady = false;
   }
 
-  await LocalNotificationService().initialize(
-    onNotificationResponse: (response) {
-      final payload = response.payload;
-      if (payload == null || payload.isEmpty) return;
-      try {
-        final decoded = jsonDecode(payload);
-        if (decoded is Map) {
-          unawaited(
-            NotificationNavigator.dispatch(Map<String, dynamic>.from(decoded)),
-          );
-        }
-      } catch (_) {
-        // Ignore malformed external notification payloads.
-      }
-    },
+  final notifications = LocalNotificationService();
+  notifications.taps.listen(
+    (payload) => unawaited(NotificationNavigator.dispatch(payload)),
   );
+  await notifications.initialize();
   final preferences = await SharedPreferences.getInstance();
   runApp(CheetahApp(preferences: preferences, firebaseReady: firebaseReady));
 }
