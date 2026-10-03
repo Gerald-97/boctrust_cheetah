@@ -85,6 +85,33 @@ class SignupFlowData extends Equatable {
   ];
 }
 
+enum LoginAttemptOutcome {
+  completed,
+  invalidInput,
+  invalidCredentials,
+  deviceIdentityFailure,
+  requestFailure,
+  cancelled,
+}
+
+/// How one call to `LoginFlowNotifier.login` ended. Never carries a secret.
+class LoginAttemptResult extends Equatable {
+  const LoginAttemptResult({
+    required this.outcome,
+    required this.identifier,
+    this.message,
+  });
+
+  final LoginAttemptOutcome outcome;
+  final String identifier;
+  final String? message;
+
+  bool get isCompleted => outcome == LoginAttemptOutcome.completed;
+
+  @override
+  List<Object?> get props => [outcome, identifier, message];
+}
+
 enum LoginFlowStage {
   idle,
   submitting,

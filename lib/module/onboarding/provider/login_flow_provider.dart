@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/auth_navigation_provider.dart';
@@ -24,15 +26,40 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
   String? _pendingPassword;
   bool _retriedAfterApproval = false;
   bool _newDeviceScreenOpened = false;
+  Completer<LoginAttemptResult>? _attempt;
+  String _attemptIdentifier = '';
 
   @override
   NotifierState<LoginFlowData> build() {
-    ref.onDispose(_clearSecrets);
+    ref.onDispose(() {
+      _clearSecrets();
+      _finish(LoginAttemptOutcome.cancelled);
+    });
     return const NotifierState.idle(data: LoginFlowData());
   }
 
-  Future<void> login(String rawIdentifier, String password) async {
+  /// Resolves once the attempt ends: after session establishment, a terminal
+  /// failure, or cancellation. New-device verification keeps it pending.
+  Future<LoginAttemptResult> login(String rawIdentifier, String password) {
     final identifier = normalizeIdentifier(rawIdentifier);
+    if (_attempt != null) {
+      _localError('A sign-in is already in progress.');
+      return Future.value(
+        LoginAttemptResult(
+          outcome: LoginAttemptOutcome.requestFailure,
+          identifier: identifier,
+          message: 'A sign-in is already in progress.',
+        ),
+      );
+    }
+    final attempt = Completer<LoginAttemptResult>();
+    _attempt = attempt;
+    _attemptIdentifier = identifier;
+    unawaited(_start(identifier, password));
+    return attempt.future;
+  }
+
+  Future<void> _start(String identifier, String password) async {
     final type = identifierTypeFor(identifier);
     _pendingPassword = password;
     _retriedAfterApproval = false;
@@ -48,6 +75,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
         'Enter a valid email or Nigerian phone number and password.',
         data: context.copyWith(stage: LoginFlowStage.idle),
       );
+      _finish(LoginAttemptOutcome.invalidInput);
       return;
     }
     state = NotifierState.loading(data: context);
@@ -58,6 +86,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     final password = _pendingPassword;
     if (password == null) {
       _localError('Login credentials are no longer available.');
+      _finish(LoginAttemptOutcome.requestFailure);
       return;
     }
     late final String deviceToken;
@@ -66,6 +95,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     } catch (_) {
       _clearSecrets();
       _localError('Unable to create a secure device identity. Please retry.');
+      _finish(LoginAttemptOutcome.deviceIdentityFailure);
       return;
     }
     final response = await ref
@@ -101,6 +131,11 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     if (!response.isDone || dto == null) {
       _clearSecrets();
       state = _failure(response, context.copyWith(stage: LoginFlowStage.idle));
+      _finish(
+        response.noAuth || response.statusCode == 401
+            ? LoginAttemptOutcome.invalidCredentials
+            : LoginAttemptOutcome.requestFailure,
+      );
       return;
     }
     await _establishSession(dto, context);
@@ -154,8 +189,12 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     final response = await ref.read(authServiceProvider).requestOtp(request);
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      if (clearPasswordOnFailure) _clearSecrets();
       state = _failure(response, failureContext);
+      // Without the password the attempt cannot continue.
+      if (clearPasswordOnFailure) {
+        _clearSecrets();
+        _finish(LoginAttemptOutcome.requestFailure);
+      }
       return;
     }
     ref
@@ -233,6 +272,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
         dto.user.identifierType == IdentifierType.unknown) {
       _clearSecrets();
       _localError('The login session returned by the server was invalid.');
+      _finish(LoginAttemptOutcome.requestFailure);
       return;
     }
     final expiresAt = DateTime.now().toUtc().add(
@@ -253,6 +293,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     if (!established) {
       _clearSecrets();
       _localError('Unable to save your login session. Please try again.');
+      _finish(LoginAttemptOutcome.requestFailure);
       return;
     }
 
@@ -260,11 +301,16 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     state = NotifierState.done(
       context.copyWith(stage: LoginFlowStage.completed),
     );
-    await ref.read(startupGateProvider.notifier).startAfterLogin();
+    try {
+      await ref.read(startupGateProvider.notifier).startAfterLogin();
+    } finally {
+      _finish(LoginAttemptOutcome.completed);
+    }
   }
 
   void cancel() {
     _clearSecrets();
+    _finish(LoginAttemptOutcome.cancelled);
     ref.read(testOtpProvider.notifier).clear(TestOtpFlow.newDeviceLogin);
     _newDeviceScreenOpened = false;
     state = const NotifierState.idle(data: LoginFlowData());
@@ -301,5 +347,24 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
 
   void _clearSecrets() {
     _pendingPassword = null;
+  }
+
+  /// Resolves the active attempt exactly once; later calls are ignored.
+  void _finish(LoginAttemptOutcome outcome) {
+    final attempt = _attempt;
+    if (attempt == null) return;
+    _attempt = null;
+    final message =
+        outcome == LoginAttemptOutcome.completed ||
+            outcome == LoginAttemptOutcome.cancelled
+        ? null
+        : state.message;
+    attempt.complete(
+      LoginAttemptResult(
+        outcome: outcome,
+        identifier: _attemptIdentifier,
+        message: message,
+      ),
+    );
   }
 }

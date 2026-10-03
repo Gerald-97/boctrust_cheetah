@@ -368,6 +368,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     if (screen == AppScreen.passwordReset) {
       ref.read(passwordRecoveryProvider.notifier).cancel();
     }
+    if (screen == AppScreen.newDeviceOtp &&
+        ref.read(loginFlowProvider).data?.stage != LoginFlowStage.completed) {
+      ref.read(loginFlowProvider.notifier).cancel();
+    }
   }
 
   void _goSection(AppSection section) {
