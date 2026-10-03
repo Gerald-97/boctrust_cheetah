@@ -36,6 +36,8 @@ extension KycScreens on AppFlowNavigatorState {
   /// An unrecognized action returns null rather than inventing guidance, and
   /// never reads as a finished journey.
   String? _nextActionMessage(KycNextAction? action) => switch (action) {
+    KycNextAction.verifyPhoneNumber =>
+      'Add and verify your phone number to start verification.',
     KycNextAction.verifyIdentity => 'Verify your BVN or NIN to reach Tier 1.',
     KycNextAction.verifyGovernmentId =>
       'Verify a government-issued ID to reach Tier 2.',
