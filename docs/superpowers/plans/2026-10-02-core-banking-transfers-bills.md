@@ -80,6 +80,7 @@ Address verification is **not** a Core mobile flow. The customer submits address
 - Do not expose a standalone name enquiry. Without a transfer behind it, it is a free account-holder-name lookup for arbitrary account numbers and spends NIP enquiries for no transaction.
 - Do not collect customer identifiers, recipient phone numbers, or account numbers for a flow that cannot be submitted in this release.
 - After balance cutover, Core is the sole Home/Savings balance authority. Never fall back to User `flexWallet` during a Core error.
+  - **Superseded 3 October 2026** (`ed45221`): staging customers have no Core accounts, so Home/Savings show the Core `bocFlex` balance when the customer has an active Core Flex account and otherwise the active User Service `flexWallet` (`resolveFlexBalance`). The Savings catalogue falls back to `/users/me/home` `savingsProducts` when Core's catalogue is empty.
 - Cut over only after staging proves User `flexWallet` and Core `bocFlex` represent the same ledger for the same signed-in customer.
 - Keep User Service authoritative for profile, tier, KYC, and dedicated funding/DVA data.
 - Treat financial values as strings. Never parse money with `double` or `num.tryParse`.

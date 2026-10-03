@@ -179,3 +179,8 @@ Plan: `docs/superpowers/plans/2026-10-02-core-mobile-endpoints-integration.md`. 
 
 Out-of-plan changes made this session (all committed): Tier 1 offers BVN only (`e1158de`), Android BVN liveness via the native Dojah SDK (`bcf0acf`, device-verified: Tier 1 success), Dojah WebView debug navigation log (`7f50606`), Android command-line tools reinstalled for the release `apkanalyzer` check, Core contract re-inspected (hash `f150ae00…`; bill-payment request simplified).
 
+### 3 October 2026: User Home responses
+
+- `GET /users/me/home` now returns 200 (backend fixed `DATABASE_ERROR`): `flexWallet` active `0.0000`, `dedicatedVirtualAccount.status: not_requested` (provider `bankone`), `verification.nextAction: verify_phone_number`, `savingsProducts` = `bocFlex`, `bocSmartSave`, `boctrustFixedDeposit`, `bocPadi` (confirms the `bocFlex` Flex code). Core `/me/bank-accounts` still returns no accounts.
+- Ruling (`ed45221`): Home/Savings balance = Core Flex when present, else the User Service Flex wallet; Savings catalogue falls back to the User Home catalogue; Home shows a "Verify your phone number" prompt for `verify_phone_number` that opens the existing phone-verification sheet. Reverses the plan's "no User-balance fallback" rule — cost if wrong: a customer could briefly see a User wallet balance that differs from a later Core balance.
+
