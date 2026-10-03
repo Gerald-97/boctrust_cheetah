@@ -14,6 +14,34 @@ extension KycScreens on AppFlowNavigatorState {
     return state;
   }
 
+  Widget? _kycPhoneGate() {
+    final profileState = ref.watch(userProfileProvider);
+    if (profileState.status == ServiceStatus.idle) {
+      Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
+    }
+    final profile = profileState.data;
+    if (isPhoneReadyForKyc(profile)) return null;
+    if (profile == null) {
+      return profileState.isError
+          ? ApiStateCard(
+              title: 'Profile unavailable',
+              message:
+                  profileState.message ?? 'We could not load your profile.',
+              tone: ApiStateTone.error,
+              actionLabel: 'Retry',
+              onAction: () => ref.read(userProfileProvider.notifier).load(),
+            )
+          : const ApiLoadingSection(label: 'Loading your profile');
+    }
+    return ApiStateCard(
+      title: 'Add your phone number first',
+      message: 'We need your phone number to verify your identity.',
+      tone: ApiStateTone.info,
+      actionLabel: 'Verify phone number',
+      onAction: _ensurePhoneForKyc,
+    );
+  }
+
   String _statusLabel(KycVerificationStatus status) => switch (status) {
     KycVerificationStatus.success => 'Verified',
     KycVerificationStatus.pending => 'Pending',
@@ -440,6 +468,7 @@ extension KycScreens on AppFlowNavigatorState {
     required bool lockType,
     required bool continuing,
   }) {
+    if (_kycPhoneGate() case final gate?) return gate;
     return SurfaceCard(
       child: Form(
         key: _identityFormKey,
@@ -574,6 +603,7 @@ extension KycScreens on AppFlowNavigatorState {
   Future<void> _submitIdentityVerification([
     IdentityType? requestedType,
   ]) async {
+    if (!await _ensurePhoneForKyc() || !mounted) return;
     if (_identityFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _identityAutovalidate = AutovalidateMode.onUserInteraction,
@@ -875,6 +905,7 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Widget _governmentIdFormSection(bool submitting, bool pending) {
+    if (_kycPhoneGate() case final gate?) return gate;
     final configState = ref.watch(kycProviderConfigProvider);
     final catalogueState = ref.watch(governmentIdDocumentTypesProvider);
     if (configState.status == ServiceStatus.idle) {
@@ -1040,6 +1071,7 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitGovernmentId() async {
+    if (!await _ensurePhoneForKyc() || !mounted) return;
     if (!(_governmentIdFormKey.currentState?.validate() ?? false)) return;
 
     _setLaunchingKycCapture(true);
@@ -1391,6 +1423,7 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Widget _utilityBillForm(KycFlowData flow, bool busy) {
+    if (_kycPhoneGate() case final gate?) return gate;
     final bill = flow.selectedBill;
     return SurfaceCard(
       child: Form(
@@ -1558,6 +1591,7 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitUtilityBill() async {
+    if (!await _ensurePhoneForKyc() || !mounted) return;
     if (_utilityBillFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _utilityBillAutovalidate = AutovalidateMode.onUserInteraction,
