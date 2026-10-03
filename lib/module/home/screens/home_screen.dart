@@ -38,15 +38,15 @@ extension HomeScreen on AppFlowNavigatorState {
       0,
       (highest, card) => card.tier > highest ? card.tier : highest,
     );
-    final phoneReadyForKyc = isPhoneReadyForKyc(profile);
-    // Fully verified customers have no KYC left, so no phone prompt.
+    final contactsReadyForKyc = areContactsReadyForKyc(profile);
+    // Fully verified customers have no KYC left, so no contact prompt.
     final kycRemaining =
         tier == null || topTier == null || tier.currentTier < topTier;
     final canUpgrade =
         tier != null &&
         topTier != null &&
         tier.currentTier < topTier &&
-        phoneReadyForKyc;
+        contactsReadyForKyc;
     final colors = context.bocColors;
     final theme = Theme.of(context);
 
@@ -111,17 +111,17 @@ extension HomeScreen on AppFlowNavigatorState {
               const SizedBox(height: BocSpace.md),
             ],
             ..._homeWalletSection(accountsState, homeState),
-            if (profile != null && !phoneReadyForKyc && kycRemaining) ...[
+            if (profile != null && !contactsReadyForKyc && kycRemaining) ...[
               const SizedBox(height: BocSpace.sm),
               ApiStateCard(
-                title: 'Add your phone number',
+                title: 'Verify your ${missingKycContacts(profile)}',
                 message:
-                    "You'll need it to verify your identity and unlock higher "
-                    'limits.',
+                    "You'll need them to verify your identity and unlock "
+                    'higher limits.',
                 tone: ApiStateTone.info,
-                actionLabel: 'Add phone number',
+                actionLabel: 'Continue',
                 onAction: () async {
-                  if (await _ensurePhoneForKyc() && mounted) {
+                  if (await _ensureContactsForKyc() && mounted) {
                     _go(AppScreen.tiers);
                   }
                 },

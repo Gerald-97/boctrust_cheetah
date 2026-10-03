@@ -1,18 +1,30 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
-extension PhoneVerificationSheet on AppFlowNavigatorState {
+extension ContactVerificationSheet on AppFlowNavigatorState {
   Future<bool> _showPhoneVerificationSheet({
     String? initialPhone,
+    String? reason,
+  }) => _showContactVerificationSheet(
+    phone: true,
+    initialValue: initialPhone,
+    reason: reason,
+  );
+
+  /// Verifies the customer's phone ([phone]) or email with a one-time code.
+  /// Pops with true once the backend confirms the code.
+  Future<bool> _showContactVerificationSheet({
+    required bool phone,
+    String? initialValue,
     String? reason,
   }) async {
     if (!mounted) return false;
     ref.invalidate(identifierVerificationProvider);
-    _identifierController.text = initialPhone ?? '';
+    _identifierController.text = initialValue ?? '';
     _otpController.clear();
     var channel = PhoneVerificationChannel.sms;
     var keepOtpStepVisible = false;
     // When the last code was sent; Resend unlocks after a short cooldown even
-    // if the code itself is still valid, so a lost SMS is not a long wait.
+    // if the code itself is still valid, so a lost code is not a long wait.
     DateTime? codeSentAt;
     const resendCooldown = Duration(seconds: 60);
     // Rebuilds the sheet each second while a cooldown is counting down.
@@ -64,7 +76,9 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                     Text(
                       showingOtp
                           ? 'Enter verification code'
-                          : 'Verify phone number',
+                          : phone
+                          ? 'Verify phone number'
+                          : 'Verify email address',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
@@ -117,10 +131,17 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                                     final notifier = modalRef.read(
                                       identifierVerificationProvider.notifier,
                                     );
-                                    await notifier.initiatePhone(
-                                      data.identifier,
-                                      data.phoneVerificationChannel ?? channel,
-                                    );
+                                    if (phone) {
+                                      await notifier.initiatePhone(
+                                        data.identifier,
+                                        data.phoneVerificationChannel ??
+                                            channel,
+                                      );
+                                    } else {
+                                      await notifier.initiateEmail(
+                                        data.identifier,
+                                      );
+                                    }
                                     if (!sheetContext.mounted) return;
                                     final resent = modalRef.read(
                                       identifierVerificationProvider,
@@ -132,7 +153,7 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                                         codeSentAt = DateTime.now().toUtc();
                                       } else {
                                         // A failed resend has no code to
-                                        // verify: return to the number,
+                                        // verify: return to the field,
                                         // which keeps the error message.
                                         keepOtpStepVisible = false;
                                       }
@@ -159,9 +180,17 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                                       codeSentAt = null;
                                     });
                                   },
-                            child: const Text('Change number'),
+                            child: Text(
+                              phone ? 'Change number' : 'Change email',
+                            ),
                           ),
                         ],
+                      ),
+                    ] else if (!phone) ...[
+                      AppTextField(
+                        label: 'Email address',
+                        controller: _identifierController,
+                        keyboardType: TextInputType.emailAddress,
                       ),
                     ] else ...[
                       AppTextField(
@@ -230,13 +259,24 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
 
                               final identifier = _identifierController.text
                                   .trim();
-                              if (!isValidNigerianPhone(identifier)) {
-                                _showMessage(
-                                  'Enter a valid Nigerian phone number.',
+                              if (phone) {
+                                if (!isValidNigerianPhone(identifier)) {
+                                  _showMessage(
+                                    'Enter a valid Nigerian phone number.',
+                                  );
+                                  return;
+                                }
+                                await notifier.initiatePhone(
+                                  identifier,
+                                  channel,
                                 );
-                                return;
+                              } else {
+                                if (!validators.isEmail(identifier)) {
+                                  _showMessage('Enter a valid email address.');
+                                  return;
+                                }
+                                await notifier.initiateEmail(identifier);
                               }
-                              await notifier.initiatePhone(identifier, channel);
                               if (modalRef
                                           .read(identifierVerificationProvider)
                                           .data
@@ -264,12 +304,18 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
     _otpController.clear();
     ref.invalidate(identifierVerificationProvider);
     if (verified == true) {
-      _showSuccessMessage('Phone number verified.');
+      _showSuccessMessage(
+        phone ? 'Phone number verified.' : 'Email address verified.',
+      );
     }
     return verified ?? false;
   }
 
-  Future<bool> _ensurePhoneForKyc() async {
+  /// Makes sure the customer's email and phone are verified before KYC.
+  ///
+  /// Opens a verification sheet for each missing detail, email first, and
+  /// reloads the profile after each. Returns whether both are now verified.
+  Future<bool> _ensureContactsForKyc() async {
     final profileNotifier = ref.read(userProfileProvider.notifier);
     var profileState = ref.read(userProfileProvider);
     if (profileState.data == null) profileState = await profileNotifier.load();
@@ -280,22 +326,30 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
       );
       return false;
     }
-    if (isPhoneReadyForKyc(profileState.data)) return true;
 
-    final verified = await _showPhoneVerificationSheet(
-      initialPhone: profileState.data?.phoneNumber,
-      reason: 'We need your phone number to verify your identity.',
-    );
-    if (!verified) return false;
-
-    final refreshed = await profileNotifier.load();
-    if (!mounted) return false;
-    if (refreshed.isError || !isPhoneReadyForKyc(refreshed.data)) {
-      _showErrorMessage(
-        refreshed.message ??
-            'Your phone was verified, but your profile could not be refreshed.',
+    for (final phone in [false, true]) {
+      final ready = phone ? isPhoneReadyForKyc : isEmailReadyForKyc;
+      if (ready(profileState.data)) continue;
+      final profile = profileState.data;
+      final verified = await _showContactVerificationSheet(
+        phone: phone,
+        initialValue: phone ? profile?.phoneNumber : profile?.email,
+        reason: phone
+            ? 'We need your phone number to verify your identity.'
+            : 'We need your email address to verify your identity.',
       );
-      return false;
+      if (!verified) return false;
+
+      profileState = await profileNotifier.load();
+      if (!mounted) return false;
+      if (profileState.isError || !ready(profileState.data)) {
+        _showErrorMessage(
+          profileState.message ??
+              'Your ${phone ? 'phone number' : 'email address'} was '
+                  'verified, but your profile could not be refreshed.',
+        );
+        return false;
+      }
     }
     return true;
   }

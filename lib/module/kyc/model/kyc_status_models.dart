@@ -51,6 +51,7 @@ enum KycVerificationStatus {
 /// [unknown] follows the same rule as [KycVerificationStatus.unknown]: an
 /// unrecognized action must not be presented as a completed journey.
 enum KycNextAction {
+  verifyEmail('verify_email'),
   verifyPhoneNumber('verify_phone_number'),
   verifyIdentity('verify_identity'),
   verifyGovernmentId('verify_government_id'),

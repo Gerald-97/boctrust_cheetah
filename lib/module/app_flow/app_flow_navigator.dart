@@ -48,7 +48,7 @@ import '../core_banking/service/transaction_authorizer.dart';
 import '../kyc/model/document_verification_models.dart';
 import '../kyc/model/kyc_configuration_models.dart';
 import '../kyc/model/kyc_models.dart';
-import '../kyc/model/kyc_phone_requirement.dart';
+import '../kyc/model/kyc_contact_requirement.dart';
 import '../kyc/model/kyc_provider_models.dart';
 import '../kyc/model/kyc_status_models.dart';
 import '../kyc/provider/document_verification_provider.dart';
@@ -125,7 +125,7 @@ part '../payments/screens/payments_screens.dart';
 part '../notifications/screens/notifications_screen.dart';
 
 part '../account/screens/account_screens.dart';
-part '../account/screens/phone_verification_sheet.dart';
+part '../account/screens/contact_verification_sheet.dart';
 part '../account/screens/linked_bank_accounts_screen.dart';
 part '../account/screens/account_control_screens.dart';
 

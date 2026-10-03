@@ -1,5 +1,5 @@
 import 'package:boctrust_savings_loan/module/account/model/user_profile_model.dart';
-import 'package:boctrust_savings_loan/module/kyc/model/kyc_phone_requirement.dart';
+import 'package:boctrust_savings_loan/module/kyc/model/kyc_contact_requirement.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
