@@ -54,8 +54,13 @@ extension KycScreens on AppFlowNavigatorState {
     KycVerificationStatus? Function(KycStatusData) step,
   ) async => _hasPendingKyc(step) || await _ensurePhoneForKyc();
 
-  bool _isPhoneRequiredError(NotifierState<Object?> state) =>
-      (state.errorCode ?? '').toUpperCase().contains('PHONE');
+  /// A KYC start the backend refused because no verified phone is on file.
+  /// Narrow this to the exact code once the backend publishes it (gate P1).
+  bool _isPhoneRequiredError(NotifierState<Object?> state) {
+    final code = (state.errorCode ?? '').toUpperCase();
+    return code.contains('PHONE') &&
+        RegExp('REQUIRED|NOT_VERIFIED|UNVERIFIED|MISSING').hasMatch(code);
+  }
 
   Future<void> _handlePhoneRequiredError(NotifierState<Object?> result) async {
     final profileState = await ref.read(userProfileProvider.notifier).load();
@@ -326,19 +331,7 @@ extension KycScreens on AppFlowNavigatorState {
     if (card.tier != 1 || card.status != TierCardStatus.inProgress) return null;
 
     final profile = profileState.data;
-    if (profile == null) {
-      if (profileState.isError) {
-        return ApiStateCard(
-          title: 'Profile unavailable',
-          message: profileState.message ?? 'We could not load your profile.',
-          tone: ApiStateTone.error,
-          actionLabel: 'Retry',
-          onAction: () => ref.read(userProfileProvider.notifier).load(),
-        );
-      }
-      return const ApiLoadingSection(label: 'Loading your profile');
-    }
-    if (isPhoneReadyForKyc(profile)) return null;
+    if (profile == null || isPhoneReadyForKyc(profile)) return null;
 
     return ApiStateCard(
       title: 'Phone number required',
