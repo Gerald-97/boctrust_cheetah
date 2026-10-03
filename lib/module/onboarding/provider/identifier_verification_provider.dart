@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
 import '../../../utils/auth_input.dart';
+import '../../account/provider/user_providers.dart';
+import '../../home/provider/home_provider.dart';
 import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
@@ -122,6 +126,15 @@ class IdentifierVerificationNotifier
     ref
         .read(testOtpProvider.notifier)
         .clear(TestOtpFlow.identifierVerification);
+    // The verified email or phone, and anything gated on it (Home's next
+    // action, tier requirements), only show once these are reloaded.
+    unawaited(
+      Future.wait([
+        ref.read(userProfileProvider.notifier).load(),
+        ref.read(userTierProvider.notifier).load(),
+        ref.read(userHomeProvider.notifier).load(),
+      ]),
+    );
   }
 
   NotifierState<IdentifierVerificationFlowData> _failure<T>(
