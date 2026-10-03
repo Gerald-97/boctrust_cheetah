@@ -14,6 +14,13 @@ final NumberFormat _compactNairaFormatter = NumberFormat.currency(
 String formatNaira(num amount, {bool decimal = true}) =>
     (decimal ? _nairaFormatter : _compactNairaFormatter).format(amount);
 
+/// Morning before 12:00, afternoon before 17:00, evening otherwise.
+String timeBasedGreeting(DateTime now) {
+  if (now.hour < 12) return 'Good morning';
+  if (now.hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 String normalizePhoneNumber(String value) {
   final digits = value.replaceAll(RegExp(r'\D'), '');
   if (digits.isEmpty) return digits;

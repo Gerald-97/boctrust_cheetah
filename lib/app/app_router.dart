@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../module/app_flow/app_flow_navigator.dart';
-import 'auth_navigation_provider.dart';
 import 'route_arguments.dart';
 
 class AppRoutes {
@@ -263,9 +261,6 @@ class AppRouter {
   }
 
   static Widget _pageFor(RouteSettings settings) {
-    if (settings.name == AppRoutes.biometricLogin) {
-      return const _BiometricCompatibilityRedirect();
-    }
     if (settings.name != null && AppRoutes.allRoutes.contains(settings.name)) {
       final name = settings.name!;
       final arguments = settings.arguments;
@@ -298,36 +293,6 @@ class AppRouter {
       description: 'This route is not registered in the app route map.',
     );
   }
-}
-
-class _BiometricCompatibilityRedirect extends ConsumerStatefulWidget {
-  const _BiometricCompatibilityRedirect();
-
-  @override
-  ConsumerState<_BiometricCompatibilityRedirect> createState() =>
-      _BiometricCompatibilityRedirectState();
-}
-
-class _BiometricCompatibilityRedirectState
-    extends ConsumerState<_BiometricCompatibilityRedirect> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref
-          .read(authNavigationProvider.notifier)
-          .publish(
-            AuthDestination.login,
-            mode: AuthNavigationMode.replace,
-            message: 'Biometric login is not available yet.',
-          );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CircularProgressIndicator()));
 }
 
 class _RouteFallbackScreen extends StatelessWidget {

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/biometric_overrides.dart';
 import 'support/responsive_fixtures.dart';
 
 /// Raises and lowers the keyboard inset at runtime.
@@ -70,6 +71,7 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(preferences),
           dioProvider.overrideWithValue(dio),
           startupGateProvider.overrideWith(LayoutStartup.new),
+          ...biometricTestOverrides(),
         ],
         child: _KeyboardHarness(screen: screen),
       ),

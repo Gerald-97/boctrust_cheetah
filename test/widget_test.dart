@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/biometric_overrides.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -48,7 +50,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
-      CheetahTestApp(preferences: preferences, initialRoute: AppRoutes.login),
+      CheetahTestApp(
+        preferences: preferences,
+        initialRoute: AppRoutes.login,
+        overrides: biometricTestOverrides(),
+      ),
     );
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));

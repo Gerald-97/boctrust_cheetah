@@ -489,6 +489,26 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
 
   Widget _loginScreen() {
     final state = ref.watch(loginFlowProvider);
+    final biometric = ref.watch(biometricLoginProvider);
+    // Keep one shell while hydrating so the identifier field never flashes
+    // before the remembered-account layout.
+    if (biometric.phase == BiometricLoginPhase.hydrating) {
+      return _authPage(
+        title: 'Welcome back',
+        subtitle: 'Checking this device…',
+        showBack: false,
+        content: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        buttonLabel: 'Log in',
+        onButtonPressed: () {},
+      );
+    }
+    final remembered = biometric.profile;
+    if (remembered != null) {
+      return _rememberedLoginScreen(state, biometric, remembered);
+    }
     return _authPage(
       title: 'Welcome back',
       subtitle: 'Log in with your registered email or phone and password.',
@@ -515,6 +535,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
               child: const Text('Forgot password?'),
             ),
           ),
+          if (biometric.message != null) _biometricMessage(biometric.message!),
           _stateMessage(state),
         ],
       ),
@@ -539,6 +560,103 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
       ),
     );
   }
+
+  Widget _rememberedLoginScreen(
+    NotifierState<LoginFlowData> state,
+    BiometricLoginState biometric,
+    RememberedBiometricProfile remembered,
+  ) {
+    final busy = state.isLoading || biometric.isBusy;
+    final notifier = ref.read(biometricLoginProvider.notifier);
+    final (biometricIcon, biometricLabel) = switch (biometric.presentation) {
+      BiometricPresentation.faceId => (Icons.face_rounded, 'Face ID'),
+      BiometricPresentation.touchId => (Icons.fingerprint_rounded, 'Touch ID'),
+      _ => (Icons.fingerprint_rounded, 'fingerprint'),
+    };
+    return _authPage(
+      title: '${timeBasedGreeting(DateTime.now())}, ${remembered.firstName}',
+      subtitle: 'Log in with your password or $biometricLabel.',
+      showBack: false,
+      content: Column(
+        children: [
+          AppPasswordField(
+            label: 'Password',
+            controller: _passwordController,
+            autofillHints: const [AutofillHints.password],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: busy
+                  ? null
+                  : () {
+                      notifier.cancelActiveOperation();
+                      // Recovery clears the enrollment once it starts for
+                      // this identifier.
+                      _identifierController.text = remembered.identifier;
+                      _openAuthDestination(AuthDestination.passwordReset);
+                    },
+              child: const Text('Forgot password?'),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Semantics(
+            button: true,
+            label: 'Log in with $biometricLabel',
+            excludeSemantics: true,
+            child: OutlinedButton.icon(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      FocusScope.of(context).unfocus();
+                      await notifier.loginWithBiometrics();
+                    },
+              icon: Icon(biometricIcon),
+              label: Text('Log in with $biometricLabel'),
+            ),
+          ),
+          if (biometric.message != null) _biometricMessage(biometric.message!),
+          _stateMessage(state),
+        ],
+      ),
+      buttonLabel: busy ? 'Logging in…' : 'Log in',
+      onButtonPressed: () async {
+        if (busy) return;
+        if (_passwordController.text.isEmpty) {
+          _showMessage('Enter your password.');
+          return;
+        }
+        await notifier.loginWithPassword(_passwordController.text);
+      },
+      footer: Semantics(
+        button: true,
+        label: 'Not ${remembered.firstName}? Sign in with another account',
+        excludeSemantics: true,
+        child: TextButton(
+          onPressed: () async {
+            notifier.cancelActiveOperation();
+            ref.read(loginFlowProvider.notifier).cancel();
+            _identifierController.clear();
+            _passwordController.clear();
+            await notifier.forgetEnrollment();
+          },
+          child: Text(
+            'Not ${remembered.firstName}? Sign in with another account',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _biometricMessage(String message) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  );
 
   Widget _passwordResetScreen() {
     final state = ref.watch(passwordRecoveryProvider);
