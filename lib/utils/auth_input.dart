@@ -23,7 +23,7 @@ bool isValidEmailIdentifier(String value) =>
     RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
 
 bool isValidPhoneIdentifier(String value) =>
-    RegExp(r'^\+234[789][01]\d{8}$').hasMatch(value);
+    RegExp(r'^\+234\d{10}$').hasMatch(value);
 
 bool isValidNigerianPhone(String value) =>
     isValidPhoneIdentifier(normalizeNigerianPhone(value));
