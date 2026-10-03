@@ -30,8 +30,6 @@ String _sha256(String path) =>
 bool _isBlue(img.Pixel p) =>
     p.a > 0 && p.b > p.r + 40 && p.b > 140 && p.r < 200;
 
-bool _isWhite(img.Pixel p) => p.a > 200 && p.r > 240 && p.g > 240 && p.b > 240;
-
 void main() {
   group('approved sources', () {
     test('PNG is the approved byte-identical 2032x2032 RGBA master', () {
@@ -86,12 +84,21 @@ void main() {
       for (final p in fg) {
         if (p.a == 0) continue;
         expect(_isBlue(p), isFalse, reason: 'no blue field at ${p.x},${p.y}');
-        expect(p.r > 240 && p.g > 240 && p.b > 240, isTrue,
-            reason: 'only white silhouette pixels at ${p.x},${p.y}');
-        expect(p.x >= start.floor() && p.x <= end.ceil(), isTrue,
-            reason: 'pixel outside viewport at ${p.x},${p.y}');
-        expect(p.y >= start.floor() && p.y <= end.ceil(), isTrue,
-            reason: 'pixel outside viewport at ${p.x},${p.y}');
+        expect(
+          p.r > 240 && p.g > 240 && p.b > 240,
+          isTrue,
+          reason: 'only white silhouette pixels at ${p.x},${p.y}',
+        );
+        expect(
+          p.x >= start.floor() && p.x <= end.ceil(),
+          isTrue,
+          reason: 'pixel outside viewport at ${p.x},${p.y}',
+        );
+        expect(
+          p.y >= start.floor() && p.y <= end.ceil(),
+          isTrue,
+          reason: 'pixel outside viewport at ${p.x},${p.y}',
+        );
         if (p.x <= start.ceil() && p.a > 200) whiteAtLeftEdge++;
       }
       // The bleed meets the mask edge rather than being padded inward.
@@ -125,8 +132,11 @@ void main() {
         visible++;
         final dx = p.x + .5 - centre;
         final dy = p.y + .5 - centre;
-        expect(math.sqrt(dx * dx + dy * dy), lessThanOrEqualTo(radius),
-            reason: 'pixel outside splash circle at ${p.x},${p.y}');
+        expect(
+          math.sqrt(dx * dx + dy * dy),
+          lessThanOrEqualTo(radius),
+          reason: 'pixel outside splash circle at ${p.x},${p.y}',
+        );
       }
       expect(visible, greaterThan(200000));
     });

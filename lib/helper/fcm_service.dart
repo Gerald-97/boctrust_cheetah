@@ -14,6 +14,7 @@ class FCMService {
   Stream<String> get onTokenRefresh => _messaging.onTokenRefresh;
   Stream<RemoteMessage> get onMessageOpenedApp =>
       FirebaseMessaging.onMessageOpenedApp;
+  Stream<RemoteMessage> get onMessage => FirebaseMessaging.onMessage;
 
   Future<NotificationSettings> requestPermission() =>
       _messaging.requestPermission(alert: true, badge: true, sound: true);

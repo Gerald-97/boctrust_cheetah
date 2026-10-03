@@ -5,78 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _Shown {
-  _Shown(this.id, this.title, this.body, this.details, this.payload);
-  final int id;
-  final String? title;
-  final String? body;
-  final NotificationDetails? details;
-  final String? payload;
-}
-
-class _FakeAndroid implements AndroidFlutterLocalNotificationsPlugin {
-  final channels = <AndroidNotificationChannel>[];
-
-  @override
-  Future<void> createNotificationChannel(
-    AndroidNotificationChannel notificationChannel,
-  ) async => channels.add(notificationChannel);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakePlugin implements FlutterLocalNotificationsPlugin {
-  final android = _FakeAndroid();
-  final initializations = <InitializationSettings>[];
-  final shown = <_Shown>[];
-  DidReceiveNotificationResponseCallback? onResponse;
-  NotificationAppLaunchDetails? launchDetails;
-  Object? initializeError;
-  Object? showError;
-
-  @override
-  Future<bool?> initialize(
-    InitializationSettings initializationSettings, {
-    DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
-    DidReceiveBackgroundNotificationResponseCallback?
-    onDidReceiveBackgroundNotificationResponse,
-  }) async {
-    if (initializeError case final error?) throw error;
-    initializations.add(initializationSettings);
-    onResponse = onDidReceiveNotificationResponse;
-    return true;
-  }
-
-  @override
-  T? resolvePlatformSpecificImplementation<
-    T extends FlutterLocalNotificationsPlatform
-  >() => android is T ? android as T : null;
-
-  @override
-  Future<void> show(
-    int id,
-    String? title,
-    String? body,
-    NotificationDetails? notificationDetails, {
-    String? payload,
-  }) async {
-    if (showError case final error?) throw error;
-    shown.add(_Shown(id, title, body, notificationDetails, payload));
-  }
-
-  @override
-  Future<NotificationAppLaunchDetails?>
-  getNotificationAppLaunchDetails() async => launchDetails;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-NotificationResponse _response(String? payload) => NotificationResponse(
-  notificationResponseType: NotificationResponseType.selectedNotification,
-  payload: payload,
-);
+import 'support/fake_local_notifications.dart';
 
 const _secretMessage = RemoteMessage(
   messageId: 'msg-1',
@@ -88,12 +17,12 @@ const _secretMessage = RemoteMessage(
 );
 
 void main() {
-  late _FakePlugin plugin;
+  late FakeLocalNotificationsPlugin plugin;
   late List<String> logs;
   late LocalNotificationService service;
 
   setUp(() {
-    plugin = _FakePlugin();
+    plugin = FakeLocalNotificationsPlugin();
     logs = [];
     service = LocalNotificationService(plugin: plugin, log: logs.add);
   });
@@ -182,9 +111,9 @@ void main() {
       final subscription = service.taps.listen(taps.add);
       addTearDown(subscription.cancel);
       await service.initialize();
-      plugin.onResponse!(_response('{"route":"/notifications","id":"7"}'));
-      plugin.onResponse!(_response('{bad json'));
-      plugin.onResponse!(_response(null));
+      plugin.onResponse!(tapResponse('{"route":"/notifications","id":"7"}'));
+      plugin.onResponse!(tapResponse('{bad json'));
+      plugin.onResponse!(tapResponse(null));
       await Future<void>.delayed(Duration.zero);
       expect(taps, [
         {'route': '/notifications', 'id': '7'},
@@ -194,7 +123,7 @@ void main() {
     test('a launch payload is returned once per process', () async {
       plugin.launchDetails = NotificationAppLaunchDetails(
         true,
-        notificationResponse: _response('{"route":"/notifications"}'),
+        notificationResponse: tapResponse('{"route":"/notifications"}'),
       );
       expect(await service.getInitialTapPayload(), {'route': '/notifications'});
       expect(await service.getInitialTapPayload(), isNull);
@@ -207,7 +136,7 @@ void main() {
       final malformed = LocalNotificationService(plugin: plugin, log: logs.add);
       plugin.launchDetails = NotificationAppLaunchDetails(
         true,
-        notificationResponse: _response('[1]'),
+        notificationResponse: tapResponse('[1]'),
       );
       expect(await malformed.getInitialTapPayload(), isNull);
     });
