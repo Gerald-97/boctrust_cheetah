@@ -962,10 +962,13 @@ extension AccountScreens on AppFlowNavigatorState {
     required bool phone,
     String? initialIdentifier,
   }) async {
+    if (phone) {
+      await _showPhoneVerificationSheet(initialPhone: initialIdentifier);
+      return;
+    }
     ref.invalidate(identifierVerificationProvider);
     _identifierController.text = initialIdentifier ?? '';
     _otpController.clear();
-    var channel = PhoneVerificationChannel.sms;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -988,9 +991,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      awaitingOtp
-                          ? 'Enter verification code'
-                          : 'Verify ${phone ? 'phone number' : 'email'}',
+                      awaitingOtp ? 'Enter verification code' : 'Verify email',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
@@ -1015,36 +1016,10 @@ extension AccountScreens on AppFlowNavigatorState {
                       ),
                     ] else ...[
                       AppTextField(
-                        label: phone ? 'Phone number' : 'Email address',
+                        label: 'Email address',
                         controller: _identifierController,
-                        keyboardType: phone
-                            ? TextInputType.phone
-                            : TextInputType.emailAddress,
+                        keyboardType: TextInputType.emailAddress,
                       ),
-                      if (phone) ...[
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<PhoneVerificationChannel>(
-                          initialValue: channel,
-                          decoration: const InputDecoration(
-                            labelText: 'Delivery channel',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: PhoneVerificationChannel.sms,
-                              child: Text('SMS'),
-                            ),
-                            DropdownMenuItem(
-                              value: PhoneVerificationChannel.whatsapp,
-                              child: Text('WhatsApp'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setSheetState(() => channel = value);
-                            }
-                          },
-                        ),
-                      ],
                     ],
                     if (state.isError) ...[
                       const SizedBox(height: 12),
@@ -1088,23 +1063,11 @@ extension AccountScreens on AppFlowNavigatorState {
                           return;
                         }
                         final identifier = _identifierController.text.trim();
-                        if (phone) {
-                          if (!RegExp(
-                            r'^\+234\d{10}$',
-                          ).hasMatch(normalizeNigerianPhone(identifier))) {
-                            _showMessage(
-                              'Enter a valid Nigerian phone number.',
-                            );
-                            return;
-                          }
-                          await notifier.initiatePhone(identifier, channel);
-                        } else {
-                          if (!validators.isEmail(identifier)) {
-                            _showMessage('Enter a valid email address.');
-                            return;
-                          }
-                          await notifier.initiateEmail(identifier);
+                        if (!validators.isEmail(identifier)) {
+                          _showMessage('Enter a valid email address.');
+                          return;
                         }
+                        await notifier.initiateEmail(identifier);
                       },
                     ),
                   ],

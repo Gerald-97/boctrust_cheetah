@@ -295,9 +295,10 @@ class OtpBox extends StatelessWidget {
 }
 
 class OtpExpiryLabel extends StatefulWidget {
-  const OtpExpiryLabel({required this.expiresAt, super.key});
+  const OtpExpiryLabel({required this.expiresAt, this.onExpired, super.key});
 
   final DateTime? expiresAt;
+  final VoidCallback? onExpired;
 
   @override
   State<OtpExpiryLabel> createState() => _OtpExpiryLabelState();
@@ -305,6 +306,7 @@ class OtpExpiryLabel extends StatefulWidget {
 
 class _OtpExpiryLabelState extends State<OtpExpiryLabel> {
   Timer? _timer;
+  bool _didNotifyExpired = false;
 
   @override
   void initState() {
@@ -315,7 +317,10 @@ class _OtpExpiryLabelState extends State<OtpExpiryLabel> {
   @override
   void didUpdateWidget(covariant OtpExpiryLabel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.expiresAt != widget.expiresAt) _startTimer();
+    if (oldWidget.expiresAt != widget.expiresAt) {
+      _didNotifyExpired = false;
+      _startTimer();
+    }
   }
 
   void _startTimer() {
@@ -324,7 +329,13 @@ class _OtpExpiryLabelState extends State<OtpExpiryLabel> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {});
-      if (_remaining.inSeconds <= 0) _timer?.cancel();
+      if (_remaining == Duration.zero) {
+        _timer?.cancel();
+        if (!_didNotifyExpired) {
+          _didNotifyExpired = true;
+          widget.onExpired?.call();
+        }
+      }
     });
   }
 
