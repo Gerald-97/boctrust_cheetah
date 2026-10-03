@@ -116,7 +116,7 @@ void main() {
     expect(find.textContaining('0123456789'), findsWidgets);
   });
 
-  testWidgets('a Core failure never falls back to the User balance', (
+  testWidgets('without a Core Flex account Home shows the User wallet', (
     tester,
   ) async {
     await _pump(
@@ -125,8 +125,8 @@ void main() {
       accounts: const NotifierState.error('Core is down'),
     );
 
-    expect(find.textContaining('1,234,567,890.12'), findsNothing);
-    expect(find.text('Retry'), findsWidgets);
+    // LayoutHome's User Service flexWallet covers the missing Core account.
+    expect(find.textContaining('1,234,567,890.12'), findsOneWidget);
     // Funding details still come from the User Service.
     expect(find.textContaining('0123456789'), findsWidgets);
   });

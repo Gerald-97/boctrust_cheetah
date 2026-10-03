@@ -40,6 +40,7 @@ import '../core_banking/model/bank_product_models.dart';
 import '../core_banking/model/core_money.dart';
 import '../core_banking/model/core_submission_models.dart';
 import '../core_banking/model/customer_bank_account_models.dart';
+import '../core_banking/model/flex_balance.dart';
 import '../core_banking/model/intrabank_models.dart';
 import '../core_banking/provider/core_account_providers.dart';
 import '../core_banking/provider/intrabank_submission_providers.dart';

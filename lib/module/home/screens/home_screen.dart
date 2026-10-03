@@ -103,7 +103,23 @@ extension HomeScreen on AppFlowNavigatorState {
               ),
               const SizedBox(height: BocSpace.md),
             ],
-            ..._homeWalletSection(accountsState),
+            ..._homeWalletSection(accountsState, homeState),
+            if (homeState.data?.verification['nextAction'] ==
+                'verify_phone_number') ...[
+              const SizedBox(height: BocSpace.sm),
+              ApiStateCard(
+                title: 'Verify your phone number',
+                message:
+                    'Add and confirm your phone number to complete your '
+                    'account setup.',
+                tone: ApiStateTone.info,
+                actionLabel: 'Verify',
+                onAction: () => _showIdentifierVerificationSheet(
+                  phone: true,
+                  initialIdentifier: profile?.phoneNumber,
+                ),
+              ),
+            ],
             const SizedBox(height: BocSpace.sm),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -200,65 +216,67 @@ extension HomeScreen on AppFlowNavigatorState {
     );
   }
 
-  /// Wallet hero: the Core Flex balance beside the User Service funding
-  /// account.
+  /// Wallet hero: the Flex balance beside the User Service funding account.
   ///
-  /// Core is the only balance authority. A Core failure shows as such and
-  /// never falls back to the User Service balance; the funding account number
-  /// still comes from the User Service and is unaffected.
+  /// Core's Flex account is authoritative once the customer has one; until
+  /// then the User Service Flex wallet is shown (see `resolveFlexBalance`).
   List<Widget> _homeWalletSection(
     NotifierState<CustomerBankAccountsData> accountsState,
+    NotifierState<UserHomeData> homeState,
   ) {
-    final accounts = accountsState.data;
-    Future<void> retry() =>
-        ref.read(customerBankAccountsProvider.notifier).load();
+    final flex = resolveFlexBalance(
+      core: accountsState.data,
+      wallet: homeState.data?.flexWallet,
+    );
+    Future<void> retry() => Future.wait([
+      ref.read(customerBankAccountsProvider.notifier).load(),
+      ref.read(userHomeProvider.notifier).load(),
+    ]);
+    bool pending(NotifierState<Object?> state) =>
+        state.data == null &&
+        (state.isLoading || state.status == ServiceStatus.idle);
 
-    if (accounts == null) {
-      if (accountsState.isLoading ||
-          accountsState.status == ServiceStatus.idle) {
+    if (flex == null) {
+      if (pending(accountsState) || pending(homeState)) {
         return [const ApiLoadingSection(label: 'Loading your wallet')];
       }
+      final bothFailed = accountsState.data == null && homeState.data == null;
       return [
-        ApiStateCard(
-          title: 'Balance unavailable',
-          message:
-              accountsState.message ?? 'We could not load your wallet balance.',
-          tone: ApiStateTone.error,
-          actionLabel: 'Retry',
-          onAction: retry,
-        ),
+        bothFailed
+            ? ApiStateCard(
+                title: 'Balance unavailable',
+                message: 'We could not load your wallet balance.',
+                tone: ApiStateTone.error,
+                actionLabel: 'Retry',
+                onAction: retry,
+              )
+            : const ApiStateCard(
+                title: 'Wallet information unavailable',
+                message:
+                    'Your wallet details are unavailable right now. Refresh '
+                    'to try again.',
+                tone: ApiStateTone.info,
+              ),
       ];
     }
 
+    final source = flex.isCoreAccount ? accountsState : homeState;
     return [
-      if (accountsState.isError) ...[
+      if (source.isError) ...[
         ApiStateCard(
           title: 'Showing your last known balance',
-          message: accountsState.message ?? 'We could not refresh your wallet.',
+          message: source.message ?? 'We could not refresh your wallet.',
           tone: ApiStateTone.warning,
           actionLabel: 'Retry',
           onAction: retry,
         ),
         const SizedBox(height: 14),
       ],
-      _flexWalletCard(
-        accounts.activeFlexAccount,
-        loading: accountsState.isLoading,
-      ),
+      _flexWalletCard(flex, loading: source.isLoading),
     ];
   }
 
-  Widget _flexWalletCard(CustomerBankAccount? flex, {required bool loading}) {
-    // Absent, frozen, closed or ambiguous: never shown as a usable balance.
-    if (flex == null) {
-      return const ApiStateCard(
-        title: 'Wallet information unavailable',
-        message:
-            'Your wallet details are unavailable right now. Refresh to try again.',
-        tone: ApiStateTone.info,
-      );
-    }
-
+  Widget _flexWalletCard(FlexBalance flex, {required bool loading}) {
     final hidden = ref.watch(homeBalanceHiddenProvider);
     final available = formatApiAmount(flex.availableBalance, currency: 'NGN');
     // The customer's funding account number, shown only once the User
