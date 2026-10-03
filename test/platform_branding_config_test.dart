@@ -248,4 +248,65 @@ void main() {
       }
     });
   });
+
+  group('iOS notification configuration', () {
+    test('enables remote-notification background delivery', () {
+      final plist = File('ios/Runner/Info.plist').readAsStringSync();
+      expect(
+        plist,
+        matches(
+          RegExp(
+            r'<key>UIBackgroundModes</key>\s*<array>[^]*?'
+            r'<string>remote-notification</string>[^]*?</array>',
+          ),
+        ),
+      );
+    });
+
+    test('signs the Runner target with the push entitlement', () {
+      final entitlements = File(
+        'ios/Runner/Runner.entitlements',
+      ).readAsStringSync();
+      expect(entitlements, contains('<key>aps-environment</key>'));
+      final project = File(
+        'ios/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final runnerConfigs = RegExp(
+        r'INFOPLIST_FILE = Runner/Info\.plist;',
+      ).allMatches(project).length;
+      expect(runnerConfigs, 3);
+      expect(
+        RegExp(
+          r'CODE_SIGN_ENTITLEMENTS = Runner/Runner\.entitlements;',
+        ).allMatches(project).length,
+        runnerConfigs,
+      );
+    });
+
+    test('AppDelegate serves the notification-center delegate', () {
+      final delegate = File('ios/Runner/AppDelegate.swift').readAsStringSync();
+      expect(delegate, contains('UNUserNotificationCenter.current().delegate'));
+      expect(
+        delegate,
+        contains('FlutterLocalNotificationsPlugin.setPluginRegistrantCallback'),
+      );
+      // Overriding these without super would starve firebase_messaging.
+      expect(delegate, isNot(contains('didReceive response')));
+      expect(delegate, isNot(contains('willPresent')));
+    });
+
+    test('Firebase foreground presentation stays off', () {
+      final sources = Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'));
+      for (final file in sources) {
+        expect(
+          file.readAsStringSync(),
+          isNot(contains('setForegroundNotificationPresentationOptions')),
+          reason: file.path,
+        );
+      }
+    });
+  });
 }
