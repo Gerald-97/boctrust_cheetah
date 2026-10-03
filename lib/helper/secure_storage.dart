@@ -10,6 +10,9 @@ final secureStorageProvider = Provider<SecureStorage>((ref) => SecureStorage());
 
 enum StoredSessionStatus { absent, valid, invalid, expired }
 
+/// The four keys that make up one biometric enrollment.
+enum BiometricStorageKey { enabled, profile, identifier, password }
+
 typedef StoredSessionResult = ({
   StoredSessionStatus status,
   AuthSession? session,
@@ -107,4 +110,28 @@ class SecureStorage {
 
   Future<void> writeDeviceToken(String token) =>
       _storage.write(key: deviceTokenKey, value: token);
+
+  // Biometric enrollment never syncs to iCloud or migrates to another device.
+  static const _biometricAppleOptions = IOSOptions(
+    accessibility: KeychainAccessibility.unlocked_this_device,
+  );
+
+  String biometricKey(BiometricStorageKey key) =>
+      '$_prefix.biometric.v1.${key.name}';
+
+  Future<String?> readBiometricValue(BiometricStorageKey key) =>
+      _storage.read(key: biometricKey(key), iOptions: _biometricAppleOptions);
+
+  Future<bool> hasBiometricValue(BiometricStorageKey key) => _storage
+      .containsKey(key: biometricKey(key), iOptions: _biometricAppleOptions);
+
+  Future<void> writeBiometricValue(BiometricStorageKey key, String value) =>
+      _storage.write(
+        key: biometricKey(key),
+        value: value,
+        iOptions: _biometricAppleOptions,
+      );
+
+  Future<void> deleteBiometricValue(BiometricStorageKey key) =>
+      _storage.delete(key: biometricKey(key), iOptions: _biometricAppleOptions);
 }
