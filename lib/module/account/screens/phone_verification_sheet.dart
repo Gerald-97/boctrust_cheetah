@@ -11,6 +11,12 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
     _otpController.clear();
     var channel = PhoneVerificationChannel.sms;
     var keepOtpStepVisible = false;
+    // When the last code was sent; Resend unlocks after a short cooldown even
+    // if the code itself is still valid, so a lost SMS is not a long wait.
+    DateTime? codeSentAt;
+    const resendCooldown = Duration(seconds: 60);
+    // Rebuilds the sheet each second while a cooldown is counting down.
+    Timer? ticker;
 
     final verified = await showModalBottomSheet<bool>(
       context: context,
@@ -23,11 +29,25 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                 state.data?.stage == IdentifierVerificationStage.awaitingOtp;
             final showingOtp = awaitingOtp || keepOtpStepVisible;
             final expiresAt = state.data?.otpExpiresAt;
+            final now = DateTime.now().toUtc();
+            final cooldownLeft = codeSentAt == null
+                ? Duration.zero
+                : resendCooldown - now.difference(codeSentAt!);
+            final expired =
+                expiresAt == null || !now.isBefore(expiresAt.toUtc());
             final canResend =
                 showingOtp &&
                 !state.isLoading &&
-                (expiresAt == null ||
-                    !DateTime.now().toUtc().isBefore(expiresAt.toUtc()));
+                (expired || cooldownLeft <= Duration.zero);
+            if (showingOtp && cooldownLeft > Duration.zero) {
+              ticker ??= Timer.periodic(const Duration(seconds: 1), (timer) {
+                if (!sheetContext.mounted) return timer.cancel();
+                setSheetState(() {});
+              });
+            } else {
+              ticker?.cancel();
+              ticker = null;
+            }
 
             return Padding(
               padding: EdgeInsets.fromLTRB(
@@ -79,33 +99,69 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                         flow: TestOtpFlow.identifierVerification,
                         controller: _otpController,
                       ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          onPressed: canResend
-                              ? () async {
-                                  final data = state.data;
-                                  if (data == null ||
-                                      data.identifier.trim().isEmpty) {
-                                    return;
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: canResend
+                                ? () async {
+                                    final data = state.data;
+                                    if (data == null ||
+                                        data.identifier.trim().isEmpty) {
+                                      return;
+                                    }
+                                    setSheetState(
+                                      () => keepOtpStepVisible = true,
+                                    );
+                                    _otpController.clear();
+                                    final notifier = modalRef.read(
+                                      identifierVerificationProvider.notifier,
+                                    );
+                                    await notifier.initiatePhone(
+                                      data.identifier,
+                                      data.phoneVerificationChannel ?? channel,
+                                    );
+                                    if (!sheetContext.mounted) return;
+                                    final resent = modalRef.read(
+                                      identifierVerificationProvider,
+                                    );
+                                    setSheetState(() {
+                                      if (resent.data?.stage ==
+                                          IdentifierVerificationStage
+                                              .awaitingOtp) {
+                                        codeSentAt = DateTime.now().toUtc();
+                                      } else {
+                                        // A failed resend has no code to
+                                        // verify: return to the number,
+                                        // which keeps the error message.
+                                        keepOtpStepVisible = false;
+                                      }
+                                    });
                                   }
-                                  setSheetState(
-                                    () => keepOtpStepVisible = true,
-                                  );
-                                  _otpController.clear();
-                                  await modalRef
-                                      .read(
-                                        identifierVerificationProvider.notifier,
-                                      )
-                                      .initiatePhone(
-                                        data.identifier,
-                                        data.phoneVerificationChannel ??
-                                            channel,
-                                      );
-                                }
-                              : null,
-                          child: const Text('Resend code'),
-                        ),
+                                : null,
+                            child: Text(
+                              canResend || expired
+                                  ? 'Resend code'
+                                  : 'Resend code in '
+                                        '${cooldownLeft.inSeconds + 1}s',
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: state.isLoading
+                                ? null
+                                : () {
+                                    modalRef.invalidate(
+                                      identifierVerificationProvider,
+                                    );
+                                    _otpController.clear();
+                                    setSheetState(() {
+                                      keepOtpStepVisible = false;
+                                      codeSentAt = null;
+                                    });
+                                  },
+                            child: const Text('Change number'),
+                          ),
+                        ],
                       ),
                     ] else ...[
                       AppTextField(
@@ -181,6 +237,16 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
                                 return;
                               }
                               await notifier.initiatePhone(identifier, channel);
+                              if (modalRef
+                                          .read(identifierVerificationProvider)
+                                          .data
+                                          ?.stage ==
+                                      IdentifierVerificationStage.awaitingOtp &&
+                                  sheetContext.mounted) {
+                                setSheetState(
+                                  () => codeSentAt = DateTime.now().toUtc(),
+                                );
+                              }
                             },
                     ),
                   ],
@@ -192,6 +258,7 @@ extension PhoneVerificationSheet on AppFlowNavigatorState {
       ),
     );
 
+    ticker?.cancel();
     if (!mounted) return false;
     _identifierController.clear();
     _otpController.clear();
