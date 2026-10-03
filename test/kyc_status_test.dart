@@ -243,7 +243,7 @@ void _statusDrivenCardRules() {
           utilityBill: wire,
         );
         expect(
-          data.identity.status.isVerified,
+          data.identity.status == KycVerificationStatus.success,
           isFalse,
           reason: '"$wire" must never render as verified',
         );
@@ -254,7 +254,7 @@ void _statusDrivenCardRules() {
         utilityBill: 'success',
         nextAction: 'complete',
       );
-      expect(verified.identity.status.isVerified, isTrue);
+      expect(verified.identity.status == KycVerificationStatus.success, isTrue);
       expect(verified.nextAction, KycNextAction.complete);
     });
 

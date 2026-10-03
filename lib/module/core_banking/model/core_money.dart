@@ -50,17 +50,6 @@ MoneyInput parseNairaToKobo(String text, {required String maxKobo}) {
   return ValidMoney(kobo.toString());
 }
 
-/// Naira text → two-decimal Naira string, for bill payments.
-/// [maxNaira] is the inclusive upper bound in whole Naira.
-MoneyInput parseNairaAmount(String text, {required String maxNaira}) {
-  final kobo = _kobo(text);
-  if (kobo == null) return _invalidAmount;
-  if (kobo > BigInt.parse(maxNaira) * BigInt.from(100)) return _overLimit;
-  final digits = kobo.toString().padLeft(3, '0');
-  final split = digits.length - 2;
-  return ValidMoney('${digits.substring(0, split)}.${digits.substring(split)}');
-}
-
 final _decimal = RegExp(r'^(\d+)(?:\.(\d+))?$');
 
 /// A server decimal Naira balance (e.g. `2500.0000`) as whole Kobo, rounded

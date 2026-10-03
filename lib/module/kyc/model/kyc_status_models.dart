@@ -41,9 +41,6 @@ enum KycVerificationStatus {
     }
     return unknown;
   }
-
-  /// The single place a verified UI state may be derived from.
-  bool get isVerified => this == KycVerificationStatus.success;
 }
 
 /// The step the backend wants the user to complete next.

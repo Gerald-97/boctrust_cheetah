@@ -5,8 +5,8 @@ import '../../../app/services.dart';
 String? _text(Object? value) =>
     value is String && value.trim().isNotEmpty ? value.trim() : null;
 
-/// The body Core returns when it accepts an intrabank transfer, interbank
-/// transfer or bill payment. Acceptance is not completion.
+/// The body Core returns when it accepts a transfer. Acceptance is not
+/// completion.
 class CoreTransferAck extends Equatable {
   const CoreTransferAck({
     this.responseCode,
@@ -49,7 +49,6 @@ enum CoreRejection {
   accountRestricted('Your account is restricted. Please contact support.'),
   accountMissing('This account is not available.'),
   referenceCollision('Something went wrong. You can try again.'),
-  recipientUnresolved("We couldn't verify the receiving account."),
   other('This request was declined.');
 
   const CoreRejection(this.message);
@@ -95,13 +94,10 @@ final class UnknownSubmission extends CoreSubmissionOutcome {
   List<Object?> get props => [];
 }
 
-/// Classifies a money-moving response. [interbank] enables the documented
-/// interbank `500` (receiver could not be resolved, or the transfer was
-/// rejected), which is a definite decline rather than an unknown.
+/// Classifies a money-moving response.
 CoreSubmissionOutcome mapCoreSubmission(
-  ServiceResponse<CoreTransferAck> response, {
-  bool interbank = false,
-}) {
+  ServiceResponse<CoreTransferAck> response,
+) {
   final ack = response.data;
   if (response.status == ServiceStatus.success && ack != null) {
     return AcceptedSubmission(ack);
@@ -120,9 +116,6 @@ CoreSubmissionOutcome mapCoreSubmission(
     403 => const RejectedSubmission(CoreRejection.accountRestricted),
     404 => const RejectedSubmission(CoreRejection.accountMissing),
     409 => const RejectedSubmission(CoreRejection.referenceCollision),
-    500 when interbank => const RejectedSubmission(
-      CoreRejection.recipientUnresolved,
-    ),
     final int c when c >= 400 && c < 500 => const RejectedSubmission(
       CoreRejection.other,
     ),

@@ -20,11 +20,4 @@ void main() {
     expect(_kobo('1000001'), isNull);
     expect(_kobo('99999999999999999999'), isNull);
   });
-
-  test('bill amounts stay in Naira with two decimals', () {
-    expect(
-      parseNairaAmount('1,000.5', maxNaira: '50000'),
-      const ValidMoney('1000.50'),
-    );
-  });
 }

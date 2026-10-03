@@ -63,19 +63,9 @@ enum FeatureCapability {
   data,
   bills,
   scanToPay,
-  // Core mobile banking slices. Each is registered only when its slice
-  // (endpoint, models, service, provider, widgets, tests and gates) ships;
-  // until then it is unavailable.
-  coreAccountOpening,
+  // Core mobile banking slices, unavailable until each is registered.
   ownAccountTransfers,
   savingsWithdrawals,
-  boctrustTransfers,
-  interbankTransfers,
-  billerDirectoryView,
-  airtimePurchase,
-  dataPurchase,
-  billPayment,
-  beneficiariesManage,
   // Products that have not launched.
   loans,
   cards,
@@ -265,14 +255,6 @@ FeatureAvailability availabilityFor(
       ? FeatureAvailability.available
       : FeatureAvailability.unavailable;
 }
-
-/// The structural registry check: whether a contract is declared at all,
-/// regardless of which backends this build is configured for.
-FeatureAvailability availabilityOf(FeatureCapability capability) =>
-    availabilityFor(
-      capabilityRequirements[capability],
-      configuredBackends: ApiBackend.values.toSet(),
-    );
 
 /// The backends this build can reach. User is always configured; Core only
 /// when `CORE_BASE_URL` is set.

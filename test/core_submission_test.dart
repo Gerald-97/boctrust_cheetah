@@ -20,13 +20,11 @@ void main() {
     expect(accepted, isA<AcceptedSubmission>());
     expect((accepted as AcceptedSubmission).ack.reference, 'ref-1');
 
-    CoreRejection? reason(
-      ServiceResponse<CoreTransferAck> r, {
-      bool i = false,
-    }) => switch (mapCoreSubmission(r, interbank: i)) {
-      RejectedSubmission(:final reason) => reason,
-      _ => null,
-    };
+    CoreRejection? reason(ServiceResponse<CoreTransferAck> r) =>
+        switch (mapCoreSubmission(r)) {
+          RejectedSubmission(:final reason) => reason,
+          _ => null,
+        };
     expect(reason(_error(403)), CoreRejection.accountRestricted);
     expect(reason(_error(404)), CoreRejection.accountMissing);
     expect(reason(_error(409)), CoreRejection.referenceCollision);
@@ -34,7 +32,6 @@ void main() {
       reason(_error(400, 'Insufficient balance')),
       CoreRejection.insufficientFunds,
     );
-    expect(reason(_error(500), i: true), CoreRejection.recipientUnresolved);
 
     // No answer, a server fault, or an unreadable success: never success.
     for (final unknown in [

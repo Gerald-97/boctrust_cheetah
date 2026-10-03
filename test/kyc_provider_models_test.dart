@@ -235,22 +235,6 @@ void main() {
     });
   });
 
-  test('capture outcomes map to non-authoritative flow stages', () {
-    expect(
-      stageAfterCapture(KycCaptureOutcome.submitted),
-      KycFlowStage.pendingReview,
-    );
-    expect(
-      stageAfterCapture(KycCaptureOutcome.cancelled),
-      KycFlowStage.awaitingProvider,
-    );
-    expect(stageAfterCapture(KycCaptureOutcome.failed), KycFlowStage.failed);
-    expect(
-      stageAfterCapture(KycCaptureOutcome.unknown),
-      KycFlowStage.reconciling,
-    );
-  });
-
   group('unsupported document message', () {
     const offered = GovernmentIdDocumentType.values;
 

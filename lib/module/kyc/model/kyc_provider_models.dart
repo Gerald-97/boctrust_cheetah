@@ -87,13 +87,6 @@ String? governmentIdUnsupportedMessage(
 
 enum KycCaptureOutcome { submitted, cancelled, failed, unknown }
 
-KycFlowStage stageAfterCapture(KycCaptureOutcome outcome) => switch (outcome) {
-  KycCaptureOutcome.submitted => KycFlowStage.pendingReview,
-  KycCaptureOutcome.cancelled => KycFlowStage.awaitingProvider,
-  KycCaptureOutcome.failed => KycFlowStage.failed,
-  KycCaptureOutcome.unknown => KycFlowStage.reconciling,
-};
-
 KycProvider validateKycLaunch(
   KycInitiationData data, {
   required KycOperation operation,

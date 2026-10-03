@@ -204,9 +204,6 @@ class IdentityVerificationNotifier extends Notifier<NotifierState<KycFlowData>>
   Future<void> _refreshAuthoritativeState() =>
       refreshKycAuthoritativeState(ref);
 
-  /// Re-checks status after an app resume or an explicit user refresh.
-  Future<void> refreshStatus() => _refreshAuthoritativeState();
-
   void clear() {
     beginRequest();
     _inFlight = false;

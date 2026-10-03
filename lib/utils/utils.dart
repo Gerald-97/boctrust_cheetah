@@ -98,16 +98,3 @@ String? formatApiAmount(String? amount, {String? currency}) {
     digits.substring(digits.length - 2),
   );
 }
-
-/// Masks all but the last [visible] characters of an identifier.
-String maskTrailing(String value, {int visible = 4, int groupSize = 4}) {
-  final trimmed = value.trim();
-  if (trimmed.length <= visible) return trimmed;
-  final hiddenCount = trimmed.length - visible;
-  final buffer = StringBuffer();
-  for (var i = 0; i < hiddenCount; i++) {
-    if (i > 0 && i % groupSize == 0) buffer.write(' ');
-    buffer.write('•');
-  }
-  return '$buffer ${trimmed.substring(hiddenCount)}';
-}
