@@ -119,4 +119,22 @@ void main() {
       expect(plugin.shown.map((s) => s.title).toSet(), {'BOCTRUST'});
     });
   });
+
+  group('backgroundNotificationService', () {
+    tearDown(() => appNotificationService = null);
+
+    test('reuses the app service when the handler runs in the app isolate', () {
+      // On iOS the handler runs in the main isolate, where the plugin is a
+      // singleton: a second service would replace the app's tap callback.
+      appNotificationService = service;
+      expect(backgroundNotificationService(), same(service));
+    });
+
+    test('creates a fresh service in a background isolate', () {
+      appNotificationService = null;
+      final created = backgroundNotificationService();
+      expect(created, isA<LocalNotificationService>());
+      expect(created, isNot(same(service)));
+    });
+  });
 }

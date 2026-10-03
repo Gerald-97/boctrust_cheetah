@@ -24,6 +24,7 @@ Future<void> main() async {
   // Taps are routed by AuthFlowListener once authentication is ready; a
   // failed initialization leaves an inert service and never blocks startup.
   final notifications = LocalNotificationService();
+  appNotificationService = notifications;
   await notifications.initialize();
   if (firebaseReady) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

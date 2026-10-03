@@ -12,14 +12,24 @@ bool shouldDisplayInBackground(RemoteMessage message) =>
     message.notification == null &&
     NotificationPayload.fromRemoteMessage(message).isDisplayable;
 
-/// Firebase background entry point. Runs in its own isolate: it must not
-/// touch Riverpod, secure storage, API clients or navigation.
+/// The service `main()` created, when this isolate is the app's.
+LocalNotificationService? appNotificationService;
+
+/// The service the background handler should use. On iOS the handler runs in
+/// the app's isolate, where the plugin is a singleton: initializing a second
+/// service would replace the app's tap callback, so the app's is reused. An
+/// Android background isolate has none and gets a fresh one.
+LocalNotificationService backgroundNotificationService() =>
+    appNotificationService ?? LocalNotificationService();
+
+/// Firebase background entry point. It must not touch Riverpod, secure
+/// storage, API clients or navigation.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) =>
     handleBackgroundMessage(
       message,
       initializeFirebase: Firebase.initializeApp,
-      notifications: LocalNotificationService.new,
+      notifications: backgroundNotificationService,
     );
 
 Future<void> handleBackgroundMessage(
