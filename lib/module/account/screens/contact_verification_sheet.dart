@@ -1,15 +1,6 @@
 part of '../../app_flow/app_flow_navigator.dart';
 
 extension ContactVerificationSheet on AppFlowNavigatorState {
-  Future<bool> _showPhoneVerificationSheet({
-    String? initialPhone,
-    String? reason,
-  }) => _showContactVerificationSheet(
-    phone: true,
-    initialValue: initialPhone,
-    reason: reason,
-  );
-
   /// Verifies the customer's phone ([phone]) or email with a one-time code.
   /// Pops with true once the backend confirms the code.
   Future<bool> _showContactVerificationSheet({
@@ -353,4 +344,20 @@ extension ContactVerificationSheet on AppFlowNavigatorState {
     }
     return true;
   }
+
+  /// The prompt shown wherever KYC waits on the email or phone. [onVerified]
+  /// runs once both are verified.
+  Widget _contactRequirementCard(
+    UserOwnProfileData profile, {
+    VoidCallback? onVerified,
+  }) => ApiStateCard(
+    title: 'Verify your ${missingKycContacts(profile)}',
+    message:
+        "You'll need them to verify your identity and unlock higher limits.",
+    tone: ApiStateTone.info,
+    actionLabel: 'Continue',
+    onAction: () async {
+      if (await _ensureContactsForKyc() && mounted) onVerified?.call();
+    },
+  );
 }

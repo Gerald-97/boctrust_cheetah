@@ -14,6 +14,8 @@ extension KycScreens on AppFlowNavigatorState {
     return state;
   }
 
+  /// What a KYC form shows instead of itself until the email and phone are
+  /// verified, or null once they are.
   Widget? _kycContactGate() {
     final profileState = ref.watch(userProfileProvider);
     if (profileState.status == ServiceStatus.idle) {
@@ -21,38 +23,17 @@ extension KycScreens on AppFlowNavigatorState {
     }
     final profile = profileState.data;
     if (areContactsReadyForKyc(profile)) return null;
-    if (profile == null) {
-      return profileState.isError
-          ? ApiStateCard(
-              title: 'Profile unavailable',
-              message:
-                  profileState.message ?? 'We could not load your profile.',
-              tone: ApiStateTone.error,
-              actionLabel: 'Retry',
-              onAction: () => ref.read(userProfileProvider.notifier).load(),
-            )
-          : const ApiLoadingSection(label: 'Loading your profile');
-    }
-    return ApiStateCard(
-      title: 'Verify your ${missingKycContacts(profile)} first',
-      message: 'We need them to verify your identity.',
-      tone: ApiStateTone.info,
-      actionLabel: 'Continue',
-      onAction: _ensureContactsForKyc,
-    );
+    if (profile != null) return _contactRequirementCard(profile);
+    return profileState.isError
+        ? ApiStateCard(
+            title: 'Profile unavailable',
+            message: profileState.message ?? 'We could not load your profile.',
+            tone: ApiStateTone.error,
+            actionLabel: 'Retry',
+            onAction: () => ref.read(userProfileProvider.notifier).load(),
+          )
+        : const ApiLoadingSection(label: 'Loading your profile');
   }
-
-  /// Whether the backend already has a pending attempt for [step], which
-  /// the customer may resume without the contact gate.
-  bool _hasPendingKyc(KycVerificationStatus? Function(KycStatusData) step) {
-    final status = ref.read(kycStatusProvider).data;
-    return status != null && step(status) == KycVerificationStatus.pending;
-  }
-
-  /// [_ensureContactsForKyc] for a new start; a pending attempt passes.
-  Future<bool> _contactsReadyOrResuming(
-    KycVerificationStatus? Function(KycStatusData) step,
-  ) async => _hasPendingKyc(step) || await _ensureContactsForKyc();
 
   /// A KYC start the backend refused because no verified email or phone is
   /// on file. Narrow this to the exact codes once the backend publishes them
@@ -63,25 +44,20 @@ extension KycScreens on AppFlowNavigatorState {
         RegExp('REQUIRED|NOT_VERIFIED|UNVERIFIED|MISSING').hasMatch(code);
   }
 
+  /// Re-reads the profile: a stale one opens the verification sheets,
+  /// otherwise the backend's own message is shown.
   Future<void> _handleContactRequiredError(
     NotifierState<Object?> result,
   ) async {
     final profileState = await ref.read(userProfileProvider.notifier).load();
     if (!mounted) return;
-    if (profileState.isError || profileState.data == null) {
-      _showErrorMessage(
-        profileState.message ??
-            'We could not refresh your profile. Please retry.',
-      );
-      return;
-    }
     if (areContactsReadyForKyc(profileState.data)) {
       _showErrorMessage(
         result.message ?? 'Verification could not start. Please try again.',
       );
-      return;
+    } else {
+      await _ensureContactsForKyc();
     }
-    await _ensureContactsForKyc();
   }
 
   String _statusLabel(KycVerificationStatus status) => switch (status) {
@@ -333,18 +309,14 @@ extension KycScreens on AppFlowNavigatorState {
     NotifierState<UserOwnProfileData> profileState,
     TierCardData card,
   ) {
-    if (card.tier != 1 || card.status != TierCardStatus.inProgress) return null;
-
     final profile = profileState.data;
-    if (profile == null || areContactsReadyForKyc(profile)) return null;
-
-    return ApiStateCard(
-      title: 'Contact details required',
-      message: 'Verify your ${missingKycContacts(profile)} to start Tier 1.',
-      tone: ApiStateTone.info,
-      actionLabel: 'Verify',
-      onAction: _ensureContactsForKyc,
-    );
+    if (card.tier != 1 ||
+        card.status != TierCardStatus.inProgress ||
+        profile == null ||
+        areContactsReadyForKyc(profile)) {
+      return null;
+    }
+    return _contactRequirementCard(profile);
   }
 
   /// Resolves what a tier card does when tapped.
@@ -362,7 +334,12 @@ extension KycScreens on AppFlowNavigatorState {
           AppScreen screen,
           KycVerificationStatus? Function(KycStatusData) step,
         ) => () async {
-          if (await _contactsReadyOrResuming(step) && mounted) _go(screen);
+          final status = ref.read(kycStatusProvider).data;
+          final resuming =
+              status != null && step(status) == KycVerificationStatus.pending;
+          if ((resuming || await _ensureContactsForKyc()) && mounted) {
+            _go(screen);
+          }
         };
 
         return switch (card.tier) {
@@ -505,7 +482,7 @@ extension KycScreens on AppFlowNavigatorState {
     required bool lockType,
     required bool continuing,
   }) {
-    // Resuming an attempt started before the phone rule is not a new start.
+    // Resuming an attempt started before the contact rule is not a new start.
     if (!continuing) {
       if (_kycContactGate() case final gate?) return gate;
     }
@@ -643,9 +620,6 @@ extension KycScreens on AppFlowNavigatorState {
   Future<void> _submitIdentityVerification([
     IdentityType? requestedType,
   ]) async {
-    if (!await _contactsReadyOrResuming((s) => s.identity.status) || !mounted) {
-      return;
-    }
     if (_identityFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _identityAutovalidate = AutovalidateMode.onUserInteraction,
@@ -1121,10 +1095,6 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitGovernmentId() async {
-    if (!await _contactsReadyOrResuming((s) => s.governmentId.status) ||
-        !mounted) {
-      return;
-    }
     if (!(_governmentIdFormKey.currentState?.validate() ?? false)) return;
 
     _setLaunchingKycCapture(true);
@@ -1650,10 +1620,6 @@ extension KycScreens on AppFlowNavigatorState {
   }
 
   Future<void> _submitUtilityBill() async {
-    if (!await _contactsReadyOrResuming((s) => s.utilityBill.status) ||
-        !mounted) {
-      return;
-    }
     if (_utilityBillFormKey.currentState?.validate() != true) {
       refreshKycFormState(
         () => _utilityBillAutovalidate = AutovalidateMode.onUserInteraction,

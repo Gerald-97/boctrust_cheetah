@@ -39,14 +39,11 @@ extension HomeScreen on AppFlowNavigatorState {
       (highest, card) => card.tier > highest ? card.tier : highest,
     );
     final contactsReadyForKyc = areContactsReadyForKyc(profile);
+    final hasHigherTier =
+        tier != null && topTier != null && tier.currentTier < topTier;
     // Fully verified customers have no KYC left, so no contact prompt.
-    final kycRemaining =
-        tier == null || topTier == null || tier.currentTier < topTier;
-    final canUpgrade =
-        tier != null &&
-        topTier != null &&
-        tier.currentTier < topTier &&
-        contactsReadyForKyc;
+    final kycRemaining = tier == null || hasHigherTier;
+    final canUpgrade = hasHigherTier && contactsReadyForKyc;
     final colors = context.bocColors;
     final theme = Theme.of(context);
 
@@ -113,18 +110,9 @@ extension HomeScreen on AppFlowNavigatorState {
             ..._homeWalletSection(accountsState, homeState),
             if (profile != null && !contactsReadyForKyc && kycRemaining) ...[
               const SizedBox(height: BocSpace.sm),
-              ApiStateCard(
-                title: 'Verify your ${missingKycContacts(profile)}',
-                message:
-                    "You'll need them to verify your identity and unlock "
-                    'higher limits.',
-                tone: ApiStateTone.info,
-                actionLabel: 'Continue',
-                onAction: () async {
-                  if (await _ensureContactsForKyc() && mounted) {
-                    _go(AppScreen.tiers);
-                  }
-                },
+              _contactRequirementCard(
+                profile,
+                onVerified: () => _go(AppScreen.tiers),
               ),
             ],
             const SizedBox(height: BocSpace.sm),

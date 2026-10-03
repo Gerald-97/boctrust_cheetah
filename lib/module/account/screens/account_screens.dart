@@ -715,9 +715,9 @@ extension AccountScreens on AppFlowNavigatorState {
                       : null,
                   onTap: profile.isVerifiedEmail
                       ? null
-                      : () => _showIdentifierVerificationSheet(
+                      : () => _showContactVerificationSheet(
                           phone: false,
-                          initialIdentifier: profile.email,
+                          initialValue: profile.email,
                         ),
                 ),
               if (profile != null)
@@ -734,8 +734,9 @@ extension AccountScreens on AppFlowNavigatorState {
                       : null,
                   onTap: hasVerifiedPhone
                       ? null
-                      : () => _showPhoneVerificationSheet(
-                          initialPhone: hasPhoneNumber ? phoneNumber : null,
+                      : () => _showContactVerificationSheet(
+                          phone: true,
+                          initialValue: hasPhoneNumber ? phoneNumber : null,
                         ),
                 ),
             ],
@@ -960,16 +961,6 @@ extension AccountScreens on AppFlowNavigatorState {
     _currentSecretController.clear();
     _pinController.clear();
     _confirmPinController.clear();
-  }
-
-  Future<void> _showIdentifierVerificationSheet({
-    required bool phone,
-    String? initialIdentifier,
-  }) async {
-    await _showContactVerificationSheet(
-      phone: phone,
-      initialValue: initialIdentifier,
-    );
   }
 
   Future<void> _showPinRecoverySheet() async {
