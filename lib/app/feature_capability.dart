@@ -232,6 +232,9 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   FeatureCapability.accessibilityPreferences: CapabilityRequirement(
     localOnly: true,
   ),
+  // The runtime provider still decides whether this device has a usable
+  // enrolled biometric.
+  FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
   FeatureCapability.loans: CapabilityRequirement(comingSoon: true),
   FeatureCapability.cards: CapabilityRequirement(comingSoon: true),
 };

@@ -14,7 +14,6 @@ extension AccountControlScreens on AppFlowNavigatorState {
     // These controls are shells until each feature is built; switching a
     // capability on without a real handler fails fast in debug.
     for (final capability in const [
-      FeatureCapability.biometricLogin,
       FeatureCapability.biometricTransfers,
       FeatureCapability.freezeAccount,
     ]) {
@@ -32,14 +31,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
           SettingsGroup(
             caption: 'Sign-in and approvals',
             children: [
-              SettingsTile.toggle(
-                icon: Icons.face_rounded,
-                title: 'Face ID login',
-                subtitle: 'Use face recognition to sign in',
-                value: false,
-                onChanged: null,
-                trailing: _notAvailableTag(),
-              ),
+              _biometricLoginTile(),
               SettingsTile.toggle(
                 icon: Icons.fingerprint_rounded,
                 title: 'Fingerprint for transfers',
@@ -119,6 +111,124 @@ extension AccountControlScreens on AppFlowNavigatorState {
         ],
       ),
     );
+  }
+
+  Widget _biometricLoginTile() {
+    final biometric = ref.watch(biometricLoginProvider);
+    final (icon, title) = switch (biometric.presentation) {
+      BiometricPresentation.faceId => (Icons.face_rounded, 'Face ID login'),
+      BiometricPresentation.touchId => (
+        Icons.fingerprint_rounded,
+        'Touch ID login',
+      ),
+      BiometricPresentation.fingerprint => (
+        Icons.fingerprint_rounded,
+        'Fingerprint login',
+      ),
+      null => (Icons.fingerprint_rounded, 'Biometric login'),
+    };
+    final hydrating = biometric.phase == BiometricLoginPhase.hydrating;
+    final unavailable = biometric.phase == BiometricLoginPhase.unavailable;
+    final subtitle = unavailable
+        ? biometric.message ?? 'Not available on this device'
+        : hydrating
+        ? 'Checking this device…'
+        : biometric.isBusy
+        ? 'Please wait…'
+        : 'Sign in without typing your password';
+    return SettingsTile.toggle(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      value: biometric.isEnabled,
+      onChanged: hydrating || unavailable || biometric.isBusy
+          ? null
+          : (enable) => enable
+                ? _showBiometricEnrollmentDialog()
+                : _disableBiometricLogin(),
+      trailing: unavailable ? _notAvailableTag() : null,
+    );
+  }
+
+  /// Confirms the current password, then the device biometric, before
+  /// remembering this account for biometric login.
+  Future<void> _showBiometricEnrollmentDialog() async {
+    _currentSecretController.clear();
+    final formKey = GlobalKey<FormState>();
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Consumer(
+        builder: (dialogContext, ref, _) {
+          final busy = ref.watch(biometricLoginProvider).isBusy;
+          return AlertDialog(
+            scrollable: true,
+            title: const Text('Turn on biometric login'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Enter your current BOCTRUST password to continue.',
+                  ),
+                  const SizedBox(height: 12),
+                  AppPasswordField(
+                    label: 'Current password',
+                    controller: _currentSecretController,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Enter your current password'
+                        : null,
+                    autofillHints: const [AutofillHints.password],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (formKey.currentState?.validate() != true) return;
+                        final result = await ref
+                            .read(biometricLoginProvider.notifier)
+                            .enable(_currentSecretController.text);
+                        if (!mounted || !dialogContext.mounted) return;
+                        if (result.succeeded) {
+                          Navigator.pop(dialogContext);
+                          _showSuccessMessage('Biometric login is on.');
+                        } else if (result.cancelled) {
+                          Navigator.pop(dialogContext);
+                        } else {
+                          _showErrorMessage(
+                            result.message ??
+                                'We could not turn on biometric login.',
+                          );
+                        }
+                      },
+                child: Text(busy ? 'Please wait…' : 'Continue'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    _currentSecretController.clear();
+  }
+
+  Future<void> _disableBiometricLogin() async {
+    final result = await ref.read(biometricLoginProvider.notifier).disable();
+    if (!mounted) return;
+    if (result.succeeded) {
+      _showSuccessMessage('Biometric login is off.');
+    } else if (!result.cancelled && result.message != null) {
+      _showErrorMessage(result.message!);
+    }
   }
 
   Widget _deleteAccountScreen() {

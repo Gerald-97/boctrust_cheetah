@@ -31,6 +31,7 @@ void main() {
       FeatureCapability.passwordPinControls,
       FeatureCapability.notificationPreferences,
       FeatureCapability.accessibilityPreferences,
+      FeatureCapability.biometricLogin,
     });
   });
 
