@@ -2,9 +2,23 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/api_logger.dart';
 import 'notification_payload.dart';
+
+/// The app's notification service, created in `main()`. Null when the app
+/// runs without one (tests, or a platform without local notifications).
+final localNotificationServiceProvider = Provider<LocalNotificationService?>(
+  (ref) => null,
+);
+
+/// Local-notification taps received while the app is running.
+final localNotificationTapProvider = StreamProvider<Map<String, String>>(
+  (ref) =>
+      ref.watch(localNotificationServiceProvider)?.taps ??
+      const Stream<Map<String, String>>.empty(),
+);
 
 /// The single boundary that displays remote messages as local notifications
 /// and reports local-notification taps.

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
@@ -10,7 +8,6 @@ import 'app/services.dart';
 import 'helper/fcm_service.dart';
 import 'helper/local_notification_service.dart';
 import 'helper/notification_delivery.dart';
-import 'helper/notification_navigator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,15 +21,20 @@ Future<void> main() async {
     firebaseReady = false;
   }
 
+  // Taps are routed by AuthFlowListener once authentication is ready; a
+  // failed initialization leaves an inert service and never blocks startup.
   final notifications = LocalNotificationService();
-  notifications.taps.listen(
-    (payload) => unawaited(NotificationNavigator.dispatch(payload)),
-  );
   await notifications.initialize();
   if (firebaseReady) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     displayForegroundMessages(FCMService().onMessage, notifications);
   }
   final preferences = await SharedPreferences.getInstance();
-  runApp(CheetahApp(preferences: preferences, firebaseReady: firebaseReady));
+  runApp(
+    CheetahApp(
+      preferences: preferences,
+      firebaseReady: firebaseReady,
+      notifications: notifications,
+    ),
+  );
 }

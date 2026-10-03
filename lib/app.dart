@@ -9,6 +9,7 @@ import 'app/preferences.dart';
 import 'app/theme.dart';
 import 'app/theme_controller.dart';
 import 'helper/fcm_service.dart';
+import 'helper/local_notification_service.dart';
 import 'module/account/provider/account_preferences_provider.dart';
 
 class CheetahApp extends StatelessWidget {
@@ -16,12 +17,14 @@ class CheetahApp extends StatelessWidget {
     super.key,
     required this.preferences,
     this.firebaseReady = false,
+    this.notifications,
     this.overrides = const [],
     this.initialRoute = AppRoutes.initial,
   });
 
   final SharedPreferences preferences;
   final bool firebaseReady;
+  final LocalNotificationService? notifications;
   final List<dynamic> overrides;
   final String initialRoute;
 
@@ -31,6 +34,7 @@ class CheetahApp extends StatelessWidget {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
         firebaseReadyProvider.overrideWithValue(firebaseReady),
+        localNotificationServiceProvider.overrideWithValue(notifications),
         ...overrides,
       ],
       child: AuthFlowListener(

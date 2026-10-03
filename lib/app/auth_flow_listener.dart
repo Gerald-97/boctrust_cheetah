@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helper/fcm_service.dart';
+import '../helper/local_notification_service.dart';
 import '../helper/notification_navigator.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
 import '../module/onboarding/provider/fcm_token_provider.dart';
@@ -64,29 +65,45 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
     ref.listen(fcmNotificationOpenedProvider, (_, next) {
       next.whenData((message) => _dispatchNotification(message.data));
     });
+    ref.listen(localNotificationTapProvider, (_, next) {
+      next.whenData(_dispatchNotification);
+    });
     ref.listen(authSessionProvider, (previous, next) {
       if (previous != null && next == null) {
         _authenticatedDestinationReady = false;
         _pendingNotification = null;
       }
     });
-    if (!_checkedInitialNotification && ref.read(firebaseReadyProvider)) {
+    if (!_checkedInitialNotification) {
       _checkedInitialNotification = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        try {
-          final message = await ref
-              .read(fcmServiceProvider)
-              .getInitialMessage();
-          if (message == null || !mounted) return;
-          _dispatchNotification(message.data);
-        } catch (_) {
-          // Notification-open failures never affect auth or app bootstrap.
-        }
-      });
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _checkInitialNotifications(),
+      );
     }
     if (ref.read(authNavigationProvider).isNotEmpty) _scheduleDrain();
     return widget.child;
+  }
+
+  /// Dispatches the notification that launched the app, from either the
+  /// local plugin (single-use per process) or Firebase.
+  Future<void> _checkInitialNotifications() async {
+    if (!mounted) return;
+    try {
+      final local = await ref
+          .read(localNotificationServiceProvider)
+          ?.getInitialTapPayload();
+      if (local != null && mounted) _dispatchNotification(local);
+    } catch (_) {
+      // Notification-open failures never affect auth or app bootstrap.
+    }
+    if (!mounted || !ref.read(firebaseReadyProvider)) return;
+    try {
+      final message = await ref.read(fcmServiceProvider).getInitialMessage();
+      if (message == null || !mounted) return;
+      _dispatchNotification(message.data);
+    } catch (_) {
+      // Notification-open failures never affect auth or app bootstrap.
+    }
   }
 
   void _dispatchNotification(Map<String, dynamic> payload) {
