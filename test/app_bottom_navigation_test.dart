@@ -78,8 +78,8 @@ void main() {
     expect(_filterOf(tester, 'send_bold'), _tint(_navy));
     expect(_labelStyle(tester, 'Send')?.color, _navy);
     expect(_labelStyle(tester, 'Send')?.fontWeight, FontWeight.w700);
-    expect(_filterOf(tester, 'home_linear'), _tint(const Color(0xFF8995A2)));
-    expect(_labelStyle(tester, 'Home')?.color, const Color(0xFF8995A2));
+    expect(_filterOf(tester, 'home_linear'), _tint(const Color(0xFF5C636C)));
+    expect(_labelStyle(tester, 'Home')?.color, const Color(0xFF5C636C));
     expect(_labelStyle(tester, 'Home')?.fontWeight, FontWeight.w600);
   });
 
@@ -131,7 +131,9 @@ void main() {
           of: find.byType(AppBottomNavigation),
           matching: find.byType(BackdropFilter),
         ),
-        findsOneWidget,
+        // Nothing scrolls under the pill, so a blur would cost a pass for
+        // no visible effect.
+        findsNothing,
       );
       final pill = _pill();
       expect(pill, findsOneWidget);
@@ -154,7 +156,7 @@ void main() {
       );
     });
 
-    testWidgets('AppScaffold extends its body behind the pill', (tester) async {
+    testWidgets('AppScaffold keeps its body above the pill', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: CheetahTheme.lightTheme,
@@ -165,7 +167,10 @@ void main() {
           ),
         ),
       );
-      expect(tester.widget<Scaffold>(find.byType(Scaffold)).extendBody, isTrue);
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).extendBody,
+        isFalse,
+      );
     });
   });
 
@@ -198,5 +203,28 @@ void main() {
             .boxShadow!
             .single;
     expect(shadow.color.computeLuminance(), lessThan(0.05));
+  });
+
+  testWidgets('ripples paint on the pill, not under it', (tester) async {
+    await _pumpNav(tester);
+    final material = find
+        .ancestor(
+          of: find.byType(InkWell).first,
+          matching: find.byType(Material),
+        )
+        .first;
+    expect(find.descendant(of: _pill(), matching: material), findsOneWidget);
+  });
+
+  testWidgets('the full pill height is tappable', (tester) async {
+    AppSection? tapped;
+    await _pumpNav(tester, onSelected: (s) => tapped = s);
+    final pill = tester.getRect(_pill());
+    final account = tester.getCenter(find.text('Account'));
+    await tester.tapAt(Offset(account.dx, pill.top + 3));
+    expect(tapped, AppSection.account);
+    tapped = null;
+    await tester.tapAt(Offset(account.dx, pill.bottom - 3));
+    expect(tapped, AppSection.account);
   });
 }

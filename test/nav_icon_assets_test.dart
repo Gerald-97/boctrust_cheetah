@@ -18,10 +18,9 @@ void main() {
           expect(svg, contains('viewBox="0 0 24 24"'));
           // The nav tints icons with BlendMode.srcIn, which is only lossless
           // when the artwork uses a single colour.
-          final colours = RegExp(r'#[0-9A-Fa-f]{6}')
-              .allMatches(svg)
-              .map((m) => m.group(0)!.toUpperCase())
-              .toSet();
+          final colours = RegExp(
+            r'#[0-9A-Fa-f]{6}',
+          ).allMatches(svg).map((m) => m.group(0)!.toUpperCase()).toSet();
           expect(colours, hasLength(1), reason: '$path colours: $colours');
         });
       }
@@ -31,6 +30,15 @@ void main() {
       expect(
         File('pubspec.yaml').readAsStringSync(),
         contains('- assets/svg/nav/'),
+      );
+    });
+
+    test('save_bold is fitted to the save_linear footprint', () {
+      // The tdesign filled pot is drawn edge to edge; unscaled it looks bigger
+      // than, and offset from, the outline when the tab becomes active.
+      expect(
+        File('assets/svg/nav/save_bold.svg').readAsStringSync(),
+        contains('transform="translate(1.4 1.3) scale(0.883)"'),
       );
     });
   });

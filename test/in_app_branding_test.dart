@@ -125,7 +125,15 @@ void main() {
         expect(_inLogo(find.byIcon(Icons.savings_rounded)), findsNothing);
         if (screen == AppScreen.home) {
           // The Save destination is a product icon, not app identity.
-          expect(find.byIcon(Icons.savings_outlined), findsWidgets);
+          final saveTab = find.byWidgetPredicate(
+            (w) =>
+                w is SvgPicture &&
+                w.bytesLoader is SvgAssetLoader &&
+                (w.bytesLoader as SvgAssetLoader).assetName ==
+                    'assets/svg/nav/save_linear.svg',
+          );
+          expect(saveTab, findsOneWidget);
+          expect(_inLogo(saveTab), findsNothing);
         }
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(seconds: 1));

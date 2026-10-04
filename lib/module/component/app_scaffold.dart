@@ -26,8 +26,6 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final onBack = this.onBack;
     return Scaffold(
-      // The floating nav pill is translucent, so the page shows through it.
-      extendBody: true,
       appBar: AppBar(
         leading: onBack == null
             ? null
@@ -74,9 +72,9 @@ class AppBottomNavigation extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final activeColor = dark ? colors.textPrimary : BocColors.navy;
-    // Figma's text/fade in light. Dark needs the brighter tertiary to stay
-    // legible on the surface; high contrast raises both to textSecondary.
-    final inactiveColor = dark ? colors.textTertiary : colors.textHint;
+    // textTertiary rather than Figma's lighter text/fade, which is only 3:1 on
+    // the pill; high contrast raises it to textSecondary.
+    final inactiveColor = colors.textTertiary;
     final pillRadius = BorderRadius.circular(BocRadius.pill);
     return SafeArea(
       top: false,
@@ -91,7 +89,7 @@ class AppBottomNavigation extends StatelessWidget {
           heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 350),
-            // The shadow sits outside the clip so the blur doesn't cut it off.
+            // The shadow sits outside the clip so the clip doesn't cut it off.
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.all(
@@ -110,15 +108,17 @@ class AppBottomNavigation extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: pillRadius,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: dark
-                          ? colors.surface.withValues(alpha: 0.8)
-                          : const Color(0xCCFFFFFF),
-                      borderRadius: pillRadius,
-                    ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? colors.surface.withValues(alpha: 0.8)
+                        : const Color(0xCCFFFFFF),
+                    borderRadius: pillRadius,
+                  ),
+                  // Ink has to paint on a Material above the fill, or the
+                  // fill hides the tap ripple.
+                  child: Material(
+                    type: MaterialType.transparency,
                     child: SizedBox(
                       height: 73,
                       child: Padding(
@@ -126,6 +126,9 @@ class AppBottomNavigation extends StatelessWidget {
                           horizontal: BocSpace.md,
                         ),
                         child: Row(
+                          // Each slot fills the pill's height so its whole
+                          // area takes taps.
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             for (final item in items)
                               Expanded(
@@ -182,34 +185,30 @@ class _NavPillItem extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(BocRadius.sm),
         onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: BocSpace.minTouch),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.asset(
-                'assets/svg/nav/${asset}_${selected ? 'bold' : 'linear'}.svg',
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-              ),
-              const SizedBox(height: 2),
-              // Five slots in a 350px pill leave little room; shrink a long
-              // label at narrow widths or large text instead of truncating.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/svg/nav/${asset}_${selected ? 'bold' : 'linear'}.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            ),
+            const SizedBox(height: 2),
+            // Five slots in a 350px pill leave little room; shrink a long
+            // label at narrow widths or large text instead of truncating.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
