@@ -219,69 +219,6 @@ class TierCard extends StatelessWidget {
   }
 }
 
-class StepIndicator extends StatelessWidget {
-  const StepIndicator({required this.activeStep, this.label, super.key});
-  final int activeStep;
-  final String? label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: List.generate(
-            2,
-            (index) => Expanded(
-              child: Container(
-                height: 5,
-                margin: EdgeInsets.only(right: index == 0 ? 6 : 0),
-                decoration: BoxDecoration(
-                  color: index + 1 < activeStep
-                      ? BocColors.gold
-                      : index + 1 == activeStep
-                      ? BocColors.navy
-                      : Theme.of(context).dividerColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Text(
-              'STEP $activeStep OF 2',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-            ),
-            if (label != null) ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: BocColors.gold,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 /// Shows the status of one verification requirement.
 ///
 /// The status is always supplied by the caller from backend state. This widget

@@ -1,53 +1,5 @@
 part of '../app_flow/app_flow_navigator.dart';
 
-class LabeledField extends StatelessWidget {
-  const LabeledField({
-    required this.label,
-    required this.value,
-    this.trailing,
-    super.key,
-  });
-
-  final String label;
-  final String value;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Sentence case: uppercase labels are harder to read and are spelled
-        // out letter by letter by some screen readers.
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: BocSpace.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-          decoration: BoxDecoration(
-            color: context.bocColors.surface,
-            borderRadius: BorderRadius.circular(BocRadius.sm),
-            border: Border.all(color: context.bocColors.border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: context.bocColors.textPrimary,
-                  ),
-                ),
-              ),
-              ?trailing,
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class AppTextField extends StatelessWidget {
   const AppTextField({
     required this.label,
@@ -265,35 +217,6 @@ class SelectableMethodTile extends StatelessWidget {
   }
 }
 
-class OtpBox extends StatelessWidget {
-  const OtpBox({required this.value, super.key});
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 56,
-      margin: const EdgeInsets.symmetric(horizontal: BocSpace.xxs),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: context.bocColors.surface,
-        borderRadius: BorderRadius.circular(BocRadius.xs),
-        border: Border.all(
-          color: value == '•'
-              ? context.bocColors.goldPale
-              : BocColors.goldLight,
-          width: value == '•' ? 1 : 1.5,
-        ),
-      ),
-      child: Text(
-        value,
-        style: Theme.of(context).textTheme.titleLarge?.figures,
-      ),
-    );
-  }
-}
-
 class OtpExpiryLabel extends StatefulWidget {
   const OtpExpiryLabel({required this.expiresAt, this.onExpired, super.key});
 
@@ -471,49 +394,6 @@ class PinSecurityWarningBox extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class PinDots extends StatelessWidget {
-  const PinDots({required this.filled, super.key});
-  final int filled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        4,
-        (index) => Container(
-          width: 15,
-          height: 15,
-          margin: const EdgeInsets.symmetric(horizontal: 7),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: index < filled
-                ? BocColors.navy
-                : Theme.of(context).dividerColor,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SearchField extends StatelessWidget {
-  const SearchField({required this.hint, super.key});
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: const Icon(IconsaxPlusLinear.search_normal_1, size: 18),
-        isDense: true,
       ),
     );
   }

@@ -1,43 +1,5 @@
 part of '../app_flow/app_flow_navigator.dart';
 
-class AmountDisplay extends StatelessWidget {
-  const AmountDisplay({
-    required this.amount,
-    required this.subtitle,
-    super.key,
-  });
-
-  final String amount;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          '₦  NGN',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          amount,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontSize: 34).figures,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
-        ),
-      ],
-    );
-  }
-}
-
 class MoneyKeypad extends StatelessWidget {
   const MoneyKeypad({
     required this.onKey,
