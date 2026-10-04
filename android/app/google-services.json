@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "94126412804",
+    "project_id": "boctrust",
+    "storage_bucket": "boctrust.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94126412804:android:ce857374353d9b82291151",
+        "android_client_info": {
+          "package_name": "com.boctrust.boctrust_savings_loan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgZlCAovOjE930LkopBWh_uwyzTChFV34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
