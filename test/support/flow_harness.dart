@@ -1,3 +1,4 @@
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/bootstrap_provider.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/preferences.dart';
@@ -45,13 +46,17 @@ Widget flowApp({
   AppScreen? screen,
   AppRouteArguments arguments = const AppRouteArguments(),
 }) {
+  final page = screen == null ? appRouteDefinitions[route]?.page : null;
   return MaterialApp(
     theme: CheetahTheme.lightTheme,
-    home: AppFlowNavigator(
-      initialScreen: screen ?? appScreenForRoute(route),
-      initialRouteName: route,
-      routeArguments: arguments,
-    ),
+    onGenerateRoute: AppRouter.onGenerateRoute,
+    home:
+        page?.call() ??
+        AppFlowNavigator(
+          initialScreen: screen ?? appScreenForRoute(route),
+          initialRouteName: route,
+          routeArguments: arguments,
+        ),
   );
 }
 

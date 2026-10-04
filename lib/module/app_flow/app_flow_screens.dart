@@ -49,7 +49,6 @@ enum AppScreen {
   target,
   lock,
   group,
-  notifications,
   loans,
   cards,
   unavailable,
@@ -60,17 +59,28 @@ enum AppSection { home, save, send, payments, account }
 
 /// What a registered route opens and whether it needs a session.
 class AppRouteDefinition {
-  const AppRouteDefinition(this.screen, {this.isPublic = false})
-    : unavailable = null;
+  /// A screen still hosted by [AppFlowNavigator].
+  const AppRouteDefinition(AppScreen this.screen, {this.isPublic = false})
+    : unavailable = null,
+      page = null;
 
   /// A route with no working feature yet, rendered by
   /// [UnavailableFeatureScreen].
   const AppRouteDefinition.unavailable(
     UnavailableDestination this.unavailable, {
     this.isPublic = false,
-  }) : screen = AppScreen.unavailable;
+  }) : screen = AppScreen.unavailable,
+       page = null;
 
-  final AppScreen screen;
+  /// A standalone screen that navigates with named routes, outside the flow.
+  const AppRouteDefinition.page(
+    Widget Function() this.page, {
+    this.isPublic = false,
+  }) : screen = null,
+       unavailable = null;
+
+  final AppScreen? screen;
+  final Widget Function()? page;
 
   /// Reachable without a signed-in session. Every other route needs a session
   /// and a created PIN.
@@ -314,7 +324,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
 
   // Activity and transactions.
-  AppRoutes.notifications: AppRouteDefinition(AppScreen.notifications),
+  AppRoutes.notifications: AppRouteDefinition.page(NotificationsScreen.new),
   // The live history screen replaces this page once the capability is on.
   AppRoutes.transactionHistory: AppRouteDefinition.unavailable(
     UnavailableDestination(
@@ -332,3 +342,13 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
 
 AppScreen appScreenForRoute(String? routeName) =>
     appRouteDefinitions[routeName]?.screen ?? AppScreen.home;
+
+/// The hub route for a bottom-navigation section, for screens outside the
+/// flow.
+String appRouteForSection(AppSection section) => switch (section) {
+  AppSection.home => AppRoutes.home,
+  AppSection.save => AppRoutes.savingsHub,
+  AppSection.send => AppRoutes.sendHub,
+  AppSection.payments => AppRoutes.paymentsHub,
+  AppSection.account => AppRoutes.account,
+};

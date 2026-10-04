@@ -60,6 +60,7 @@ import '../kyc/provider/kyc_providers.dart';
 import '../kyc/provider/kyc_status_provider.dart';
 import '../kyc/screens/smile_id_capture_screen.dart';
 import '../kyc/screens/dojah_capture_screen.dart';
+import '../notifications/screens/notifications_screen.dart';
 import '../kyc/service/dojah_config.dart';
 import '../kyc/service/smile_id_gateway.dart';
 import '../component/text_fields.dart';
@@ -127,8 +128,6 @@ part '../send/screens/transaction_flow_screens.dart';
 part '../core_banking/screens/own_account_move_screen.dart';
 
 part '../payments/screens/payments_screens.dart';
-
-part '../notifications/screens/notifications_screen.dart';
 
 part '../account/screens/account_screens.dart';
 part '../account/screens/contact_verification_sheet.dart';
@@ -695,8 +694,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _lockScreen();
       case AppScreen.group:
         return _groupScreen();
-      case AppScreen.notifications:
-        return _notificationsScreen();
       case AppScreen.loans:
         return _comingSoonScreen(
           capability: FeatureCapability.loans,

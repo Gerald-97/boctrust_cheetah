@@ -1,15 +1,24 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'package:flutter/material.dart';
 
-extension NotificationsScreen on AppFlowNavigatorState {
-  /// Push delivery is not an inbox: there is no service that returns past
-  /// notifications, so this neither lists sample activity nor claims the
-  /// inbox is empty.
-  Widget _notificationsScreen() {
+import '../../app_flow/app_flow_navigator.dart';
+
+/// Push delivery is not an inbox: there is no service that returns past
+/// notifications, so this neither lists sample activity nor claims the inbox
+/// is empty.
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final navigator = Navigator.of(context);
     return AppScaffold(
       title: 'Notifications',
       activeSection: AppSection.home,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: navigator.maybePop,
+      // Like a flow tab switch: the section replaces this page, so Back from
+      // it returns to whatever opened Notifications.
+      onSectionSelected: (section) =>
+          navigator.pushReplacementNamed(appRouteForSection(section)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: const [

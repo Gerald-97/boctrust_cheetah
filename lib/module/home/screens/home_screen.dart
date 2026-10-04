@@ -54,7 +54,8 @@ extension HomeScreen on AppFlowNavigatorState {
       actions: [
         IconButton(
           tooltip: 'Notifications',
-          onPressed: () => _go(AppScreen.notifications),
+          onPressed: () =>
+              Navigator.of(context).pushNamed(AppRoutes.notifications),
           icon: const Icon(IconsaxPlusLinear.notification),
         ),
         const SizedBox(width: BocSpace.xs),

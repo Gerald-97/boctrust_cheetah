@@ -152,16 +152,19 @@ class AppRouter {
   }
 
   static Widget _pageFor(RouteSettings settings) {
-    if (settings.name != null && AppRoutes.allRoutes.contains(settings.name)) {
-      final name = settings.name!;
+    final name = settings.name;
+    final definition = appRouteDefinitions[name];
+    if (name != null && definition != null) {
       final arguments = settings.arguments;
-      final screen = AppFlowRouteScreen(
-        initialScreen: appScreenForRoute(name),
-        initialRouteName: name,
-        routeArguments: arguments is AppRouteArguments
-            ? arguments
-            : const AppRouteArguments(),
-      );
+      final screen =
+          definition.page?.call() ??
+          AppFlowRouteScreen(
+            initialScreen: appScreenForRoute(name),
+            initialRouteName: name,
+            routeArguments: arguments is AppRouteArguments
+                ? arguments
+                : const AppRouteArguments(),
+          );
       return AppRoutes.privateRoutes.contains(name)
           ? PrivateRouteGate(routeName: name, child: screen)
           : screen;

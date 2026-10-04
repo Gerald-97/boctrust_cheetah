@@ -4,10 +4,12 @@ import 'package:boctrust_savings_loan/helper/notification_navigator.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
+import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
+import 'support/savings_fixtures.dart';
 
 void expectNoFabricatedActivity() {
   expect(find.text('Notification history is unavailable'), findsOneWidget);
@@ -52,12 +54,15 @@ void main() {
       screen: AppScreen.home,
       route: AppRoutes.home,
       overrides: [
+        // Notifications is a private route: its gate needs a session.
+        authSessionProvider.overrideWith(SavingsSession.new),
         userProfileProvider.overrideWith(LayoutProfile.new),
         userHomeProvider.overrideWith(LayoutHome.new),
       ],
     );
 
     await tester.tap(find.byTooltip('Notifications'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expectNoFabricatedActivity();
