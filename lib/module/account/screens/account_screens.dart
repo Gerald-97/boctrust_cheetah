@@ -106,8 +106,6 @@ class _AccountPageState extends FlowPageState<AccountScreen> {
     super.dispose();
   }
 
-  void refreshAuthFormState(VoidCallback update) => setState(update);
-
   Future<void> _confirmSignOut() => confirmSignOut(context, ref);
 
   Future<void> _openAuthDestination(
@@ -146,7 +144,7 @@ class _AccountPageState extends FlowPageState<AccountScreen> {
 /// Which credential the security-check overlay was asked to verify.
 ///
 /// The chooser returns this instead of invoking a callback captured from the
-/// navigator's `State`, so the launcher can re-check `mounted` before acting.
+/// page's `State`, so the launcher can re-check `mounted` before acting.
 enum SecurityCheckMethod { password, pin }
 
 extension _AccountScreens on _AccountPageState {

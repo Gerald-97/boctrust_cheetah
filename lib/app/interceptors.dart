@@ -213,6 +213,8 @@ class LoggingInterceptor extends Interceptor {
   static Map<String, Object?> _requestExtra(RequestOptions options) {
     final extra = Map<String, Object?>.from(options.extra);
     extra.remove(_requestStartedAtKey);
+    // Internal plumbing for logout revocation, not request data.
+    extra.remove(AuthInterceptor.pinnedAccessTokenKey);
     return extra;
   }
 

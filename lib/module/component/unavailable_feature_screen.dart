@@ -49,14 +49,6 @@ const socialUnavailable = UnavailableDestination(
   section: AppSection.account,
 );
 
-/// Shown if a preview screen is built without a route it recognises.
-const unknownUnavailableDestination = UnavailableDestination(
-  title: 'Unavailable',
-  heading: 'Unavailable',
-  message: 'This page is not available yet.',
-  section: AppSection.home,
-);
-
 class UnavailableFeatureScreen extends StatelessWidget {
   const UnavailableFeatureScreen({
     required this.destination,
