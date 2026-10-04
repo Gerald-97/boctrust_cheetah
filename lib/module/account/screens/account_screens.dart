@@ -443,7 +443,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       : null,
                   onTap: profile.isVerifiedEmail
                       ? null
-                      : () => _showContactVerificationSheet(
+                      : () => showContactVerificationSheet(
                           phone: false,
                           initialValue: profile.email,
                         ),
@@ -462,7 +462,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       : null,
                   onTap: hasVerifiedPhone
                       ? null
-                      : () => _showContactVerificationSheet(
+                      : () => showContactVerificationSheet(
                           phone: true,
                           initialValue: hasPhoneNumber ? phoneNumber : null,
                         ),

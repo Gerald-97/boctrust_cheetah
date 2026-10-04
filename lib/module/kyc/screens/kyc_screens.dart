@@ -23,7 +23,7 @@ extension KycScreens on AppFlowNavigatorState {
     }
     final profile = profileState.data;
     if (areContactsReadyForKyc(profile)) return null;
-    if (profile != null) return _contactRequirementCard(profile);
+    if (profile != null) return contactRequirementCard(profile);
     return profileState.isError
         ? ApiStateCard(
             title: 'Profile unavailable',
@@ -56,7 +56,7 @@ extension KycScreens on AppFlowNavigatorState {
         result.message ?? 'Verification could not start. Please try again.',
       );
     } else {
-      await _ensureContactsForKyc();
+      await ensureContactsForKyc();
     }
   }
 
@@ -328,7 +328,7 @@ extension KycScreens on AppFlowNavigatorState {
         areContactsReadyForKyc(profile)) {
       return null;
     }
-    return _contactRequirementCard(profile);
+    return contactRequirementCard(profile);
   }
 
   /// Resolves what a tier card does when tapped.
@@ -349,7 +349,7 @@ extension KycScreens on AppFlowNavigatorState {
           final status = ref.read(kycStatusProvider).data;
           final resuming =
               status != null && step(status) == KycVerificationStatus.pending;
-          if ((resuming || await _ensureContactsForKyc()) && mounted) {
+          if ((resuming || await ensureContactsForKyc()) && mounted) {
             _go(screen);
           }
         };

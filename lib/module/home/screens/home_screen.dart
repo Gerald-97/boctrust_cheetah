@@ -111,7 +111,7 @@ extension HomeScreen on AppFlowNavigatorState {
             ..._homeWalletSection(accountsState, homeState),
             if (profile != null && !contactsReadyForKyc && kycRemaining) ...[
               const SizedBox(height: BocSpace.sm),
-              _contactRequirementCard(
+              contactRequirementCard(
                 profile,
                 onVerified: () => _go(AppScreen.tiers),
               ),
