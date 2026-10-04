@@ -1,4 +1,3 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'app/services.dart';
 import 'helper/fcm_service.dart';
+import 'helper/firebase_bootstrap.dart';
 import 'helper/local_notification_service.dart';
 import 'helper/notification_delivery.dart';
 
@@ -15,7 +15,7 @@ Future<void> main() async {
 
   var firebaseReady = false;
   try {
-    await Firebase.initializeApp();
+    await initializeFirebase();
     firebaseReady = true;
   } catch (_) {
     firebaseReady = false;

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'firebase_bootstrap.dart';
 import 'local_notification_service.dart';
 import 'notification_payload.dart';
 
@@ -28,7 +28,7 @@ LocalNotificationService backgroundNotificationService() =>
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) =>
     handleBackgroundMessage(
       message,
-      initializeFirebase: Firebase.initializeApp,
+      initializeFirebase: initializeFirebase,
       notifications: backgroundNotificationService,
     );
 
