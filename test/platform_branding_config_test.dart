@@ -71,9 +71,9 @@ void main() {
           config = _yaml('flutter_native_splash.yaml', 'flutter_native_splash'),
     );
 
-    test('is an icon-only splash on white in light and dark modes', () {
-      expect(config['color'], '#FFFFFF');
-      expect(config['color_dark'], '#FFFFFF');
+    test('is an icon-only splash on the dark background in both modes', () {
+      expect(config['color'], '#101E30');
+      expect(config['color_dark'], '#101E30');
       expect(config['image'], 'assets/branding/generated/cheetah_splash.png');
       expect(
         config['image_dark'],
@@ -89,8 +89,8 @@ void main() {
       const image = 'assets/branding/generated/cheetah_splash_android12.png';
       expect(android12['image'], image);
       expect(android12['image_dark'], image);
-      expect(android12['color'], '#FFFFFF');
-      expect(android12['color_dark'], '#FFFFFF');
+      expect(android12['color'], '#101E30');
+      expect(android12['color_dark'], '#101E30');
       expect(android12.containsKey('icon_background_color'), isFalse);
       expect(android12.containsKey('icon_background_color_dark'), isFalse);
     });
@@ -125,7 +125,7 @@ void main() {
       }
     });
 
-    test('Android 12+ splash is explicit, white, and uses the icon', () {
+    test('Android 12+ splash is explicit and uses the icon', () {
       for (final dir in ['values-v31', 'values-night-v31']) {
         final styles = File('$_res/$dir/styles.xml').readAsStringSync();
         expect(styles, contains('android:windowSplashScreenAnimatedIcon'));
@@ -166,7 +166,7 @@ void main() {
       }
     });
 
-    test('launch screen shows the splash image on white', () {
+    test('launch screen shows the splash image on the dark background', () {
       final storyboard = File(
         'ios/Runner/Base.lproj/LaunchScreen.storyboard',
       ).readAsStringSync();
@@ -181,7 +181,7 @@ void main() {
       );
       expect(background.existsSync(), isTrue);
       final pixel = _png(background.path).getPixel(0, 0);
-      expect([pixel.r, pixel.g, pixel.b], [255, 255, 255]);
+      expect([pixel.r, pixel.g, pixel.b], [0x10, 0x1E, 0x30]);
     });
   });
 
