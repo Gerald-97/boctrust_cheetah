@@ -93,11 +93,16 @@ class AppBottomNavigation extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 350),
             // The shadow sits outside the clip so the blur doesn't cut it off.
             child: DecoratedBox(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(BocRadius.pill)),
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(BocRadius.pill),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0x33B4B4B4),
+                    // A light glow reads as a halo on the dark background.
+                    color: dark
+                        ? const Color(0x66000000)
+                        : const Color(0x33B4B4B4),
                     offset: Offset(0, 2),
                     blurRadius: 12,
                   ),
@@ -190,13 +195,17 @@ class _NavPillItem extends StatelessWidget {
                 colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
               ),
               const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              // Five slots in a 350px pill leave little room; shrink a long
+              // label at narrow widths or large text instead of truncating.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  ),
                 ),
               ),
             ],

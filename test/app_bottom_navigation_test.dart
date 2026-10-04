@@ -1,6 +1,7 @@
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,8 +12,9 @@ Future<void> _pumpNav(
   ThemeData? theme,
   AppSection selected = AppSection.send,
   ValueChanged<AppSection>? onSelected,
+  Size size = const Size(430, 932),
 }) async {
-  tester.view.physicalSize = const Size(430, 932);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -165,5 +167,36 @@ void main() {
       );
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).extendBody, isTrue);
     });
+  });
+
+  for (final (width, scale) in [(320.0, 1.0), (375.0, 1.3), (375.0, 2.0)]) {
+    testWidgets('labels are not truncated at ${width}px, ${scale}x', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _pumpNav(tester, size: Size(width, 800));
+      for (final label in ['Home', 'Save', 'Send', 'Pay', 'Account']) {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text(label),
+        );
+        expect(paragraph.didExceedMaxLines, isFalse, reason: label);
+      }
+    });
+  }
+
+  testWidgets('dark pill shadow is dark, not a light halo', (tester) async {
+    await _pumpNav(tester, theme: CheetahTheme.darkTheme);
+    final shadowed = find.byWidgetPredicate(
+      (w) =>
+          w is DecoratedBox &&
+          w.decoration is BoxDecoration &&
+          (w.decoration as BoxDecoration).boxShadow != null,
+    );
+    final shadow =
+        (tester.widget<DecoratedBox>(shadowed).decoration as BoxDecoration)
+            .boxShadow!
+            .single;
+    expect(shadow.color.computeLuminance(), lessThan(0.05));
   });
 }
