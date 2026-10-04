@@ -8,6 +8,7 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/home/screens/home_screen.dart';
 import 'package:boctrust_savings_loan/module/notifications/screens/notifications_screen.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
+import 'package:boctrust_savings_loan/module/payments/screens/payments_screens.dart';
 import 'package:boctrust_savings_loan/module/savings/screens/savings_screens.dart';
 import 'package:boctrust_savings_loan/module/send/screens/send_screens.dart';
 import 'package:flutter/material.dart';
@@ -100,14 +101,35 @@ void main() {
     expect(find.byType(SaveHubScreen), findsNothing);
   });
 
-  testWidgets('a tab hub with nothing beneath stays on system Back', (
+  for (final (label, hubType) in [
+    ('Send', SendScreen),
+    ('Pay', PaymentsScreen),
+    ('Account', AccountScreen),
+  ]) {
+    testWidgets('$label tab returns Home on system Back', (tester) async {
+      await openAlone(tester, AppRoutes.home);
+      await tapTab(tester, label);
+      expect(find.byType(hubType), findsOneWidget);
+
+      await systemBack(tester);
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(hubType), findsNothing);
+    });
+  }
+
+  testWidgets('a tab switch uses the gentler section transition', (
     tester,
   ) async {
     await openAlone(tester, AppRoutes.home);
-    await tapTab(tester, 'Account');
+    await tester.tap(find.text('Account').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 280));
+
+    expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(AccountScreen), findsOneWidget);
 
-    await systemBack(tester);
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(find.byType(HomeScreen), findsNothing);
     expect(find.byType(AccountScreen), findsOneWidget);
   });
 

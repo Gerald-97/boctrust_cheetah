@@ -49,10 +49,10 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   void goReplacing(String route) =>
       Navigator.of(context).pushReplacementNamed(route);
 
-  /// A tab replaces this page with the section hub, so Back from the hub
-  /// returns to whatever opened this page.
-  void goSection(AppSection section) =>
-      goReplacing(appRouteForSection(section));
+  /// A tab replaces this page with the section hub, with the section
+  /// transition. Tabs never stack: Back from a hub with nothing beneath it
+  /// returns Home.
+  void goSection(AppSection section) => replaceWithSection(context, section);
 
   /// Pops this page. A page with nothing beneath it runs
   /// [onNothingToPop] instead.

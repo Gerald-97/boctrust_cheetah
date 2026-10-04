@@ -293,6 +293,22 @@ void main() {
     expect(tester.getSemantics(tierTwoCard).label, contains('Current tier'));
   });
 
+  testWidgets('account tiers does not offer unsupported business documents', (
+    tester,
+  ) async {
+    await mountFlow(
+      tester,
+      gateway: _Gateway(KycCaptureOutcome.cancelled),
+      route: '/account/tier',
+    );
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Business and income documents'), findsNothing);
+    expect(find.text('CAC certificate'), findsNothing);
+    expect(find.text('Bank statement'), findsNothing);
+  });
+
   Future<void> runIdentityCapture(
     WidgetTester tester, {
     required _Gateway gateway,

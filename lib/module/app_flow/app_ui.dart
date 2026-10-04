@@ -11,6 +11,7 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/app_router.dart';
 import '../../app/feature_capability.dart';
+import '../../app/route_arguments.dart';
 import '../../app/services.dart';
 import '../../app/theme.dart';
 import '../../app/theme_controller.dart';

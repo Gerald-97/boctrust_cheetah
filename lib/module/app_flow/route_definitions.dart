@@ -198,10 +198,6 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
   AppRoutes.nextOfKin: AppRouteDefinition.page(NextOfKinScreen.new),
   AppRoutes.tier3Address: AppRouteDefinition.page(KycUtilityBillScreen.new),
-  AppRoutes.kycCacDocument: AppRouteDefinition.page(KycDocumentScreen.cac),
-  AppRoutes.kycBankStatement: AppRouteDefinition.page(
-    KycDocumentScreen.bankStatement,
-  ),
   AppRoutes.manageBeneficiaries: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Beneficiaries',
@@ -308,3 +304,12 @@ String appRouteForSection(AppSection section) => switch (section) {
   AppSection.payments => AppRoutes.paymentsHub,
   AppSection.account => AppRoutes.account,
 };
+
+/// Switches to a bottom-navigation section: replaces the current page with
+/// the section hub using the gentler section transition.
+void replaceWithSection(BuildContext context, AppSection section) {
+  Navigator.of(context).pushReplacementNamed(
+    appRouteForSection(section),
+    arguments: const AppRouteArguments(transition: AppRouteTransition.section),
+  );
+}

@@ -29,6 +29,11 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 
 class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
   @override
+  void onNothingToPop() {
+    if (widget._page == _PaymentsPage.hub) goReplacing(AppRoutes.home);
+  }
+
+  @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _PaymentsPage.hub => _paymentsScreen(),
     _PaymentsPage.scan => _scanScreen(),

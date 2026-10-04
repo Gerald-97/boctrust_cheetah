@@ -15,10 +15,8 @@ class NotificationsScreen extends StatelessWidget {
       title: 'Notifications',
       activeSection: AppSection.home,
       onBack: navigator.maybePop,
-      // Like a flow tab switch: the section replaces this page, so Back from
-      // it returns to whatever opened Notifications.
-      onSectionSelected: (section) =>
-          navigator.pushReplacementNamed(appRouteForSection(section)),
+      // A tab replaces this page with the section hub.
+      onSectionSelected: (section) => replaceWithSection(context, section),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: const [

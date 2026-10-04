@@ -65,8 +65,6 @@ class AppRoutes {
   static const governmentIdVerification = '/account/tier/government-id';
   static const nextOfKin = '/account/tier/next-of-kin';
   static const tier3Address = '/account/tier/address';
-  static const kycCacDocument = '/account/tier/cac';
-  static const kycBankStatement = '/account/tier/bank-statement';
   static const manageBeneficiaries = '/account/beneficiaries';
   static const linkedBanks = '/account/linked-banks';
   static const securitySettings = '/account/security';
@@ -128,12 +126,34 @@ class AppRouter {
     required RouteSettings settings,
     required Widget page,
   }) {
+    final arguments = settings.arguments;
+    final isSectionTransition =
+        arguments is AppRouteArguments &&
+        arguments.transition == AppRouteTransition.section;
     return PageRouteBuilder<dynamic>(
       settings: settings,
-      transitionDuration: const Duration(milliseconds: 260),
+      transitionDuration: Duration(
+        milliseconds: isSectionTransition ? 320 : 260,
+      ),
       reverseTransitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        if (isSectionTransition) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.82, end: 1).animate(curved),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(.025, 0),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        }
         final curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,

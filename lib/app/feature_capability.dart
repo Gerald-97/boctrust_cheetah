@@ -42,8 +42,6 @@ enum FeatureCapability {
   savingsPlanDeposit,
   savingsPlanEdit,
   savingsPlanWithdraw,
-  kycCacDocument,
-  kycBankStatement,
   deviceSessions,
   accountDeletion,
   accountStatement,

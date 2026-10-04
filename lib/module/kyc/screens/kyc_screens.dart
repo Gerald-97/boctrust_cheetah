@@ -8,7 +8,6 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/api_logger.dart';
 import '../../../app/app_router.dart';
-import '../../../app/feature_capability.dart';
 import '../../../app/response_handler.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
@@ -18,13 +17,11 @@ import '../../account/provider/user_providers.dart';
 import '../../account/screens/contact_verification.dart';
 import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
-import '../model/document_verification_models.dart';
 import '../model/kyc_configuration_models.dart';
 import '../model/kyc_contact_requirement.dart';
 import '../model/kyc_models.dart';
 import '../model/kyc_provider_models.dart';
 import '../model/kyc_status_models.dart';
-import '../provider/document_verification_provider.dart';
 import '../provider/kyc_configuration_provider.dart';
 import '../provider/kyc_providers.dart';
 import '../provider/kyc_status_provider.dart';
@@ -32,8 +29,6 @@ import '../service/dojah_config.dart';
 import '../service/smile_id_gateway.dart';
 import 'dojah_capture_screen.dart';
 import 'smile_id_capture_screen.dart';
-
-part 'document_verification_screens.dart';
 
 /// Account tiers and the tier list.
 class KycTiersScreen extends ConsumerStatefulWidget {
@@ -139,28 +134,6 @@ class _NextOfKinScreenState extends KycScreenState<NextOfKinScreen> {
   Widget build(BuildContext context) => _nextOfKinScreen();
 }
 
-/// CAC certificate or bank statement upload.
-class KycDocumentScreen extends ConsumerStatefulWidget {
-  const KycDocumentScreen.cac({super.key})
-    : type = DocumentVerificationType.cac;
-  const KycDocumentScreen.bankStatement({super.key})
-    : type = DocumentVerificationType.bankStatement;
-
-  final DocumentVerificationType type;
-
-  @override
-  ConsumerState<KycDocumentScreen> createState() => _KycDocumentScreenState();
-}
-
-class _KycDocumentScreenState extends KycScreenState<KycDocumentScreen> {
-  @override
-  bool get _refreshesOnResume => false;
-
-  @override
-  Widget build(BuildContext context) =>
-      _documentVerificationScreen(widget.type);
-}
-
 /// Form state and navigation shared by the KYC screens.
 abstract class KycScreenState<W extends ConsumerStatefulWidget>
     extends ConsumerState<W> {
@@ -246,7 +219,7 @@ abstract class KycScreenState<W extends ConsumerStatefulWidget>
   /// A tab replaces this page with the section hub, like a flow tab switch.
   void _goSection(AppSection section) {
     _onLeave();
-    Navigator.of(context).pushReplacementNamed(appRouteForSection(section));
+    replaceWithSection(context, section);
   }
 
   /// Returns to the tier list once a KYC step has been submitted.
@@ -265,18 +238,6 @@ abstract class KycScreenState<W extends ConsumerStatefulWidget>
     } else {
       navigator.pushReplacementNamed(AppRoutes.tierOverview);
     }
-  }
-
-  /// A placeholder may only stand in for a capability the registry still
-  /// reports in [expected].
-  void _assertPlaceholderFor(
-    FeatureCapability capability,
-    FeatureAvailability expected,
-  ) {
-    assert(
-      ref.read(featureAvailabilityProvider(capability)) == expected,
-      '$capability is no longer $expected but still shows a placeholder.',
-    );
   }
 }
 
@@ -567,31 +528,6 @@ extension KycScreens on KycScreenState {
               onTap: _tierCardDestination(data.tiers[index]),
             ),
           ],
-          const SizedBox(height: BocSpace.lg),
-          SettingsGroup(
-            caption: 'Business and income documents',
-            padding: EdgeInsets.zero,
-            children: [
-              for (final (type, route, icon) in const [
-                (
-                  DocumentVerificationType.cac,
-                  AppRoutes.kycCacDocument,
-                  IconsaxPlusLinear.building,
-                ),
-                (
-                  DocumentVerificationType.bankStatement,
-                  AppRoutes.kycBankStatement,
-                  IconsaxPlusLinear.receipt_item,
-                ),
-              ])
-                SettingsTile(
-                  icon: icon,
-                  title: type.fieldLabel,
-                  subtitle: 'PDF, maximum 10 MB',
-                  onTap: () => _go(route),
-                ),
-            ],
-          ),
         ],
       ),
     );
