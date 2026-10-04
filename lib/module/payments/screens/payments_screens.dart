@@ -15,7 +15,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
           BocSpace.xxs,
           BocSpace.gutter,
           BocSpace.lg,
-        ),
+        ).clearOfNav(context),
         children: [
           PaymentActionCard(
             icon: Icons.qr_code_scanner_rounded,

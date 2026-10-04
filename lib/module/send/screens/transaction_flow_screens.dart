@@ -32,7 +32,7 @@ extension TransactionFlowScreens on AppFlowNavigatorState {
         onRefresh: ref.read(transactionHistoryProvider.notifier).load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(BocSpace.gutter),
+          padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
           children: [
             if (history.isLoading && records.isEmpty)
               const ApiLoadingSection(label: 'Loading your transactions'),
@@ -92,7 +92,7 @@ extension TransactionFlowScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.all(BocSpace.gutter),
+        padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
         children: [
           if (record == null)
             ApiStateCard(

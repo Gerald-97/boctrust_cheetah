@@ -90,7 +90,7 @@ class _OwnAccountMoveFlowState extends ConsumerState<_OwnAccountMoveFlow> {
           BocSpace.xxs,
           BocSpace.gutter,
           BocSpace.lg,
-        ),
+        ).clearOfNav(context),
         children: [
           if (flex == null || products.isEmpty || direction == null)
             const ApiStateCard(

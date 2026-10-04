@@ -17,7 +17,7 @@ extension SendScreens on AppFlowNavigatorState {
           BocSpace.xxs,
           BocSpace.gutter,
           BocSpace.lg,
-        ),
+        ).clearOfNav(context),
         children: [
           if (!transfers) ...[
             const ApiStateCard(
@@ -121,7 +121,7 @@ extension SendScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           ApiStateCard(
             title: heading,

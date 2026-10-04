@@ -46,14 +46,38 @@ TextStyle? _labelStyle(WidgetTester tester, String label) =>
 
 ColorFilter _tint(Color color) => ColorFilter.mode(color, BlendMode.srcIn);
 
-Finder _pill() => find.byWidgetPredicate(
-  (w) =>
-      w is DecoratedBox &&
-      w.decoration is BoxDecoration &&
-      (w.decoration as BoxDecoration).color != null &&
-      (w.decoration as BoxDecoration).borderRadius ==
-          BorderRadius.circular(BocRadius.pill),
-);
+Future<void> _pumpScaffoldList(
+  WidgetTester tester, {
+  ValueChanged<int>? onRow,
+  ValueChanged<AppSection>? onSection,
+}) async {
+  tester.view.physicalSize = const Size(430, 932);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: CheetahTheme.lightTheme,
+      home: Builder(
+        builder: (context) => AppScaffold(
+          activeSection: AppSection.home,
+          onSectionSelected: onSection ?? (_) {},
+          body: ListView(
+            padding: EdgeInsets.zero.clearOfNav(context),
+            children: [
+              for (var i = 0; i < 30; i++)
+                InkWell(
+                  onTap: () => onRow?.call(i),
+                  child: SizedBox(height: 60, child: Text('Row $i')),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Finder _pill() => find.byKey(AppBottomNavigation.pillKey);
 
 void main() {
   testWidgets('send tab shows send-2 icons', (tester) async {
@@ -131,9 +155,8 @@ void main() {
           of: find.byType(AppBottomNavigation),
           matching: find.byType(BackdropFilter),
         ),
-        // Nothing scrolls under the pill, so a blur would cost a pass for
-        // no visible effect.
-        findsNothing,
+        // Page content scrolls under the pill; the blur keeps labels legible.
+        findsOneWidget,
       );
       final pill = _pill();
       expect(pill, findsOneWidget);
@@ -156,21 +179,57 @@ void main() {
       );
     });
 
-    testWidgets('AppScaffold keeps its body above the pill', (tester) async {
+    testWidgets('AppScaffold lets content flow under the pill', (tester) async {
+      await _pumpScaffoldList(tester);
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).extendBody, isTrue);
+      // The list's viewport runs to the bottom of the screen, behind the pill.
+      expect(tester.getRect(find.byType(Scrollable)).bottom, 932);
+      // Scrolled to the end, the last row clears the pill.
+      final state = tester.state<ScrollableState>(find.byType(Scrollable));
+      state.position.jumpTo(state.position.maxScrollExtent);
+      await tester.pump();
+      expect(
+        tester.getRect(find.text('Row 29')).bottom,
+        lessThanOrEqualTo(tester.getRect(_pill()).top),
+      );
+    });
+
+    testWidgets('taps beside the pill reach the page, taps on it do not', (
+      tester,
+    ) async {
+      final rows = <int>[];
+      AppSection? section;
+      await _pumpScaffoldList(
+        tester,
+        onRow: rows.add,
+        onSection: (s) => section = s,
+      );
+      final pill = tester.getRect(_pill());
+      // Beside the pill, the row scrolled behind it takes the tap.
+      await tester.tapAt(Offset(pill.left / 2, pill.center.dy));
+      expect(rows, hasLength(1));
+      // On the pill, the nav takes it and the row behind does not.
+      await tester.tapAt(tester.getCenter(find.text('Account')));
+      expect(section, AppSection.account);
+      expect(rows, hasLength(1));
+    });
+
+    testWidgets('clearOfNav adds the pill footprint and safe-area inset', (
+      tester,
+    ) async {
+      late EdgeInsets padding;
       await tester.pumpWidget(
-        MaterialApp(
-          theme: CheetahTheme.lightTheme,
-          home: AppScaffold(
-            body: const SizedBox(),
-            activeSection: AppSection.home,
-            onSectionSelected: (_) {},
+        MediaQuery(
+          data: const MediaQueryData(padding: EdgeInsets.only(bottom: 34)),
+          child: Builder(
+            builder: (context) {
+              padding = const EdgeInsets.all(16).clearOfNav(context);
+              return const SizedBox();
+            },
           ),
         ),
       );
-      expect(
-        tester.widget<Scaffold>(find.byType(Scaffold)).extendBody,
-        isFalse,
-      );
+      expect(padding, const EdgeInsets.fromLTRB(16, 16, 16, 16 + 73 + 8 + 34));
     });
   });
 

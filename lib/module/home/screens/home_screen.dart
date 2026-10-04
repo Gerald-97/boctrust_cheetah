@@ -75,7 +75,7 @@ extension HomeScreen on AppFlowNavigatorState {
             BocSpace.xs,
             BocSpace.gutter,
             BocSpace.lg,
-          ),
+          ).clearOfNav(context),
           children: [
             Semantics(
               header: true,

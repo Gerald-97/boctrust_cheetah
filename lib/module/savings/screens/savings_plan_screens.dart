@@ -27,7 +27,7 @@ extension SavingsPlanScreens on AppFlowNavigatorState {
         onBack: _back,
         onSectionSelected: _goSection,
         body: ListView(
-          padding: const EdgeInsets.all(BocSpace.gutter),
+          padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
           children: [
             ApiStateCard(
               title: 'Savings plans are not available yet',
@@ -105,12 +105,14 @@ extension SavingsPlanScreens on AppFlowNavigatorState {
             ),
           ),
           Padding(
+            // The list above stops at this footer, so the footer itself
+            // has to clear the floating nav pill.
             padding: const EdgeInsets.fromLTRB(
               BocSpace.gutter,
               0,
               BocSpace.gutter,
               BocSpace.md,
-            ),
+            ).clearOfNav(context),
             child: PrimaryButton(
               label: 'Deposit',
               onPressed: () =>

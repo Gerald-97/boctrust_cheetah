@@ -199,7 +199,7 @@ extension KycScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24).clearOfNav(context),
         children: [
           _kycRefreshAction(statusState),
           if (_nextActionMessage(statusState.data?.nextAction) case final next?)
@@ -398,7 +398,7 @@ extension KycScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           Text(
             'Verify your BVN or NIN to raise your account tier. We match it '
@@ -826,7 +826,7 @@ extension KycScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           Text(
             'Verify a government-issued ID to raise your account tier.',
@@ -1317,7 +1317,7 @@ extension KycScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           Text(
             'Next of kin details are part of a later verification step.',
@@ -1367,7 +1367,7 @@ extension KycScreens on AppFlowNavigatorState {
       onBack: busy ? null : _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           Text(
             'Confirm your address with a recent utility bill — not older than '

@@ -11,7 +11,7 @@ extension NotificationsScreen on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: const [
           ApiStateCard(
             title: 'Notification history is unavailable',

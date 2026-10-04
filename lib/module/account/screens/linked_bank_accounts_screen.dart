@@ -29,7 +29,7 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           Text(
             'Bank accounts you can withdraw to. The account name must match '

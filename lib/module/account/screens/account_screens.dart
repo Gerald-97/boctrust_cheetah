@@ -83,7 +83,7 @@ extension AccountScreens on AppFlowNavigatorState {
       onSectionSelected: _goSection,
       showBottomNavigation: true,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           SurfaceCard(
             child: Column(
@@ -425,7 +425,9 @@ extension AccountScreens on AppFlowNavigatorState {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: BocSpace.lg),
+          padding: const EdgeInsets.only(
+            bottom: BocSpace.lg,
+          ).clearOfNav(context),
           children: [
             if (profileState.isError)
               Padding(

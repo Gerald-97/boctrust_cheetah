@@ -26,6 +26,9 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final onBack = this.onBack;
     return Scaffold(
+      // Content scrolls under the floating nav pill; scrollables pad their
+      // ends with [FloatingNavClearance.clearOfNav] so nothing stays hidden.
+      extendBody: showBottomNavigation,
       appBar: AppBar(
         leading: onBack == null
             ? null
@@ -38,7 +41,11 @@ class AppScaffold extends StatelessWidget {
         title: titleWidget ?? Text(title ?? ''),
         actions: actions,
       ),
-      body: SafeArea(top: false, child: ResponsiveContent(child: body)),
+      body: SafeArea(
+        top: false,
+        bottom: !showBottomNavigation,
+        child: ResponsiveContent(child: body),
+      ),
       bottomNavigationBar: showBottomNavigation
           ? AppBottomNavigation(
               selected: activeSection,
@@ -58,6 +65,9 @@ class AppBottomNavigation extends StatelessWidget {
 
   final AppSection selected;
   final ValueChanged<AppSection> onSelected;
+
+  /// The pill itself, for tests and for measuring what it covers.
+  static const pillKey = ValueKey('app-bottom-navigation-pill');
 
   @override
   Widget build(BuildContext context) {
@@ -108,41 +118,47 @@ class AppBottomNavigation extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: pillRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? colors.surface.withValues(alpha: 0.8)
-                        : const Color(0xCCFFFFFF),
-                    borderRadius: pillRadius,
-                  ),
-                  // Ink has to paint on a Material above the fill, or the
-                  // fill hides the tap ripple.
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: SizedBox(
-                      height: 73,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: BocSpace.md,
-                        ),
-                        child: Row(
-                          // Each slot fills the pill's height so its whole
-                          // area takes taps.
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final item in items)
-                              Expanded(
-                                child: _NavPillItem(
-                                  asset: item.asset,
-                                  label: item.label,
-                                  selected: item.section == selected,
-                                  color: item.section == selected
-                                      ? activeColor
-                                      : inactiveColor,
-                                  onTap: () => onSelected(item.section),
+                // Page content scrolls under the pill; the blur keeps the
+                // labels legible over it.
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: DecoratedBox(
+                    key: pillKey,
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? colors.surface.withValues(alpha: 0.8)
+                          : const Color(0xCCFFFFFF),
+                      borderRadius: pillRadius,
+                    ),
+                    // Ink has to paint on a Material above the fill, or the
+                    // fill hides the tap ripple.
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: SizedBox(
+                        height: kNavPillHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: BocSpace.md,
+                          ),
+                          child: Row(
+                            // Each slot fills the pill's height so its whole
+                            // area takes taps.
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final item in items)
+                                Expanded(
+                                  child: _NavPillItem(
+                                    asset: item.asset,
+                                    label: item.label,
+                                    selected: item.section == selected,
+                                    color: item.section == selected
+                                        ? activeColor
+                                        : inactiveColor,
+                                    onTap: () => onSelected(item.section),
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -213,4 +229,22 @@ class _NavPillItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Height of the floating nav pill, excluding its margin and the safe area.
+const kNavPillHeight = 73.0;
+
+extension FloatingNavClearance on EdgeInsets {
+  /// Adds the space the floating nav pill covers at the bottom of an
+  /// [AppScaffold] body, so a scrollable's last item can scroll clear of it.
+  ///
+  /// [context] may sit above the Scaffold: the device's bottom inset is read
+  /// from it, and the pill's own footprint is fixed.
+  EdgeInsets clearOfNav(BuildContext context) => copyWith(
+    bottom:
+        bottom +
+        kNavPillHeight +
+        BocSpace.xs +
+        MediaQuery.paddingOf(context).bottom,
+  );
 }

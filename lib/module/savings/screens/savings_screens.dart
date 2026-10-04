@@ -193,7 +193,7 @@ extension SavingsScreens on AppFlowNavigatorState {
             BocSpace.xxs,
             BocSpace.gutter,
             BocSpace.lg,
-          ),
+          ).clearOfNav(context),
           children: [
             // Core problems only matter while Core is the balance source.
             if (flex?.isCoreAccount ?? true)
@@ -354,7 +354,7 @@ extension SavingsScreens on AppFlowNavigatorState {
         onRefresh: _refreshSavings,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
           children: [
             ..._savingsLoadStatus(home),
             if (home.data != null || home.isDone)
@@ -405,7 +405,7 @@ extension SavingsScreens on AppFlowNavigatorState {
             0,
             BocSpace.gutter,
             BocSpace.lg,
-          ),
+          ).clearOfNav(context),
           children: [
             if (flex?.isCoreAccount ?? true)
               ..._coreAccountsStatus(accountsState),
@@ -465,7 +465,7 @@ extension SavingsScreens on AppFlowNavigatorState {
       onBack: _back,
       onSectionSelected: _goSection,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
           ApiStateCard(
             title: 'Unavailable',

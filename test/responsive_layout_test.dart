@@ -196,6 +196,47 @@ void main() {
               expect(tester.takeException(), isNull);
             }
           }
+          // Content scrolls under the floating nav pill, so at the end of
+          // every scrollable no tap target may be left behind the pill.
+          final pill = find.byKey(AppBottomNavigation.pillKey);
+          if (!scenario.keyboard && pill.evaluate().isNotEmpty) {
+            // Lazy lists only estimate their extent and content may still be
+            // settling, so keep jumping to the end until nothing moves.
+            for (var pass = 0; pass < 10; pass++) {
+              await tester.pump();
+              var moved = false;
+              for (final element in find.byType(Scrollable).evaluate()) {
+                final position =
+                    ((element as StatefulElement).state as ScrollableState)
+                        .position;
+                if (position.axis != Axis.vertical ||
+                    position.pixels == position.maxScrollExtent) {
+                  continue;
+                }
+                position.jumpTo(position.maxScrollExtent);
+                moved = true;
+              }
+              if (!moved) break;
+            }
+            await tester.pump();
+            final pillRect = tester.getRect(pill);
+            final targets = find.descendant(
+              of: find.byWidget(
+                tester.widget<AppScaffold>(find.byType(AppScaffold)).body,
+              ),
+              matching: find.byType(InkWell),
+            );
+            for (final target in targets.evaluate()) {
+              final box = target.renderObject! as RenderBox;
+              if (!box.attached || !box.hasSize) continue;
+              final rect = box.localToGlobal(Offset.zero) & box.size;
+              expect(
+                rect.overlaps(pillRect),
+                isFalse,
+                reason: '${target.widget} at $rect is behind the nav pill',
+              );
+            }
+          }
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pump(const Duration(seconds: 1));
           expect(tester.takeException(), isNull);
