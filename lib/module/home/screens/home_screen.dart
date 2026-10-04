@@ -55,7 +55,7 @@ extension HomeScreen on AppFlowNavigatorState {
         IconButton(
           tooltip: 'Notifications',
           onPressed: () => _go(AppScreen.notifications),
-          icon: const Icon(Icons.notifications_none_rounded),
+          icon: const Icon(IconsaxPlusLinear.notification),
         ),
         const SizedBox(width: BocSpace.xs),
       ],
@@ -128,10 +128,10 @@ extension HomeScreen on AppFlowNavigatorState {
               child: Row(
                 children: [
                   for (final (icon, label, screen) in const [
-                    (Icons.add_rounded, 'Add money', AppScreen.addMoney),
-                    (Icons.send_rounded, 'Send', AppScreen.sendHub),
-                    (Icons.savings_outlined, 'Save', AppScreen.saveHub),
-                    (Icons.receipt_long_outlined, 'Pay', AppScreen.payments),
+                    (IconsaxPlusLinear.add, 'Add money', AppScreen.addMoney),
+                    (IconsaxPlusLinear.send_2, 'Send', AppScreen.sendHub),
+                    (IconsaxPlusLinear.strongbox, 'Save', AppScreen.saveHub),
+                    (IconsaxPlusLinear.receipt_item, 'Pay', AppScreen.payments),
                   ])
                     Expanded(
                       child: QuickAction(
@@ -168,7 +168,7 @@ extension HomeScreen on AppFlowNavigatorState {
                           child: SizedBox.square(
                             dimension: 40,
                             child: Icon(
-                              Icons.verified_user_outlined,
+                              IconsaxPlusLinear.shield_tick,
                               color: colors.smartSaveAccent,
                             ),
                           ),
@@ -428,7 +428,7 @@ extension HomeScreen on AppFlowNavigatorState {
           Row(
             children: [
               const RoundedIcon(
-                icon: Icons.account_balance_outlined,
+                icon: IconsaxPlusLinear.bank,
                 color: BocColors.blue,
               ),
               const SizedBox(width: 12),
@@ -486,7 +486,7 @@ extension HomeScreen on AppFlowNavigatorState {
                         _showSuccessMessage('Account number copied.');
                       }
                     },
-              icon: const Icon(Icons.copy_rounded, size: 18),
+              icon: const Icon(IconsaxPlusLinear.copy, size: 18),
               label: const Text('Copy account number'),
             ),
           ),

@@ -161,7 +161,7 @@ class AppActionSheetOption extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, size: 18),
+              const Icon(IconsaxPlusLinear.arrow_right_3, size: 18),
             ],
           ),
         ),

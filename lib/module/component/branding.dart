@@ -129,7 +129,7 @@ class OnboardingIllustration extends StatelessWidget {
             right: 55,
             top: 78,
             child: Icon(
-              Icons.trending_up_rounded,
+              IconsaxPlusLinear.trend_up,
               color: BocColors.green,
               size: 22,
             ),
@@ -189,7 +189,7 @@ class RegulatoryBadge extends StatelessWidget {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.verified_user_outlined, size: 14, color: BocColors.green),
+          Icon(IconsaxPlusLinear.shield_tick, size: 14, color: BocColors.green),
           SizedBox(width: 5),
           Flexible(
             child: Text(

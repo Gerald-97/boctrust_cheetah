@@ -5,6 +5,7 @@ import 'package:boctrust_savings_loan/module/kyc/service/dojah_camera_permission
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_platform_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -54,7 +55,7 @@ void main() {
 
     await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.tap(find.byIcon(IconsaxPlusLinear.arrow_left));
     await tester.pumpAndSettle();
 
     expect(outcomes, [KycCaptureOutcome.cancelled]);

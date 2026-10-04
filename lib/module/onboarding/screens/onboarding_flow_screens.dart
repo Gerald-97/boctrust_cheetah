@@ -30,7 +30,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
                       ),
                     ] else ...[
                       const Icon(
-                        Icons.cloud_off_rounded,
+                        IconsaxPlusLinear.cloud_cross,
                         size: 48,
                         color: BocColors.gold,
                       ),
@@ -65,19 +65,19 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
   Widget _onboardingScreen() {
     const slides = <({IconData icon, String title, String description})>[
       (
-        icon: Icons.savings_outlined,
+        icon: IconsaxPlusLinear.strongbox,
         title: 'Save without thinking about it',
         description:
             'Boc Flex Savings grows every day with no lock-in. SmartSave, Fixed Deposit and Padi help you commit to a goal, on your terms.',
       ),
       (
-        icon: Icons.track_changes_rounded,
+        icon: IconsaxPlusLinear.flag,
         title: 'Reach any goal, your way',
         description:
             'Save toward a goal, lock in a fixed term for a higher rate, or save together with friends — pick whichever fits.',
       ),
       (
-        icon: Icons.send_rounded,
+        icon: IconsaxPlusLinear.send_2,
         title: 'Send and pay, instantly',
         description:
             'Move money between your BOCTRUST accounts, send to friends and family, or pay bills — all in one place.',
@@ -222,7 +222,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
         // cleared stack has no history and nothing to pop.
         leading: showBack && _canGoBack
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+                icon: const Icon(IconsaxPlusLinear.arrow_left_1, size: 19),
                 onPressed: _back,
               )
             : null,
@@ -327,7 +327,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
         children: [
           SelectableMethodTile(
             selected: _verifyByPhone,
-            icon: Icons.phone_outlined,
+            icon: IconsaxPlusLinear.call,
             title: 'Phone number',
             subtitle: 'Code sent via SMS or WhatsApp',
             onTap: () => _selectVerificationMethod(phone: true),
@@ -335,7 +335,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
           const SizedBox(height: 12),
           SelectableMethodTile(
             selected: !_verifyByPhone,
-            icon: Icons.mail_outline_rounded,
+            icon: IconsaxPlusLinear.sms,
             title: 'Email address',
             subtitle: 'Code sent to your inbox',
             onTap: () => _selectVerificationMethod(phone: false),
@@ -569,9 +569,12 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
     final busy = state.isLoading || biometric.isBusy;
     final notifier = ref.read(biometricLoginProvider.notifier);
     final (biometricIcon, biometricLabel) = switch (biometric.presentation) {
-      BiometricPresentation.faceId => (Icons.face_rounded, 'Face ID'),
-      BiometricPresentation.touchId => (Icons.fingerprint_rounded, 'Touch ID'),
-      _ => (Icons.fingerprint_rounded, 'fingerprint'),
+      BiometricPresentation.faceId => (IconsaxPlusLinear.scan, 'Face ID'),
+      BiometricPresentation.touchId => (
+        IconsaxPlusLinear.finger_scan,
+        'Touch ID',
+      ),
+      _ => (IconsaxPlusLinear.finger_scan, 'fingerprint'),
     };
     return _authPage(
       title: '${timeBasedGreeting(DateTime.now())}, ${remembered.firstName}',

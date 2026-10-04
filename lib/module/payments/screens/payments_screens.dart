@@ -18,7 +18,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
         ).clearOfNav(context),
         children: [
           PaymentActionCard(
-            icon: Icons.qr_code_scanner_rounded,
+            icon: IconsaxPlusLinear.scan_barcode,
             title: 'Scan to pay',
             subtitle: 'Not available yet',
             color: colors.smartSaveContainer,
@@ -26,7 +26,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
           ),
           const SizedBox(height: BocSpace.xs),
           PaymentActionCard(
-            icon: Icons.add_card_rounded,
+            icon: IconsaxPlusLinear.card_add,
             title: 'Add money',
             subtitle: 'Top up your wallet by bank transfer',
             color: BocColors.goldLight,
@@ -51,14 +51,14 @@ extension PaymentsScreens on AppFlowNavigatorState {
           const SizedBox(height: BocSpace.md),
           _BillerGrid(
             billers: [
-              (Icons.phone_android_rounded, 'Airtime', AppScreen.airtime),
-              (Icons.signal_cellular_alt_rounded, 'Data', AppScreen.data),
-              (Icons.bolt_outlined, 'Electricity', AppScreen.billerList),
-              (Icons.water_drop_outlined, 'Water', AppScreen.billerList),
-              (Icons.tv_outlined, 'Cable TV', AppScreen.billerList),
-              (Icons.wifi_rounded, 'Internet', AppScreen.billerList),
-              (Icons.school_outlined, 'Education', AppScreen.billerList),
-              (Icons.more_horiz_rounded, 'More', AppScreen.billerList),
+              (IconsaxPlusLinear.mobile, 'Airtime', AppScreen.airtime),
+              (IconsaxPlusLinear.chart, 'Data', AppScreen.data),
+              (IconsaxPlusLinear.flash, 'Electricity', AppScreen.billerList),
+              (IconsaxPlusLinear.drop, 'Water', AppScreen.billerList),
+              (IconsaxPlusLinear.monitor, 'Cable TV', AppScreen.billerList),
+              (IconsaxPlusLinear.wifi, 'Internet', AppScreen.billerList),
+              (IconsaxPlusLinear.teacher, 'Education', AppScreen.billerList),
+              (IconsaxPlusLinear.more, 'More', AppScreen.billerList),
             ],
             onSelected: _go,
           ),
@@ -140,7 +140,7 @@ class _BillerGridState extends State<_BillerGrid> {
           textInputAction: TextInputAction.search,
           decoration: const InputDecoration(
             hintText: 'Search billers',
-            prefixIcon: Icon(Icons.search_rounded),
+            prefixIcon: Icon(IconsaxPlusLinear.search_normal_1),
           ),
         ),
         const SizedBox(height: BocSpace.sm),

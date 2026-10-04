@@ -176,7 +176,7 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
             ? () => setState(() => _hidden = !_hidden)
             : null,
         icon: Icon(
-          _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          _hidden ? IconsaxPlusLinear.eye : IconsaxPlusLinear.eye_slash,
         ),
       ),
     );
@@ -396,7 +396,10 @@ class TestOtpBanner extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.science_outlined, color: colorScheme.onTertiaryContainer),
+          Icon(
+            IconsaxPlusLinear.code_circle,
+            color: colorScheme.onTertiaryContainer,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -453,7 +456,10 @@ class PinSecurityWarningBox extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: colorScheme.onSurfaceVariant),
+          Icon(
+            IconsaxPlusLinear.info_circle,
+            color: colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -506,7 +512,7 @@ class SearchField extends StatelessWidget {
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        prefixIcon: const Icon(IconsaxPlusLinear.search_normal_1, size: 18),
         isDense: true,
       ),
     );

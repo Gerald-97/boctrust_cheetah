@@ -193,7 +193,7 @@ class TierCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Icon(
-                        Icons.lock_outline_rounded,
+                        IconsaxPlusLinear.lock,
                         size: 12,
                         color: BocColors.grey,
                       ),
@@ -215,7 +215,7 @@ class TierCard extends StatelessWidget {
               ],
             ),
           ),
-          if (enabled) const Icon(Icons.chevron_right_rounded, size: 18),
+          if (enabled) const Icon(IconsaxPlusLinear.arrow_right_3, size: 18),
         ],
       ),
     );
@@ -297,7 +297,7 @@ class VerificationCard extends StatelessWidget {
     required this.statusLabel,
     required this.statusColor,
     this.value,
-    this.icon = Icons.badge_outlined,
+    this.icon = IconsaxPlusLinear.personalcard,
     super.key,
   });
 
@@ -438,8 +438,8 @@ class DashedLikeUpload extends StatelessWidget {
               else
                 RoundedIcon(
                   icon: selected == null
-                      ? Icons.upload_file_outlined
-                      : Icons.description_outlined,
+                      ? IconsaxPlusLinear.document_upload
+                      : IconsaxPlusLinear.document_text,
                   color: accent,
                   size: 40,
                 ),

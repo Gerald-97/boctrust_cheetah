@@ -102,11 +102,11 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: const Icon(Icons.account_balance_outlined),
+        leading: const Icon(IconsaxPlusLinear.bank),
         title: Text(account.accountName),
         subtitle: Text('${account.bankName} · ${account.maskedAccountNumber}'),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline_rounded),
+          icon: const Icon(IconsaxPlusLinear.trash),
           tooltip: 'Remove account',
           onPressed: deleting ? null : () => _confirmDeleteAccount(account),
         ),

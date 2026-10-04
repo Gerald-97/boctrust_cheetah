@@ -142,7 +142,7 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
       foregroundColor: BocColors.goldLight,
       // Without a name there are no honest initials to show.
       child: initials.isEmpty
-          ? Icon(Icons.person_rounded, size: widget.radius)
+          ? Icon(IconsaxPlusBold.profile, size: widget.radius)
           : Text(
               initials,
               style: TextStyle(
@@ -210,15 +210,11 @@ class ThemeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const options = <({AppThemeMode mode, IconData icon, String label})>[
-      (
-        mode: AppThemeMode.light,
-        icon: Icons.light_mode_outlined,
-        label: 'Light',
-      ),
-      (mode: AppThemeMode.dark, icon: Icons.dark_mode_outlined, label: 'Dark'),
+      (mode: AppThemeMode.light, icon: IconsaxPlusLinear.sun_1, label: 'Light'),
+      (mode: AppThemeMode.dark, icon: IconsaxPlusLinear.moon, label: 'Dark'),
       (
         mode: AppThemeMode.system,
-        icon: Icons.settings_brightness_outlined,
+        icon: IconsaxPlusLinear.monitor_mobbile,
         label: 'System',
       ),
     ];

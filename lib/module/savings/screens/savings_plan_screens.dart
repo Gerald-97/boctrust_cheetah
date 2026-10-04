@@ -432,7 +432,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               padding: EdgeInsets.zero,
               children: [
                 SettingsTile.toggle(
-                  icon: Icons.autorenew_rounded,
+                  icon: IconsaxPlusLinear.repeat,
                   title: 'Auto-save',
                   subtitle: 'Save automatically on a schedule',
                   value: _draft.autoSave,
@@ -512,9 +512,9 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               padding: const EdgeInsets.only(bottom: BocSpace.xs),
               child: SelectableMethodTile(
                 icon: switch (source) {
-                  FundingSource.wallet => Icons.account_balance_wallet_outlined,
-                  FundingSource.flexSavings => Icons.savings_outlined,
-                  FundingSource.bankTransfer => Icons.account_balance_outlined,
+                  FundingSource.wallet => IconsaxPlusLinear.wallet,
+                  FundingSource.flexSavings => IconsaxPlusLinear.strongbox,
+                  FundingSource.bankTransfer => IconsaxPlusLinear.bank,
                 },
                 title: source.label,
                 subtitle: '',
@@ -541,7 +541,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                 onPressed: members > 2
                     ? () => _update(_draft.copyWith(memberCount: members - 1))
                     : null,
-                icon: const Icon(Icons.remove_rounded),
+                icon: const Icon(IconsaxPlusLinear.minus),
               ),
               Expanded(
                 child: Text(
@@ -555,7 +555,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                 onPressed: members < 20
                     ? () => _update(_draft.copyWith(memberCount: members + 1))
                     : null,
-                icon: const Icon(Icons.add_rounded),
+                icon: const Icon(IconsaxPlusLinear.add),
               ),
             ],
           ),
@@ -587,7 +587,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             child: InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Start date',
-                suffixIcon: Icon(Icons.calendar_month_rounded),
+                suffixIcon: Icon(IconsaxPlusLinear.calendar),
               ),
               child: Text(
                 start == null

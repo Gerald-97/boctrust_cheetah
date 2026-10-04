@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../service/smile_id_gateway.dart';
 
@@ -132,7 +133,7 @@ class _SmileIdCaptureScreenState extends ConsumerState<SmileIdCaptureScreen> {
             SmileIdDocumentJob() => 'Verify your document',
           }),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const Icon(IconsaxPlusLinear.arrow_left),
             onPressed: () => _close(SmileIdFlowOutcome.cancelled),
           ),
         ),

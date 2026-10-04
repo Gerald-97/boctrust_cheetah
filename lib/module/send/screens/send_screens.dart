@@ -29,19 +29,19 @@ extension SendScreens on AppFlowNavigatorState {
           ],
           for (final (icon, title, subtitle, screen) in const [
             (
-              Icons.swap_horiz_rounded,
+              IconsaxPlusLinear.arrow_swap_horizontal,
               'Between my accounts',
               'Between your Flex, SmartSave, Fixed and Padi plans',
               AppScreen.sendOwn,
             ),
             (
-              Icons.person_outline_rounded,
+              IconsaxPlusLinear.profile,
               'To a BOCTRUST account',
               'Free and instant to another BOCTRUST customer',
               AppScreen.sendBeneficiary,
             ),
             (
-              Icons.account_balance_outlined,
+              IconsaxPlusLinear.bank,
               'To another bank',
               'Send to any Nigerian bank account',
               AppScreen.sendBank,

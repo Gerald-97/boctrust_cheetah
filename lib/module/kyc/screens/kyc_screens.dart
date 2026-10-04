@@ -142,7 +142,7 @@ extension KycScreens on AppFlowNavigatorState {
           onPressed: statusState.isLoading
               ? null
               : () => ref.read(kycAuthoritativeRefreshProvider)(),
-          icon: const Icon(Icons.refresh_rounded, size: 18),
+          icon: const Icon(IconsaxPlusLinear.refresh, size: 18),
           label: const Text('Refresh'),
         ),
       ],
@@ -284,12 +284,12 @@ extension KycScreens on AppFlowNavigatorState {
                 (
                   DocumentVerificationType.cac,
                   AppScreen.kycCacDocument,
-                  Icons.business_outlined,
+                  IconsaxPlusLinear.building,
                 ),
                 (
                   DocumentVerificationType.bankStatement,
                   AppScreen.kycBankStatement,
-                  Icons.receipt_long_outlined,
+                  IconsaxPlusLinear.receipt_item,
                 ),
               ])
                 SettingsTile(
@@ -841,7 +841,7 @@ extension KycScreens on AppFlowNavigatorState {
             description: _governmentIdDescription(serverStatus),
             statusLabel: _statusLabel(serverStatus),
             statusColor: _statusColor(serverStatus),
-            icon: Icons.badge_outlined,
+            icon: IconsaxPlusLinear.personalcard,
             value: status?.documentNumberLast4 != null
                 ? '•••• ${status!.documentNumberLast4}'
                 : GovernmentIdDocumentType.tryParse(
@@ -1383,7 +1383,7 @@ extension KycScreens on AppFlowNavigatorState {
             description: _utilityBillDescription(serverStatus),
             statusLabel: _statusLabel(serverStatus),
             statusColor: _statusColor(serverStatus),
-            icon: Icons.home_outlined,
+            icon: IconsaxPlusLinear.home_2,
           ),
           const SizedBox(height: 14),
           _kycRefreshAction(statusState),

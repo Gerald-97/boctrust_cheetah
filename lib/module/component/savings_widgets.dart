@@ -59,7 +59,7 @@ class SavingsHeroCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.trending_up_rounded,
+                IconsaxPlusLinear.trend_up,
                 color: BocColors.green,
                 size: 15,
               ),
@@ -231,7 +231,10 @@ class FlexSavingsTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: BocColors.navy),
+              const Icon(
+                IconsaxPlusLinear.arrow_right_3,
+                color: BocColors.navy,
+              ),
             ],
           ),
         ),
@@ -366,9 +369,7 @@ class FlexHeroCard extends StatelessWidget {
                 tooltip: hidden ? 'Show balance' : 'Hide balance',
                 onPressed: onToggle,
                 icon: Icon(
-                  hidden
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+                  hidden ? IconsaxPlusLinear.eye_slash : IconsaxPlusLinear.eye,
                   size: 20,
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../utils/auth_input.dart';
 
@@ -96,8 +97,8 @@ class PasswordStrengthWidget extends StatelessWidget {
           children: [
             Icon(
               strength.level == PasswordStrengthLevel.strong
-                  ? Icons.check_circle_rounded
-                  : Icons.info_outline_rounded,
+                  ? IconsaxPlusBold.tick_circle
+                  : IconsaxPlusLinear.info_circle,
               size: 16,
               color: activeColor,
             ),
@@ -150,7 +151,7 @@ class _PasswordCriterionChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          met ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+          met ? IconsaxPlusBold.tick_circle : IconsaxPlusLinear.tick_circle,
           size: 14,
           color: color,
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../module/app_flow/app_flow_navigator.dart';
 import 'route_arguments.dart';
@@ -312,7 +313,7 @@ class _RouteFallbackScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.construction_rounded, size: 56),
+                const Icon(IconsaxPlusLinear.setting_2, size: 56),
                 const SizedBox(height: 20),
                 Text(
                   title,

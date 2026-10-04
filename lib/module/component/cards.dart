@@ -582,7 +582,7 @@ class ProductTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, size: 19),
+            const Icon(IconsaxPlusLinear.arrow_right_3, size: 19),
           ],
         ),
       ),
@@ -657,7 +657,7 @@ class ActivePlanCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded),
+          const Icon(IconsaxPlusLinear.arrow_right_3),
         ],
       ),
     );

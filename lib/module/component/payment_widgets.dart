@@ -60,7 +60,7 @@ class PaymentActionCard extends StatelessWidget {
                 ),
               ),
               Icon(
-                Icons.chevron_right_rounded,
+                IconsaxPlusLinear.arrow_right_3,
                 color: context.bocColors.textTertiary,
               ),
             ],

@@ -68,21 +68,21 @@ class TransactionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final (icon, tint, container, sign, amountColor) = switch (direction) {
       TransactionDirection.credit => (
-        Icons.south_rounded,
+        IconsaxPlusLinear.arrow_down_1,
         colors.success,
         colors.successContainer,
         '+',
         colors.successText,
       ),
       TransactionDirection.debit => (
-        Icons.north_rounded,
+        IconsaxPlusLinear.arrow_up,
         colors.error,
         colors.errorContainer,
         '−',
         colors.textPrimary,
       ),
       TransactionDirection.internal => (
-        Icons.swap_horiz_rounded,
+        IconsaxPlusLinear.arrow_swap_horizontal,
         colors.smartSaveAccent,
         colors.smartSaveContainer,
         '',
@@ -246,7 +246,7 @@ class BankRow extends StatelessWidget {
           child: SizedBox.square(
             dimension: 40,
             child: Icon(
-              Icons.account_balance_outlined,
+              IconsaxPlusLinear.bank,
               color: interactive
                   ? context.bocColors.smartSaveAccent
                   : context.bocColors.textDisabled,
@@ -257,7 +257,7 @@ class BankRow extends StatelessWidget {
         subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
         trailing:
             trailing ??
-            (interactive ? const Icon(Icons.chevron_right_rounded) : null),
+            (interactive ? const Icon(IconsaxPlusLinear.arrow_right_3) : null),
       ),
     );
   }
@@ -435,7 +435,7 @@ class SettingsTile extends StatelessWidget {
           )
         : onTap == null
         ? const SizedBox.shrink()
-        : Icon(Icons.chevron_right_rounded, color: colors.textTertiary);
+        : Icon(IconsaxPlusLinear.arrow_right_3, color: colors.textTertiary);
     final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 56),
       child: Padding(

@@ -33,6 +33,7 @@ dependencies:
   dojah_kyc_sdk_flutter:
     path: packages/dojah_kyc_sdk_flutter
   local_auth: ^3.0.2
+  iconsax_plus: ^1.0.0
 
 dev_dependencies:
   crypto: ^3.0.6

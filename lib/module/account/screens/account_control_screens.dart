@@ -33,7 +33,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
             children: [
               _biometricLoginTile(),
               SettingsTile.toggle(
-                icon: Icons.fingerprint_rounded,
+                icon: IconsaxPlusLinear.finger_scan,
                 title: 'Fingerprint for transfers',
                 subtitle: 'Approve transfers with your fingerprint',
                 value: false,
@@ -41,13 +41,13 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 trailing: _notAvailableTag(),
               ),
               SettingsTile(
-                icon: Icons.password_rounded,
+                icon: IconsaxPlusLinear.password_check,
                 title: 'Password',
                 subtitle: 'Change your account password',
                 onTap: _showChangePasswordDialog,
               ),
               SettingsTile(
-                icon: Icons.lock_outline_rounded,
+                icon: IconsaxPlusLinear.lock,
                 title: 'Transaction PIN',
                 subtitle: profile?.isCreatedPin == true
                     ? 'Change your 4-digit PIN'
@@ -58,13 +58,13 @@ extension AccountControlScreens on AppFlowNavigatorState {
                           _openAuthDestination(AuthDestination.createFirstPin),
               ),
               SettingsTile(
-                icon: Icons.lock_reset_rounded,
+                icon: IconsaxPlusLinear.key,
                 title: 'Forgot transaction PIN',
                 subtitle: 'Verify your account and choose a new PIN',
                 onTap: _showPinRecoverySheet,
               ),
               SettingsTile(
-                icon: Icons.verified_user_outlined,
+                icon: IconsaxPlusLinear.shield_tick,
                 title: 'Security checks',
                 subtitle: 'Verify your current password or PIN',
                 onTap: _showSecurityCheckChooser,
@@ -75,7 +75,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
             caption: 'Account protection',
             children: [
               SettingsTile(
-                icon: Icons.devices_rounded,
+                icon: IconsaxPlusLinear.devices,
                 title: 'Device management',
                 subtitle: "See where you're signed in",
                 trailing: _isAvailable(FeatureCapability.deviceSessions)
@@ -87,7 +87,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 ),
               ),
               SettingsTile(
-                icon: Icons.phone_iphone_rounded,
+                icon: IconsaxPlusLinear.mobile,
                 title: 'Change mobile number',
                 subtitle: 'Update the number linked to your account',
                 trailing: _isAvailable(FeatureCapability.changeMobile)
@@ -99,7 +99,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 ),
               ),
               SettingsTile.toggle(
-                icon: Icons.ac_unit_rounded,
+                icon: IconsaxPlusLinear.pause_circle,
                 title: 'Freeze account',
                 subtitle: 'Temporarily block all transactions',
                 value: false,
@@ -116,16 +116,16 @@ extension AccountControlScreens on AppFlowNavigatorState {
   Widget _biometricLoginTile() {
     final biometric = ref.watch(biometricLoginProvider);
     final (icon, title) = switch (biometric.presentation) {
-      BiometricPresentation.faceId => (Icons.face_rounded, 'Face ID login'),
+      BiometricPresentation.faceId => (IconsaxPlusLinear.scan, 'Face ID login'),
       BiometricPresentation.touchId => (
-        Icons.fingerprint_rounded,
+        IconsaxPlusLinear.finger_scan,
         'Touch ID login',
       ),
       BiometricPresentation.fingerprint => (
-        Icons.fingerprint_rounded,
+        IconsaxPlusLinear.finger_scan,
         'Fingerprint login',
       ),
-      null => (Icons.fingerprint_rounded, 'Biometric login'),
+      null => (IconsaxPlusLinear.finger_scan, 'Biometric login'),
     };
     final hydrating = biometric.phase == BiometricLoginPhase.hydrating;
     final unavailable = biometric.phase == BiometricLoginPhase.unavailable;
@@ -387,7 +387,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
           SettingsGroup(
             children: [
               SettingsTile(
-                icon: Icons.notifications_none_rounded,
+                icon: IconsaxPlusLinear.notification,
                 title: 'Notifications',
                 subtitle: 'Choose what we tell you about',
                 onTap: () => _go(AppScreen.notificationPreferences),
@@ -441,7 +441,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
           SettingsGroup(
             children: [
               SettingsTile.toggle(
-                icon: Icons.swap_vert_rounded,
+                icon: IconsaxPlusLinear.arrow_swap,
                 title: 'Transactions',
                 subtitle: 'Money in and out of your accounts',
                 value: prefs.transactions,
@@ -449,7 +449,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     notifier.update(prefs.copyWith(transactions: value)),
               ),
               SettingsTile.toggle(
-                icon: Icons.savings_outlined,
+                icon: IconsaxPlusLinear.strongbox,
                 title: 'Savings reminders',
                 subtitle: 'Upcoming auto-saves and goal progress',
                 value: prefs.savingsReminders,
@@ -457,7 +457,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     notifier.update(prefs.copyWith(savingsReminders: value)),
               ),
               SettingsTile.toggle(
-                icon: Icons.campaign_outlined,
+                icon: IconsaxPlusLinear.notification_bing,
                 title: 'Offers and news',
                 subtitle: 'New products and promotions',
                 value: prefs.marketing,
@@ -465,7 +465,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     notifier.update(prefs.copyWith(marketing: value)),
               ),
               const SettingsTile.toggle(
-                icon: Icons.shield_outlined,
+                icon: IconsaxPlusLinear.shield,
                 title: 'Security alerts',
                 subtitle: 'Sign-ins and account changes are always sent',
                 value: true,
@@ -522,7 +522,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
           SettingsGroup(
             children: [
               SettingsTile.toggle(
-                icon: Icons.contrast_rounded,
+                icon: IconsaxPlusLinear.colorfilter,
                 title: 'High contrast',
                 subtitle: 'Darker text and borders',
                 value: prefs.highContrast,
@@ -530,7 +530,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     notifier.update(prefs.copyWith(highContrast: value)),
               ),
               SettingsTile.toggle(
-                icon: Icons.format_bold_rounded,
+                icon: IconsaxPlusLinear.text_bold,
                 title: 'Bold text',
                 subtitle: 'Make all text bold',
                 value: prefs.boldText,
@@ -650,7 +650,7 @@ class _StatementPeriodFieldState extends State<_StatementPeriodField> {
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: 'Statement period',
-          suffixIcon: Icon(Icons.calendar_month_rounded),
+          suffixIcon: Icon(IconsaxPlusLinear.calendar),
         ),
         child: Text(
           range == null

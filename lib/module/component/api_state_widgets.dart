@@ -98,11 +98,11 @@ class ApiStateCard extends StatelessWidget {
   };
 
   IconData get _icon => switch (tone) {
-    ApiStateTone.info => Icons.info_outline_rounded,
-    ApiStateTone.success => Icons.check_circle_outline_rounded,
-    ApiStateTone.warning => Icons.warning_amber_rounded,
-    ApiStateTone.error => Icons.error_outline_rounded,
-    ApiStateTone.blocked => Icons.lock_outline_rounded,
+    ApiStateTone.info => IconsaxPlusLinear.info_circle,
+    ApiStateTone.success => IconsaxPlusLinear.tick_circle,
+    ApiStateTone.warning => IconsaxPlusLinear.danger,
+    ApiStateTone.error => IconsaxPlusLinear.warning_2,
+    ApiStateTone.blocked => IconsaxPlusLinear.lock,
   };
 }
 

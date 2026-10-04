@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../model/kyc_provider_models.dart';
 import '../service/dojah_camera_permission.dart';
@@ -115,7 +116,7 @@ class _DojahCaptureScreenState extends ConsumerState<DojahCaptureScreen> {
         appBar: AppBar(
           title: Text(title),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const Icon(IconsaxPlusLinear.arrow_left),
             onPressed: _cancel,
           ),
         ),

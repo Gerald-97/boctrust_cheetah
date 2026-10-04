@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/api_logger.dart';
@@ -703,7 +704,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _comingSoonScreen(
           capability: FeatureCapability.loans,
           title: 'Loans',
-          icon: Icons.percent_rounded,
+          icon: IconsaxPlusLinear.percentage_circle,
           message:
               "Loans aren't part of the BOCTRUST app yet — this release is focused on Savings.",
         );
@@ -711,7 +712,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _comingSoonScreen(
           capability: FeatureCapability.cards,
           title: 'Cards',
-          icon: Icons.credit_card_rounded,
+          icon: IconsaxPlusLinear.card,
           message:
               "Virtual and physical debit cards aren't part of the BOCTRUST app yet. This release is focused on Savings.",
         );

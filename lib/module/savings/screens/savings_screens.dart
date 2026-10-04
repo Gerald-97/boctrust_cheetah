@@ -138,7 +138,7 @@ extension SavingsScreens on AppFlowNavigatorState {
   Widget _savingsRefreshAction(NotifierState<UserHomeData> home) => IconButton(
     tooltip: 'Refresh',
     onPressed: home.isLoading ? null : _refreshSavings,
-    icon: const Icon(Icons.refresh_rounded),
+    icon: const Icon(IconsaxPlusLinear.refresh),
   );
 
   Widget _saveHubScreen() {
@@ -181,7 +181,7 @@ extension SavingsScreens on AppFlowNavigatorState {
         IconButton(
           tooltip: 'Refresh',
           onPressed: accountsState.isLoading ? null : _refreshSavings,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: const Icon(IconsaxPlusLinear.refresh),
         ),
       ],
       body: RefreshIndicator(
@@ -267,17 +267,17 @@ extension SavingsScreens on AppFlowNavigatorState {
                   for (final (type, icon, description) in const [
                     (
                       SavingsProductType.smartSave,
-                      Icons.track_changes_rounded,
+                      IconsaxPlusLinear.flag,
                       'Daily, weekly or monthly auto-save toward a goal',
                     ),
                     (
                       SavingsProductType.fixed,
-                      Icons.lock_outline_rounded,
+                      IconsaxPlusLinear.lock,
                       'Fixed term, higher rate, locked until maturity',
                     ),
                     (
                       SavingsProductType.padi,
-                      Icons.groups_outlined,
+                      IconsaxPlusLinear.profile_2user,
                       'Save with friends and take turns receiving the pot',
                     ),
                   ]) ...[
@@ -393,7 +393,7 @@ extension SavingsScreens on AppFlowNavigatorState {
         IconButton(
           tooltip: 'Refresh',
           onPressed: accountsState.isLoading ? null : refresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: const Icon(IconsaxPlusLinear.refresh),
         ),
       ],
       body: RefreshIndicator(

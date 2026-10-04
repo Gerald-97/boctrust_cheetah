@@ -27,7 +27,7 @@ class BocBackButton extends StatelessWidget {
               child: SizedBox.square(
                 dimension: 40,
                 child: Icon(
-                  Icons.chevron_left_rounded,
+                  IconsaxPlusLinear.arrow_left_1,
                   color: colors.textPrimary,
                 ),
               ),
@@ -204,7 +204,7 @@ class BocStatusScreen extends StatelessWidget {
         colors.successContainer,
       ),
       BocStatusKind.pending => (
-        Icons.schedule_rounded,
+        IconsaxPlusLinear.clock_1,
         colors.warning,
         colors.warningContainer,
       ),
@@ -295,7 +295,7 @@ abstract final class BocUnavailableSheet {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.hourglass_empty_rounded,
+                IconsaxPlusLinear.timer,
                 size: 32,
                 color: colors.textTertiary,
               ),

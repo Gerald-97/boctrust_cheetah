@@ -174,7 +174,7 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.paymentWebView:
         return (
           title: 'Unavailable',
-          icon: Icons.info_outline,
+          icon: IconsaxPlusLinear.info_circle,
           color: BocColors.gold,
           section: AppSection.save,
           summary: 'This feature is not available yet.',
@@ -187,21 +187,21 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.supportEmail:
         return (
           title: 'Support',
-          icon: Icons.support_agent_rounded,
+          icon: IconsaxPlusLinear.headphone,
           color: BocColors.gold,
           section: AppSection.account,
           summary: 'Preview customer support channels and escalation details.',
           actionLabel: 'Preview support contact',
           rows: [
-            (Icons.chat_bubble_outline_rounded, 'Chat', 'Not available yet'),
-            (Icons.phone_outlined, 'Call', '+234 906 464 1439'),
-            (Icons.mail_outline_rounded, 'Email', 'info@boctrustmfb.com'),
+            (IconsaxPlusLinear.message, 'Chat', 'Not available yet'),
+            (IconsaxPlusLinear.call, 'Call', '+234 906 464 1439'),
+            (IconsaxPlusLinear.sms, 'Email', 'info@boctrustmfb.com'),
           ],
         );
       case AppPreviewRoute.privacyPolicy:
         return (
           title: 'Privacy Policy',
-          icon: Icons.privacy_tip_outlined,
+          icon: IconsaxPlusLinear.shield_security,
           color: BocColors.blue,
           section: AppSection.account,
           summary:
@@ -209,17 +209,17 @@ extension AccountScreens on AppFlowNavigatorState {
           actionLabel: 'Preview policy acknowledgement',
           rows: [
             (
-              Icons.dataset_outlined,
+              IconsaxPlusLinear.data,
               'Data collected',
               'Identity and account data',
             ),
             (
-              Icons.shield_outlined,
+              IconsaxPlusLinear.shield,
               'Protection',
               'Encryption and access controls',
             ),
             (
-              Icons.manage_accounts_outlined,
+              IconsaxPlusLinear.user_edit,
               'Your rights',
               'Access, correction, deletion',
             ),
@@ -228,7 +228,7 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.terms:
         return (
           title: 'Terms & Conditions',
-          icon: Icons.description_outlined,
+          icon: IconsaxPlusLinear.document_text,
           color: BocColors.blue,
           section: AppSection.account,
           summary:
@@ -236,12 +236,16 @@ extension AccountScreens on AppFlowNavigatorState {
           actionLabel: 'Preview terms acknowledgement',
           rows: [
             (
-              Icons.account_circle_outlined,
+              IconsaxPlusLinear.profile_circle,
               'Account use',
               'Customer responsibilities',
             ),
-            (Icons.payments_outlined, 'Transactions', 'Limits and reversals'),
-            (Icons.savings_outlined, 'Savings', 'Interest and maturity terms'),
+            (IconsaxPlusLinear.money, 'Transactions', 'Limits and reversals'),
+            (
+              IconsaxPlusLinear.strongbox,
+              'Savings',
+              'Interest and maturity terms',
+            ),
           ],
         );
       case AppPreviewRoute.socialFacebook:
@@ -249,7 +253,7 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.socialLinkedIn:
         return (
           title: 'Social links',
-          icon: Icons.public_rounded,
+          icon: IconsaxPlusLinear.global,
           color: BocColors.green,
           section: AppSection.account,
           // Official BOCTRUST handles have not been supplied; no rows are
@@ -261,22 +265,22 @@ extension AccountScreens on AppFlowNavigatorState {
       case AppPreviewRoute.themeSettings:
         return (
           title: 'Theme settings',
-          icon: Icons.palette_outlined,
+          icon: IconsaxPlusLinear.color_swatch,
           color: BocColors.purple,
           section: AppSection.account,
           summary:
               'Preview appearance preferences and switch between system, light, and dark themes from Account.',
           actionLabel: 'Cycle theme',
           rows: [
-            (Icons.settings_brightness_outlined, 'System', 'Follow device'),
-            (Icons.light_mode_outlined, 'Light', 'Bright interface'),
-            (Icons.dark_mode_outlined, 'Dark', 'Low-light interface'),
+            (IconsaxPlusLinear.monitor_mobbile, 'System', 'Follow device'),
+            (IconsaxPlusLinear.sun_1, 'Light', 'Bright interface'),
+            (IconsaxPlusLinear.moon, 'Dark', 'Low-light interface'),
           ],
         );
       case null:
         return (
           title: 'UI preview',
-          icon: Icons.preview_outlined,
+          icon: IconsaxPlusLinear.eye,
           color: BocColors.gold,
           section: AppSection.home,
           summary:
@@ -284,16 +288,12 @@ extension AccountScreens on AppFlowNavigatorState {
           actionLabel: 'Preview action',
           rows: [
             (
-              Icons.visibility_outlined,
+              IconsaxPlusLinear.eye,
               'Visible route',
               widget.initialRouteName ?? 'Unknown route',
             ),
-            (Icons.api_outlined, 'API status', 'Integration pending'),
-            (
-              Icons.check_circle_outline_rounded,
-              'UI status',
-              'Ready for review',
-            ),
+            (IconsaxPlusLinear.code, 'API status', 'Integration pending'),
+            (IconsaxPlusLinear.tick_circle, 'UI status', 'Ready for review'),
           ],
         );
     }
@@ -382,7 +382,7 @@ extension AccountScreens on AppFlowNavigatorState {
     };
 
     return SettingsTile(
-      icon: Icons.account_balance_outlined,
+      icon: IconsaxPlusLinear.bank,
       title: 'Dedicated virtual account',
       subtitle: subtitle,
       trailing: pill,
@@ -499,19 +499,19 @@ extension AccountScreens on AppFlowNavigatorState {
               caption: 'Account details',
               children: [
                 SettingsTile(
-                  icon: Icons.person_outline_rounded,
+                  icon: IconsaxPlusLinear.profile,
                   title: 'My profile',
                   subtitle: 'Personal details and verification',
                   onTap: () => _go(AppScreen.myProfile),
                 ),
                 SettingsTile(
-                  icon: Icons.verified_user_outlined,
+                  icon: IconsaxPlusLinear.shield_tick,
                   title: 'Account tier',
                   subtitle: 'Tier ${profile?.tier ?? '—'} · View limits',
                   onTap: () => _go(AppScreen.tiers),
                 ),
                 SettingsTile(
-                  icon: Icons.trending_up_rounded,
+                  icon: IconsaxPlusLinear.trend_up,
                   title: 'Request limit increase',
                   subtitle: 'Raise your daily transfer limit',
                   trailing: const SmallPill(text: 'Not available yet'),
@@ -521,7 +521,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   ),
                 ),
                 SettingsTile(
-                  icon: Icons.description_outlined,
+                  icon: IconsaxPlusLinear.document_text,
                   title: 'Account statement',
                   subtitle: 'Request a statement by email',
                   onTap: () => _go(AppScreen.accountStatement),
@@ -536,7 +536,7 @@ extension AccountScreens on AppFlowNavigatorState {
               caption: 'Settings',
               children: [
                 SettingsTile(
-                  icon: Icons.people_outline_rounded,
+                  icon: IconsaxPlusLinear.people,
                   title: 'Manage beneficiaries',
                   subtitle: 'People you send money to',
                   onTap: () => Navigator.of(
@@ -544,19 +544,19 @@ extension AccountScreens on AppFlowNavigatorState {
                   ).pushNamed(AppRoutes.manageBeneficiaries),
                 ),
                 SettingsTile(
-                  icon: Icons.account_balance_outlined,
+                  icon: IconsaxPlusLinear.bank,
                   title: 'Linked banks',
                   subtitle: 'Accounts you withdraw to',
                   onTap: () => _go(AppScreen.linkedBanks),
                 ),
                 SettingsTile(
-                  icon: Icons.shield_outlined,
+                  icon: IconsaxPlusLinear.shield,
                   title: 'Security Center',
                   subtitle: 'Password, PIN, devices and protection',
                   onTap: () => _go(AppScreen.securityCenter),
                 ),
                 SettingsTile(
-                  icon: Icons.tune_rounded,
+                  icon: IconsaxPlusLinear.setting_4,
                   title: 'Preferences',
                   subtitle: 'Notifications, accessibility and theme',
                   onTap: () => _go(AppScreen.preferences),
@@ -567,14 +567,14 @@ extension AccountScreens on AppFlowNavigatorState {
               caption: 'More services',
               children: [
                 SettingsTile(
-                  icon: Icons.percent_rounded,
+                  icon: IconsaxPlusLinear.percentage_circle,
                   title: 'Loans',
                   subtitle: "Borrowing isn't available yet",
                   trailing: const SmallPill(text: 'Coming soon'),
                   onTap: () => _go(AppScreen.loans),
                 ),
                 SettingsTile(
-                  icon: Icons.credit_card_outlined,
+                  icon: IconsaxPlusLinear.card,
                   title: 'Cards',
                   subtitle: "Virtual & physical cards aren't available yet",
                   trailing: const SmallPill(text: 'Coming soon'),
@@ -588,7 +588,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 // No support API exists, so there is no ticket state or reply
                 // time to report. Only the published contact details are shown.
                 SettingsTile(
-                  icon: Icons.chat_bubble_outline_rounded,
+                  icon: IconsaxPlusLinear.message,
                   title: 'Chat with support',
                   subtitle: 'Not available yet',
                   trailing: SmallPill.unavailable('Unavailable'),
@@ -598,19 +598,19 @@ extension AccountScreens on AppFlowNavigatorState {
                   ),
                 ),
                 const SettingsTile(
-                  icon: Icons.phone_outlined,
+                  icon: IconsaxPlusLinear.call,
                   title: 'Call customer care',
                   subtitle: '+234 906 464 1439 · 0703 973 9086',
                 ),
                 const SettingsTile(
-                  icon: Icons.mail_outline_rounded,
+                  icon: IconsaxPlusLinear.sms,
                   title: 'Email support',
                   subtitle: 'info@boctrustmfb.com',
                 ),
                 // No policy-content endpoint and no bundled copy, so these
                 // cannot open anything yet.
                 SettingsTile(
-                  icon: Icons.privacy_tip_outlined,
+                  icon: IconsaxPlusLinear.shield_security,
                   title: 'Privacy Policy',
                   subtitle: 'Not available in the app yet',
                   trailing: SmallPill.unavailable('Unavailable'),
@@ -619,7 +619,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   ),
                 ),
                 SettingsTile(
-                  icon: Icons.description_outlined,
+                  icon: IconsaxPlusLinear.document_text,
                   title: 'Terms & Conditions',
                   subtitle: 'Not available in the app yet',
                   trailing: SmallPill.unavailable('Unavailable'),
@@ -637,7 +637,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 BocSpace.xs,
               ),
               child: SecondaryButton(
-                icon: Icons.logout_rounded,
+                icon: IconsaxPlusLinear.logout,
                 label: ref.watch(logoutProvider).isLoading
                     ? 'Signing out…'
                     : 'Sign out',
@@ -694,20 +694,20 @@ extension AccountScreens on AppFlowNavigatorState {
           SettingsGroup(
             children: [
               SettingsTile(
-                icon: Icons.badge_outlined,
+                icon: IconsaxPlusLinear.personalcard,
                 title: 'Name',
                 // displayName falls back to a generic label; show the gap
                 // honestly instead of presenting that label as a name.
                 subtitle: _profileName(profile) ?? 'Not provided yet',
               ),
               SettingsTile(
-                icon: Icons.alternate_email_rounded,
+                icon: IconsaxPlusLinear.sms,
                 title: 'Registered identifier',
                 subtitle: identifier,
               ),
               if (profile?.email != null)
                 SettingsTile(
-                  icon: Icons.mark_email_read_outlined,
+                  icon: IconsaxPlusLinear.sms_tracking,
                   title: 'Email verification',
                   subtitle: profile!.isVerifiedEmail
                       ? 'Verified'
@@ -724,7 +724,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 ),
               if (profile != null)
                 SettingsTile(
-                  icon: Icons.phone_android_rounded,
+                  icon: IconsaxPlusLinear.mobile,
                   title: hasPhoneNumber ? 'Phone verification' : 'Phone number',
                   subtitle: hasVerifiedPhone
                       ? 'Verified'
@@ -750,7 +750,7 @@ extension AccountScreens on AppFlowNavigatorState {
             caption: 'Close account',
             children: [
               SettingsTile(
-                icon: Icons.delete_outline_rounded,
+                icon: IconsaxPlusLinear.trash,
                 title: 'Delete account',
                 subtitle: 'Close your account permanently',
                 titleColor: context.bocColors.errorText,
@@ -984,7 +984,7 @@ extension AccountScreens on AppFlowNavigatorState {
             final awaitingOtp = stage == RecoveryFlowStage.awaitingOtp;
             final awaitingPin = stage == RecoveryFlowStage.awaitingNewSecret;
             return AppActionSheet(
-              icon: Icons.lock_reset_rounded,
+              icon: IconsaxPlusLinear.key,
               title: awaitingOtp
                   ? 'Verify your account'
                   : awaitingPin
@@ -1146,7 +1146,7 @@ extension AccountScreens on AppFlowNavigatorState {
     final method = await AppActionSheet.show<SecurityCheckMethod>(
       context: context,
       builder: (sheetContext) => AppActionSheet(
-        icon: Icons.verified_user_outlined,
+        icon: IconsaxPlusLinear.shield_tick,
         title: 'Security check',
         subtitle: 'Choose how you want to verify that it is you.',
         child: Column(
@@ -1154,7 +1154,7 @@ extension AccountScreens on AppFlowNavigatorState {
           children: [
             AppActionSheetOption(
               key: const Key('security-password-option'),
-              icon: Icons.password_rounded,
+              icon: IconsaxPlusLinear.password_check,
               title: 'Verify current password',
               subtitle: 'Use your account sign-in password',
               onTap: () =>
@@ -1163,7 +1163,7 @@ extension AccountScreens on AppFlowNavigatorState {
             const SizedBox(height: 12),
             AppActionSheetOption(
               key: const Key('security-pin-option'),
-              icon: Icons.pin_outlined,
+              icon: IconsaxPlusLinear.key_square,
               title: 'Verify current PIN',
               subtitle: 'Use your 4-digit transaction PIN',
               onTap: () => Navigator.pop(sheetContext, SecurityCheckMethod.pin),
