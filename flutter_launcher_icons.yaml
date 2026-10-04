@@ -11,6 +11,10 @@ flutter_launcher_icons:
   background_color_ios: "#4F7EB4"
   adaptive_icon_background: "#4F7EB4"
   adaptive_icon_foreground: assets/branding/generated/cheetah_adaptive_foreground.png
-  # adaptive_icon_monochrome is added only once the designer-approved
-  # assets/branding/cheetah_monochrome.svg exists.
+  # The foreground already maps the approved frame onto the 72dp viewport;
+  # the default 16% inset would pull the left-edge bleed inside the mask.
+  adaptive_icon_foreground_inset: 0
+  # Android reads only the alpha of the themed-icon layer, so the white
+  # silhouette foreground doubles as it.
+  adaptive_icon_monochrome: assets/branding/generated/cheetah_adaptive_foreground.png
   min_sdk_android: 21

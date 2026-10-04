@@ -29,10 +29,8 @@ class LocalNotificationService {
   }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
        _log = log ?? apiLogger.w;
 
-  /// Android small icon. Stays the launcher icon until the designer-approved
-  /// monochrome `ic_stat_boctrust` drawable exists; a missing drawable would
-  /// make initialization fail.
-  static const androidSmallIcon = '@mipmap/ic_launcher';
+  /// Android small icon: the white Cheetah silhouette drawable.
+  static const androidSmallIcon = 'ic_stat_boctrust';
   static const channelId = 'boctrust_general';
   static const channelName = 'BOCTRUST notifications';
 

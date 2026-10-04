@@ -38,7 +38,7 @@ The adaptive foreground was rendered over `#4F7EB4` under circle, squircle and r
 
 | Item | Owner | Status |
 |---|---|---|
-| Designer-approved `assets/branding/cheetah_monochrome.svg` | Design | **Open.** Blocks the `ic_stat_boctrust` drawables, the Firebase default-icon metadata and the Android 13 themed icon. Until then the Android notification small icon is the launcher icon. |
+| Monochrome Cheetah | Product owner | **Resolved 4 Oct 2026.** By the product owner's decision (replacing designer sign-off), `assets/branding/cheetah_monochrome.svg` is the approved path clipped to the frame without the blue field. The `ic_stat_boctrust` small icons (24–96 px, white on alpha), the Firebase default-icon metadata and the Android 13 themed icon are generated from it. The adaptive foreground inset is now 0%; the generator default of 16% had pulled the bleed inside the mask. |
 | Backend sends data-only messages, or generic `notification` text | Backend | **Open.** OS-managed notification-payload messages show server text on the lock screen; release is blocked until confirmed. |
 | White splash in dark mode | Design | **Open.** Needs confirmation. |
 | Physical Android checks (launcher masks, themed icon, Android 12+ splash, dark mode, foreground/background/terminated delivery, permission denial, duplicate prevention, signed-in/out taps) | QA | **Not run.** No device in this session. |

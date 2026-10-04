@@ -58,6 +58,23 @@ def adaptive_foreground(icon: Image.Image) -> Image.Image:
     return canvas
 
 
+def notification_icon(icon: Image.Image, size: int) -> Image.Image:
+    # Android status-bar icon: white silhouette on alpha only. The speed
+    # lines run to the left edge, matching the approved bleed instead of
+    # leaving a cut floating inside padding; the other sides keep ~2dp.
+    silhouette = white_silhouette(icon)
+    silhouette = silhouette.crop(silhouette.getchannel("A").getbbox())
+    pad = size / 12
+    scale = (size - pad) / silhouette.width
+    height = round(silhouette.height * scale)
+    scaled = silhouette.resize((size - round(pad), height), Image.LANCZOS)
+    white = Image.new("RGBA", scaled.size, (255, 255, 255, 0))
+    white.putalpha(scaled.getchannel("A"))
+    canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    canvas.paste(white, (0, (size - height) // 2))
+    return canvas
+
+
 def centred(icon: Image.Image, canvas_size: int, icon_size: int) -> Image.Image:
     scaled = icon.resize((icon_size, icon_size), Image.LANCZOS)
     canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
@@ -78,6 +95,10 @@ def main() -> None:
     # Android 12+: the icon is shown inside a circle of 2/3 the canvas
     # (768 px); a 528 px square keeps its corners inside (max 768 x 0.707).
     centred(icon, 1152, 528).save(OUT / "cheetah_splash_android12.png", optimize=True)
+    # Notification small icons (24dp at each density).
+    res = ROOT / "android/app/src/main/res"
+    for density, size in (("mdpi", 24), ("hdpi", 36), ("xhdpi", 48), ("xxhdpi", 72), ("xxxhdpi", 96)):
+        notification_icon(icon, size).save(res / f"drawable-{density}/ic_stat_boctrust.png", optimize=True)
 
 
 if __name__ == "__main__":

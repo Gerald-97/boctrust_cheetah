@@ -34,9 +34,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- OS-rendered FCM notifications use the app's channel. The default
-             notification icon is added with the approved ic_stat_boctrust
-             drawables. -->
+        <!-- OS-rendered FCM notifications use the app's icon and channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_boctrust" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="boctrust_general" />
