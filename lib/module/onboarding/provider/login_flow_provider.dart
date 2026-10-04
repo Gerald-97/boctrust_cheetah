@@ -80,6 +80,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
   }
 
   Future<void> _submitLogin(LoginFlowData context) async {
+    final attempt = _attempt;
     final password = _pendingPassword;
     if (password == null) {
       _localError('Login credentials are no longer available.');
@@ -90,11 +91,13 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     try {
       deviceToken = await ref.read(deviceIdentityServiceProvider).getOrCreate();
     } catch (_) {
+      if (!_isActive(attempt)) return;
       _clearSecrets();
       _localError('Unable to create a secure device identity. Please retry.');
       _finish(LoginAttemptOutcome.deviceIdentityFailure);
       return;
     }
+    if (!_isActive(attempt)) return;
     final response = await ref
         .read(authServiceProvider)
         .login(
@@ -104,6 +107,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
             deviceToken: deviceToken,
           ),
         );
+    if (!_isActive(attempt)) return;
 
     if (response.errorCode == 'NEW_DEVICE_VERIFICATION_REQUIRED' &&
         !_retriedAfterApproval) {
@@ -172,6 +176,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     required LoginFlowData failureContext,
     bool clearPasswordOnFailure = false,
   }) async {
+    final attempt = _attempt;
     state = NotifierState.loading(data: context);
     final request = context.identifierType == IdentifierType.phoneNumber
         ? RequestOtpRequest.phone(
@@ -184,6 +189,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
             OtpPurpose.newDeviceLogin,
           );
     final response = await ref.read(authServiceProvider).requestOtp(request);
+    if (!_isActive(attempt)) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
       state = _failure(response, failureContext);
@@ -222,6 +228,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
       _localError('Enter a valid 6-digit code.');
       return;
     }
+    final attempt = _attempt;
     ref.read(testOtpProvider.notifier).clear(TestOtpFlow.newDeviceLogin);
     state = NotifierState.loading(
       data: context.copyWith(stage: LoginFlowStage.verifyingNewDevice),
@@ -230,6 +237,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     try {
       deviceToken = await ref.read(deviceIdentityServiceProvider).getOrCreate();
     } catch (_) {
+      if (!_isActive(attempt)) return;
       state = NotifierState.error(
         'Unable to read the secure device identity. Please retry.',
         data: context,
@@ -242,6 +250,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     } catch (_) {
       fcmToken = null;
     }
+    if (!_isActive(attempt)) return;
     final response = await ref
         .read(authServiceProvider)
         .verifyNewDevice(
@@ -252,6 +261,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
             fcmToken: fcmToken,
           ),
         );
+    if (!_isActive(attempt)) return;
     if (!response.isDone) {
       state = _failure(response, context);
       return;
@@ -265,6 +275,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
   }
 
   Future<void> _establishSession(LoginData dto, LoginFlowData context) async {
+    final attempt = _attempt;
     if (dto.expiresInSeconds <= 0 ||
         dto.user.identifierType == IdentifierType.unknown) {
       _clearSecrets();
@@ -287,6 +298,12 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
             identifierType: dto.user.identifierType,
           ),
         );
+    // Cancelled while the session was being saved: undo it rather than sign
+    // in from an attempt the user has already abandoned.
+    if (!_isActive(attempt)) {
+      if (established) await ref.read(authSessionProvider.notifier).clear();
+      return;
+    }
     if (!established) {
       _clearSecrets();
       _localError('Unable to save your login session. Please try again.');
@@ -341,6 +358,11 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
   void _localError(String message) {
     state = NotifierState.error(message, data: state.data);
   }
+
+  /// Whether [attempt] is still the one in progress. A cancelled or replaced
+  /// attempt stops at its next await and writes nothing.
+  bool _isActive(Completer<LoginAttemptResult>? attempt) =>
+      attempt != null && identical(_attempt, attempt);
 
   void _clearSecrets() {
     _pendingPassword = null;
