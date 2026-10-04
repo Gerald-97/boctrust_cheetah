@@ -457,30 +457,15 @@ extension SavingsScreens on AppFlowNavigatorState {
     required FeatureCapability capability,
     required String title,
     required String message,
-  }) {
-    _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
-    return AppScaffold(
+  }) => _unavailableScreen(
+    UnavailableDestination(
       title: title,
-      activeSection: AppSection.save,
-      onBack: _back,
-      onSectionSelected: _goSection,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
-        children: [
-          ApiStateCard(
-            title: 'Unavailable',
-            message: message,
-            tone: ApiStateTone.blocked,
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: () => _go(AppScreen.saveHub),
-            child: const Text('Back to Savings'),
-          ),
-        ],
-      ),
-    );
-  }
+      heading: 'Unavailable',
+      message: message,
+      section: AppSection.save,
+      capability: capability,
+    ),
+  );
 
   Widget _targetScreen() => _savingsUnavailableScreen(
     capability: FeatureCapability.savingsPlansView,

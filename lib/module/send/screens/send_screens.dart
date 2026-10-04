@@ -113,23 +113,32 @@ extension SendScreens on AppFlowNavigatorState {
     required AppSection section,
     required String heading,
     required String message,
-  }) {
-    _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
-    return AppScaffold(
+  }) => _unavailableScreen(
+    UnavailableDestination(
       title: title,
-      activeSection: section,
+      heading: heading,
+      message: message,
+      section: section,
+      capability: capability,
+    ),
+  );
+
+  /// Savings pages keep a way back to the Savings hub.
+  Widget _unavailableScreen(UnavailableDestination destination) {
+    final capability = destination.capability;
+    if (capability != null) {
+      _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
+    }
+    return UnavailableFeatureScreen(
+      destination: destination,
       onBack: _back,
       onSectionSelected: _goSection,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
-        children: [
-          ApiStateCard(
-            title: heading,
-            message: message,
-            tone: ApiStateTone.blocked,
-          ),
-        ],
-      ),
+      action: destination.section == AppSection.save
+          ? OutlinedButton(
+              onPressed: () => _go(AppScreen.saveHub),
+              child: const Text('Back to Savings'),
+            )
+          : null,
     );
   }
 

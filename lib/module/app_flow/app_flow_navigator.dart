@@ -109,6 +109,7 @@ part '../component/private_route_gate.dart';
 part '../component/flow_widgets.dart';
 
 part '../component/transaction_widgets.dart';
+part '../component/unavailable_feature_screen.dart';
 
 part '../onboarding/screens/onboarding_flow_screens.dart';
 
