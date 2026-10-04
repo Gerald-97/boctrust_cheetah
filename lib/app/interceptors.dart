@@ -234,6 +234,10 @@ class ActivityInterceptor extends Interceptor {
 }
 
 class AuthInterceptor extends Interceptor {
+  /// `options.extra` key for a bearer token captured before the local session
+  /// was cleared. Only the server logout sets it.
+  static const pinnedAccessTokenKey = 'pinnedAccessToken';
+
   AuthInterceptor({
     required this.readAccessToken,
     required this.readCurrentSession,
@@ -266,6 +270,16 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    // A request that must outlive the local session (server logout) carries
+    // the token it was started with instead of whatever storage holds now.
+    final pinnedToken = options.extra[pinnedAccessTokenKey];
+    if (pinnedToken is String && pinnedToken.isNotEmpty) {
+      options.headers['Authorization'] = 'Bearer $pinnedToken';
+      options.extra['attachedAccessToken'] = pinnedToken;
+      handler.next(options);
+      return;
+    }
+
     final session = readCurrentSession();
     if (session?.isExpired ?? false) {
       final suppressed = options.extra['suppressSessionExpiry'] == true;
@@ -285,6 +299,18 @@ class AuthInterceptor extends Interceptor {
     }
 
     final token = await readAccessToken();
+    // Logout or an account switch during the read: the token may now belong
+    // to someone else, so the request must not go out at all.
+    if (readCurrentSession()?.accessToken != session?.accessToken) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          message: 'The session changed before the request was sent.',
+        ),
+      );
+      return;
+    }
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
       options.extra['attachedAccessToken'] = token;
@@ -304,7 +330,8 @@ class AuthInterceptor extends Interceptor {
         options.extra['requiresAuth'] == true &&
         options.extra['suppressSessionExpiry'] != true &&
         attachedToken is String &&
-        attachedToken == await readAccessToken()) {
+        attachedToken == await readAccessToken() &&
+        (readCurrentSession()?.accessToken ?? attachedToken) == attachedToken) {
       options.extra['sessionExpiryHandled'] = true;
       await expireSessionOnce();
     }

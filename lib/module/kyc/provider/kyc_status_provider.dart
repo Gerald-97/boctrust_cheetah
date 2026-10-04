@@ -45,7 +45,10 @@ class KycStatusNotifier extends Notifier<NotifierState<KycStatusData>>
     return state;
   }
 
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    state = const NotifierState.idle();
+  }
 }
 
 /// Reloads every provider that may show verification state, as one unit.

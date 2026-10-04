@@ -471,6 +471,7 @@ class UtilityBillUploadNotifier extends Notifier<NotifierState<KycFlowData>>
   }
 
   void clear() {
+    beginRequest();
     _inFlight = false;
     state = const NotifierState.idle(data: KycFlowData());
   }
@@ -634,6 +635,7 @@ class GovernmentIdVerificationNotifier
   }
 
   void clear() {
+    beginRequest();
     _inFlight = false;
     state = const NotifierState.idle(data: KycFlowData());
   }

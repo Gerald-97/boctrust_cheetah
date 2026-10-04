@@ -78,7 +78,10 @@ class UserTierNotifier extends Notifier<NotifierState<UserTierInfoData>>
     return state;
   }
 
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    state = const NotifierState.idle();
+  }
 }
 
 final profileImageSignedUrlProvider =
@@ -143,6 +146,7 @@ class ProfileImageSignedUrlNotifier
   Future<void> refreshAfterForbidden() => ensureLoaded(force: true);
 
   void clear() {
+    beginRequest();
     _attempted = false;
     _inFlight = false;
     state = const NotifierState.idle();

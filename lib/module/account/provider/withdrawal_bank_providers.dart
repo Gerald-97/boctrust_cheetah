@@ -33,7 +33,10 @@ class BankCatalogueNotifier extends Notifier<NotifierState<BankCatalogueData>>
     return state;
   }
 
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    state = const NotifierState.idle();
+  }
 }
 
 final withdrawalBankAccountsProvider =
@@ -99,7 +102,10 @@ class WithdrawalBankAccountsNotifier
 
   bool get isDeleting => _deleting;
 
-  void clear() => state = const NotifierState.idle();
+  void clear() {
+    beginRequest();
+    state = const NotifierState.idle();
+  }
 }
 
 /// The account the user is entering, and its latest resolution.
@@ -272,6 +278,7 @@ class WithdrawalBankDraftNotifier
     }
 
     _inFlight = true;
+    final token = beginRequest();
     try {
       state = NotifierState.loading(data: draft);
       // The exact values the server resolved, never the raw form fields.
@@ -284,9 +291,11 @@ class WithdrawalBankDraftNotifier
               accountNumber: resolution.accountNumber,
             ),
           );
+      if (!isCurrent(token)) return result;
 
       if (result.isDone) {
         await ref.read(withdrawalBankAccountsProvider.notifier).load();
+        if (!isCurrent(token)) return result;
         state = const NotifierState.idle(data: WithdrawalBankDraft());
         return result;
       }
@@ -307,6 +316,7 @@ class WithdrawalBankDraftNotifier
   }
 
   void clear() {
+    beginRequest();
     _inFlight = false;
     state = const NotifierState.idle(data: WithdrawalBankDraft());
   }
