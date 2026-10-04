@@ -132,6 +132,7 @@ class _Users extends UserService {
         UserOwnProfileData.fromJson(const {
           'userId': 'user-1',
           'email': 'person@example.test',
+          'phoneNumber': '+2348012345678',
           'tier': 1,
           'status': 'active',
           'transactionStatus': 'active',

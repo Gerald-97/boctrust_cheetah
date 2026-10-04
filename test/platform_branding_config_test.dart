@@ -53,11 +53,14 @@ void main() {
       );
     });
 
-    test('has no improvised monochrome icon before design sign-off', () {
-      final monochrome = config['adaptive_icon_monochrome'];
-      if (monochrome != null) {
-        expect(monochrome, 'assets/branding/cheetah_monochrome.svg');
-      }
+    test('themed icon reuses the white silhouette foreground, uninset', () {
+      // Android reads only the alpha of the themed layer, so the white
+      // adaptive foreground doubles as it. Any inset pulls the bleed inside.
+      expect(
+        config['adaptive_icon_monochrome'],
+        'assets/branding/generated/cheetah_adaptive_foreground.png',
+      );
+      expect(config['adaptive_icon_foreground_inset'], 0);
     });
   });
 

@@ -7,6 +7,7 @@ import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
+import 'package:boctrust_savings_loan/module/account/model/user_profile_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/kyc_configuration_fixtures.dart';
@@ -55,6 +56,25 @@ class _Kyc extends KycService with KycConfigurationFixture {
 
 class _Users extends UserService {
   _Users() : super(ApiService(Dio()));
+
+  // KYC only opens once a verified email and phone are on file.
+  @override
+  Future<NotifierState<UserOwnProfileData>> getOwnProfile() async =>
+      NotifierState.done(
+        UserOwnProfileData.fromJson(const {
+          'userId': 'user-1',
+          'email': 'person@example.test',
+          'phoneNumber': '+2348012345678',
+          'tier': 1,
+          'status': 'active',
+          'transactionStatus': 'active',
+          'isVerifiedAccount': true,
+          'isVerifiedEmail': true,
+          'isVerifiedPhoneNumber': true,
+          'isCreatedPassword': true,
+          'isCreatedPin': true,
+        }),
+      );
 
   @override
   Future<NotifierState<UserTierInfoData>> getOwnTier() async =>
