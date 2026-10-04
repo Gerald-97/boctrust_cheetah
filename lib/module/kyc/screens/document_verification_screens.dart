@@ -1,9 +1,9 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of 'kyc_screens.dart';
 
 /// CAC certificate and bank statement upload. File choice and validation
 /// work now; submitting opens the unavailable sheet until each type's upload
 /// contract exists, so no pending or success state can be reached.
-extension DocumentVerificationScreens on AppFlowNavigatorState {
+extension DocumentVerificationScreens on KycScreenState {
   Widget _documentVerificationScreen(DocumentVerificationType type) {
     _assertPlaceholderFor(type.capability, FeatureAvailability.unavailable);
     final state = ref.watch(documentVerificationProvider(type));

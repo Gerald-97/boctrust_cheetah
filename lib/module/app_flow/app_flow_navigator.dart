@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -23,7 +22,6 @@ import '../../app/theme_controller.dart';
 import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
 import '../account/model/user_profile_model.dart';
-import '../account/model/user_tier_model.dart';
 import '../account/model/account_preferences.dart';
 import '../account/provider/account_deletion_provider.dart';
 import '../account/provider/account_preferences_provider.dart';
@@ -45,18 +43,8 @@ import '../core_banking/model/intrabank_models.dart';
 import '../core_banking/provider/core_account_providers.dart';
 import '../core_banking/provider/intrabank_submission_providers.dart';
 import '../core_banking/service/transaction_authorizer.dart';
-import '../kyc/model/document_verification_models.dart';
-import '../kyc/model/kyc_configuration_models.dart';
-import '../kyc/model/kyc_models.dart';
 import '../kyc/model/kyc_contact_requirement.dart';
-import '../kyc/model/kyc_provider_models.dart';
-import '../kyc/model/kyc_status_models.dart';
-import '../kyc/provider/document_verification_provider.dart';
-import '../kyc/provider/kyc_configuration_provider.dart';
-import '../kyc/provider/kyc_providers.dart';
-import '../kyc/provider/kyc_status_provider.dart';
-import '../kyc/screens/smile_id_capture_screen.dart';
-import '../kyc/screens/dojah_capture_screen.dart';
+import '../kyc/screens/kyc_screens.dart';
 import '../account/screens/contact_verification.dart';
 import '../notifications/screens/notifications_screen.dart';
 import '../onboarding/screens/auth_widgets.dart';
@@ -64,8 +52,6 @@ import '../onboarding/screens/login_screens.dart';
 import '../onboarding/screens/recovery_screens.dart';
 import '../onboarding/screens/signup_screens.dart';
 import '../onboarding/screens/startup_screens.dart';
-import '../kyc/service/dojah_config.dart';
-import '../kyc/service/smile_id_gateway.dart';
 import '../component/text_fields.dart';
 import '../component/password_strength_component.dart';
 import '../onboarding/model/auth_enums.dart';
@@ -111,9 +97,6 @@ part '../component/flow_widgets.dart';
 
 part '../component/transaction_widgets.dart';
 part '../component/unavailable_feature_screen.dart';
-
-part '../kyc/screens/kyc_screens.dart';
-part '../kyc/screens/document_verification_screens.dart';
 
 part '../home/screens/home_screen.dart';
 
@@ -170,16 +153,6 @@ class AppFlowNavigator extends ConsumerStatefulWidget {
 }
 
 class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
-  /// Applies a KYC form-state change from the `KycScreens` extension.
-  ///
-  /// `setState` is protected, so an extension in another library calling it
-  /// directly is `invalid_use_of_protected_member`. This is the sanctioned
-  /// seam: the extension asks the State to rebuild, rather than reaching into
-  /// a member it does not own.
-  void refreshKycFormState(VoidCallback update) => setState(update);
-
-  AppLifecycleListener? _lifecycleListener;
-
   late AppScreen _screen = widget.initialScreen;
   final List<AppScreen> _history = <AppScreen>[];
 
@@ -190,46 +163,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _currentSecretController = TextEditingController();
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
-  final _identityNumberController = TextEditingController();
-  final _documentNumberController = TextEditingController();
-  final _governmentIdFormKey = GlobalKey<FormState>();
-
-  /// The document the customer chose, or null before the live catalogue has
-  /// offered one. Resolved against the current catalogue on every build.
-  GovernmentIdDocumentType? _selectedDocumentType;
-  final _addressController = TextEditingController();
-  final _addressStateController = TextEditingController();
-  final _lgaController = TextEditingController();
-  final _utilityProviderController = TextEditingController();
-  final _utilityNumberController = TextEditingController();
-  final _utilityBillFormKey = GlobalKey<FormState>();
-  AutovalidateMode _utilityBillAutovalidate = AutovalidateMode.disabled;
-  UtilityType? _selectedUtilityType;
-  final _identityFormKey = GlobalKey<FormState>();
-  AutovalidateMode _identityAutovalidate = AutovalidateMode.disabled;
-  IdentityType _selectedIdentityType = IdentityType.bvn;
-
-  /// True from a KYC submission until its capture screen is on top. It keeps
-  /// the submit button busy through the work that follows a successful
-  /// initiation, after the notifier has already left its loading state.
-  bool _launchingKycCapture = false;
 
   @override
   void initState() {
     super.initState();
-    // `/account/tier/nin` opens the same BVN form: the identity contract
-    // accepts only BVN, so NIN is never preselected.
-    // A KYC verdict arrives by webhook while the app is backgrounded, so the
-    // authoritative state is re-read on resume. KycAuthoritativeRefresh shares
-    // one in-flight round with the manual Refresh and the post-submission
-    // refresh, so no extra debounce belongs here.
-    _lifecycleListener = AppLifecycleListener(
-      onResume: () {
-        if (!mounted || !_isKycScreen(_screen)) return;
-        ref.read(kycAuthoritativeRefreshProvider)();
-      },
-    );
-
     final message = widget.routeArguments.message;
     if (message != null && message.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -255,27 +192,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     _currentSecretController.dispose();
     _pinController.dispose();
     _confirmPinController.dispose();
-    _identityNumberController.dispose();
-    _documentNumberController.dispose();
-    _addressController.dispose();
-    _addressStateController.dispose();
-    _lgaController.dispose();
-    _utilityProviderController.dispose();
-    _utilityNumberController.dispose();
-    _lifecycleListener?.dispose();
     super.dispose();
   }
 
-  static bool _isKycScreen(AppScreen screen) =>
-      screen == AppScreen.kycIdentity ||
-      screen == AppScreen.kycGovernmentId ||
-      screen == AppScreen.kycUtilityBill ||
-      screen == AppScreen.tiers;
-
   void _go(AppScreen next, {bool replace = false}) {
-    if (_screen == AppScreen.kycIdentity && next != AppScreen.kycIdentity) {
-      ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
-    }
     setState(() {
       if (!replace) _history.add(_screen);
       _screen = next;
@@ -288,7 +208,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     // System Back also reaches this callback while the access gate is loading.
     // It must not fall through to an ungated Home before PIN status is known.
     if (_isSavingsDestination && !_hasSavingsAccess) return;
-    _cancelFlowForScreen(_screen);
     if (_history.isNotEmpty) {
       setState(() {
         _screen = _history.removeLast();
@@ -308,26 +227,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         _screen == AppScreen.saveHub ? AppScreen.home : AppScreen.saveHub,
         replace: true,
       );
-    }
-  }
-
-  /// Returns to the tier list once a KYC step has been submitted.
-  ///
-  /// The step screens are opened from that list, so it is where the user
-  /// expects to land, and the card their submission changes lives there. The
-  /// path taken to the step is dropped so Back does not lead to a form that
-  /// has already been sent. When the list is not in this navigator's history
-  /// — the step was deep-linked, as `/account/tier/bvn` is — the step screen
-  /// is replaced by it instead.
-  void _returnToTierList() {
-    final index = _history.lastIndexOf(AppScreen.tiers);
-    if (index >= 0) _history.removeRange(index, _history.length);
-    _go(AppScreen.tiers, replace: true);
-  }
-
-  void _cancelFlowForScreen(AppScreen screen) {
-    if (screen == AppScreen.kycIdentity) {
-      ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
     }
   }
 
@@ -378,11 +277,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     return PopScope(
       canPop: canExit && (!_isSavingsDestination || _hasSavingsAccess),
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
-          _cancelFlowForScreen(_screen);
-        } else {
-          _back();
-        }
+        if (!didPop) _back();
       },
       child: _isSavingsDestination
           ? SavingsAccessGate(
@@ -460,16 +355,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   Widget _buildScreen(AppScreen screen) {
     switch (screen) {
-      case AppScreen.tiers:
-        return _tiersScreen();
-      case AppScreen.kycIdentity:
-        return _kycIdentityScreen();
-      case AppScreen.kycGovernmentId:
-        return _kycGovernmentIdScreen();
-      case AppScreen.nextOfKin:
-        return _nextOfKinScreen();
-      case AppScreen.kycUtilityBill:
-        return _kycUtilityBillScreen();
       case AppScreen.securityCenter:
         return _securityCenterScreen();
       case AppScreen.deleteAccount:
@@ -494,12 +379,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _notificationPreferencesScreen();
       case AppScreen.accessibilityPreferences:
         return _accessibilityPreferencesScreen();
-      case AppScreen.kycCacDocument:
-        return _documentVerificationScreen(DocumentVerificationType.cac);
-      case AppScreen.kycBankStatement:
-        return _documentVerificationScreen(
-          DocumentVerificationType.bankStatement,
-        );
       case AppScreen.linkedBanks:
         return _linkedBankAccountsScreen();
       case AppScreen.home:

@@ -1,12 +1,6 @@
 part of 'app_flow_navigator.dart';
 
 enum AppScreen {
-  tiers,
-  kycIdentity,
-  kycGovernmentId,
-  kycUtilityBill,
-  kycCacDocument,
-  kycBankStatement,
   securityCenter,
   deleteAccount,
   accountStatement,
@@ -19,7 +13,6 @@ enum AppScreen {
   smartSaveCreate,
   fixedDepositCreate,
   padiCreate,
-  nextOfKin,
   linkedBanks,
   home,
   saveHub,
@@ -225,18 +218,20 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
 
   // Account and verification.
   AppRoutes.account: AppRouteDefinition(AppScreen.account),
-  AppRoutes.tierOverview: AppRouteDefinition(AppScreen.tiers),
+  AppRoutes.tierOverview: AppRouteDefinition.page(KycTiersScreen.new),
   // Compatibility routes: both open the identity screen, preselecting the
   // identity type rather than standing for a whole tier.
-  AppRoutes.tier1Bvn: AppRouteDefinition(AppScreen.kycIdentity),
-  AppRoutes.tier2Nin: AppRouteDefinition(AppScreen.kycIdentity),
-  AppRoutes.governmentIdVerification: AppRouteDefinition(
-    AppScreen.kycGovernmentId,
+  AppRoutes.tier1Bvn: AppRouteDefinition.page(KycIdentityScreen.new),
+  AppRoutes.tier2Nin: AppRouteDefinition.page(KycIdentityScreen.new),
+  AppRoutes.governmentIdVerification: AppRouteDefinition.page(
+    KycGovernmentIdScreen.new,
   ),
-  AppRoutes.nextOfKin: AppRouteDefinition(AppScreen.nextOfKin),
-  AppRoutes.tier3Address: AppRouteDefinition(AppScreen.kycUtilityBill),
-  AppRoutes.kycCacDocument: AppRouteDefinition(AppScreen.kycCacDocument),
-  AppRoutes.kycBankStatement: AppRouteDefinition(AppScreen.kycBankStatement),
+  AppRoutes.nextOfKin: AppRouteDefinition.page(NextOfKinScreen.new),
+  AppRoutes.tier3Address: AppRouteDefinition.page(KycUtilityBillScreen.new),
+  AppRoutes.kycCacDocument: AppRouteDefinition.page(KycDocumentScreen.cac),
+  AppRoutes.kycBankStatement: AppRouteDefinition.page(
+    KycDocumentScreen.bankStatement,
+  ),
   AppRoutes.manageBeneficiaries: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Beneficiaries',

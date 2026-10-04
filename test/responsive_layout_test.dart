@@ -67,10 +67,6 @@ void main() {
             for (final screen in [
               AppScreen.home,
               AppScreen.account,
-              AppScreen.tiers,
-              AppScreen.kycIdentity,
-              AppScreen.kycGovernmentId,
-              AppScreen.kycUtilityBill,
               AppScreen.linkedBanks,
               AppScreen.saveHub,
               AppScreen.flex,
@@ -78,17 +74,21 @@ void main() {
             ])
               (screen: screen, route: null, populated: true, keyboard: false),
             for (final route in [
+              AppRoutes.tierOverview,
+              AppRoutes.tier1Bvn,
+              AppRoutes.governmentIdVerification,
+              AppRoutes.tier3Address,
+            ])
+              (screen: null, route: route, populated: true, keyboard: false),
+            for (final route in [
               AppRoutes.login,
               AppRoutes.createPassword,
               AppRoutes.otp,
               AppRoutes.createFirstPin,
+              AppRoutes.governmentIdVerification,
+              AppRoutes.tier3Address,
             ])
               (screen: null, route: route, populated: false, keyboard: true),
-            for (final screen in [
-              AppScreen.kycGovernmentId,
-              AppScreen.kycUtilityBill,
-            ])
-              (screen: screen, route: null, populated: false, keyboard: true),
           ];
       for (final scenario in scenarios) {
         testWidgets('$scenario at $size text $scale', (tester) async {

@@ -1,6 +1,286 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'dart:async';
 
-extension KycScreens on AppFlowNavigatorState {
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
+
+import '../../../app/api_logger.dart';
+import '../../../app/app_router.dart';
+import '../../../app/feature_capability.dart';
+import '../../../app/response_handler.dart';
+import '../../../app/services.dart';
+import '../../../app/theme.dart';
+import '../../account/model/user_profile_model.dart';
+import '../../account/model/user_tier_model.dart';
+import '../../account/provider/user_providers.dart';
+import '../../account/screens/contact_verification.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../component/text_fields.dart';
+import '../model/document_verification_models.dart';
+import '../model/kyc_configuration_models.dart';
+import '../model/kyc_contact_requirement.dart';
+import '../model/kyc_models.dart';
+import '../model/kyc_provider_models.dart';
+import '../model/kyc_status_models.dart';
+import '../provider/document_verification_provider.dart';
+import '../provider/kyc_configuration_provider.dart';
+import '../provider/kyc_providers.dart';
+import '../provider/kyc_status_provider.dart';
+import '../service/dojah_config.dart';
+import '../service/smile_id_gateway.dart';
+import 'dojah_capture_screen.dart';
+import 'smile_id_capture_screen.dart';
+
+part 'document_verification_screens.dart';
+
+/// Account tiers and the tier list.
+class KycTiersScreen extends ConsumerStatefulWidget {
+  const KycTiersScreen({super.key});
+
+  @override
+  ConsumerState<KycTiersScreen> createState() => _KycTiersScreenState();
+}
+
+class _KycTiersScreenState extends KycScreenState<KycTiersScreen> {
+  /// Tier lists currently in the navigator, newest last. A submitted step
+  /// returns to the nearest one instead of stacking another.
+  static final _open = <ModalRoute<Object?>>[];
+  ModalRoute<Object?>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route != _route) {
+      _open.remove(_route);
+      _open.add(route);
+      _route = route;
+    }
+  }
+
+  @override
+  void dispose() {
+    _open.remove(_route);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _tiersScreen();
+}
+
+/// BVN/NIN verification (tier 1).
+class KycIdentityScreen extends ConsumerStatefulWidget {
+  const KycIdentityScreen({super.key});
+
+  @override
+  ConsumerState<KycIdentityScreen> createState() => _KycIdentityScreenState();
+}
+
+class _KycIdentityScreenState extends KycScreenState<KycIdentityScreen> {
+  /// Leaving the form drops a pending client-side request so a late response
+  /// cannot block or overwrite a later attempt. The server job stays
+  /// resumable.
+  @override
+  void _onLeave() =>
+      ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    onPopInvokedWithResult: (didPop, _) {
+      if (didPop) _onLeave();
+    },
+    child: _kycIdentityScreen(),
+  );
+}
+
+/// Government-issued ID (tier 2).
+class KycGovernmentIdScreen extends ConsumerStatefulWidget {
+  const KycGovernmentIdScreen({super.key});
+
+  @override
+  ConsumerState<KycGovernmentIdScreen> createState() =>
+      _KycGovernmentIdScreenState();
+}
+
+class _KycGovernmentIdScreenState
+    extends KycScreenState<KycGovernmentIdScreen> {
+  @override
+  Widget build(BuildContext context) => _kycGovernmentIdScreen();
+}
+
+/// Address and utility bill (tier 3).
+class KycUtilityBillScreen extends ConsumerStatefulWidget {
+  const KycUtilityBillScreen({super.key});
+
+  @override
+  ConsumerState<KycUtilityBillScreen> createState() =>
+      _KycUtilityBillScreenState();
+}
+
+class _KycUtilityBillScreenState extends KycScreenState<KycUtilityBillScreen> {
+  @override
+  Widget build(BuildContext context) => _kycUtilityBillScreen();
+}
+
+class NextOfKinScreen extends ConsumerStatefulWidget {
+  const NextOfKinScreen({super.key});
+
+  @override
+  ConsumerState<NextOfKinScreen> createState() => _NextOfKinScreenState();
+}
+
+class _NextOfKinScreenState extends KycScreenState<NextOfKinScreen> {
+  @override
+  bool get _refreshesOnResume => false;
+
+  @override
+  Widget build(BuildContext context) => _nextOfKinScreen();
+}
+
+/// CAC certificate or bank statement upload.
+class KycDocumentScreen extends ConsumerStatefulWidget {
+  const KycDocumentScreen.cac({super.key})
+    : type = DocumentVerificationType.cac;
+  const KycDocumentScreen.bankStatement({super.key})
+    : type = DocumentVerificationType.bankStatement;
+
+  final DocumentVerificationType type;
+
+  @override
+  ConsumerState<KycDocumentScreen> createState() => _KycDocumentScreenState();
+}
+
+class _KycDocumentScreenState extends KycScreenState<KycDocumentScreen> {
+  @override
+  bool get _refreshesOnResume => false;
+
+  @override
+  Widget build(BuildContext context) =>
+      _documentVerificationScreen(widget.type);
+}
+
+/// Form state and navigation shared by the KYC screens.
+abstract class KycScreenState<W extends ConsumerStatefulWidget>
+    extends ConsumerState<W> {
+  AppLifecycleListener? _lifecycleListener;
+
+  final _identityNumberController = TextEditingController();
+  final _identityFormKey = GlobalKey<FormState>();
+  AutovalidateMode _identityAutovalidate = AutovalidateMode.disabled;
+  IdentityType _selectedIdentityType = IdentityType.bvn;
+
+  final _documentNumberController = TextEditingController();
+  final _governmentIdFormKey = GlobalKey<FormState>();
+
+  /// The document the customer chose, or null before the live catalogue has
+  /// offered one. Resolved against the current catalogue on every build.
+  GovernmentIdDocumentType? _selectedDocumentType;
+
+  final _addressController = TextEditingController();
+  final _addressStateController = TextEditingController();
+  final _lgaController = TextEditingController();
+  final _utilityProviderController = TextEditingController();
+  final _utilityNumberController = TextEditingController();
+  final _utilityBillFormKey = GlobalKey<FormState>();
+  AutovalidateMode _utilityBillAutovalidate = AutovalidateMode.disabled;
+  UtilityType? _selectedUtilityType;
+
+  /// True from a KYC submission until its capture screen is on top. It keeps
+  /// the submit button busy through the work that follows a successful
+  /// initiation, after the notifier has already left its loading state.
+  bool _launchingKycCapture = false;
+
+  /// A KYC verdict arrives by webhook while the app is backgrounded, so the
+  /// authoritative state is re-read on resume. KycAuthoritativeRefresh shares
+  /// one in-flight round with the manual Refresh and the post-submission
+  /// refresh, so no extra debounce belongs here.
+  bool get _refreshesOnResume => true;
+
+  /// Runs when this screen is left for another destination.
+  void _onLeave() {}
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        if (!mounted || !_refreshesOnResume) return;
+        ref.read(kycAuthoritativeRefreshProvider)();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    _identityNumberController.dispose();
+    _documentNumberController.dispose();
+    _addressController.dispose();
+    _addressStateController.dispose();
+    _lgaController.dispose();
+    _utilityProviderController.dispose();
+    _utilityNumberController.dispose();
+    super.dispose();
+  }
+
+  void refreshKycFormState(VoidCallback update) => setState(update);
+
+  void _showMessage(String message) => ResponseHandler.showInfo(message);
+  void _showErrorMessage(String message) => ResponseHandler.showError(message);
+  void _showSuccessMessage(String message) =>
+      ResponseHandler.showSuccess(message);
+
+  /// Opens another KYC destination on top of this one.
+  void _go(String route) {
+    _onLeave();
+    Navigator.of(context).pushNamed(route);
+  }
+
+  void _back() {
+    _onLeave();
+    Navigator.of(context).maybePop();
+  }
+
+  /// A tab replaces this page with the section hub, like a flow tab switch.
+  void _goSection(AppSection section) {
+    _onLeave();
+    Navigator.of(context).pushReplacementNamed(appRouteForSection(section));
+  }
+
+  /// Returns to the tier list once a KYC step has been submitted.
+  ///
+  /// The step screens are opened from that list, so it is where the user
+  /// expects to land, and the card their submission changes lives there. The
+  /// path taken to the step is dropped so Back does not lead to a form that
+  /// has already been sent. When no tier list is open — the step was
+  /// deep-linked, as `/account/tier/bvn` is — the step is replaced by one.
+  void _returnToTierList() {
+    final navigator = Navigator.of(context);
+    final open = _KycTiersScreenState._open.where((route) => route.isActive);
+    if (open.isNotEmpty) {
+      final target = open.last;
+      navigator.popUntil((route) => route == target);
+    } else {
+      navigator.pushReplacementNamed(AppRoutes.tierOverview);
+    }
+  }
+
+  /// A placeholder may only stand in for a capability the registry still
+  /// reports in [expected].
+  void _assertPlaceholderFor(
+    FeatureCapability capability,
+    FeatureAvailability expected,
+  ) {
+    assert(
+      ref.read(featureAvailabilityProvider(capability)) == expected,
+      '$capability is no longer $expected but still shows a placeholder.',
+    );
+  }
+}
+
+extension KycScreens on KycScreenState {
   /// Watches the authoritative status, loading it the first time a KYC screen
   /// opens.
   ///
@@ -295,12 +575,12 @@ extension KycScreens on AppFlowNavigatorState {
               for (final (type, route, icon) in const [
                 (
                   DocumentVerificationType.cac,
-                  AppScreen.kycCacDocument,
+                  AppRoutes.kycCacDocument,
                   IconsaxPlusLinear.building,
                 ),
                 (
                   DocumentVerificationType.bankStatement,
-                  AppScreen.kycBankStatement,
+                  AppRoutes.kycBankStatement,
                   IconsaxPlusLinear.receipt_item,
                 ),
               ])
@@ -343,7 +623,7 @@ extension KycScreens on AppFlowNavigatorState {
         return null;
       case TierCardStatus.inProgress:
         VoidCallback guarded(
-          AppScreen screen,
+          String screen,
           KycVerificationStatus? Function(KycStatusData) step,
         ) => () async {
           final status = ref.read(kycStatusProvider).data;
@@ -355,9 +635,12 @@ extension KycScreens on AppFlowNavigatorState {
         };
 
         return switch (card.tier) {
-          1 => guarded(AppScreen.kycIdentity, (s) => s.identity.status),
-          2 => guarded(AppScreen.kycGovernmentId, (s) => s.governmentId.status),
-          3 => guarded(AppScreen.kycUtilityBill, (s) => s.utilityBill.status),
+          1 => guarded(AppRoutes.tier1Bvn, (s) => s.identity.status),
+          2 => guarded(
+            AppRoutes.governmentIdVerification,
+            (s) => s.governmentId.status,
+          ),
+          3 => guarded(AppRoutes.tier3Address, (s) => s.utilityBill.status),
           _ => null,
         };
       case TierCardStatus.locked:
@@ -1433,7 +1716,7 @@ extension KycScreens on AppFlowNavigatorState {
                       'the review completes.',
               tone: ApiStateTone.info,
               actionLabel: 'Back to tiers',
-              onAction: () => _go(AppScreen.tiers),
+              onAction: () => _go(AppRoutes.tierOverview),
             )
           else ...[
             _utilityBillForm(flow, busy),

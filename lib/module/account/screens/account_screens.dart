@@ -234,7 +234,8 @@ extension AccountScreens on AppFlowNavigatorState {
                   icon: IconsaxPlusLinear.shield_tick,
                   title: 'Account tier',
                   subtitle: 'Tier ${profile?.tier ?? '—'} · View limits',
-                  onTap: () => _go(AppScreen.tiers),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.tierOverview),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.trend_up,

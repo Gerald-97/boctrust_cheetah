@@ -113,7 +113,8 @@ extension HomeScreen on AppFlowNavigatorState {
               const SizedBox(height: BocSpace.sm),
               contactRequirementCard(
                 profile,
-                onVerified: () => _go(AppScreen.tiers),
+                onVerified: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.tierOverview),
               ),
             ],
             const SizedBox(height: BocSpace.sm),
@@ -195,7 +196,9 @@ extension HomeScreen on AppFlowNavigatorState {
                     const SizedBox(height: BocSpace.sm),
                     SecondaryButton(
                       label: 'Complete KYC',
-                      onPressed: () => _go(AppScreen.tiers),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.tierOverview),
                     ),
                   ],
                 ),

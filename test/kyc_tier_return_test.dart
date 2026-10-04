@@ -20,8 +20,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boctrust_savings_loan/module/onboarding/model/auth_session.dart';
+import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
+
 import 'support/kyc_configuration_fixtures.dart';
 import 'support/flow_harness.dart';
+import 'support/savings_fixtures.dart';
 
 Map<String, Object?> _limit(String display) => {
   'value': null,
@@ -155,6 +159,12 @@ class _Users extends UserService {
   }
 }
 
+/// Signed in as the same user [_Users] returns a profile for.
+class _Session extends SavingsSession {
+  @override
+  AuthSession? build() => savingsSession(user: 'user-1');
+}
+
 class _Home extends HomeService {
   _Home() : super(ApiService(Dio()));
 
@@ -210,6 +220,8 @@ void main() {
       tester,
       route: route,
       overrides: [
+        // Tier and step pages are private routes: each push passes the gate.
+        authSessionProvider.overrideWith(_Session.new),
         kycServiceProvider.overrideWithValue(kyc),
         userServiceProvider.overrideWithValue(users),
         homeServiceProvider.overrideWithValue(_Home()),
