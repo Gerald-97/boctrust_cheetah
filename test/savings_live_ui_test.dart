@@ -5,7 +5,6 @@ import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
 import 'support/savings_fixtures.dart';
 
@@ -146,7 +147,8 @@ void main() {
         ],
         child: MaterialApp(
           theme: CheetahTheme.lightTheme,
-          home: const AppFlowNavigator(initialScreen: AppScreen.saveHub),
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          home: appHome(route: AppRoutes.savingsHub),
         ),
       ),
     );

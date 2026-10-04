@@ -1,6 +1,5 @@
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
@@ -10,6 +9,7 @@ import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_pr
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
 import 'support/savings_fixtures.dart';
@@ -79,7 +79,7 @@ class _Home extends LayoutHome {
 
 Future<void> _pump(
   WidgetTester tester,
-  AppScreen screen, {
+  String route, {
   required NotifierState<CustomerBankAccountsData> accounts,
 }) async {
   tester.view.physicalSize = const Size(800, 2000);
@@ -88,7 +88,7 @@ Future<void> _pump(
   addTearDown(tester.view.resetDevicePixelRatio);
   await pumpFlow(
     tester,
-    screen: screen,
+    route: route,
     overrides: [
       authSessionProvider.overrideWith(SavingsSession.new),
       userProfileProvider.overrideWith(LayoutProfile.new),
@@ -106,7 +106,7 @@ void main() {
   ) async {
     await _pump(
       tester,
-      AppScreen.home,
+      AppRoutes.home,
       accounts: NotifierState.done(_accounts),
     );
 
@@ -121,7 +121,7 @@ void main() {
   ) async {
     await _pump(
       tester,
-      AppScreen.home,
+      AppRoutes.home,
       accounts: const NotifierState.error('Core is down'),
     );
 
@@ -136,7 +136,7 @@ void main() {
   ) async {
     await _pump(
       tester,
-      AppScreen.saveHub,
+      AppRoutes.savingsHub,
       accounts: NotifierState.done(_accounts),
     );
 

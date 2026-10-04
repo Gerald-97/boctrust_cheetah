@@ -2,7 +2,6 @@ import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/helper/notification_navigator.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,7 +50,6 @@ void main() {
   ) async {
     await pumpFlow(
       tester,
-      screen: AppScreen.home,
       route: AppRoutes.home,
       overrides: [
         // Notifications is a private route: its gate needs a session.

@@ -1,6 +1,167 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'dart:async';
 
-extension SavingsScreens on AppFlowNavigatorState {
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
+import 'package:intl/intl.dart' show DateFormat;
+
+import '../../../app/app_router.dart';
+import '../../../app/boc_icons.dart';
+import '../../../app/feature_capability.dart';
+import '../../../app/services.dart';
+import '../../../app/theme.dart';
+import '../../../utils/utils.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/flow_page.dart';
+import '../../core_banking/model/bank_product_models.dart';
+import '../../core_banking/model/customer_bank_account_models.dart';
+import '../../core_banking/model/flex_balance.dart';
+import '../../core_banking/provider/core_account_providers.dart';
+import '../../home/model/user_home_model.dart';
+import '../../home/provider/home_provider.dart';
+import '../../home/screens/home_screen.dart';
+import '../../onboarding/provider/auth_session_provider.dart';
+import '../model/savings_plan_models.dart';
+import '../provider/savings_plan_provider.dart';
+
+part 'savings_plan_screens.dart';
+
+/// Savings pages: Back with nothing beneath returns to the Savings hub, and
+/// the hub to Home.
+abstract class _SavingsPageState<W extends ConsumerStatefulWidget>
+    extends FlowPageState<W> {
+  @override
+  void onNothingToPop() => goReplacing(AppRoutes.savingsHub);
+
+  @override
+  Widget build(BuildContext context) => popScope(buildPage(context));
+
+  Widget buildPage(BuildContext context);
+}
+
+/// Hub and funding pages refresh the User Home aggregate on entry; funding
+/// always, the others only when it has never loaded.
+abstract class _HomeDataPageState<W extends ConsumerStatefulWidget>
+    extends _SavingsPageState<W> {
+  bool get _isFunding => false;
+
+  @override
+  void initState() {
+    super.initState();
+    final session = ref.read(authSessionProvider);
+    if (session == null || session.isExpired) return;
+    if (!_isFunding &&
+        ref.read(userHomeProvider).status != ServiceStatus.idle) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          ref.read(authSessionProvider)?.accessToken == session.accessToken) {
+        unawaited(ref.read(userHomeProvider.notifier).load());
+      }
+    });
+  }
+}
+
+class SaveHubScreen extends ConsumerStatefulWidget {
+  const SaveHubScreen({super.key});
+
+  @override
+  ConsumerState<SaveHubScreen> createState() => _SaveHubScreenState();
+}
+
+class _SaveHubScreenState extends _HomeDataPageState<SaveHubScreen> {
+  @override
+  void onNothingToPop() => goReplacing(AppRoutes.home);
+
+  @override
+  Widget buildPage(BuildContext context) => _saveHubScreen();
+}
+
+class FlexScreen extends ConsumerStatefulWidget {
+  const FlexScreen({super.key});
+
+  @override
+  ConsumerState<FlexScreen> createState() => _FlexScreenState();
+}
+
+class _FlexScreenState extends _HomeDataPageState<FlexScreen> {
+  @override
+  Widget buildPage(BuildContext context) => _flexScreen();
+}
+
+/// Bank-transfer funding details; also behind the Flex top-up route.
+class AddMoneyScreen extends ConsumerStatefulWidget {
+  const AddMoneyScreen({super.key});
+
+  @override
+  ConsumerState<AddMoneyScreen> createState() => _AddMoneyScreenState();
+}
+
+class _AddMoneyScreenState extends _HomeDataPageState<AddMoneyScreen> {
+  @override
+  bool get _isFunding => true;
+
+  @override
+  Widget buildPage(BuildContext context) => _addMoneyScreen();
+}
+
+/// Target, Fixed Deposit and Group savings, none of which are built yet.
+class SavingsProductScreen extends ConsumerStatefulWidget {
+  const SavingsProductScreen.target({super.key}) : title = 'Target Savings';
+  const SavingsProductScreen.lock({super.key}) : title = 'Fixed Deposit';
+  const SavingsProductScreen.group({super.key}) : title = 'Group Savings';
+
+  final String title;
+
+  @override
+  ConsumerState<SavingsProductScreen> createState() =>
+      _SavingsProductScreenState();
+}
+
+class _SavingsProductScreenState
+    extends _SavingsPageState<SavingsProductScreen> {
+  @override
+  Widget buildPage(BuildContext context) => _savingsUnavailableScreen(
+    capability: FeatureCapability.savingsPlansView,
+    title: widget.title,
+    message: '${widget.title} is unavailable in this release.',
+  );
+}
+
+class SavingsPlanDetailScreen extends ConsumerStatefulWidget {
+  const SavingsPlanDetailScreen({super.key});
+
+  @override
+  ConsumerState<SavingsPlanDetailScreen> createState() =>
+      _SavingsPlanDetailScreenState();
+}
+
+class _SavingsPlanDetailScreenState
+    extends _SavingsPageState<SavingsPlanDetailScreen> {
+  @override
+  Widget buildPage(BuildContext context) => _savingsPlanDetailScreen();
+}
+
+/// The create wizard for SmartSave, Fixed Deposit or Padi.
+class PlanCreationScreen extends ConsumerStatefulWidget {
+  const PlanCreationScreen.smartSave({super.key})
+    : type = SavingsProductType.smartSave;
+  const PlanCreationScreen.fixed({super.key}) : type = SavingsProductType.fixed;
+  const PlanCreationScreen.padi({super.key}) : type = SavingsProductType.padi;
+
+  final SavingsProductType type;
+
+  @override
+  ConsumerState<PlanCreationScreen> createState() => _PlanCreationScreenState();
+}
+
+class _PlanCreationScreenState extends _SavingsPageState<PlanCreationScreen> {
+  @override
+  Widget buildPage(BuildContext context) => _planCreationScreen(widget.type);
+}
+
+extension SavingsScreens on FlowPageState {
   Future<void> _refreshSavings() async {
     await Future.wait([
       ref.read(userHomeProvider.notifier).load(),
@@ -176,7 +337,7 @@ extension SavingsScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Save',
       activeSection: AppSection.save,
-      onSectionSelected: _goSection,
+      onSectionSelected: goSection,
       actions: [
         IconButton(
           tooltip: 'Refresh',
@@ -212,7 +373,7 @@ extension SavingsScreens on AppFlowNavigatorState {
                   currency: 'NGN',
                 ),
                 hidden: hidden,
-                onTap: () => _go(AppScreen.flex),
+                onTap: () => go(AppRoutes.flexSave),
               )
             else if (accounts != null || homeState.data != null)
               const ApiStateCard(
@@ -322,10 +483,10 @@ extension SavingsScreens on AppFlowNavigatorState {
       );
       return;
     }
-    _go(switch (type) {
-      SavingsProductType.fixed => AppScreen.fixedDepositCreate,
-      SavingsProductType.padi => AppScreen.padiCreate,
-      _ => AppScreen.smartSaveCreate,
+    go(switch (type) {
+      SavingsProductType.fixed => AppRoutes.lockCreate,
+      SavingsProductType.padi => AppRoutes.groupCreate,
+      _ => AppRoutes.targetSaveCreate,
     });
   }
 
@@ -333,7 +494,7 @@ extension SavingsScreens on AppFlowNavigatorState {
   /// can be created.
   Widget _planCreationScreen(SavingsProductType type) {
     if (_canCreatePlan(type)) {
-      return _SavingsPlanWizard(type: type, onExit: _back);
+      return _SavingsPlanWizard(type: type, onExit: back);
     }
     return _savingsUnavailableScreen(
       capability: type.createCapability!,
@@ -347,8 +508,8 @@ extension SavingsScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Add money',
       activeSection: AppSection.payments,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       actions: [_savingsRefreshAction(home)],
       body: RefreshIndicator(
         onRefresh: _refreshSavings,
@@ -358,7 +519,7 @@ extension SavingsScreens on AppFlowNavigatorState {
           children: [
             ..._savingsLoadStatus(home),
             if (home.data != null || home.isDone)
-              _dedicatedVirtualAccountCard(home.data?.dedicatedVirtualAccount),
+              dedicatedVirtualAccountCard(home.data?.dedicatedVirtualAccount),
           ],
         ),
       ),
@@ -387,8 +548,8 @@ extension SavingsScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Boc Flex Savings',
       activeSection: AppSection.save,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       actions: [
         IconButton(
           tooltip: 'Refresh',
@@ -429,7 +590,7 @@ extension SavingsScreens on AppFlowNavigatorState {
                     ref.read(homeBalanceHiddenProvider.notifier).toggle(),
                 primary: PrimaryButton(
                   label: 'Add money',
-                  onPressed: () => _go(AppScreen.addMoney),
+                  onPressed: () => go(AppRoutes.addMoney),
                 ),
                 secondary: canWithdraw
                     ? SecondaryButton(label: 'Withdraw', onPressed: () {})
@@ -457,7 +618,7 @@ extension SavingsScreens on AppFlowNavigatorState {
     required FeatureCapability capability,
     required String title,
     required String message,
-  }) => _unavailableScreen(
+  }) => unavailablePage(
     UnavailableDestination(
       title: title,
       heading: 'Unavailable',
@@ -465,21 +626,5 @@ extension SavingsScreens on AppFlowNavigatorState {
       section: AppSection.save,
       capability: capability,
     ),
-  );
-
-  Widget _targetScreen() => _savingsUnavailableScreen(
-    capability: FeatureCapability.savingsPlansView,
-    title: 'Target Savings',
-    message: 'Target Savings is unavailable in this release.',
-  );
-  Widget _lockScreen() => _savingsUnavailableScreen(
-    capability: FeatureCapability.savingsPlansView,
-    title: 'Fixed Deposit',
-    message: 'Fixed Deposit is unavailable in this release.',
-  );
-  Widget _groupScreen() => _savingsUnavailableScreen(
-    capability: FeatureCapability.savingsPlansView,
-    title: 'Group Savings',
-    message: 'Group Savings is unavailable in this release.',
   );
 }

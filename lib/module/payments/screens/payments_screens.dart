@@ -30,7 +30,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
             title: 'Add money',
             subtitle: 'Top up your wallet by bank transfer',
             color: BocColors.goldLight,
-            onTap: () => _go(AppScreen.addMoney),
+            onTap: () => Navigator.of(context).pushNamed(AppRoutes.addMoney),
           ),
           const SizedBox(height: BocSpace.lg),
           Padding(

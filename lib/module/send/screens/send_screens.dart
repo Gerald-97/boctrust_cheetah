@@ -135,7 +135,8 @@ extension SendScreens on AppFlowNavigatorState {
       onSectionSelected: _goSection,
       action: destination.section == AppSection.save
           ? OutlinedButton(
-              onPressed: () => _go(AppScreen.saveHub),
+              onPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.savingsHub),
               child: const Text('Back to Savings'),
             )
           : null,

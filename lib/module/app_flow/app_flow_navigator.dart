@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
-import '../../app/api_logger.dart';
 import '../../app/app_router.dart';
 import '../../app/boc_icons.dart';
 import '../../app/auth_navigation_provider.dart';
@@ -30,15 +29,11 @@ import '../account/model/withdrawal_bank_models.dart';
 import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
-import '../savings/model/savings_plan_models.dart';
 import '../send/model/transaction_models.dart';
 import '../send/provider/transaction_provider.dart';
-import '../savings/provider/savings_plan_provider.dart';
-import '../core_banking/model/bank_product_models.dart';
 import '../core_banking/model/core_money.dart';
 import '../core_banking/model/core_submission_models.dart';
 import '../core_banking/model/customer_bank_account_models.dart';
-import '../core_banking/model/flex_balance.dart';
 import '../core_banking/model/intrabank_models.dart';
 import '../core_banking/provider/core_account_providers.dart';
 import '../core_banking/provider/intrabank_submission_providers.dart';
@@ -46,7 +41,9 @@ import '../core_banking/service/transaction_authorizer.dart';
 import '../kyc/model/kyc_contact_requirement.dart';
 import '../kyc/screens/kyc_screens.dart';
 import '../account/screens/contact_verification.dart';
+import '../home/screens/home_screen.dart';
 import '../notifications/screens/notifications_screen.dart';
+import '../savings/screens/savings_screens.dart';
 import '../onboarding/screens/auth_widgets.dart';
 import '../onboarding/screens/login_screens.dart';
 import '../onboarding/screens/recovery_screens.dart';
@@ -98,11 +95,7 @@ part '../component/flow_widgets.dart';
 part '../component/transaction_widgets.dart';
 part '../component/unavailable_feature_screen.dart';
 
-part '../home/screens/home_screen.dart';
-
-part '../savings/screens/savings_screens.dart';
 part '../savings/screens/savings_access_gate.dart';
-part '../savings/screens/savings_plan_screens.dart';
 
 part '../send/screens/send_screens.dart';
 part '../send/screens/transaction_flow_screens.dart';
@@ -138,7 +131,7 @@ class AppFlowRouteScreen extends StatelessWidget {
 
 class AppFlowNavigator extends ConsumerStatefulWidget {
   const AppFlowNavigator({
-    this.initialScreen = AppScreen.home,
+    this.initialScreen = AppScreen.unavailable,
     this.initialRouteName,
     this.routeArguments = const AppRouteArguments(),
     super.key,
@@ -199,15 +192,10 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     setState(() {
       if (!replace) _history.add(_screen);
       _screen = next;
-      _savingsLoadedFor = null;
-      _savingsAuthorizedFor = null;
     });
   }
 
   void _back() {
-    // System Back also reaches this callback while the access gate is loading.
-    // It must not fall through to an ungated Home before PIN status is known.
-    if (_isSavingsDestination && !_hasSavingsAccess) return;
     if (_history.isNotEmpty) {
       setState(() {
         _screen = _history.removeLast();
@@ -223,23 +211,13 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
     // Nothing to pop: a savings page falls back to its hub.
     if (_isSavingsDestination) {
-      _go(
-        _screen == AppScreen.saveHub ? AppScreen.home : AppScreen.saveHub,
-        replace: true,
-      );
+      navigator.pushReplacementNamed(AppRoutes.savingsHub);
     }
   }
 
-  void _goSection(AppSection section) {
-    final target = switch (section) {
-      AppSection.home => AppScreen.home,
-      AppSection.save => AppScreen.saveHub,
-      AppSection.send => AppScreen.sendHub,
-      AppSection.payments => AppScreen.payments,
-      AppSection.account => AppScreen.account,
-    };
-    _go(target, replace: true);
-  }
+  /// A tab replaces this page with the section hub.
+  void _goSection(AppSection section) =>
+      Navigator.of(context).pushReplacementNamed(appRouteForSection(section));
 
   void _showMessage(String message) {
     ResponseHandler.showInfo(message);
@@ -266,92 +244,20 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isSavingsDestination) {
-      // Keep the native Back policy reactive even on static unavailable pages.
-      ref.watch(authSessionProvider);
-      ref.watch(userProfileProvider);
-    }
-    final canExit =
-        Navigator.of(context).canPop() ||
-        (_screen == AppScreen.home && _history.isEmpty);
     return PopScope(
-      canPop: canExit && (!_isSavingsDestination || _hasSavingsAccess),
+      canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _back();
       },
-      child: _isSavingsDestination
-          ? SavingsAccessGate(
-              onSignedOut: () => _redirectSavingsAuth(AppRoutes.login),
-              onCreatePin: () => _redirectSavingsAuth(AppRoutes.createFirstPin),
-              builder: (_) {
-                _savingsAuthorizedFor = ref
-                    .read(authSessionProvider)
-                    ?.accessToken;
-                _ensureSavingsLoaded();
-                return _buildScreen(_screen);
-              },
-            )
-          : _buildScreen(_screen),
+      child: _buildScreen(_screen),
     );
   }
 
-  String? _savingsLoadedFor;
-  String? _savingsAuthorizedFor;
-
-  void _redirectSavingsAuth(String route) {
-    // Do not leave a private route beneath login/PIN setup in either stack.
-    _history.clear();
-    Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
-  }
-
-  bool get _hasSavingsAccess {
-    final session = ref.read(authSessionProvider);
-    final profile = ref.read(userProfileProvider).data;
-    return session != null &&
-        !session.isExpired &&
-        _savingsAuthorizedFor == session.accessToken &&
-        profile?.userId == session.userId &&
-        profile?.isCreatedPin == true;
-  }
-
-  bool get _isSavingsDestination => switch (_screen) {
-    AppScreen.saveHub ||
-    AppScreen.flex ||
-    AppScreen.target ||
-    AppScreen.lock ||
-    AppScreen.group ||
-    AppScreen.savingsPlanDetail ||
-    AppScreen.smartSaveCreate ||
-    AppScreen.fixedDepositCreate ||
-    AppScreen.padiCreate ||
-    AppScreen.addMoney => true,
-    AppScreen.unavailable =>
+  /// An unavailable savings page; Back with nothing beneath goes to the hub.
+  bool get _isSavingsDestination =>
+      _screen == AppScreen.unavailable &&
       appRouteDefinitions[widget.initialRouteName]?.unavailable?.section ==
-          AppSection.save,
-    _ => false,
-  };
-
-  void _ensureSavingsLoaded() {
-    final session = ref.read(authSessionProvider);
-    if (session == null ||
-        session.isExpired ||
-        _savingsLoadedFor == session.accessToken) {
-      return;
-    }
-    _savingsLoadedFor = session.accessToken;
-    final funding = _screen == AppScreen.addMoney;
-    final needsData =
-        funding || _screen == AppScreen.saveHub || _screen == AppScreen.flex;
-    if (needsData &&
-        (funding || ref.read(userHomeProvider).status == ServiceStatus.idle)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            ref.read(authSessionProvider)?.accessToken == session.accessToken) {
-          unawaited(ref.read(userHomeProvider.notifier).load());
-        }
-      });
-    }
-  }
+          AppSection.save;
 
   Widget _buildScreen(AppScreen screen) {
     switch (screen) {
@@ -363,14 +269,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _accountStatementScreen();
       case AppScreen.transactionDetail:
         return _transactionDetailScreen();
-      case AppScreen.savingsPlanDetail:
-        return _savingsPlanDetailScreen();
-      case AppScreen.smartSaveCreate:
-        return _planCreationScreen(SavingsProductType.smartSave);
-      case AppScreen.fixedDepositCreate:
-        return _planCreationScreen(SavingsProductType.fixed);
-      case AppScreen.padiCreate:
-        return _planCreationScreen(SavingsProductType.padi);
       case AppScreen.myProfile:
         return _myProfileScreen();
       case AppScreen.preferences:
@@ -381,12 +279,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _accessibilityPreferencesScreen();
       case AppScreen.linkedBanks:
         return _linkedBankAccountsScreen();
-      case AppScreen.home:
-        return _homeScreen();
-      case AppScreen.saveHub:
-        return _saveHubScreen();
-      case AppScreen.addMoney:
-        return _addMoneyScreen();
       case AppScreen.sendHub:
         return _sendHubScreen();
       case AppScreen.sendOwn:
@@ -430,14 +322,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _billerListScreen();
       case AppScreen.billPay:
         return _billPayScreen();
-      case AppScreen.flex:
-        return _flexScreen();
-      case AppScreen.target:
-        return _targetScreen();
-      case AppScreen.lock:
-        return _lockScreen();
-      case AppScreen.group:
-        return _groupScreen();
       case AppScreen.loans:
         return _comingSoonScreen(
           capability: FeatureCapability.loans,

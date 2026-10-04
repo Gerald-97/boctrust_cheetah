@@ -10,12 +10,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
 import 'support/savings_fixtures.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 
 void main() {
-  Future<void> open(WidgetTester tester, AppScreen screen) async {
+  Future<void> open(WidgetTester tester, String route) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final dio = Dio();
@@ -46,7 +48,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: CheetahTheme.lightTheme,
-          home: AppFlowNavigator(initialScreen: screen),
+          home: appHome(route: route),
         ),
       ),
     );
@@ -56,12 +58,16 @@ void main() {
   testWidgets('Flex shows the live Core balance without sample interest', (
     tester,
   ) async {
-    await open(tester, AppScreen.flex);
+    await open(tester, AppRoutes.flexSave);
     expect(find.text('₦1,234,567,890.12'), findsWidgets);
     expect(find.textContaining('12.5%'), findsNothing);
     expect(find.text('Withdraw'), findsNothing);
   });
-  for (final screen in [AppScreen.target, AppScreen.lock, AppScreen.group]) {
+  for (final screen in [
+    AppRoutes.targetSave,
+    AppRoutes.lockSave,
+    AppRoutes.groupSave,
+  ]) {
     testWidgets('$screen is unavailable without money or setup actions', (
       tester,
     ) async {
@@ -75,7 +81,7 @@ void main() {
   testWidgets('funding uses the live virtual account without an amount flow', (
     tester,
   ) async {
-    await open(tester, AppScreen.addMoney);
+    await open(tester, AppRoutes.addMoney);
     expect(find.text('0123456789'), findsOneWidget);
     expect(find.text('Example Merchant Bank'), findsOneWidget);
     expect(find.byType(MoneyKeypad), findsNothing);

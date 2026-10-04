@@ -1,6 +1,40 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
-extension HomeScreen on AppFlowNavigatorState {
+import '../../../app/api_logger.dart';
+import '../../../app/app_router.dart';
+import '../../../app/boc_icons.dart';
+import '../../../app/services.dart';
+import '../../../app/theme.dart';
+import '../../../utils/utils.dart';
+import '../../account/provider/user_providers.dart';
+import '../../account/screens/contact_verification.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/flow_page.dart';
+import '../../core_banking/model/customer_bank_account_models.dart';
+import '../../core_banking/model/flex_balance.dart';
+import '../../core_banking/provider/core_account_providers.dart';
+import '../../kyc/model/kyc_contact_requirement.dart';
+import '../../onboarding/provider/auth_session_provider.dart';
+import '../model/user_home_model.dart';
+import '../provider/home_provider.dart';
+
+/// The signed-in landing page.
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends FlowPageState<HomeScreen> {
+  @override
+  Widget build(BuildContext context) => popScope(_homeScreen(), exitsApp: true);
+}
+
+extension HomeScreenParts on FlowPageState {
   Widget _homeScreen() {
     final profileState = ref.watch(userProfileProvider);
     final tierState = ref.watch(userTierProvider);
@@ -50,7 +84,7 @@ extension HomeScreen on AppFlowNavigatorState {
     return AppScaffold(
       titleWidget: const BocLogo(height: 26),
       activeSection: AppSection.home,
-      onSectionSelected: _goSection,
+      onSectionSelected: goSection,
       actions: [
         IconButton(
           tooltip: 'Notifications',
@@ -130,10 +164,14 @@ extension HomeScreen on AppFlowNavigatorState {
               child: Row(
                 children: [
                   for (final (icon, label, screen) in const [
-                    (IconsaxPlusLinear.add, 'Add money', AppScreen.addMoney),
-                    (IconsaxPlusLinear.send_2, 'Send', AppScreen.sendHub),
-                    (BocIcons.savings, 'Save', AppScreen.saveHub),
-                    (IconsaxPlusLinear.receipt_item, 'Pay', AppScreen.payments),
+                    (IconsaxPlusLinear.add, 'Add money', AppRoutes.addMoney),
+                    (IconsaxPlusLinear.send_2, 'Send', AppRoutes.sendHub),
+                    (BocIcons.savings, 'Save', AppRoutes.savingsHub),
+                    (
+                      IconsaxPlusLinear.receipt_item,
+                      'Pay',
+                      AppRoutes.paymentsHub,
+                    ),
                   ])
                     Expanded(
                       child: QuickAction(
@@ -143,7 +181,7 @@ extension HomeScreen on AppFlowNavigatorState {
                         foreground: theme.brightness == Brightness.dark
                             ? colors.textPrimary
                             : BocColors.navy,
-                        onTap: () => _go(screen),
+                        onTap: () => go(screen),
                       ),
                     ),
                 ],
@@ -207,7 +245,7 @@ extension HomeScreen on AppFlowNavigatorState {
             // Funding details follow the everyday actions, as in the design.
             if (homeState.data case final home?) ...[
               const SizedBox(height: BocSpace.sm),
-              _dedicatedVirtualAccountCard(home.dedicatedVirtualAccount),
+              dedicatedVirtualAccountCard(home.dedicatedVirtualAccount),
             ],
           ],
         ),
@@ -321,7 +359,7 @@ extension HomeScreen on AppFlowNavigatorState {
     }
     await Clipboard.setData(ClipboardData(text: number));
     if (mounted && ref.read(authSessionProvider) == session) {
-      _showSuccessMessage('Account number copied.');
+      showSuccessMessage('Account number copied.');
     }
   }
 
@@ -342,7 +380,7 @@ extension HomeScreen on AppFlowNavigatorState {
     return lines.isEmpty ? '' : '\n\n${lines.join('\n')}';
   }
 
-  Widget _dedicatedVirtualAccountCard(DedicatedVirtualAccountData? account) {
+  Widget dedicatedVirtualAccountCard(DedicatedVirtualAccountData? account) {
     Future<void> refresh() => ref.read(userHomeProvider.notifier).load();
 
     if (account == null) {
@@ -487,7 +525,7 @@ extension HomeScreen on AppFlowNavigatorState {
                         ClipboardData(text: accountNumber),
                       );
                       if (mounted && ref.read(authSessionProvider) == session) {
-                        _showSuccessMessage('Account number copied.');
+                        showSuccessMessage('Account number copied.');
                       }
                     },
               icon: const Icon(IconsaxPlusLinear.copy, size: 18),

@@ -8,15 +8,8 @@ enum AppScreen {
   myProfile,
   notificationPreferences,
   accessibilityPreferences,
-  savingsPlanDetail,
   transactionDetail,
-  smartSaveCreate,
-  fixedDepositCreate,
-  padiCreate,
   linkedBanks,
-  home,
-  saveHub,
-  addMoney,
   sendHub,
   sendOwn,
   sendBeneficiary,
@@ -29,10 +22,6 @@ enum AppScreen {
   data,
   billerList,
   billPay,
-  flex,
-  target,
-  lock,
-  group,
   loans,
   cards,
   unavailable,
@@ -115,12 +104,12 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
     isPublic: true,
   ),
 
-  AppRoutes.home: AppRouteDefinition(AppScreen.home),
+  AppRoutes.home: AppRouteDefinition.page(HomeScreen.new),
 
   // Savings.
-  AppRoutes.savingsHub: AppRouteDefinition(AppScreen.saveHub),
-  AppRoutes.flexSave: AppRouteDefinition(AppScreen.flex),
-  AppRoutes.flexTopUp: AppRouteDefinition(AppScreen.addMoney),
+  AppRoutes.savingsHub: AppRouteDefinition.page(SaveHubScreen.new),
+  AppRoutes.flexSave: AppRouteDefinition.page(FlexScreen.new),
+  AppRoutes.flexTopUp: AppRouteDefinition.page(AddMoneyScreen.new),
   AppRoutes.flexWithdraw: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Withdrawals',
@@ -151,19 +140,21 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.newSavingsChooser: AppRouteDefinition.unavailable(
     savingsPlansUnavailable,
   ),
-  AppRoutes.targetSave: AppRouteDefinition(AppScreen.target),
-  AppRoutes.targetSaveCreate: AppRouteDefinition(AppScreen.smartSaveCreate),
+  AppRoutes.targetSave: AppRouteDefinition.page(SavingsProductScreen.target),
+  AppRoutes.targetSaveCreate: AppRouteDefinition.page(
+    PlanCreationScreen.smartSave,
+  ),
   AppRoutes.targetSort: AppRouteDefinition.unavailable(savingsPlansUnavailable),
-  AppRoutes.lockSave: AppRouteDefinition(AppScreen.lock),
-  AppRoutes.lockCreate: AppRouteDefinition(AppScreen.fixedDepositCreate),
+  AppRoutes.lockSave: AppRouteDefinition.page(SavingsProductScreen.lock),
+  AppRoutes.lockCreate: AppRouteDefinition.page(PlanCreationScreen.fixed),
   AppRoutes.lockDetails: AppRouteDefinition.unavailable(
     savingsPlansUnavailable,
   ),
   AppRoutes.lockAddMoney: AppRouteDefinition.unavailable(
     savingsPlansUnavailable,
   ),
-  AppRoutes.groupSave: AppRouteDefinition(AppScreen.group),
-  AppRoutes.groupCreate: AppRouteDefinition(AppScreen.padiCreate),
+  AppRoutes.groupSave: AppRouteDefinition.page(SavingsProductScreen.group),
+  AppRoutes.groupCreate: AppRouteDefinition.page(PlanCreationScreen.padi),
   AppRoutes.groupContribute: AppRouteDefinition.unavailable(
     savingsPlansUnavailable,
   ),
@@ -173,11 +164,13 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.groupMembers: AppRouteDefinition.unavailable(
     savingsPlansUnavailable,
   ),
-  AppRoutes.savingsPlanDetail: AppRouteDefinition(AppScreen.savingsPlanDetail),
+  AppRoutes.savingsPlanDetail: AppRouteDefinition.page(
+    SavingsPlanDetailScreen.new,
+  ),
 
   // Funding.
-  AppRoutes.addMoney: AppRouteDefinition(AppScreen.addMoney),
-  AppRoutes.bankTransferFunding: AppRouteDefinition(AppScreen.addMoney),
+  AppRoutes.addMoney: AppRouteDefinition.page(AddMoneyScreen.new),
+  AppRoutes.bankTransferFunding: AppRouteDefinition.page(AddMoneyScreen.new),
   AppRoutes.cardFunding: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Card funding',
@@ -333,7 +326,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
 };
 
 AppScreen appScreenForRoute(String? routeName) =>
-    appRouteDefinitions[routeName]?.screen ?? AppScreen.home;
+    appRouteDefinitions[routeName]?.screen ?? AppScreen.unavailable;
 
 /// The hub route for a bottom-navigation section, for screens outside the
 /// flow.

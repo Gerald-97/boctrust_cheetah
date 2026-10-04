@@ -1,9 +1,9 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of 'savings_screens.dart';
 
 /// Plan detail and management. Everything shown comes from the plans
 /// provider; with no server plan the screen explains the gap. Deposit, edit
 /// and withdraw are each gated by their own capability.
-extension SavingsPlanScreens on AppFlowNavigatorState {
+extension SavingsPlanScreens on FlowPageState {
   Color _productAccent(SavingsProductType type) {
     final colors = context.bocColors;
     return switch (type) {
@@ -15,7 +15,7 @@ extension SavingsPlanScreens on AppFlowNavigatorState {
   }
 
   Widget _savingsPlanDetailScreen() {
-    final planId = widget.routeArguments.entityId;
+    final planId = routeArguments.entityId;
     final plans = ref.watch(savingsPlansProvider);
     final plan = plans.data
         ?.where((candidate) => candidate.id == planId)
@@ -24,8 +24,8 @@ extension SavingsPlanScreens on AppFlowNavigatorState {
       return AppScaffold(
         title: 'Savings plan',
         activeSection: AppSection.save,
-        onBack: _back,
-        onSectionSelected: _goSection,
+        onBack: back,
+        onSectionSelected: goSection,
         body: ListView(
           padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
           children: [
@@ -48,8 +48,8 @@ extension SavingsPlanScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: plan.name,
       activeSection: AppSection.save,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       actions: [
         PopupMenuButton<String>(
           tooltip: 'More options',
@@ -243,7 +243,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
 
   void _update(SavingsPlanDraft next) => setState(() => _draft = next);
 
-  void _back() {
+  void back() {
     if (_index == 0) {
       widget.onExit();
     } else {
@@ -278,13 +278,13 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _back();
+        if (!didPop) back();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: Padding(
             padding: const EdgeInsets.only(left: BocSpace.xs),
-            child: BocBackButton(onPressed: _back),
+            child: BocBackButton(onPressed: back),
           ),
           leadingWidth: BocSpace.minTouch + BocSpace.md,
           title: Text(title),
@@ -341,7 +341,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                       if (_step == _WizardStep.confirm)
                         BocTextButton(
                           label: 'Go back and edit',
-                          onPressed: _back,
+                          onPressed: back,
                         ),
                     ],
                   ),

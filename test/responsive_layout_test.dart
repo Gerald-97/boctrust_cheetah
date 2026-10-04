@@ -64,16 +64,13 @@ void main() {
                 populated: false,
                 keyboard: false,
               ),
-            for (final screen in [
-              AppScreen.home,
-              AppScreen.account,
-              AppScreen.linkedBanks,
-              AppScreen.saveHub,
-              AppScreen.flex,
-              AppScreen.addMoney,
-            ])
+            for (final screen in [AppScreen.account, AppScreen.linkedBanks])
               (screen: screen, route: null, populated: true, keyboard: false),
             for (final route in [
+              AppRoutes.home,
+              AppRoutes.savingsHub,
+              AppRoutes.flexSave,
+              AppRoutes.addMoney,
               AppRoutes.tierOverview,
               AppRoutes.tier1Bvn,
               AppRoutes.governmentIdVerification,
@@ -93,15 +90,9 @@ void main() {
       for (final scenario in scenarios) {
         testWidgets('$scenario at $size text $scale', (tester) async {
           final savings =
-              [
-                AppScreen.saveHub,
-                AppScreen.flex,
-                AppScreen.target,
-                AppScreen.lock,
-                AppScreen.group,
-                AppScreen.addMoney,
-              ].contains(scenario.screen) ||
+              scenario.route == AppRoutes.savingsHub ||
               scenario.route?.startsWith('/savings/') == true ||
+              scenario.route == AppRoutes.addMoney ||
               scenario.route == AppRoutes.bankTransferFunding ||
               scenario.route == AppRoutes.cardFunding;
           tester.view.physicalSize = size;
