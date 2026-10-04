@@ -513,7 +513,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               child: SelectableMethodTile(
                 icon: switch (source) {
                   FundingSource.wallet => IconsaxPlusLinear.wallet,
-                  FundingSource.flexSavings => IconsaxPlusLinear.strongbox,
+                  FundingSource.flexSavings => BocIcons.savings,
                   FundingSource.bankTransfer => IconsaxPlusLinear.bank,
                 },
                 title: source.label,

@@ -241,11 +241,7 @@ extension AccountScreens on AppFlowNavigatorState {
               'Customer responsibilities',
             ),
             (IconsaxPlusLinear.money, 'Transactions', 'Limits and reversals'),
-            (
-              IconsaxPlusLinear.strongbox,
-              'Savings',
-              'Interest and maturity terms',
-            ),
+            (BocIcons.savings, 'Savings', 'Interest and maturity terms'),
           ],
         );
       case AppPreviewRoute.socialFacebook:

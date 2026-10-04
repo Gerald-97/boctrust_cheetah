@@ -65,7 +65,7 @@ extension OnboardingFlowScreens on AppFlowNavigatorState {
   Widget _onboardingScreen() {
     const slides = <({IconData icon, String title, String description})>[
       (
-        icon: IconsaxPlusLinear.strongbox,
+        icon: BocIcons.savings,
         title: 'Save without thinking about it',
         description:
             'Boc Flex Savings grows every day with no lock-in. SmartSave, Fixed Deposit and Padi help you commit to a goal, on your terms.',

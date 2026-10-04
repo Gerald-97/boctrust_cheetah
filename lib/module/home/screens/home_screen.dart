@@ -130,7 +130,7 @@ extension HomeScreen on AppFlowNavigatorState {
                   for (final (icon, label, screen) in const [
                     (IconsaxPlusLinear.add, 'Add money', AppScreen.addMoney),
                     (IconsaxPlusLinear.send_2, 'Send', AppScreen.sendHub),
-                    (IconsaxPlusLinear.strongbox, 'Save', AppScreen.saveHub),
+                    (BocIcons.savings, 'Save', AppScreen.saveHub),
                     (IconsaxPlusLinear.receipt_item, 'Pay', AppScreen.payments),
                   ])
                     Expanded(

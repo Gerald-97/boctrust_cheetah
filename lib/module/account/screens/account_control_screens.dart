@@ -449,7 +449,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
                     notifier.update(prefs.copyWith(transactions: value)),
               ),
               SettingsTile.toggle(
-                icon: IconsaxPlusLinear.strongbox,
+                icon: BocIcons.savings,
                 title: 'Savings reminders',
                 subtitle: 'Upcoming auto-saves and goal progress',
                 value: prefs.savingsReminders,

@@ -22,7 +22,9 @@ void main() {
       if (file is! File || !file.path.endsWith('.dart')) continue;
       final lines = file.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
-        for (final match in RegExp(r'Icons\.[a-z_0-9]+').allMatches(lines[i])) {
+        for (final match in RegExp(
+          r'\bIcons\.[a-z_0-9]+',
+        ).allMatches(lines[i])) {
           if (!_allowedMaterialIcons.contains(match.group(0))) {
             offenders.add('${file.path}:${i + 1} ${match.group(0)}');
           }

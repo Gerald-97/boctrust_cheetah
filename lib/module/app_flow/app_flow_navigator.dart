@@ -12,6 +12,7 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/api_logger.dart';
 import '../../app/app_router.dart';
+import '../../app/boc_icons.dart';
 import '../../app/auth_navigation_provider.dart';
 import '../../app/bootstrap_provider.dart';
 import '../../app/feature_capability.dart';

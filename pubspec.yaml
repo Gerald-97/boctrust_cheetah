@@ -88,3 +88,6 @@ flutter:
           weight: 400
         - asset: assets/font/FHOscarTest-Light.otf
           weight: 300
+    - family: BocIcons
+      fonts:
+        - asset: assets/font/BocIcons.ttf
