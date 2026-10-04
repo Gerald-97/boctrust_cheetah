@@ -11,15 +11,15 @@
 |---|---|---|
 | Formatting | `dart format --output=none --set-exit-if-changed lib test` | Pass, 0 files changed |
 | Static analysis | `flutter analyze --no-pub` | Pass, no issues |
-| Full test suite | `flutter test --no-pub` | 1,261 pass, 12 fail; all 12 also fail on the base commit `e8d8d23` (see below) |
+| Full test suite | `flutter test --no-pub` | 1,275 pass, 0 fail (4 Oct 2026) |
 | Feature tests | `branding_assets`, `in_app_branding`, `platform_branding_config`, `notification_payload`, `local_notification_service`, `notification_delivery_policy`, `notification_tap_flow` | All pass |
 | Whitespace | `git diff --check main...HEAD` | Two trailing-whitespace lines in generated `values-v31/styles.xml` and `values-night-v31/styles.xml`, kept verbatim so regeneration stays diff-free |
 | Android builds | `flutter build apk --debug`, `flutter build apk --release` | Both built |
 | iOS builds | `flutter build ios --simulator --debug`, `flutter build ios --release --no-codesign` | Both built |
 
-### Pre-existing failures (not caused by this branch)
+### Previously failing KYC tests (fixed 4 Oct 2026)
 
-The same 12 tests fail on the base commit `e8d8d23`, before any branding or notification change. They are in `kyc_government_id_smile_fallback_test.dart`, `kyc_government_id_start_test.dart` and `kyc_tier_return_test.dart`, and fail because the `DropdownButtonFormField<GovernmentIdDocumentType>` they tap is not found.
+The same 12 tests fail on the base commit `e8d8d23`, before any branding or notification change. They are in `kyc_government_id_smile_fallback_test.dart`, `kyc_government_id_start_test.dart` and `kyc_tier_return_test.dart`, and failed because the `DropdownButtonFormField<GovernmentIdDocumentType>` they tap was not found. Cause: they predate the rule that KYC opens only with a verified email and phone (`d379826`); their profile stubs had none, so the screen correctly showed the contact gate. The stubs now supply verified contacts. No app defect.
 
 ## Regeneration
 
