@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// The 40px circular back control used in every app bar, inside a 48px
 /// hit area.

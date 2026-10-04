@@ -7,7 +7,7 @@ import '../../../app/response_handler.dart';
 import '../../../app/theme.dart';
 import '../../../utils/auth_input.dart';
 import '../../../utils/validators.dart' as validators;
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/model/auth_enums.dart';

@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// A server-confirmed receipt on a ticket-shaped card. It takes a
 /// [TransactionReceipt], which only exists for a successful server response,

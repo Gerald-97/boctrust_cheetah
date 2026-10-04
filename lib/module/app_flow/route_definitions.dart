@@ -1,4 +1,4 @@
-part of 'app_flow_navigator.dart';
+part of 'app_ui.dart';
 
 enum AppSection { home, save, send, payments, account }
 

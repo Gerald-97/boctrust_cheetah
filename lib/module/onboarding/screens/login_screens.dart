@@ -7,7 +7,7 @@ import '../../../app/response_handler.dart';
 import '../../../app/services.dart';
 import '../../../utils/utils.dart';
 import '../../../utils/validators.dart' as validators;
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
 import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';

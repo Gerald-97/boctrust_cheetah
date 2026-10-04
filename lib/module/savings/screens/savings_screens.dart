@@ -11,7 +11,7 @@ import '../../../app/feature_capability.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../core_banking/model/bank_product_models.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';

@@ -31,7 +31,7 @@ import '../onboarding/screens/startup_screens.dart';
 import '../onboarding/provider/auth_session_provider.dart';
 import '../onboarding/provider/test_otp_provider.dart';
 
-part 'app_flow_screens.dart';
+part 'route_definitions.dart';
 
 part '../component/branding.dart';
 

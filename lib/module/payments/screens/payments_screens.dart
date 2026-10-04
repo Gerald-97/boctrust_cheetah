@@ -5,7 +5,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 import '../../../app/app_router.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../send/screens/send_screens.dart';
 

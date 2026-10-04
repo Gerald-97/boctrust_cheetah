@@ -5,7 +5,7 @@ import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/route_message_scope.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

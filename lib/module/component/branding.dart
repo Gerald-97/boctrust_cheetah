@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// The approved Cheetah app icon. Decorative by default: give it a
 /// [semanticLabel] only where no adjacent BOCTRUST text names it.

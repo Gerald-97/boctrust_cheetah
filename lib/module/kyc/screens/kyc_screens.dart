@@ -16,7 +16,7 @@ import '../../account/model/user_profile_model.dart';
 import '../../account/model/user_tier_model.dart';
 import '../../account/provider/user_providers.dart';
 import '../../account/screens/contact_verification.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
 import '../model/document_verification_models.dart';
 import '../model/kyc_configuration_models.dart';

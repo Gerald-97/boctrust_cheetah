@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// Guards a deep link to a signed-in route. The decision uses the route the
 /// link named, so later in-flow navigation cannot change what was checked.

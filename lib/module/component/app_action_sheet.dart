@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// Bottom-sheet shell carrying Cheetah's card surface, gold rounded icon and
 /// typography into modal overlays.

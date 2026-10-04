@@ -1,7 +1,7 @@
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/send/model/transaction_models.dart';
 import 'package:boctrust_savings_loan/module/send/provider/transaction_provider.dart';
 import 'package:flutter/material.dart';

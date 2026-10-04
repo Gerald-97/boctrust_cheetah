@@ -11,7 +11,7 @@ import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
 import '../../account/provider/user_providers.dart';
 import '../../account/screens/contact_verification.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';
 import '../../core_banking/model/flex_balance.dart';

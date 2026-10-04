@@ -1,7 +1,7 @@
 import 'package:boctrust_savings_loan/app.dart';
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/theme_controller.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/component/text_fields.dart';
 import 'package:boctrust_savings_loan/utils/form_helpers.dart';
 import 'package:boctrust_savings_loan/utils/input_formatters.dart';

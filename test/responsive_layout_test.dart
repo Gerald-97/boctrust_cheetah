@@ -15,7 +15,7 @@ import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_pr
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:dio/dio.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

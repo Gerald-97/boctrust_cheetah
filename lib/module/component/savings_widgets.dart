@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// Two-column label/value tiles for server-supplied facts about an account.
 class GridViewInfo extends StatelessWidget {

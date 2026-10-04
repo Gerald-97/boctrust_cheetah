@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// Keeps forms and reading content comfortable on tablets and wide windows.
 class ResponsiveContent extends StatelessWidget {

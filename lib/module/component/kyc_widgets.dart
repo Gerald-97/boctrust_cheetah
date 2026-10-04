@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 class LimitRow extends StatelessWidget {
   const LimitRow({required this.label, required this.value, super.key});

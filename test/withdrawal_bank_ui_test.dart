@@ -2,7 +2,7 @@ import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/withdrawal_bank_models.dart';
 import 'package:boctrust_savings_loan/module/account/provider/withdrawal_bank_providers.dart';
 import 'package:boctrust_savings_loan/module/account/service/withdrawal_bank_service.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

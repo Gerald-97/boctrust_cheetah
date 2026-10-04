@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// A payment or transfer option: tinted icon tile, title and one-line
 /// description in a full-width tappable card.

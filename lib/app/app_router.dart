@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
-import '../module/app_flow/app_flow_navigator.dart';
+import '../module/app_flow/app_ui.dart';
 import 'route_arguments.dart';
 import 'route_message_scope.dart';
 

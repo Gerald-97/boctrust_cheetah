@@ -1,4 +1,4 @@
-part of '../app_flow/app_flow_navigator.dart';
+part of '../app_flow/app_ui.dart';
 
 /// Full-width primary action: navy with a gold label.
 class PrimaryButton extends StatelessWidget {

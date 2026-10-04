@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
 import '../model/core_money.dart';
 import '../model/core_submission_models.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 
 /// Push delivery is not an inbox: there is no service that returns past
 /// notifications, so this neither lists sample activity nor claims the inbox

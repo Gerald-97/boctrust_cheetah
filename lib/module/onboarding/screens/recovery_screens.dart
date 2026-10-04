@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/auth_navigation_provider.dart';
 import '../../../app/response_handler.dart';
 import '../../../utils/validators.dart' as validators;
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../component/password_strength_component.dart';
 import '../../component/text_fields.dart';
 import '../model/auth_enums.dart';

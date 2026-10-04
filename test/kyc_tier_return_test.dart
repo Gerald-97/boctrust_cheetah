@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_profile_model.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/service/user_service.dart';

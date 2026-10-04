@@ -8,7 +8,7 @@ import '../../../app/feature_capability.dart';
 import '../../../app/route_arguments.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../component/text_fields.dart';
 import '../../core_banking/screens/own_account_move_screen.dart';

@@ -3,7 +3,7 @@ import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';

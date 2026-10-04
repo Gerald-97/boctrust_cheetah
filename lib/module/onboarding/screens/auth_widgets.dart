@@ -6,7 +6,7 @@ import '../../../app/auth_navigation_provider.dart';
 import '../../../app/preferences.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../model/auth_enums.dart';
 import '../provider/security_action_providers.dart';
 

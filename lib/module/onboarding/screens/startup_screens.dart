@@ -7,7 +7,7 @@ import '../../../app/boc_icons.dart';
 import '../../../app/bootstrap_provider.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../model/auth_flow_models.dart';
 import 'auth_widgets.dart';
 

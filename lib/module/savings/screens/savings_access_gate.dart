@@ -1,4 +1,4 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of '../../app_flow/app_ui.dart';
 
 /// No Savings widget is built until the restored session and its profile agree.
 class SavingsAccessGate extends ConsumerStatefulWidget {

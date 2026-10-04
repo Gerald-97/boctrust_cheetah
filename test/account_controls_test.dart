@@ -2,7 +2,7 @@ import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/account_deletion_models.dart';
 import 'package:boctrust_savings_loan/module/account/provider/account_deletion_provider.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_responses.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/security_action_providers.dart';
 import 'package:flutter/material.dart';

@@ -6,7 +6,7 @@ import '../../app/feature_capability.dart';
 import '../../app/response_handler.dart';
 import '../../app/route_arguments.dart';
 import '../../app/route_message_scope.dart';
-import 'app_flow_navigator.dart';
+import 'app_ui.dart';
 
 /// A route registered with [AppRouteDefinition.unavailable].
 class UnavailableRouteScreen extends ConsumerStatefulWidget {

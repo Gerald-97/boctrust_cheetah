@@ -14,7 +14,7 @@ import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../app/theme_controller.dart';
 import '../../../utils/validators.dart' as validators;
-import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../component/password_strength_component.dart';
 import '../../component/text_fields.dart';
