@@ -158,34 +158,43 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
   @override
   NotifierState<EmptyData> build() => const NotifierState.idle();
 
+  /// Signs out locally first. Server revocation runs in the background with
+  /// the token captured here, so a slow or failing server never keeps the
+  /// previous user's data on screen.
   Future<void> logout() async {
     state = const NotifierState.loading();
+    final accessToken = ref.read(authSessionProvider)?.accessToken;
+    if (accessToken != null) _revoke(accessToken);
     try {
-      if (ref.read(authSessionProvider) != null) {
-        state = await ref.read(authServiceProvider).logout();
-      } else {
-        state = const NotifierState.done(EmptyData());
-      }
-    } finally {
-      try {
-        await ref.read(authSessionProvider.notifier).clear();
-      } catch (_) {
-        // In-memory auth state is already cleared by the session notifier.
-      }
-      clearPrivateUserState(ref);
-      ref.invalidate(signupFlowProvider);
-      ref.invalidate(loginFlowProvider);
-      ref.invalidate(passwordRecoveryProvider);
-      ref.invalidate(pinRecoveryProvider);
-      ref.invalidate(identifierVerificationProvider);
-      ref.invalidate(postLoginBootstrapProvider);
-      ref.invalidate(fcmTokenProvider);
-      ref.read(testOtpProvider.notifier).clearAll();
-      _deleteFcmToken();
-      ref
-          .read(authNavigationProvider.notifier)
-          .publish(AuthDestination.login, mode: AuthNavigationMode.clearStack);
+      await ref.read(authSessionProvider.notifier).clear();
+    } catch (_) {
+      // In-memory auth state is already cleared by the session notifier.
     }
+    clearPrivateUserState(ref);
+    ref.invalidate(signupFlowProvider);
+    ref.invalidate(loginFlowProvider);
+    ref.invalidate(passwordRecoveryProvider);
+    ref.invalidate(pinRecoveryProvider);
+    ref.invalidate(identifierVerificationProvider);
+    ref.invalidate(postLoginBootstrapProvider);
+    ref.invalidate(fcmTokenProvider);
+    ref.read(testOtpProvider.notifier).clearAll();
+    _deleteFcmToken();
+    state = const NotifierState.done(EmptyData());
+    ref
+        .read(authNavigationProvider.notifier)
+        .publish(AuthDestination.login, mode: AuthNavigationMode.clearStack);
+  }
+
+  /// Fire-and-forget: the outcome is never read, so a late response cannot
+  /// touch whatever session exists by the time it arrives.
+  void _revoke(String accessToken) {
+    unawaited(
+      ref
+          .read(authServiceProvider)
+          .logout(accessToken: accessToken)
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
   }
 
   /// Invalidates this device's FCM token so pushes for the account that just

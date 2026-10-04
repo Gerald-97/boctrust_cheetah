@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/api_endpoints.dart';
+import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/auth_requests.dart';
@@ -89,11 +90,18 @@ class AuthService {
     ),
   );
 
-  Future<NotifierState<EmptyData>> logout() async => NotifierState.fromResponse(
+  /// Revokes [accessToken] server-side. The token is passed in because the
+  /// local session is already cleared by the time this request is sent.
+  Future<NotifierState<EmptyData>> logout({
+    required String accessToken,
+  }) async => NotifierState.fromResponse(
     await _api.postData<EmptyData>(
       ApiEndpoints.logout,
       parser: EmptyData.fromJson,
-      requestExtra: const {'suppressSessionExpiry': true},
+      requestExtra: {
+        'suppressSessionExpiry': true,
+        AuthInterceptor.pinnedAccessTokenKey: accessToken,
+      },
     ),
   );
 
