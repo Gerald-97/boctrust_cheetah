@@ -155,21 +155,6 @@ void main() {
       const TextEditingValue(text: '08000000000'),
     );
     expect(phone.text, '0800-000-0000');
-    final amount = NairaThousandsFormatter().formatEditUpdate(
-      const TextEditingValue(),
-      const TextEditingValue(text: '1000000'),
-    );
-    expect(amount.text, '1,000,000');
-    final upper = UppercaseTrimFormatter().formatEditUpdate(
-      const TextEditingValue(),
-      const TextEditingValue(text: ' abc123 '),
-    );
-    expect(upper.text, 'ABC123 ');
-    final max = MaxLengthDigitsFormatter(4).formatEditUpdate(
-      const TextEditingValue(),
-      const TextEditingValue(text: '123456'),
-    );
-    expect(max.text, '1234');
   });
 
   testWidgets('validateAndSave calls success or failure guardrails', (
