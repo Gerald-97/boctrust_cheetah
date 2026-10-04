@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final firebaseReadyProvider = Provider<bool>((ref) => false);
@@ -19,7 +20,21 @@ class FCMService {
   Future<NotificationSettings> requestPermission() =>
       _messaging.requestPermission(alert: true, badge: true, sound: true);
 
-  Future<String?> getToken() => _messaging.getToken();
+  /// The FCM registration token. On iOS FCM cannot issue one until APNs has
+  /// delivered the device token, which can lag app start; waiting briefly
+  /// keeps the first sign-in from registering nothing.
+  Future<String?> getToken() async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      for (var i = 0; i < _apnsAttempts; i++) {
+        if (await _messaging.getAPNSToken() != null) break;
+        await Future<void>.delayed(_apnsRetryDelay);
+      }
+    }
+    return _messaging.getToken();
+  }
+
+  static const _apnsAttempts = 6;
+  static const _apnsRetryDelay = Duration(milliseconds: 500);
   Future<RemoteMessage?> getInitialMessage() => _messaging.getInitialMessage();
 }
 
