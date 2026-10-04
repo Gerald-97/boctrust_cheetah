@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:boctrust_savings_loan/app/auth_navigation_provider.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/helper/fcm_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
@@ -63,7 +67,103 @@ class _Accounts extends CoreAccountService {
       );
 }
 
+class _Fcm implements FCMService {
+  _Fcm(this._delete);
+  final Future<void> Function() _delete;
+  var deleteCalls = 0;
+
+  @override
+  Future<void> deleteToken() {
+    deleteCalls++;
+    return _delete();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+ProviderContainer _signedIn({required _Fcm fcm, bool firebaseReady = true}) =>
+    ProviderContainer(
+      overrides: [
+        authSessionProvider.overrideWith(SavingsSession.new),
+        firebaseReadyProvider.overrideWithValue(firebaseReady),
+        fcmServiceProvider.overrideWithValue(fcm),
+        dioProvider.overrideWithValue(
+          Dio(BaseOptions(baseUrl: 'https://logout-test.invalid'))
+            ..interceptors.add(
+              InterceptorsWrapper(
+                onRequest: (options, handler) => handler.resolve(
+                  Response(requestOptions: options, statusCode: 200, data: {}),
+                ),
+              ),
+            ),
+        ),
+      ],
+    );
+
+void _expectSignedOut(ProviderContainer container) {
+  expect(container.read(authSessionProvider), isNull);
+  expect(
+    container.read(authNavigationProvider).last.destination,
+    AuthDestination.login,
+  );
+}
+
 void main() {
+  group('FCM token on logout', () {
+    test(
+      'deletes the device token so the old account stops receiving',
+      () async {
+        final fcm = _Fcm(() async {});
+        final container = _signedIn(fcm: fcm);
+        addTearDown(container.dispose);
+        await container.read(logoutProvider.notifier).logout();
+        expect(fcm.deleteCalls, 1);
+        _expectSignedOut(container);
+      },
+    );
+
+    test('a failing delete never interrupts logout', () async {
+      final fcm = _Fcm(() async => throw Exception('firebase unavailable'));
+      final container = _signedIn(fcm: fcm);
+      addTearDown(container.dispose);
+      await expectLater(
+        container.read(logoutProvider.notifier).logout(),
+        completes,
+      );
+      await pumpEventQueue();
+      _expectSignedOut(container);
+    });
+
+    test(
+      'a delete that throws synchronously never interrupts logout',
+      () async {
+        final fcm = _Fcm(() => throw StateError('no messaging instance'));
+        final container = _signedIn(fcm: fcm);
+        addTearDown(container.dispose);
+        await container.read(logoutProvider.notifier).logout();
+        _expectSignedOut(container);
+      },
+    );
+
+    test('a delete that never finishes does not hold logout', () async {
+      final fcm = _Fcm(() => Completer<void>().future);
+      final container = _signedIn(fcm: fcm);
+      addTearDown(container.dispose);
+      await container.read(logoutProvider.notifier).logout();
+      _expectSignedOut(container);
+    });
+
+    test('is skipped when Firebase is not configured', () async {
+      final fcm = _Fcm(() async {});
+      final container = _signedIn(fcm: fcm, firebaseReady: false);
+      addTearDown(container.dispose);
+      await container.read(logoutProvider.notifier).logout();
+      expect(fcm.deleteCalls, 0);
+      _expectSignedOut(container);
+    });
+  });
+
   test('logging out drops the previous user KYC status', () async {
     final container = ProviderContainer(
       overrides: [kycServiceProvider.overrideWithValue(_Kyc())],

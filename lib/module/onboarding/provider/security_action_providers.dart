@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/auth_navigation_provider.dart';
 import '../../../app/private_user_state.dart';
 import '../../../app/services.dart';
+import '../../../helper/fcm_service.dart';
 import '../../../utils/auth_input.dart';
 import '../../account/provider/user_providers.dart';
 import '../model/auth_requests.dart';
@@ -178,9 +181,25 @@ class LogoutNotifier extends Notifier<NotifierState<EmptyData>> {
       ref.invalidate(postLoginBootstrapProvider);
       ref.invalidate(fcmTokenProvider);
       ref.read(testOtpProvider.notifier).clearAll();
+      _deleteFcmToken();
       ref
           .read(authNavigationProvider.notifier)
           .publish(AuthDestination.login, mode: AuthNavigationMode.clearStack);
+    }
+  }
+
+  /// Invalidates this device's FCM token so pushes for the account that just
+  /// signed out stop arriving; the next sign-in registers a fresh one.
+  /// Fire-and-forget: a failure or slow response never delays or interrupts
+  /// logout, and no error is surfaced.
+  void _deleteFcmToken() {
+    try {
+      if (!ref.read(firebaseReadyProvider)) return;
+      unawaited(
+        ref.read(fcmServiceProvider).deleteToken().catchError((Object _) {}),
+      );
+    } catch (_) {
+      // Firebase unavailable; there is no token to delete.
     }
   }
 }

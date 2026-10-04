@@ -36,6 +36,7 @@ class FCMService {
   static const _apnsAttempts = 6;
   static const _apnsRetryDelay = Duration(milliseconds: 500);
   Future<RemoteMessage?> getInitialMessage() => _messaging.getInitialMessage();
+  Future<void> deleteToken() => _messaging.deleteToken();
 }
 
 final fcmTokenRefreshProvider = StreamProvider<String>(
