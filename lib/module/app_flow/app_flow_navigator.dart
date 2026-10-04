@@ -14,9 +14,7 @@ import '../../app/api_logger.dart';
 import '../../app/app_router.dart';
 import '../../app/boc_icons.dart';
 import '../../app/auth_navigation_provider.dart';
-import '../../app/bootstrap_provider.dart';
 import '../../app/feature_capability.dart';
-import '../../app/preferences.dart';
 import '../../app/response_handler.dart';
 import '../../app/route_arguments.dart';
 import '../../app/services.dart';
@@ -61,6 +59,11 @@ import '../kyc/provider/kyc_status_provider.dart';
 import '../kyc/screens/smile_id_capture_screen.dart';
 import '../kyc/screens/dojah_capture_screen.dart';
 import '../notifications/screens/notifications_screen.dart';
+import '../onboarding/screens/auth_widgets.dart';
+import '../onboarding/screens/login_screens.dart';
+import '../onboarding/screens/recovery_screens.dart';
+import '../onboarding/screens/signup_screens.dart';
+import '../onboarding/screens/startup_screens.dart';
 import '../kyc/service/dojah_config.dart';
 import '../kyc/service/smile_id_gateway.dart';
 import '../component/text_fields.dart';
@@ -71,10 +74,8 @@ import '../onboarding/model/remembered_biometric_profile.dart';
 import '../onboarding/provider/auth_session_provider.dart';
 import '../onboarding/provider/biometric_login_provider.dart';
 import '../onboarding/provider/identifier_verification_provider.dart';
-import '../onboarding/provider/login_flow_provider.dart';
 import '../onboarding/provider/recovery_providers.dart';
 import '../onboarding/provider/security_action_providers.dart';
-import '../onboarding/provider/signup_flow_provider.dart';
 import '../onboarding/provider/test_otp_provider.dart';
 
 part 'app_flow_screens.dart';
@@ -111,8 +112,6 @@ part '../component/flow_widgets.dart';
 
 part '../component/transaction_widgets.dart';
 part '../component/unavailable_feature_screen.dart';
-
-part '../onboarding/screens/onboarding_flow_screens.dart';
 
 part '../kyc/screens/kyc_screens.dart';
 part '../kyc/screens/document_verification_screens.dart';
@@ -158,7 +157,7 @@ class AppFlowRouteScreen extends StatelessWidget {
 
 class AppFlowNavigator extends ConsumerStatefulWidget {
   const AppFlowNavigator({
-    this.initialScreen = AppScreen.bootstrap,
+    this.initialScreen = AppScreen.home,
     this.initialRouteName,
     this.routeArguments = const AppRouteArguments(),
     super.key,
@@ -185,12 +184,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   late AppScreen _screen = widget.initialScreen;
   final List<AppScreen> _history = <AppScreen>[];
-  int _onboardingIndex = 0;
-  bool _verifyByPhone = true;
-  PhoneVerificationChannel _phoneChannel = PhoneVerificationChannel.sms;
 
   final _identifierController = TextEditingController();
-  final _identifierFocus = FocusNode();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _otpController = TextEditingController();
@@ -212,13 +207,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   final _utilityBillFormKey = GlobalKey<FormState>();
   AutovalidateMode _utilityBillAutovalidate = AutovalidateMode.disabled;
   UtilityType? _selectedUtilityType;
-  final _createPasswordFormKey = GlobalKey<FormState>();
-  final _passwordResetFormKey = GlobalKey<FormState>();
-  final _createFirstPinFormKey = GlobalKey<FormState>();
   final _identityFormKey = GlobalKey<FormState>();
-  AutovalidateMode _createPasswordAutovalidate = AutovalidateMode.disabled;
-  AutovalidateMode _passwordResetAutovalidate = AutovalidateMode.disabled;
-  AutovalidateMode _createFirstPinAutovalidate = AutovalidateMode.disabled;
   AutovalidateMode _identityAutovalidate = AutovalidateMode.disabled;
   IdentityType _selectedIdentityType = IdentityType.bvn;
 
@@ -262,7 +251,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   @override
   void dispose() {
     _identifierController.dispose();
-    _identifierFocus.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _otpController.dispose();
@@ -298,29 +286,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     });
   }
 
-  /// Whether [_back] has anywhere to go from the current screen.
-  ///
-  /// A screen entered with [AuthNavigationMode.clearStack] has no in-app
-  /// history and no route beneath it, so a back control there is inert. Asking
-  /// this before rendering one keeps the chevron honest instead of showing a
-  /// button that silently does nothing.
-  bool get _canGoBack =>
-      _history.isNotEmpty ||
-      Navigator.of(context).canPop() ||
-      _authFallbackFor(_screen) != null;
-
-  /// Where an auth screen returns to when it has no history to pop.
-  ///
-  /// "Create an account" reaches the verification flow with `clearStack`, which
-  /// wipes the route beneath it. Without an explicit destination the user is
-  /// stranded with no way back to Login.
-  AuthDestination? _authFallbackFor(AppScreen screen) => switch (screen) {
-    AppScreen.verifyMethod || AppScreen.passwordReset => AuthDestination.login,
-    AppScreen.otp ||
-    AppScreen.createPassword => AuthDestination.verificationMethod,
-    _ => null,
-  };
-
   void _back() {
     // System Back also reaches this callback while the access gate is loading.
     // It must not fall through to an ungated Home before PIN status is known.
@@ -339,12 +304,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       return;
     }
 
-    // Nothing to pop: this screen was entered with a cleared stack. Route to
-    // its declared origin rather than doing nothing.
-    final fallback = _authFallbackFor(_screen);
-    if (fallback != null) {
-      _openAuthDestination(fallback, mode: AuthNavigationMode.clearStack);
-    } else if (_isSavingsDestination) {
+    // Nothing to pop: a savings page falls back to its hub.
+    if (_isSavingsDestination) {
       _go(
         _screen == AppScreen.saveHub ? AppScreen.home : AppScreen.saveHub,
         replace: true,
@@ -369,13 +330,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
   void _cancelFlowForScreen(AppScreen screen) {
     if (screen == AppScreen.kycIdentity) {
       ref.read(identityVerificationProvider.notifier).cancelPendingRequest();
-    }
-    if (screen == AppScreen.passwordReset) {
-      ref.read(passwordRecoveryProvider.notifier).cancel();
-    }
-    if (screen == AppScreen.newDeviceOtp &&
-        ref.read(loginFlowProvider).data?.stage != LoginFlowStage.completed) {
-      ref.read(loginFlowProvider.notifier).cancel();
     }
   }
 
@@ -406,78 +360,12 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     setState(update);
   }
 
-  Future<void> _confirmSignOut() async {
-    if (ref.read(logoutProvider).isLoading) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'You will need to log in again to access your account.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await ref.read(logoutProvider.notifier).logout();
-    }
-  }
-
-  void _selectOnboardingIndex(int index) {
-    setState(() => _onboardingIndex = index);
-  }
-
-  void _advanceOnboarding() {
-    if (_onboardingIndex < 2) {
-      setState(() => _onboardingIndex += 1);
-      return;
-    }
-    _openAuthDestination(AuthDestination.verificationMethod);
-  }
-
-  void _selectVerificationMethod({required bool phone}) {
-    if (phone == _verifyByPhone) return;
-    final wasTyping = _identifierFocus.hasFocus;
-    setState(() {
-      _verifyByPhone = phone;
-      _identifierController.clear();
-    });
-    // An open soft keyboard keeps its layout when keyboardType changes (on
-    // Android the IME is not restarted). Dropping focus closes the input
-    // connection; restoring it next frame reopens the keyboard as the new
-    // type, so choosing email shows the email keyboard.
-    if (wasTyping) {
-      _identifierFocus.unfocus();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _identifierFocus.requestFocus();
-      });
-    }
-  }
+  Future<void> _confirmSignOut() => confirmSignOut(context, ref);
 
   Future<void> _openAuthDestination(
     AuthDestination destination, {
     AuthNavigationMode mode = AuthNavigationMode.push,
-  }) async {
-    if (destination != AuthDestination.onboarding) {
-      await ref
-          .read(sharedPreferencesProvider)
-          .setBool(hasSeenOnboardingKey, true);
-    }
-    ref.read(authNavigationProvider.notifier).publish(destination, mode: mode);
-  }
-
-  void _selectPhoneChannel(PhoneVerificationChannel channel) {
-    setState(() => _phoneChannel = channel);
-  }
+  }) => openAuthDestination(ref, destination, mode: mode);
 
   @override
   Widget build(BuildContext context) {
@@ -488,9 +376,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     }
     final canExit =
         Navigator.of(context).canPop() ||
-        _screen == AppScreen.bootstrap ||
-        _screen == AppScreen.onboarding ||
-        _screen == AppScreen.login ||
         (_screen == AppScreen.home && _history.isEmpty);
     return PopScope(
       canPop: canExit && (!_isSavingsDestination || _hasSavingsAccess),
@@ -577,24 +462,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
 
   Widget _buildScreen(AppScreen screen) {
     switch (screen) {
-      case AppScreen.bootstrap:
-        return _bootstrapScreen();
-      case AppScreen.onboarding:
-        return _onboardingScreen();
-      case AppScreen.verifyMethod:
-        return _verifyMethodScreen();
-      case AppScreen.otp:
-        return _otpScreen();
-      case AppScreen.createPassword:
-        return _createPasswordScreen();
-      case AppScreen.login:
-        return _loginScreen();
-      case AppScreen.passwordReset:
-        return _passwordResetScreen();
-      case AppScreen.newDeviceOtp:
-        return _newDeviceOtpScreen();
-      case AppScreen.createFirstPin:
-        return _createFirstPinScreen();
       case AppScreen.tiers:
         return _tiersScreen();
       case AppScreen.kycIdentity:

@@ -2,14 +2,15 @@ import 'package:boctrust_savings_loan/app/bootstrap_provider.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'support/biometric_overrides.dart';
+import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
 
 /// Raises and lowers the keyboard inset at runtime.
@@ -18,9 +19,9 @@ import 'support/responsive_fixtures.dart';
 /// layout branch but never crosses between them. Focus is only destroyed by the
 /// transition, which is why a statically-sized test cannot catch it.
 class _KeyboardHarness extends StatefulWidget {
-  const _KeyboardHarness({required this.screen});
+  const _KeyboardHarness({required this.route});
 
-  final AppScreen screen;
+  final String route;
 
   static _KeyboardHarnessState of(WidgetTester tester) =>
       tester.state(find.byType(_KeyboardHarness));
@@ -43,12 +44,12 @@ class _KeyboardHarnessState extends State<_KeyboardHarness> {
       ).copyWith(viewInsets: EdgeInsets.only(bottom: _bottomInset)),
       child: child!,
     ),
-    home: AppFlowNavigator(initialScreen: widget.screen),
+    home: appHome(route: widget.route),
   );
 }
 
 void main() {
-  Future<void> pumpScreen(WidgetTester tester, AppScreen screen) async {
+  Future<void> pumpScreen(WidgetTester tester, String route) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final dio = Dio(BaseOptions(baseUrl: 'https://keyboard-test.invalid'));
@@ -73,7 +74,7 @@ void main() {
           startupGateProvider.overrideWith(LayoutStartup.new),
           ...biometricTestOverrides(),
         ],
-        child: _KeyboardHarness(screen: screen),
+        child: _KeyboardHarness(route: route),
       ),
     );
     await tester.pump(const Duration(milliseconds: 300));
@@ -82,9 +83,9 @@ void main() {
   // Every screen built on the auth shell, which switches its footer between
   // pinned and scrolling depending on available height.
   for (final screen in [
-    AppScreen.login,
-    AppScreen.createPassword,
-    AppScreen.otp,
+    AppRoutes.login,
+    AppRoutes.createPassword,
+    AppRoutes.otp,
   ]) {
     testWidgets('$screen keeps focus when the keyboard opens', (tester) async {
       tester.view.physicalSize = const Size(412, 915);
@@ -155,7 +156,7 @@ void main() {
       return chain;
     }
 
-    await pumpScreen(tester, AppScreen.login);
+    await pumpScreen(tester, AppRoutes.login);
     final closed = chainAboveField();
 
     _KeyboardHarness.of(tester).showKeyboard();
@@ -181,7 +182,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await pumpScreen(tester, AppScreen.login);
+    await pumpScreen(tester, AppRoutes.login);
     _KeyboardHarness.of(tester).showKeyboard();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

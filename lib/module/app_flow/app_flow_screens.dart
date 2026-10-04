@@ -1,15 +1,6 @@
 part of 'app_flow_navigator.dart';
 
 enum AppScreen {
-  bootstrap,
-  onboarding,
-  verifyMethod,
-  otp,
-  createPassword,
-  login,
-  passwordReset,
-  newDeviceOtp,
-  createFirstPin,
   tiers,
   kycIdentity,
   kycGovernmentId,
@@ -96,32 +87,38 @@ class AppRouteDefinition {
 /// customer data.
 const appRouteDefinitions = <String, AppRouteDefinition>{
   // Entry, sign-in and recovery.
-  AppRoutes.bootstrap: AppRouteDefinition(AppScreen.bootstrap, isPublic: true),
-  AppRoutes.onboarding: AppRouteDefinition(
-    AppScreen.onboarding,
+  AppRoutes.bootstrap: AppRouteDefinition.page(
+    BootstrapScreen.new,
     isPublic: true,
   ),
-  AppRoutes.verificationMethod: AppRouteDefinition(
-    AppScreen.verifyMethod,
+  AppRoutes.onboarding: AppRouteDefinition.page(
+    OnboardingScreen.new,
     isPublic: true,
   ),
-  AppRoutes.otp: AppRouteDefinition(AppScreen.otp, isPublic: true),
-  AppRoutes.createPassword: AppRouteDefinition(
-    AppScreen.createPassword,
+  AppRoutes.verificationMethod: AppRouteDefinition.page(
+    VerifyMethodScreen.new,
     isPublic: true,
   ),
-  AppRoutes.login: AppRouteDefinition(AppScreen.login, isPublic: true),
-  AppRoutes.biometricLogin: AppRouteDefinition(AppScreen.login, isPublic: true),
-  AppRoutes.passwordReset: AppRouteDefinition(
-    AppScreen.passwordReset,
+  AppRoutes.otp: AppRouteDefinition.page(SignupOtpScreen.new, isPublic: true),
+  AppRoutes.createPassword: AppRouteDefinition.page(
+    CreatePasswordScreen.new,
     isPublic: true,
   ),
-  AppRoutes.newDeviceOtp: AppRouteDefinition(
-    AppScreen.newDeviceOtp,
+  AppRoutes.login: AppRouteDefinition.page(LoginScreen.new, isPublic: true),
+  AppRoutes.biometricLogin: AppRouteDefinition.page(
+    LoginScreen.new,
     isPublic: true,
   ),
-  AppRoutes.createFirstPin: AppRouteDefinition(
-    AppScreen.createFirstPin,
+  AppRoutes.passwordReset: AppRouteDefinition.page(
+    PasswordResetScreen.new,
+    isPublic: true,
+  ),
+  AppRoutes.newDeviceOtp: AppRouteDefinition.page(
+    NewDeviceOtpScreen.new,
+    isPublic: true,
+  ),
+  AppRoutes.createFirstPin: AppRouteDefinition.page(
+    CreateFirstPinScreen.new,
     isPublic: true,
   ),
 

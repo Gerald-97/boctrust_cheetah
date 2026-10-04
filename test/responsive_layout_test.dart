@@ -7,6 +7,7 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
+import 'support/flow_harness.dart';
 import 'support/kyc_configuration_fixtures.dart';
 import 'support/responsive_fixtures.dart';
 import 'support/savings_fixtures.dart';
@@ -45,41 +46,50 @@ void main() {
     const Size(1440, 900),
   ]) {
     for (final scale in [1.0, 2.0]) {
-      final scenarios = [
-        for (final screen in AppScreen.values)
-          (screen: screen, route: null, populated: false, keyboard: false),
-        for (final route in AppRoutes.allRoutes.where(
-          (r) => appScreenForRoute(r) == AppScreen.unavailable,
-        ))
-          (
-            screen: AppScreen.unavailable,
-            route: route,
-            populated: false,
-            keyboard: false,
-          ),
-        for (final screen in [
-          AppScreen.home,
-          AppScreen.account,
-          AppScreen.tiers,
-          AppScreen.kycIdentity,
-          AppScreen.kycGovernmentId,
-          AppScreen.kycUtilityBill,
-          AppScreen.linkedBanks,
-          AppScreen.saveHub,
-          AppScreen.flex,
-          AppScreen.addMoney,
-        ])
-          (screen: screen, route: null, populated: true, keyboard: false),
-        for (final screen in [
-          AppScreen.login,
-          AppScreen.createPassword,
-          AppScreen.otp,
-          AppScreen.createFirstPin,
-          AppScreen.kycGovernmentId,
-          AppScreen.kycUtilityBill,
-        ])
-          (screen: screen, route: null, populated: false, keyboard: true),
-      ];
+      final scenarios =
+          <({AppScreen? screen, String? route, bool populated, bool keyboard})>[
+            for (final screen in AppScreen.values)
+              (screen: screen, route: null, populated: false, keyboard: false),
+            // Standalone screens outside the flow navigator.
+            for (final route in AppRoutes.allRoutes.where(
+              (r) => appRouteDefinitions[r]?.page != null,
+            ))
+              (screen: null, route: route, populated: false, keyboard: false),
+            for (final route in AppRoutes.allRoutes.where(
+              (r) => appScreenForRoute(r) == AppScreen.unavailable,
+            ))
+              (
+                screen: AppScreen.unavailable,
+                route: route,
+                populated: false,
+                keyboard: false,
+              ),
+            for (final screen in [
+              AppScreen.home,
+              AppScreen.account,
+              AppScreen.tiers,
+              AppScreen.kycIdentity,
+              AppScreen.kycGovernmentId,
+              AppScreen.kycUtilityBill,
+              AppScreen.linkedBanks,
+              AppScreen.saveHub,
+              AppScreen.flex,
+              AppScreen.addMoney,
+            ])
+              (screen: screen, route: null, populated: true, keyboard: false),
+            for (final route in [
+              AppRoutes.login,
+              AppRoutes.createPassword,
+              AppRoutes.otp,
+              AppRoutes.createFirstPin,
+            ])
+              (screen: null, route: route, populated: false, keyboard: true),
+            for (final screen in [
+              AppScreen.kycGovernmentId,
+              AppScreen.kycUtilityBill,
+            ])
+              (screen: screen, route: null, populated: false, keyboard: true),
+          ];
       for (final scenario in scenarios) {
         testWidgets('$scenario at $size text $scale', (tester) async {
           final savings =
@@ -154,10 +164,7 @@ void main() {
                   ),
                   child: child!,
                 ),
-                home: AppFlowNavigator(
-                  initialScreen: scenario.screen,
-                  initialRouteName: scenario.route,
-                ),
+                home: appHome(route: scenario.route, screen: scenario.screen),
               ),
             ),
           );

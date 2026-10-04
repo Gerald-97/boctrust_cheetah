@@ -3,6 +3,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../module/app_flow/app_flow_navigator.dart';
 import 'route_arguments.dart';
+import 'route_message_scope.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -155,16 +156,17 @@ class AppRouter {
     final name = settings.name;
     final definition = appRouteDefinitions[name];
     if (name != null && definition != null) {
-      final arguments = settings.arguments;
-      final screen =
-          definition.page?.call() ??
-          AppFlowRouteScreen(
-            initialScreen: appScreenForRoute(name),
-            initialRouteName: name,
-            routeArguments: arguments is AppRouteArguments
-                ? arguments
-                : const AppRouteArguments(),
-          );
+      final arguments = settings.arguments is AppRouteArguments
+          ? settings.arguments! as AppRouteArguments
+          : const AppRouteArguments();
+      final page = definition.page;
+      final screen = page != null
+          ? RouteMessageScope(arguments: arguments, child: page())
+          : AppFlowRouteScreen(
+              initialScreen: appScreenForRoute(name),
+              initialRouteName: name,
+              routeArguments: arguments,
+            );
       return AppRoutes.privateRoutes.contains(name)
           ? PrivateRouteGate(routeName: name, child: screen)
           : screen;

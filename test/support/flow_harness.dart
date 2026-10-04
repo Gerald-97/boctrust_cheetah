@@ -3,6 +3,7 @@ import 'package:boctrust_savings_loan/app/bootstrap_provider.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
+import 'package:boctrust_savings_loan/app/route_message_scope.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:dio/dio.dart';
@@ -46,17 +47,28 @@ Widget flowApp({
   AppScreen? screen,
   AppRouteArguments arguments = const AppRouteArguments(),
 }) {
-  final page = screen == null ? appRouteDefinitions[route]?.page : null;
   return MaterialApp(
     theme: CheetahTheme.lightTheme,
     onGenerateRoute: AppRouter.onGenerateRoute,
-    home:
-        page?.call() ??
-        AppFlowNavigator(
-          initialScreen: screen ?? appScreenForRoute(route),
-          initialRouteName: route,
-          routeArguments: arguments,
-        ),
+    home: appHome(route: route, screen: screen, arguments: arguments),
+  );
+}
+
+/// What [route] opens, without its access gate: a standalone page, or the
+/// flow navigator at [screen] (or the route's flow screen).
+Widget appHome({
+  String? route,
+  AppScreen? screen,
+  AppRouteArguments arguments = const AppRouteArguments(),
+}) {
+  final page = screen == null ? appRouteDefinitions[route]?.page : null;
+  if (page != null) {
+    return RouteMessageScope(arguments: arguments, child: page());
+  }
+  return AppFlowNavigator(
+    initialScreen: screen ?? appScreenForRoute(route),
+    initialRouteName: route,
+    routeArguments: arguments,
   );
 }
 

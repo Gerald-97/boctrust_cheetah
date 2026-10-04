@@ -16,6 +16,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'support/flow_harness.dart';
 import 'support/kyc_configuration_fixtures.dart';
 import 'support/responsive_fixtures.dart';
 
@@ -111,10 +113,10 @@ void main() {
 
   group('app identity surfaces', () {
     for (final (screen, populated) in [
-      (AppScreen.bootstrap, false),
-      (AppScreen.onboarding, false),
-      (AppScreen.login, false),
-      (AppScreen.home, true),
+      (AppRoutes.bootstrap, false),
+      (AppRoutes.onboarding, false),
+      (AppRoutes.login, false),
+      (AppRoutes.home, true),
     ]) {
       testWidgets('$screen shows the shared brand mark', (tester) async {
         await _pumpScreen(tester, screen, populated: populated);
@@ -123,7 +125,7 @@ void main() {
         expect(svg, findsOneWidget);
         expect(_assetOf(tester, svg), _markAsset);
         expect(_inLogo(find.byIcon(Icons.savings_rounded)), findsNothing);
-        if (screen == AppScreen.home) {
+        if (screen == AppRoutes.home) {
           // The Save destination is a product icon, not app identity.
           final saveTab = find.byWidgetPredicate(
             (w) =>
@@ -144,7 +146,7 @@ void main() {
 
 Future<void> _pumpScreen(
   WidgetTester tester,
-  AppScreen screen, {
+  String screen, {
   required bool populated,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
@@ -187,7 +189,7 @@ Future<void> _pumpScreen(
       ],
       child: MaterialApp(
         theme: CheetahTheme.lightTheme,
-        home: AppFlowNavigator(initialScreen: screen),
+        home: appHome(route: screen),
       ),
     ),
   );
