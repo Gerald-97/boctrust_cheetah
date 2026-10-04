@@ -502,7 +502,7 @@ extension KycScreens on KycScreenState {
               children: [
                 Row(
                   children: [
-                    BocTierBadge(tier: summary.tier, size: 36),
+                    BocTierBadge(tier: summary.tier, size: 36, isActive: true),
                     const SizedBox(width: BocSpace.sm),
                     Expanded(
                       child: Column(

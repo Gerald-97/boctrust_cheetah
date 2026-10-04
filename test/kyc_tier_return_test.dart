@@ -18,6 +18,7 @@ import 'package:boctrust_savings_loan/module/kyc/service/kyc_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_session.dart';
@@ -258,25 +259,38 @@ void main() {
   Future<void> settleToast(WidgetTester tester) =>
       tester.pump(const Duration(seconds: 1));
 
-  testWidgets('the matching tier card is marked as the current tier', (
+  testWidgets('only the current tier badge receives its colored lapels', (
     tester,
   ) async {
     await mountFlow(
       tester,
       gateway: _Gateway(KycCaptureOutcome.cancelled),
       route: '/account/tier',
-      tiers: _tiers(currentTier: 1),
+      tiers: _tiers(currentTier: 2),
     );
 
     final tierOneCard = find.byWidgetPredicate(
       (widget) => widget is TierCard && widget.tier == 1,
     );
-    expect(
-      find.descendant(of: tierOneCard, matching: find.text('Current tier')),
-      findsOneWidget,
+    final tierTwoCard = find.byWidgetPredicate(
+      (widget) => widget is TierCard && widget.tier == 2,
     );
-    expect(find.text('Current tier'), findsOneWidget);
-    expect(tester.getSemantics(tierOneCard).label, contains('Current tier'));
+    Iterable<SvgPicture> svgPicturesWithin(Finder card) =>
+        tester.widgetList<SvgPicture>(
+          find.descendant(of: card, matching: find.byType(SvgPicture)),
+        );
+    bool isLapels(SvgPicture picture) =>
+        (picture.bytesLoader as SvgAssetLoader).assetName ==
+        'assets/svg/tier_active_lapels.svg';
+
+    expect(svgPicturesWithin(tierOneCard).where(isLapels), isEmpty);
+    final activeLapels = svgPicturesWithin(tierTwoCard).singleWhere(isLapels);
+    expect(
+      activeLapels.colorFilter,
+      const ColorFilter.mode(Color(0xFFB47AEA), BlendMode.srcIn),
+    );
+    expect(find.text('Current tier'), findsNothing);
+    expect(tester.getSemantics(tierTwoCard).label, contains('Current tier'));
   });
 
   Future<void> runIdentityCapture(

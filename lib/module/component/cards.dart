@@ -262,7 +262,9 @@ class BalanceCard extends StatelessWidget {
                       if (tier != null) ...[
                         const SizedBox(width: BocSpace.xs),
                         // "Tier N" beside it already names the tier.
-                        ExcludeSemantics(child: BocTierBadge(tier: tier)),
+                        ExcludeSemantics(
+                          child: BocTierBadge(tier: tier, isActive: true),
+                        ),
                         const SizedBox(width: BocSpace.xs),
                         Text(
                           'Tier $tier',
@@ -337,10 +339,16 @@ class _WalletCardArt extends StatelessWidget {
 
 /// The scalloped KYC tier badge with the tier number.
 class BocTierBadge extends StatelessWidget {
-  const BocTierBadge({required this.tier, this.size = 24, super.key});
+  const BocTierBadge({
+    required this.tier,
+    this.size = 24,
+    this.isActive = false,
+    super.key,
+  });
 
   final int tier;
   final double size;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
@@ -350,39 +358,61 @@ class BocTierBadge extends StatelessWidget {
       3 => 'assets/svg/tier_3.svg',
       _ => null,
     };
-    return Semantics(
-      label: 'Tier $tier',
-      excludeSemantics: true,
-      child: SizedBox.square(
-        dimension: size,
-        child: asset != null
-            ? SvgPicture.asset(
-                asset,
+    final activeColor = switch (tier) {
+      1 => const Color(0xFF4F7EB4),
+      2 => const Color(0xFFB47AEA),
+      3 => const Color(0xFF30BE83),
+      _ => null,
+    };
+    final showLapels = isActive && activeColor != null;
+    final badge = asset != null
+        ? SvgPicture.asset(
+            asset,
+            width: size,
+            height: size,
+            excludeFromSemantics: true,
+          )
+        : Stack(
+            alignment: Alignment.center,
+            children: [
+              SvgPicture.asset(
+                'assets/svg/tier_badge.svg',
                 width: size,
                 height: size,
-                excludeFromSemantics: true,
-              )
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  SvgPicture.asset(
-                    'assets/svg/tier_badge.svg',
-                    width: size,
-                    height: size,
-                  ),
-                  Text(
-                    '$tier',
-                    textScaler: TextScaler.noScaling,
-                    style: TextStyle(
-                      fontFamily: kFigureFontFamily,
-                      fontSize: size * 0.5,
-                      fontWeight: FontWeight.w600,
-                      color: BocColors.blue,
-                      height: 1,
-                    ),
-                  ),
-                ],
               ),
+              Text(
+                '$tier',
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  fontFamily: kFigureFontFamily,
+                  fontSize: size * 0.5,
+                  fontWeight: FontWeight.w600,
+                  color: BocColors.blue,
+                  height: 1,
+                ),
+              ),
+            ],
+          );
+    return Semantics(
+      label: 'Tier $tier${showLapels ? ', current tier' : ''}',
+      excludeSemantics: true,
+      child: SizedBox(
+        width: size,
+        height: showLapels ? size * 31 / 25 : size,
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            SizedBox.square(dimension: size, child: badge),
+            if (showLapels)
+              Positioned.fill(
+                child: SvgPicture.asset(
+                  'assets/svg/tier_active_lapels.svg',
+                  colorFilter: ColorFilter.mode(activeColor, BlendMode.srcIn),
+                  excludeFromSemantics: true,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

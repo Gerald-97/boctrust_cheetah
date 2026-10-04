@@ -98,27 +98,17 @@ class TierCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BocTierBadge(tier: tier, size: 40),
+          BocTierBadge(tier: tier, size: 40, isActive: isCurrentTier),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(fontSize: 14),
-                      ),
-                    ),
-                    if (isCurrentTier) ...[
-                      const SizedBox(width: BocSpace.xs),
-                      const SmallPill(text: 'Current tier'),
-                    ],
-                  ],
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
                 ),
                 const SizedBox(height: 3),
                 Text(
