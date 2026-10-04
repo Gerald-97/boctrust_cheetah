@@ -49,10 +49,10 @@ void main() {
         for (final screen in AppScreen.values)
           (screen: screen, route: null, populated: false, keyboard: false),
         for (final route in AppRoutes.allRoutes.where(
-          (r) => appPreviewRouteForRoute(r) != null,
+          (r) => appScreenForRoute(r) == AppScreen.unavailable,
         ))
           (
-            screen: AppScreen.routePreview,
+            screen: AppScreen.unavailable,
             route: route,
             populated: false,
             keyboard: false,

@@ -7,28 +7,21 @@ part of '../../app_flow/app_flow_navigator.dart';
 enum SecurityCheckMethod { password, pin }
 
 extension AccountScreens on AppFlowNavigatorState {
-  /// Routes once tagged as previews. Funding, theme, and enabled history open
-  /// their real screens; everything else says plainly that it is unavailable.
-  Widget _routePreviewScreen() {
+  /// A route registered with [AppRouteDefinition.unavailable]. Transaction
+  /// history opens the live screen once its capability is on.
+  Widget _unavailableRouteScreen() {
     final routeName = widget.initialRouteName;
-    switch (routeName) {
-      case AppRoutes.flexTopUp:
-      case AppRoutes.bankTransferFunding:
-        return _addMoneyScreen();
-      case AppRoutes.themeSettings:
-        return _preferencesScreen();
-      case AppRoutes.transactionHistory
-          when ref
-              .watch(
-                featureAvailabilityProvider(
-                  FeatureCapability.transactionHistory,
-                ),
-              )
-              .isAvailable:
-        return _transactionHistoryScreen();
+    if (routeName == AppRoutes.transactionHistory &&
+        ref
+            .watch(
+              featureAvailabilityProvider(FeatureCapability.transactionHistory),
+            )
+            .isAvailable) {
+      return _transactionHistoryScreen();
     }
     return _unavailableScreen(
-      unavailableDestinations[routeName] ?? unknownUnavailableDestination,
+      appRouteDefinitions[routeName]?.unavailable ??
+          unknownUnavailableDestination,
     );
   }
 

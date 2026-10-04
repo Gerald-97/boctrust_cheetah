@@ -52,221 +52,283 @@ enum AppScreen {
   notifications,
   loans,
   cards,
-  routePreview,
+  unavailable,
   account,
 }
 
 enum AppSection { home, save, send, payments, account }
 
-enum AppPreviewRoute {
-  savingsNew,
-  flexTopUp,
-  flexWithdraw,
-  flexStatement,
-  flexSettings,
-  targetSort,
-  lockDetails,
-  lockAddMoney,
-  groupContribute,
-  groupInvite,
-  groupMembers,
-  bankTransferFunding,
-  cardFunding,
-  accountBeneficiaries,
-  accountSupport,
-  supportChat,
-  supportCall,
-  supportEmail,
-  privacyPolicy,
-  terms,
-  socialFacebook,
-  socialX,
-  socialLinkedIn,
-  themeSettings,
-  transactionHistory,
-  paymentWebView,
+/// What a registered route opens and whether it needs a session.
+class AppRouteDefinition {
+  const AppRouteDefinition(this.screen, {this.isPublic = false})
+    : unavailable = null;
+
+  /// A route with no working feature yet, rendered by
+  /// [UnavailableFeatureScreen].
+  const AppRouteDefinition.unavailable(
+    UnavailableDestination this.unavailable, {
+    this.isPublic = false,
+  }) : screen = AppScreen.unavailable;
+
+  final AppScreen screen;
+
+  /// Reachable without a signed-in session. Every other route needs a session
+  /// and a created PIN.
+  final bool isPublic;
+  final UnavailableDestination? unavailable;
 }
 
-AppPreviewRoute? appPreviewRouteForRoute(String? routeName) {
-  switch (routeName) {
-    case '/savings/new':
-      return AppPreviewRoute.savingsNew;
-    case '/savings/flex/top-up':
-      return AppPreviewRoute.flexTopUp;
-    case '/savings/flex/withdraw':
-      return AppPreviewRoute.flexWithdraw;
-    case '/savings/flex/statement':
-      return AppPreviewRoute.flexStatement;
-    case '/savings/flex/settings':
-      return AppPreviewRoute.flexSettings;
-    case '/savings/target/sort':
-      return AppPreviewRoute.targetSort;
-    case '/savings/lock/details':
-      return AppPreviewRoute.lockDetails;
-    case '/savings/lock/add-money':
-      return AppPreviewRoute.lockAddMoney;
-    case '/savings/group/contribute':
-      return AppPreviewRoute.groupContribute;
-    case '/savings/group/invite':
-      return AppPreviewRoute.groupInvite;
-    case '/savings/group/members':
-      return AppPreviewRoute.groupMembers;
-    case '/wallet/bank-transfer':
-      return AppPreviewRoute.bankTransferFunding;
-    case '/wallet/card':
-      return AppPreviewRoute.cardFunding;
-    case '/account/beneficiaries':
-      return AppPreviewRoute.accountBeneficiaries;
-    case '/account/support':
-      return AppPreviewRoute.accountSupport;
-    case '/account/support/chat':
-      return AppPreviewRoute.supportChat;
-    case '/account/support/call':
-      return AppPreviewRoute.supportCall;
-    case '/account/support/email':
-      return AppPreviewRoute.supportEmail;
-    case '/account/legal/privacy':
-      return AppPreviewRoute.privacyPolicy;
-    case '/account/legal/terms':
-      return AppPreviewRoute.terms;
-    case '/account/social/facebook':
-      return AppPreviewRoute.socialFacebook;
-    case '/account/social/x':
-      return AppPreviewRoute.socialX;
-    case '/account/social/linkedin':
-      return AppPreviewRoute.socialLinkedIn;
-    case '/account/theme':
-      return AppPreviewRoute.themeSettings;
-    case '/transactions':
-      return AppPreviewRoute.transactionHistory;
-    case '/payment/webview':
-      return AppPreviewRoute.paymentWebView;
-    default:
-      return null;
-  }
-}
+/// The single route registry. [AppRoutes.allRoutes], [AppRoutes.publicRoutes]
+/// and [appScreenForRoute] are all derived from it.
+///
+/// Public routes: entry, sign-in and recovery, first-PIN setup (which needs a
+/// session but no PIN yet), and static support and legal pages that hold no
+/// customer data.
+const appRouteDefinitions = <String, AppRouteDefinition>{
+  // Entry, sign-in and recovery.
+  AppRoutes.bootstrap: AppRouteDefinition(AppScreen.bootstrap, isPublic: true),
+  AppRoutes.onboarding: AppRouteDefinition(
+    AppScreen.onboarding,
+    isPublic: true,
+  ),
+  AppRoutes.verificationMethod: AppRouteDefinition(
+    AppScreen.verifyMethod,
+    isPublic: true,
+  ),
+  AppRoutes.otp: AppRouteDefinition(AppScreen.otp, isPublic: true),
+  AppRoutes.createPassword: AppRouteDefinition(
+    AppScreen.createPassword,
+    isPublic: true,
+  ),
+  AppRoutes.login: AppRouteDefinition(AppScreen.login, isPublic: true),
+  AppRoutes.biometricLogin: AppRouteDefinition(AppScreen.login, isPublic: true),
+  AppRoutes.passwordReset: AppRouteDefinition(
+    AppScreen.passwordReset,
+    isPublic: true,
+  ),
+  AppRoutes.newDeviceOtp: AppRouteDefinition(
+    AppScreen.newDeviceOtp,
+    isPublic: true,
+  ),
+  AppRoutes.createFirstPin: AppRouteDefinition(
+    AppScreen.createFirstPin,
+    isPublic: true,
+  ),
 
-AppScreen appScreenForRoute(String? routeName) {
-  if (appPreviewRouteForRoute(routeName) != null) {
-    return AppScreen.routePreview;
-  }
-  switch (routeName) {
-    case '/bootstrap':
-      return AppScreen.bootstrap;
-    case '/onboarding':
-      return AppScreen.onboarding;
-    case '/onboarding/verification-method':
-      return AppScreen.verifyMethod;
-    case '/onboarding/otp':
-      return AppScreen.otp;
-    case '/onboarding/create-password':
-      return AppScreen.createPassword;
-    case '/login':
-    case '/login/biometric':
-      return AppScreen.login;
-    case '/login/password-reset':
-      return AppScreen.passwordReset;
-    case '/login/new-device-otp':
-      return AppScreen.newDeviceOtp;
-    case '/onboarding/create-pin':
-      return AppScreen.createFirstPin;
-    case '/home':
-      return AppScreen.home;
-    case '/savings':
-      return AppScreen.saveHub;
-    case '/savings/flex':
-      return AppScreen.flex;
-    case '/savings/target':
-      return AppScreen.target;
-    case '/savings/lock':
-      return AppScreen.lock;
-    case '/savings/group':
-      return AppScreen.group;
-    case '/savings/plan':
-      return AppScreen.savingsPlanDetail;
-    case '/savings/target/create':
-      return AppScreen.smartSaveCreate;
-    case '/savings/lock/create':
-      return AppScreen.fixedDepositCreate;
-    case '/savings/group/create':
-      return AppScreen.padiCreate;
-    case '/wallet/add-money':
-      return AppScreen.addMoney;
-    case '/send':
-      return AppScreen.sendHub;
-    case '/send/own-account':
-      return AppScreen.sendOwn;
-    case '/send/beneficiary':
-      return AppScreen.sendBeneficiary;
-    case '/send/other-bank':
-      return AppScreen.sendBank;
-    case '/payments':
-      return AppScreen.payments;
-    case '/payments/airtime':
-      return AppScreen.airtime;
-    case '/payments/data':
-      return AppScreen.data;
-    case '/payments/billers/electricity':
-    case '/payments/billers/water':
-    case '/payments/billers/cable':
-    case '/payments/billers/internet':
-    case '/payments/billers/education':
-    case '/payments/billers/more':
-      return AppScreen.billerList;
-    case '/payments/bill-pay':
-      return AppScreen.billPay;
-    case '/payments/scan-to-pay':
-      return AppScreen.scan;
-    case '/account':
-      return AppScreen.account;
-    case '/account/tier':
-      return AppScreen.tiers;
-    // Compatibility routes: both open the identity screen, preselecting the
-    // identity type rather than standing for a whole tier.
-    case '/account/tier/bvn':
-    case '/account/tier/nin':
-      return AppScreen.kycIdentity;
-    case '/account/tier/government-id':
-      return AppScreen.kycGovernmentId;
-    case '/account/tier/next-of-kin':
-      return AppScreen.nextOfKin;
-    case '/account/tier/address':
-      return AppScreen.kycUtilityBill;
-    case '/account/security':
-      return AppScreen.securityCenter;
-    case '/account/delete':
-      return AppScreen.deleteAccount;
-    case '/account/statement':
-      return AppScreen.accountStatement;
-    case '/account/profile':
-      return AppScreen.myProfile;
-    case '/account/preferences':
-      return AppScreen.preferences;
-    case '/account/preferences/notifications':
-      return AppScreen.notificationPreferences;
-    case '/account/preferences/accessibility':
-      return AppScreen.accessibilityPreferences;
-    case '/account/tier/cac':
-      return AppScreen.kycCacDocument;
-    case '/account/tier/bank-statement':
-      return AppScreen.kycBankStatement;
-    case '/account/linked-banks':
-      return AppScreen.linkedBanks;
-    case '/account/loans':
-    case '/account/loans/notify-me':
-      return AppScreen.loans;
-    case '/account/cards':
-    case '/account/cards/notify-me':
-      return AppScreen.cards;
-    case '/notifications':
-      return AppScreen.notifications;
-    case '/transactions/detail':
-      return AppScreen.transactionDetail;
-    case '/transaction/authorize':
-      return AppScreen.authPin;
-    case '/transaction/receipt':
-      return AppScreen.success;
-    default:
-      return AppScreen.home;
-  }
-}
+  AppRoutes.home: AppRouteDefinition(AppScreen.home),
+
+  // Savings.
+  AppRoutes.savingsHub: AppRouteDefinition(AppScreen.saveHub),
+  AppRoutes.flexSave: AppRouteDefinition(AppScreen.flex),
+  AppRoutes.flexTopUp: AppRouteDefinition(AppScreen.addMoney),
+  AppRoutes.flexWithdraw: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Withdrawals',
+      heading: 'Unavailable',
+      message: 'Withdrawals are not available yet.',
+      section: AppSection.save,
+      capability: FeatureCapability.flexWithdraw,
+    ),
+  ),
+  AppRoutes.flexStatement: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Savings statements',
+      heading: 'Unavailable',
+      message: 'Savings statements are not available yet.',
+      section: AppSection.save,
+      capability: FeatureCapability.flexStatement,
+    ),
+  ),
+  AppRoutes.flexSettings: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Auto-save',
+      heading: 'Unavailable',
+      message: 'Auto-save is not available yet.',
+      section: AppSection.save,
+      capability: FeatureCapability.flexAutoSave,
+    ),
+  ),
+  AppRoutes.newSavingsChooser: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.targetSave: AppRouteDefinition(AppScreen.target),
+  AppRoutes.targetSaveCreate: AppRouteDefinition(AppScreen.smartSaveCreate),
+  AppRoutes.targetSort: AppRouteDefinition.unavailable(savingsPlansUnavailable),
+  AppRoutes.lockSave: AppRouteDefinition(AppScreen.lock),
+  AppRoutes.lockCreate: AppRouteDefinition(AppScreen.fixedDepositCreate),
+  AppRoutes.lockDetails: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.lockAddMoney: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.groupSave: AppRouteDefinition(AppScreen.group),
+  AppRoutes.groupCreate: AppRouteDefinition(AppScreen.padiCreate),
+  AppRoutes.groupContribute: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.groupInvite: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.groupMembers: AppRouteDefinition.unavailable(
+    savingsPlansUnavailable,
+  ),
+  AppRoutes.savingsPlanDetail: AppRouteDefinition(AppScreen.savingsPlanDetail),
+
+  // Funding.
+  AppRoutes.addMoney: AppRouteDefinition(AppScreen.addMoney),
+  AppRoutes.bankTransferFunding: AppRouteDefinition(AppScreen.addMoney),
+  AppRoutes.cardFunding: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Card funding',
+      heading: 'Unavailable',
+      message: 'Card funding is not available yet.',
+      section: AppSection.save,
+      capability: FeatureCapability.cardFunding,
+    ),
+  ),
+
+  // Send.
+  AppRoutes.sendHub: AppRouteDefinition(AppScreen.sendHub),
+  AppRoutes.sendOwnAccount: AppRouteDefinition(AppScreen.sendOwn),
+  AppRoutes.sendBeneficiary: AppRouteDefinition(AppScreen.sendBeneficiary),
+  AppRoutes.sendOtherBank: AppRouteDefinition(AppScreen.sendBank),
+
+  // Payments.
+  AppRoutes.paymentsHub: AppRouteDefinition(AppScreen.payments),
+  AppRoutes.airtime: AppRouteDefinition(AppScreen.airtime),
+  AppRoutes.data: AppRouteDefinition(AppScreen.data),
+  AppRoutes.billerListElectricity: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billerListWater: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billerListCable: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billerListInternet: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billerListEducation: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billerListMore: AppRouteDefinition(AppScreen.billerList),
+  AppRoutes.billPay: AppRouteDefinition(AppScreen.billPay),
+  AppRoutes.scanToPay: AppRouteDefinition(AppScreen.scan),
+  AppRoutes.paymentWebView: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Payment',
+      heading: 'Payment checkout is unavailable',
+      message: 'Card and hosted checkout payments are not available yet.',
+      section: AppSection.payments,
+      capability: FeatureCapability.cardFunding,
+    ),
+  ),
+
+  // Account and verification.
+  AppRoutes.account: AppRouteDefinition(AppScreen.account),
+  AppRoutes.tierOverview: AppRouteDefinition(AppScreen.tiers),
+  // Compatibility routes: both open the identity screen, preselecting the
+  // identity type rather than standing for a whole tier.
+  AppRoutes.tier1Bvn: AppRouteDefinition(AppScreen.kycIdentity),
+  AppRoutes.tier2Nin: AppRouteDefinition(AppScreen.kycIdentity),
+  AppRoutes.governmentIdVerification: AppRouteDefinition(
+    AppScreen.kycGovernmentId,
+  ),
+  AppRoutes.nextOfKin: AppRouteDefinition(AppScreen.nextOfKin),
+  AppRoutes.tier3Address: AppRouteDefinition(AppScreen.kycUtilityBill),
+  AppRoutes.kycCacDocument: AppRouteDefinition(AppScreen.kycCacDocument),
+  AppRoutes.kycBankStatement: AppRouteDefinition(AppScreen.kycBankStatement),
+  AppRoutes.manageBeneficiaries: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Beneficiaries',
+      heading: 'Beneficiaries are unavailable',
+      message: 'Saved beneficiaries are not available yet.',
+      section: AppSection.account,
+      capability: FeatureCapability.beneficiaries,
+    ),
+  ),
+  AppRoutes.linkedBanks: AppRouteDefinition(AppScreen.linkedBanks),
+  AppRoutes.securitySettings: AppRouteDefinition(AppScreen.securityCenter),
+  AppRoutes.deleteAccount: AppRouteDefinition(AppScreen.deleteAccount),
+  AppRoutes.accountStatement: AppRouteDefinition(AppScreen.accountStatement),
+  AppRoutes.myProfile: AppRouteDefinition(AppScreen.myProfile),
+  AppRoutes.preferences: AppRouteDefinition(AppScreen.preferences),
+  AppRoutes.notificationPreferences: AppRouteDefinition(
+    AppScreen.notificationPreferences,
+  ),
+  AppRoutes.accessibilityPreferences: AppRouteDefinition(
+    AppScreen.accessibilityPreferences,
+  ),
+  // Preferences holds the theme picker.
+  AppRoutes.themeSettings: AppRouteDefinition(AppScreen.preferences),
+  AppRoutes.loansComingSoon: AppRouteDefinition(AppScreen.loans),
+  AppRoutes.loansNotifyMe: AppRouteDefinition(AppScreen.loans),
+  AppRoutes.cardsComingSoon: AppRouteDefinition(AppScreen.cards),
+  AppRoutes.cardsNotifyMe: AppRouteDefinition(AppScreen.cards),
+
+  // Support, legal and social: public, and never customer data.
+  AppRoutes.support: AppRouteDefinition.unavailable(
+    supportUnavailable,
+    isPublic: true,
+  ),
+  AppRoutes.supportChat: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Chat with support',
+      heading: 'In-app chat is unavailable',
+      message: supportContactMessage,
+      section: AppSection.account,
+    ),
+    isPublic: true,
+  ),
+  AppRoutes.supportCall: AppRouteDefinition.unavailable(
+    supportUnavailable,
+    isPublic: true,
+  ),
+  AppRoutes.supportEmail: AppRouteDefinition.unavailable(
+    supportUnavailable,
+    isPublic: true,
+  ),
+  // No policy-content endpoint and no bundled copy exist.
+  AppRoutes.privacyPolicy: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Privacy Policy',
+      heading: 'The privacy policy is unavailable',
+      message: 'The privacy policy is not available in the app yet.',
+      section: AppSection.account,
+    ),
+    isPublic: true,
+  ),
+  AppRoutes.terms: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Terms & Conditions',
+      heading: 'The terms and conditions are unavailable',
+      message: 'The terms and conditions are not available in the app yet.',
+      section: AppSection.account,
+    ),
+    isPublic: true,
+  ),
+  // Official handles have not been supplied.
+  AppRoutes.socialFacebook: AppRouteDefinition.unavailable(
+    socialUnavailable,
+    isPublic: true,
+  ),
+  AppRoutes.socialX: AppRouteDefinition.unavailable(
+    socialUnavailable,
+    isPublic: true,
+  ),
+  AppRoutes.socialLinkedIn: AppRouteDefinition.unavailable(
+    socialUnavailable,
+    isPublic: true,
+  ),
+
+  // Activity and transactions.
+  AppRoutes.notifications: AppRouteDefinition(AppScreen.notifications),
+  // The live history screen replaces this page once the capability is on.
+  AppRoutes.transactionHistory: AppRouteDefinition.unavailable(
+    UnavailableDestination(
+      title: 'Transactions',
+      heading: 'Transaction history is unavailable',
+      message: 'Your transaction history cannot be displayed yet.',
+      section: AppSection.payments,
+      capability: FeatureCapability.transactionHistory,
+    ),
+  ),
+  AppRoutes.transactionDetail: AppRouteDefinition(AppScreen.transactionDetail),
+  AppRoutes.transactionAuthorization: AppRouteDefinition(AppScreen.authPin),
+  AppRoutes.receipt: AppRouteDefinition(AppScreen.success),
+};
+
+AppScreen appScreenForRoute(String? routeName) =>
+    appRouteDefinitions[routeName]?.screen ?? AppScreen.home;

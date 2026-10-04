@@ -548,10 +548,9 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     AppScreen.fixedDepositCreate ||
     AppScreen.padiCreate ||
     AppScreen.addMoney => true,
-    AppScreen.routePreview =>
-      widget.initialRouteName?.startsWith('/savings/') == true ||
-          widget.initialRouteName == AppRoutes.bankTransferFunding ||
-          widget.initialRouteName == AppRoutes.cardFunding,
+    AppScreen.unavailable =>
+      appRouteDefinitions[widget.initialRouteName]?.unavailable?.section ==
+          AppSection.save,
     _ => false,
   };
 
@@ -563,11 +562,7 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       return;
     }
     _savingsLoadedFor = session.accessToken;
-    final funding =
-        _screen == AppScreen.addMoney ||
-        (_screen == AppScreen.routePreview &&
-            (widget.initialRouteName == AppRoutes.flexTopUp ||
-                widget.initialRouteName == AppRoutes.bankTransferFunding));
+    final funding = _screen == AppScreen.addMoney;
     final needsData =
         funding || _screen == AppScreen.saveHub || _screen == AppScreen.flex;
     if (needsData &&
@@ -718,8 +713,8 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
           message:
               "Virtual and physical debit cards aren't part of the BOCTRUST app yet. This release is focused on Savings.",
         );
-      case AppScreen.routePreview:
-        return _routePreviewScreen();
+      case AppScreen.unavailable:
+        return _unavailableRouteScreen();
       case AppScreen.account:
         return _accountScreen();
     }

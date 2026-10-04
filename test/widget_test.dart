@@ -218,11 +218,7 @@ void main() {
 
   test('linked banks resolves to the live screen, not a preview', () {
     expect(appScreenForRoute(AppRoutes.linkedBanks), AppScreen.linkedBanks);
-    // The preview route is gone, so no fabricated bank rows can be rendered.
-    expect(
-      AppPreviewRoute.values.map((route) => route.name),
-      isNot(contains('accountLinkedBanks')),
-    );
-    expect(appPreviewRouteForRoute(AppRoutes.linkedBanks), isNull);
+    // Not an unavailable page, so no fabricated bank rows can be rendered.
+    expect(appRouteDefinitions[AppRoutes.linkedBanks]?.unavailable, isNull);
   });
 }
