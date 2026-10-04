@@ -328,7 +328,9 @@ extension AccountControlScreens on AppFlowNavigatorState {
             'before you can delete your account.',
         confirmLabel: 'Move money out',
       );
-      if (moveMoney && mounted) _go(AppScreen.sendHub);
+      if (moveMoney && mounted) {
+        Navigator.of(context).pushNamed(AppRoutes.sendHub);
+      }
       return;
     }
     final confirmed = await AppConfirmSheet.show(

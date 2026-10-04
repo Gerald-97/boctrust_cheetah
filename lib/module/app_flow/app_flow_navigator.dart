@@ -18,7 +18,6 @@ import '../../app/route_arguments.dart';
 import '../../app/services.dart';
 import '../../app/theme.dart';
 import '../../app/theme_controller.dart';
-import '../../utils/utils.dart';
 import '../../utils/validators.dart' as validators;
 import '../account/model/user_profile_model.dart';
 import '../account/model/account_preferences.dart';
@@ -30,19 +29,14 @@ import '../account/provider/withdrawal_bank_providers.dart';
 import '../home/model/user_home_model.dart';
 import '../home/provider/home_provider.dart';
 import '../send/model/transaction_models.dart';
-import '../send/provider/transaction_provider.dart';
-import '../core_banking/model/core_money.dart';
-import '../core_banking/model/core_submission_models.dart';
-import '../core_banking/model/customer_bank_account_models.dart';
-import '../core_banking/model/intrabank_models.dart';
-import '../core_banking/provider/core_account_providers.dart';
-import '../core_banking/provider/intrabank_submission_providers.dart';
-import '../core_banking/service/transaction_authorizer.dart';
 import '../kyc/model/kyc_contact_requirement.dart';
 import '../kyc/screens/kyc_screens.dart';
 import '../account/screens/contact_verification.dart';
 import '../home/screens/home_screen.dart';
 import '../notifications/screens/notifications_screen.dart';
+import 'flow_page.dart';
+import '../payments/screens/payments_screens.dart';
+import '../send/screens/send_screens.dart';
 import '../savings/screens/savings_screens.dart';
 import '../onboarding/screens/auth_widgets.dart';
 import '../onboarding/screens/login_screens.dart';
@@ -97,12 +91,6 @@ part '../component/unavailable_feature_screen.dart';
 
 part '../savings/screens/savings_access_gate.dart';
 
-part '../send/screens/send_screens.dart';
-part '../send/screens/transaction_flow_screens.dart';
-part '../core_banking/screens/own_account_move_screen.dart';
-
-part '../payments/screens/payments_screens.dart';
-
 part '../account/screens/account_screens.dart';
 part '../account/screens/linked_bank_accounts_screen.dart';
 part '../account/screens/account_control_screens.dart';
@@ -131,7 +119,7 @@ class AppFlowRouteScreen extends StatelessWidget {
 
 class AppFlowNavigator extends ConsumerStatefulWidget {
   const AppFlowNavigator({
-    this.initialScreen = AppScreen.unavailable,
+    this.initialScreen = AppScreen.account,
     this.initialRouteName,
     this.routeArguments = const AppRouteArguments(),
     super.key,
@@ -208,16 +196,23 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
       navigator.pop();
       return;
     }
-
-    // Nothing to pop: a savings page falls back to its hub.
-    if (_isSavingsDestination) {
-      navigator.pushReplacementNamed(AppRoutes.savingsHub);
-    }
   }
 
   /// A tab replaces this page with the section hub.
   void _goSection(AppSection section) =>
       Navigator.of(context).pushReplacementNamed(appRouteForSection(section));
+
+  /// A placeholder screen may only stand in for a capability the registry
+  /// still reports in [expected].
+  void _assertPlaceholderFor(
+    FeatureCapability capability,
+    FeatureAvailability expected,
+  ) {
+    assert(
+      ref.read(featureAvailabilityProvider(capability)) == expected,
+      '$capability is no longer $expected but still shows a placeholder.',
+    );
+  }
 
   void _showMessage(String message) {
     ResponseHandler.showInfo(message);
@@ -253,12 +248,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
     );
   }
 
-  /// An unavailable savings page; Back with nothing beneath goes to the hub.
-  bool get _isSavingsDestination =>
-      _screen == AppScreen.unavailable &&
-      appRouteDefinitions[widget.initialRouteName]?.unavailable?.section ==
-          AppSection.save;
-
   Widget _buildScreen(AppScreen screen) {
     switch (screen) {
       case AppScreen.securityCenter:
@@ -267,8 +256,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _deleteAccountScreen();
       case AppScreen.accountStatement:
         return _accountStatementScreen();
-      case AppScreen.transactionDetail:
-        return _transactionDetailScreen();
       case AppScreen.myProfile:
         return _myProfileScreen();
       case AppScreen.preferences:
@@ -279,49 +266,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
         return _accessibilityPreferencesScreen();
       case AppScreen.linkedBanks:
         return _linkedBankAccountsScreen();
-      case AppScreen.sendHub:
-        return _sendHubScreen();
-      case AppScreen.sendOwn:
-        final canMove =
-            ref
-                .watch(
-                  featureAvailabilityProvider(
-                    FeatureCapability.ownAccountTransfers,
-                  ),
-                )
-                .isAvailable ||
-            ref
-                .watch(
-                  featureAvailabilityProvider(
-                    FeatureCapability.savingsWithdrawals,
-                  ),
-                )
-                .isAvailable;
-        return canMove ? _OwnAccountMoveFlow(onExit: _back) : _sendOwnScreen();
-      case AppScreen.sendBeneficiary:
-        return _sendBeneficiaryScreen();
-      case AppScreen.sendBank:
-        return ref
-                .watch(featureAvailabilityProvider(FeatureCapability.transfers))
-                .isAvailable
-            ? _TransferFlow(onExit: _back)
-            : _sendBankScreen();
-      case AppScreen.authPin:
-        return _authPinScreen();
-      case AppScreen.success:
-        return _successScreen();
-      case AppScreen.payments:
-        return _paymentsScreen();
-      case AppScreen.scan:
-        return _scanScreen();
-      case AppScreen.airtime:
-        return _airtimeScreen();
-      case AppScreen.data:
-        return _dataScreen();
-      case AppScreen.billerList:
-        return _billerListScreen();
-      case AppScreen.billPay:
-        return _billPayScreen();
       case AppScreen.loans:
         return _comingSoonScreen(
           capability: FeatureCapability.loans,
@@ -338,8 +282,6 @@ class AppFlowNavigatorState extends ConsumerState<AppFlowNavigator> {
           message:
               "Virtual and physical debit cards aren't part of the BOCTRUST app yet. This release is focused on Savings.",
         );
-      case AppScreen.unavailable:
-        return _unavailableRouteScreen();
       case AppScreen.account:
         return _accountScreen();
     }

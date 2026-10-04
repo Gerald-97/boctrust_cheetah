@@ -159,7 +159,7 @@ class AppRouter {
       final arguments = settings.arguments is AppRouteArguments
           ? settings.arguments! as AppRouteArguments
           : const AppRouteArguments();
-      final page = definition.page;
+      final page = definition.pageBuilder;
       final screen = page != null
           ? RouteMessageScope(arguments: arguments, child: page())
           : AppFlowRouteScreen(

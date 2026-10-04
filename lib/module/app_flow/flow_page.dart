@@ -8,6 +8,32 @@ import '../../app/route_arguments.dart';
 import '../../app/route_message_scope.dart';
 import 'app_flow_navigator.dart';
 
+/// A route registered with [AppRouteDefinition.unavailable].
+class UnavailableRouteScreen extends ConsumerStatefulWidget {
+  const UnavailableRouteScreen({required this.destination, super.key});
+
+  final UnavailableDestination destination;
+
+  @override
+  ConsumerState<UnavailableRouteScreen> createState() =>
+      _UnavailableRouteScreenState();
+}
+
+class _UnavailableRouteScreenState
+    extends FlowPageState<UnavailableRouteScreen> {
+  /// An unavailable savings page with nothing beneath returns to the hub.
+  @override
+  void onNothingToPop() {
+    if (widget.destination.section == AppSection.save) {
+      goReplacing(AppRoutes.savingsHub);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      popScope(unavailablePage(widget.destination));
+}
+
 /// Navigation and messages shared by the routed screens of the signed-in
 /// app. Every move between screens is a named route on the root navigator.
 abstract class FlowPageState<W extends ConsumerStatefulWidget>

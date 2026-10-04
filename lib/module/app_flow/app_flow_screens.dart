@@ -8,23 +8,9 @@ enum AppScreen {
   myProfile,
   notificationPreferences,
   accessibilityPreferences,
-  transactionDetail,
   linkedBanks,
-  sendHub,
-  sendOwn,
-  sendBeneficiary,
-  sendBank,
-  authPin,
-  success,
-  payments,
-  scan,
-  airtime,
-  data,
-  billerList,
-  billPay,
   loans,
   cards,
-  unavailable,
   account,
 }
 
@@ -38,11 +24,11 @@ class AppRouteDefinition {
       page = null;
 
   /// A route with no working feature yet, rendered by
-  /// [UnavailableFeatureScreen].
+  /// [UnavailableRouteScreen].
   const AppRouteDefinition.unavailable(
     UnavailableDestination this.unavailable, {
     this.isPublic = false,
-  }) : screen = AppScreen.unavailable,
+  }) : screen = null,
        page = null;
 
   /// A standalone screen that navigates with named routes, outside the flow.
@@ -59,6 +45,15 @@ class AppRouteDefinition {
   /// and a created PIN.
   final bool isPublic;
   final UnavailableDestination? unavailable;
+
+  /// Builds this route's standalone page, or null for a flow screen.
+  Widget Function()? get pageBuilder {
+    final destination = unavailable;
+    if (destination != null) {
+      return () => UnavailableRouteScreen(destination: destination);
+    }
+    return page;
+  }
 }
 
 /// The single route registry. [AppRoutes.allRoutes], [AppRoutes.publicRoutes]
@@ -182,23 +177,27 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
 
   // Send.
-  AppRoutes.sendHub: AppRouteDefinition(AppScreen.sendHub),
-  AppRoutes.sendOwnAccount: AppRouteDefinition(AppScreen.sendOwn),
-  AppRoutes.sendBeneficiary: AppRouteDefinition(AppScreen.sendBeneficiary),
-  AppRoutes.sendOtherBank: AppRouteDefinition(AppScreen.sendBank),
+  AppRoutes.sendHub: AppRouteDefinition.page(SendScreen.hub),
+  AppRoutes.sendOwnAccount: AppRouteDefinition.page(SendScreen.ownAccount),
+  AppRoutes.sendBeneficiary: AppRouteDefinition.page(SendScreen.beneficiary),
+  AppRoutes.sendOtherBank: AppRouteDefinition.page(SendScreen.otherBank),
 
   // Payments.
-  AppRoutes.paymentsHub: AppRouteDefinition(AppScreen.payments),
-  AppRoutes.airtime: AppRouteDefinition(AppScreen.airtime),
-  AppRoutes.data: AppRouteDefinition(AppScreen.data),
-  AppRoutes.billerListElectricity: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billerListWater: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billerListCable: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billerListInternet: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billerListEducation: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billerListMore: AppRouteDefinition(AppScreen.billerList),
-  AppRoutes.billPay: AppRouteDefinition(AppScreen.billPay),
-  AppRoutes.scanToPay: AppRouteDefinition(AppScreen.scan),
+  AppRoutes.paymentsHub: AppRouteDefinition.page(PaymentsScreen.hub),
+  AppRoutes.airtime: AppRouteDefinition.page(PaymentsScreen.airtime),
+  AppRoutes.data: AppRouteDefinition.page(PaymentsScreen.data),
+  AppRoutes.billerListElectricity: AppRouteDefinition.page(
+    PaymentsScreen.billers,
+  ),
+  AppRoutes.billerListWater: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billerListCable: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billerListInternet: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billerListEducation: AppRouteDefinition.page(
+    PaymentsScreen.billers,
+  ),
+  AppRoutes.billerListMore: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billPay: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.scanToPay: AppRouteDefinition.page(PaymentsScreen.scan),
   AppRoutes.paymentWebView: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Payment',
@@ -310,23 +309,17 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
 
   // Activity and transactions.
   AppRoutes.notifications: AppRouteDefinition.page(NotificationsScreen.new),
-  // The live history screen replaces this page once the capability is on.
-  AppRoutes.transactionHistory: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Transactions',
-      heading: 'Transaction history is unavailable',
-      message: 'Your transaction history cannot be displayed yet.',
-      section: AppSection.payments,
-      capability: FeatureCapability.transactionHistory,
-    ),
+  // Live history once its capability is on; until then, unavailable.
+  AppRoutes.transactionHistory: AppRouteDefinition.page(SendScreen.history),
+  AppRoutes.transactionDetail: AppRouteDefinition.page(SendScreen.detail),
+  AppRoutes.transactionAuthorization: AppRouteDefinition.page(
+    SendScreen.authorize,
   ),
-  AppRoutes.transactionDetail: AppRouteDefinition(AppScreen.transactionDetail),
-  AppRoutes.transactionAuthorization: AppRouteDefinition(AppScreen.authPin),
-  AppRoutes.receipt: AppRouteDefinition(AppScreen.success),
+  AppRoutes.receipt: AppRouteDefinition.page(SendScreen.receipt),
 };
 
 AppScreen appScreenForRoute(String? routeName) =>
-    appRouteDefinitions[routeName]?.screen ?? AppScreen.unavailable;
+    appRouteDefinitions[routeName]?.screen ?? AppScreen.account;
 
 /// The hub route for a bottom-navigation section, for screens outside the
 /// flow.

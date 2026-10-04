@@ -61,7 +61,7 @@ Widget appHome({
   AppScreen? screen,
   AppRouteArguments arguments = const AppRouteArguments(),
 }) {
-  final page = screen == null ? appRouteDefinitions[route]?.page : null;
+  final page = screen == null ? appRouteDefinitions[route]?.pageBuilder : null;
   if (page != null) {
     return RouteMessageScope(arguments: arguments, child: page());
   }

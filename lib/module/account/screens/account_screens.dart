@@ -7,24 +7,6 @@ part of '../../app_flow/app_flow_navigator.dart';
 enum SecurityCheckMethod { password, pin }
 
 extension AccountScreens on AppFlowNavigatorState {
-  /// A route registered with [AppRouteDefinition.unavailable]. Transaction
-  /// history opens the live screen once its capability is on.
-  Widget _unavailableRouteScreen() {
-    final routeName = widget.initialRouteName;
-    if (routeName == AppRoutes.transactionHistory &&
-        ref
-            .watch(
-              featureAvailabilityProvider(FeatureCapability.transactionHistory),
-            )
-            .isAvailable) {
-      return _transactionHistoryScreen();
-    }
-    return _unavailableScreen(
-      appRouteDefinitions[routeName]?.unavailable ??
-          unknownUnavailableDestination,
-    );
-  }
-
   Widget _comingSoonScreen({
     required FeatureCapability capability,
     required String title,

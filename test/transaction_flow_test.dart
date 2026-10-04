@@ -1,3 +1,4 @@
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
@@ -25,7 +26,7 @@ void main() {
   ) async {
     await pumpFlow(
       tester,
-      screen: AppScreen.sendBank,
+      route: AppRoutes.sendOtherBank,
       overrides: [
         featureAvailabilityProvider(
           FeatureCapability.transfers,

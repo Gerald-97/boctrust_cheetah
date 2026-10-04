@@ -1,8 +1,8 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of 'send_screens.dart';
 
 /// Transaction detail. Shows only a record the server returned; a receipt
 /// card appears only when the server supplied a completed receipt.
-extension TransactionFlowScreens on AppFlowNavigatorState {
+extension TransactionFlowScreens on FlowPageState {
   /// History grouped by month, newest first. Only records the server
   /// returned are listed; a failed load shows the error, never a sample.
   Widget _transactionHistoryScreen() {
@@ -26,8 +26,8 @@ extension TransactionFlowScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Transaction history',
       activeSection: AppSection.payments,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       body: RefreshIndicator(
         onRefresh: ref.read(transactionHistoryProvider.notifier).load,
         child: ListView(
@@ -80,7 +80,7 @@ extension TransactionFlowScreens on AppFlowNavigatorState {
   }
 
   Widget _transactionDetailScreen() {
-    final id = widget.routeArguments.entityId;
+    final id = routeArguments.entityId;
     final history = ref.watch(transactionHistoryProvider);
     final record = history.data
         ?.where((candidate) => candidate.id == id)
@@ -89,8 +89,8 @@ extension TransactionFlowScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Transaction details',
       activeSection: AppSection.payments,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       body: ListView(
         padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
         children: [
@@ -217,7 +217,7 @@ class _TransferFlowState extends ConsumerState<_TransferFlow> {
     _TransferStep.result => true,
   };
 
-  void _back() {
+  void back() {
     switch (_step) {
       case _TransferStep.recipient:
       case _TransferStep.result:
@@ -266,13 +266,13 @@ class _TransferFlowState extends ConsumerState<_TransferFlow> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && !submitting) _back();
+        if (!didPop && !submitting) back();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: Padding(
             padding: const EdgeInsets.only(left: BocSpace.xs),
-            child: BocBackButton(onPressed: submitting ? () {} : _back),
+            child: BocBackButton(onPressed: submitting ? () {} : back),
           ),
           leadingWidth: BocSpace.minTouch + BocSpace.md,
           title: Text(

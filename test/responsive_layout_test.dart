@@ -56,14 +56,9 @@ void main() {
             ))
               (screen: null, route: route, populated: false, keyboard: false),
             for (final route in AppRoutes.allRoutes.where(
-              (r) => appScreenForRoute(r) == AppScreen.unavailable,
+              (r) => appRouteDefinitions[r]?.unavailable != null,
             ))
-              (
-                screen: AppScreen.unavailable,
-                route: route,
-                populated: false,
-                keyboard: false,
-              ),
+              (screen: null, route: route, populated: false, keyboard: false),
             for (final screen in [AppScreen.account, AppScreen.linkedBanks])
               (screen: screen, route: null, populated: true, keyboard: false),
             for (final route in [

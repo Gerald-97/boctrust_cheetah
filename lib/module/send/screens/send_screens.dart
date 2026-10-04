@@ -1,8 +1,88 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
+import 'package:intl/intl.dart' show DateFormat;
+
+import '../../../app/app_router.dart';
+import '../../../app/feature_capability.dart';
+import '../../../app/route_arguments.dart';
+import '../../../app/services.dart';
+import '../../../app/theme.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/flow_page.dart';
+import '../../component/text_fields.dart';
+import '../../core_banking/screens/own_account_move_screen.dart';
+import '../model/transaction_models.dart';
+import '../provider/transaction_provider.dart';
+
+part 'transaction_flow_screens.dart';
+
+enum _SendPage {
+  hub,
+  ownAccount,
+  beneficiary,
+  otherBank,
+  authorize,
+  receipt,
+  detail,
+  history,
+}
+
+/// Send money, transaction history, detail, authorization and receipts.
+class SendScreen extends ConsumerStatefulWidget {
+  const SendScreen.hub({super.key}) : _page = _SendPage.hub;
+  const SendScreen.ownAccount({super.key}) : _page = _SendPage.ownAccount;
+  const SendScreen.beneficiary({super.key}) : _page = _SendPage.beneficiary;
+  const SendScreen.otherBank({super.key}) : _page = _SendPage.otherBank;
+  const SendScreen.authorize({super.key}) : _page = _SendPage.authorize;
+  const SendScreen.receipt({super.key}) : _page = _SendPage.receipt;
+  const SendScreen.detail({super.key}) : _page = _SendPage.detail;
+  const SendScreen.history({super.key}) : _page = _SendPage.history;
+
+  final _SendPage _page;
+
+  @override
+  ConsumerState<SendScreen> createState() => _SendScreenState();
+}
+
+class _SendScreenState extends FlowPageState<SendScreen> {
+  bool _available(FeatureCapability capability) =>
+      ref.watch(featureAvailabilityProvider(capability)).isAvailable;
+
+  @override
+  Widget build(BuildContext context) => popScope(switch (widget._page) {
+    _SendPage.hub => _sendHubScreen(),
+    _SendPage.ownAccount =>
+      _available(FeatureCapability.ownAccountTransfers) ||
+              _available(FeatureCapability.savingsWithdrawals)
+          ? OwnAccountMoveFlow(onExit: back)
+          : _sendOwnScreen(),
+    _SendPage.beneficiary => _sendBeneficiaryScreen(),
+    _SendPage.otherBank =>
+      _available(FeatureCapability.transfers)
+          ? _TransferFlow(onExit: back)
+          : _sendBankScreen(),
+    _SendPage.authorize => _authPinScreen(),
+    _SendPage.receipt => _successScreen(),
+    _SendPage.detail => _transactionDetailScreen(),
+    _SendPage.history =>
+      _available(FeatureCapability.transactionHistory)
+          ? _transactionHistoryScreen()
+          : unavailablePage(_historyUnavailable),
+  });
+}
+
+const _historyUnavailable = UnavailableDestination(
+  title: 'Transactions',
+  heading: 'Transaction history is unavailable',
+  message: 'Your transaction history cannot be displayed yet.',
+  section: AppSection.payments,
+  capability: FeatureCapability.transactionHistory,
+);
 
 /// Transfers have no server contract yet, so nothing here collects payment
 /// details, resolves a recipient, or reports a result.
-extension SendScreens on AppFlowNavigatorState {
+extension SendScreens on FlowPageState {
   Widget _sendHubScreen() {
     final transfers = ref
         .watch(featureAvailabilityProvider(FeatureCapability.transfers))
@@ -10,7 +90,7 @@ extension SendScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Send money',
       activeSection: AppSection.send,
-      onSectionSelected: _goSection,
+      onSectionSelected: goSection,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           BocSpace.gutter,
@@ -32,19 +112,19 @@ extension SendScreens on AppFlowNavigatorState {
               IconsaxPlusLinear.arrow_swap_horizontal,
               'Between my accounts',
               'Between your Flex, SmartSave, Fixed and Padi plans',
-              AppScreen.sendOwn,
+              AppRoutes.sendOwnAccount,
             ),
             (
               IconsaxPlusLinear.profile,
               'To a BOCTRUST account',
               'Free and instant to another BOCTRUST customer',
-              AppScreen.sendBeneficiary,
+              AppRoutes.sendBeneficiary,
             ),
             (
               IconsaxPlusLinear.bank,
               'To another bank',
               'Send to any Nigerian bank account',
-              AppScreen.sendBank,
+              AppRoutes.sendOtherBank,
             ),
           ]) ...[
             PaymentActionCard(
@@ -52,7 +132,7 @@ extension SendScreens on AppFlowNavigatorState {
               title: title,
               subtitle: transfers ? subtitle : 'Not available yet',
               color: BocColors.goldLight,
-              onTap: () => _go(screen),
+              onTap: () => go(screen),
             ),
             const SizedBox(height: BocSpace.xs),
           ],
@@ -61,7 +141,7 @@ extension SendScreens on AppFlowNavigatorState {
     );
   }
 
-  Widget _sendOwnScreen() => _transactionUnavailableScreen(
+  Widget _sendOwnScreen() => transactionUnavailablePage(
     capability: FeatureCapability.transfers,
     title: 'Move between savings',
     section: AppSection.send,
@@ -69,7 +149,7 @@ extension SendScreens on AppFlowNavigatorState {
     message: 'Moving money between your savings is not available yet.',
   );
 
-  Widget _sendBeneficiaryScreen() => _transactionUnavailableScreen(
+  Widget _sendBeneficiaryScreen() => transactionUnavailablePage(
     capability: FeatureCapability.transfers,
     title: 'Send to beneficiary',
     section: AppSection.send,
@@ -77,7 +157,7 @@ extension SendScreens on AppFlowNavigatorState {
     message: 'Sending money to another BOCTRUST user is not available yet.',
   );
 
-  Widget _sendBankScreen() => _transactionUnavailableScreen(
+  Widget _sendBankScreen() => transactionUnavailablePage(
     capability: FeatureCapability.transfers,
     title: 'Send to other bank',
     section: AppSection.send,
@@ -87,7 +167,7 @@ extension SendScreens on AppFlowNavigatorState {
 
   /// Checking a PIN is not a transaction contract: without a server-bound
   /// authorization there is nothing to confirm, so no PIN is collected.
-  Widget _authPinScreen() => _transactionUnavailableScreen(
+  Widget _authPinScreen() => transactionUnavailablePage(
     capability: FeatureCapability.transfers,
     title: 'Authorize transaction',
     section: AppSection.send,
@@ -97,7 +177,7 @@ extension SendScreens on AppFlowNavigatorState {
 
   /// Receipts may only ever render confirmed server data. None exists, so a
   /// direct or notification entry — with or without an id — shows this.
-  Widget _successScreen() => _transactionUnavailableScreen(
+  Widget _successScreen() => transactionUnavailablePage(
     capability: FeatureCapability.transactionReceipts,
     title: 'Receipt',
     section: AppSection.send,
@@ -107,13 +187,13 @@ extension SendScreens on AppFlowNavigatorState {
         'available yet.',
   );
 
-  Widget _transactionUnavailableScreen({
+  Widget transactionUnavailablePage({
     required FeatureCapability capability,
     required String title,
     required AppSection section,
     required String heading,
     required String message,
-  }) => _unavailableScreen(
+  }) => unavailablePage(
     UnavailableDestination(
       title: title,
       heading: heading,
@@ -122,37 +202,4 @@ extension SendScreens on AppFlowNavigatorState {
       capability: capability,
     ),
   );
-
-  /// Savings pages keep a way back to the Savings hub.
-  Widget _unavailableScreen(UnavailableDestination destination) {
-    final capability = destination.capability;
-    if (capability != null) {
-      _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
-    }
-    return UnavailableFeatureScreen(
-      destination: destination,
-      onBack: _back,
-      onSectionSelected: _goSection,
-      action: destination.section == AppSection.save
-          ? OutlinedButton(
-              onPressed: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.savingsHub),
-              child: const Text('Back to Savings'),
-            )
-          : null,
-    );
-  }
-
-  /// A placeholder screen may only stand in for a capability the registry
-  /// still reports in [expected]; switching one on without building its real
-  /// screen fails fast in debug builds.
-  void _assertPlaceholderFor(
-    FeatureCapability capability,
-    FeatureAvailability expected,
-  ) {
-    assert(
-      ref.read(featureAvailabilityProvider(capability)) == expected,
-      '$capability is no longer $expected but still shows a placeholder.',
-    );
-  }
 }

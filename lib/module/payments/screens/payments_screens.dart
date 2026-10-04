@@ -1,14 +1,52 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
+
+import '../../../app/app_router.dart';
+import '../../../app/feature_capability.dart';
+import '../../../app/theme.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/flow_page.dart';
+import '../../send/screens/send_screens.dart';
+
+enum _PaymentsPage { hub, scan, airtime, data, billers }
+
+/// The Payments hub and its bill, airtime, data and QR destinations.
+class PaymentsScreen extends ConsumerStatefulWidget {
+  const PaymentsScreen.hub({super.key}) : _page = _PaymentsPage.hub;
+  const PaymentsScreen.scan({super.key}) : _page = _PaymentsPage.scan;
+  const PaymentsScreen.airtime({super.key}) : _page = _PaymentsPage.airtime;
+  const PaymentsScreen.data({super.key}) : _page = _PaymentsPage.data;
+
+  /// Every biller category and bill pay share one unavailable page.
+  const PaymentsScreen.billers({super.key}) : _page = _PaymentsPage.billers;
+
+  final _PaymentsPage _page;
+
+  @override
+  ConsumerState<PaymentsScreen> createState() => _PaymentsScreenState();
+}
+
+class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
+  @override
+  Widget build(BuildContext context) => popScope(switch (widget._page) {
+    _PaymentsPage.hub => _paymentsScreen(),
+    _PaymentsPage.scan => _scanScreen(),
+    _PaymentsPage.airtime => _airtimeScreen(),
+    _PaymentsPage.data => _dataScreen(),
+    _PaymentsPage.billers => _billerListScreen(),
+  });
+}
 
 /// Only wallet funding is live. Bills, airtime, data, and QR payments have no
 /// server contract, so their routes explain that instead of taking input.
-extension PaymentsScreens on AppFlowNavigatorState {
+extension PaymentsScreens on FlowPageState {
   Widget _paymentsScreen() {
     final colors = context.bocColors;
     return AppScaffold(
       title: 'Payments',
       activeSection: AppSection.payments,
-      onSectionSelected: _goSection,
+      onSectionSelected: goSection,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           BocSpace.gutter,
@@ -22,7 +60,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
             title: 'Scan to pay',
             subtitle: 'Not available yet',
             color: colors.smartSaveContainer,
-            onTap: () => _go(AppScreen.scan),
+            onTap: () => go(AppRoutes.scanToPay),
           ),
           const SizedBox(height: BocSpace.xs),
           PaymentActionCard(
@@ -51,16 +89,32 @@ extension PaymentsScreens on AppFlowNavigatorState {
           const SizedBox(height: BocSpace.md),
           _BillerGrid(
             billers: [
-              (IconsaxPlusLinear.mobile, 'Airtime', AppScreen.airtime),
-              (IconsaxPlusLinear.chart, 'Data', AppScreen.data),
-              (IconsaxPlusLinear.flash, 'Electricity', AppScreen.billerList),
-              (IconsaxPlusLinear.drop, 'Water', AppScreen.billerList),
-              (IconsaxPlusLinear.monitor, 'Cable TV', AppScreen.billerList),
-              (IconsaxPlusLinear.wifi, 'Internet', AppScreen.billerList),
-              (IconsaxPlusLinear.teacher, 'Education', AppScreen.billerList),
-              (IconsaxPlusLinear.more, 'More', AppScreen.billerList),
+              (IconsaxPlusLinear.mobile, 'Airtime', AppRoutes.airtime),
+              (IconsaxPlusLinear.chart, 'Data', AppRoutes.data),
+              (
+                IconsaxPlusLinear.flash,
+                'Electricity',
+                AppRoutes.billerListElectricity,
+              ),
+              (IconsaxPlusLinear.drop, 'Water', AppRoutes.billerListWater),
+              (
+                IconsaxPlusLinear.monitor,
+                'Cable TV',
+                AppRoutes.billerListCable,
+              ),
+              (
+                IconsaxPlusLinear.wifi,
+                'Internet',
+                AppRoutes.billerListInternet,
+              ),
+              (
+                IconsaxPlusLinear.teacher,
+                'Education',
+                AppRoutes.billerListEducation,
+              ),
+              (IconsaxPlusLinear.more, 'More', AppRoutes.billerListMore),
             ],
-            onSelected: _go,
+            onSelected: go,
           ),
           const SizedBox(height: BocSpace.lg),
           const RegulatoryBadge(),
@@ -69,7 +123,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
     );
   }
 
-  Widget _scanScreen() => _transactionUnavailableScreen(
+  Widget _scanScreen() => transactionUnavailablePage(
     capability: FeatureCapability.scanToPay,
     title: 'Scan to pay',
     section: AppSection.payments,
@@ -79,7 +133,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
         'available yet.',
   );
 
-  Widget _airtimeScreen() => _transactionUnavailableScreen(
+  Widget _airtimeScreen() => transactionUnavailablePage(
     capability: FeatureCapability.airtime,
     title: 'Airtime',
     section: AppSection.payments,
@@ -87,7 +141,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
     message: 'Buying airtime is not available yet.',
   );
 
-  Widget _dataScreen() => _transactionUnavailableScreen(
+  Widget _dataScreen() => transactionUnavailablePage(
     capability: FeatureCapability.data,
     title: 'Data',
     section: AppSection.payments,
@@ -95,7 +149,7 @@ extension PaymentsScreens on AppFlowNavigatorState {
     message: 'Buying data bundles is not available yet.',
   );
 
-  Widget _billerListScreen() => _transactionUnavailableScreen(
+  Widget _billerListScreen() => transactionUnavailablePage(
     capability: FeatureCapability.bills,
     title: 'Bill payments',
     section: AppSection.payments,
@@ -104,16 +158,14 @@ extension PaymentsScreens on AppFlowNavigatorState {
         'Paying electricity, water, TV, internet, and other bills is '
         'not available yet.',
   );
-
-  Widget _billPayScreen() => _billerListScreen();
 }
 
 /// Searchable biller grid: four columns, three on narrow screens.
 class _BillerGrid extends StatefulWidget {
   const _BillerGrid({required this.billers, required this.onSelected});
 
-  final List<(IconData, String, AppScreen)> billers;
-  final ValueChanged<AppScreen> onSelected;
+  final List<(IconData, String, String)> billers;
+  final ValueChanged<String> onSelected;
 
   @override
   State<_BillerGrid> createState() => _BillerGridState();

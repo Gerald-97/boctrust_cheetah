@@ -1,21 +1,36 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../app/feature_capability.dart';
+import '../../../app/theme.dart';
+import '../../../utils/utils.dart';
+import '../../app_flow/app_flow_navigator.dart';
+import '../../component/text_fields.dart';
+import '../model/core_money.dart';
+import '../model/core_submission_models.dart';
+import '../model/customer_bank_account_models.dart';
+import '../model/intrabank_models.dart';
+import '../provider/core_account_providers.dart';
+import '../provider/intrabank_submission_providers.dart';
+import '../service/transaction_authorizer.dart';
 
 enum _MoveStep { form, review, result }
 
 /// Moves money between BocFlex and one of the customer's savings product
 /// accounts. Only the directions whose capability is available are offered,
 /// and nothing is sent until the transaction is authorized.
-class _OwnAccountMoveFlow extends ConsumerStatefulWidget {
-  const _OwnAccountMoveFlow({required this.onExit});
+class OwnAccountMoveFlow extends ConsumerStatefulWidget {
+  const OwnAccountMoveFlow({required this.onExit, super.key});
 
   final VoidCallback onExit;
 
   @override
-  ConsumerState<_OwnAccountMoveFlow> createState() =>
-      _OwnAccountMoveFlowState();
+  ConsumerState<OwnAccountMoveFlow> createState() => _OwnAccountMoveFlowState();
 }
 
-class _OwnAccountMoveFlowState extends ConsumerState<_OwnAccountMoveFlow> {
+class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
   final _amount = TextEditingController();
   final _narration = TextEditingController();
   _MoveStep _step = _MoveStep.form;
