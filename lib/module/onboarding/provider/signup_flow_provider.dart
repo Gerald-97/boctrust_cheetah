@@ -70,7 +70,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
     final response = await ref.read(authServiceProvider).signup(request);
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     final next = context.copyWith(
@@ -117,7 +117,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
     final response = await ref.read(authServiceProvider).requestOtp(request);
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     ref.read(testOtpProvider.notifier).show(TestOtpFlow.signup, dto.otp);
@@ -168,7 +168,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
           ),
         );
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     state = NotifierState.done(
@@ -209,7 +209,7 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
           ),
         );
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     state = NotifierState.done(
@@ -228,19 +228,6 @@ class SignupFlowNotifier extends Notifier<NotifierState<SignupFlowData>> {
           messageTone: AppMessageTone.success,
         );
   }
-
-  NotifierState<SignupFlowData> _failure<T>(
-    NotifierState<T> source,
-    SignupFlowData context,
-  ) => NotifierState.error(
-    source.message ?? 'Request failed.',
-    data: context,
-    statusCode: source.statusCode,
-    errorCode: source.errorCode,
-    errors: source.errors,
-    meta: source.meta,
-    noAuth: source.noAuth,
-  );
 
   void _localError(String message) {
     state = NotifierState.error(message, data: state.data);

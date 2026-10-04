@@ -131,7 +131,9 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     final dto = response.data;
     if (!response.isDone || dto == null) {
       _clearSecrets();
-      state = _failure(response, context.copyWith(stage: LoginFlowStage.idle));
+      state = response.failureWith(
+        context.copyWith(stage: LoginFlowStage.idle),
+      );
       _finish(
         response.noAuth || response.statusCode == 401
             ? LoginAttemptOutcome.invalidCredentials
@@ -192,7 +194,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
     if (!_isActive(attempt)) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, failureContext);
+      state = response.failureWith(failureContext);
       // Without the password the attempt cannot continue.
       if (clearPasswordOnFailure) {
         _clearSecrets();
@@ -263,7 +265,7 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
         );
     if (!_isActive(attempt)) return;
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     _retriedAfterApproval = true;
@@ -341,19 +343,6 @@ class LoginFlowNotifier extends Notifier<NotifierState<LoginFlowData>> {
         .read(authNavigationProvider.notifier)
         .publish(AuthDestination.newDeviceOtp, mode: AuthNavigationMode.push);
   }
-
-  NotifierState<LoginFlowData> _failure<T>(
-    NotifierState<T> source,
-    LoginFlowData context,
-  ) => NotifierState.error(
-    source.message ?? 'Request failed.',
-    data: context,
-    statusCode: source.statusCode,
-    errorCode: source.errorCode,
-    errors: source.errors,
-    meta: source.meta,
-    noAuth: source.noAuth,
-  );
 
   void _localError(String message) {
     state = NotifierState.error(message, data: state.data);

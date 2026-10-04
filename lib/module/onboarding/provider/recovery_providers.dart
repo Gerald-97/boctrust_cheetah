@@ -67,7 +67,7 @@ class PasswordRecoveryNotifier
     if (operationId != _operationId) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     ref.read(testOtpProvider.notifier).show(TestOtpFlow.passwordRecovery, dto);
@@ -104,7 +104,7 @@ class PasswordRecoveryNotifier
     if (operationId != _operationId) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     _resetToken = dto.resetToken;
@@ -140,7 +140,7 @@ class PasswordRecoveryNotifier
         );
     if (operationId != _operationId) return;
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     _resetToken = null;
@@ -167,19 +167,6 @@ class PasswordRecoveryNotifier
     ref.read(testOtpProvider.notifier).clear(TestOtpFlow.passwordRecovery);
     state = const NotifierState.idle(data: PasswordRecoveryFlowData());
   }
-
-  NotifierState<PasswordRecoveryFlowData> _failure<T>(
-    NotifierState<T> source,
-    PasswordRecoveryFlowData data,
-  ) => NotifierState.error(
-    source.message ?? 'Request failed.',
-    data: data,
-    statusCode: source.statusCode,
-    errorCode: source.errorCode,
-    errors: source.errors,
-    meta: source.meta,
-    noAuth: source.noAuth,
-  );
 
   void _error(String message) =>
       state = NotifierState.error(message, data: state.data);
@@ -231,7 +218,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
     if (operationId != _operationId) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     ref.read(testOtpProvider.notifier).show(TestOtpFlow.pinRecovery, dto);
@@ -268,7 +255,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
     if (operationId != _operationId) return;
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     _resetToken = dto.resetToken;
@@ -300,7 +287,7 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
         .resetPin(ResetPinRequest(resetToken: token, newPin: newPin));
     if (operationId != _operationId) return;
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     _resetToken = null;
@@ -319,19 +306,6 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
     ref.read(testOtpProvider.notifier).clear(TestOtpFlow.pinRecovery);
     state = const NotifierState.idle(data: PinRecoveryFlowData());
   }
-
-  NotifierState<PinRecoveryFlowData> _failure<T>(
-    NotifierState<T> source,
-    PinRecoveryFlowData data,
-  ) => NotifierState.error(
-    source.message ?? 'Request failed.',
-    data: data,
-    statusCode: source.statusCode,
-    errorCode: source.errorCode,
-    errors: source.errors,
-    meta: source.meta,
-    noAuth: source.noAuth,
-  );
 
   void _error(String message) =>
       state = NotifierState.error(message, data: state.data);

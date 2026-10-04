@@ -284,6 +284,18 @@ class NotifierState<T> extends Equatable {
     );
   }
 
+  /// This failure as an error state carrying [data], every error field kept.
+  /// Flows use it to keep their own context beside a request error.
+  NotifierState<R> failureWith<R>(R data) => NotifierState<R>.error(
+    message ?? 'Request failed.',
+    data: data,
+    statusCode: statusCode,
+    errorCode: errorCode,
+    errors: errors,
+    meta: meta,
+    noAuth: noAuth,
+  );
+
   NotifierState<R> mapData<R>(R? Function(T? data) transform) {
     return NotifierState<R>(
       status: status,

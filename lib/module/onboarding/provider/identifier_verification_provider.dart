@@ -73,7 +73,7 @@ class IdentifierVerificationNotifier
         .initiateIdentifierVerification(request);
     final dto = response.data;
     if (!response.isDone || dto == null) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     ref
@@ -114,7 +114,7 @@ class IdentifierVerificationNotifier
           VerifyOtpRequest(identifier: context!.identifier, otpCode: otpCode),
         );
     if (!response.isDone) {
-      state = _failure(response, context);
+      state = response.failureWith(context);
       return;
     }
     state = NotifierState.done(
@@ -136,17 +136,4 @@ class IdentifierVerificationNotifier
       ]),
     );
   }
-
-  NotifierState<IdentifierVerificationFlowData> _failure<T>(
-    NotifierState<T> source,
-    IdentifierVerificationFlowData data,
-  ) => NotifierState.error(
-    source.message ?? 'Request failed.',
-    data: data,
-    statusCode: source.statusCode,
-    errorCode: source.errorCode,
-    errors: source.errors,
-    meta: source.meta,
-    noAuth: source.noAuth,
-  );
 }
