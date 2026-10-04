@@ -43,8 +43,8 @@ class TierCard extends StatelessWidget {
     required this.requirements,
     required this.status,
     required this.statusColor,
-    required this.leadingColor,
     required this.onTap,
+    this.isCurrentTier = false,
     this.actionLabel,
     this.lockReason,
     super.key,
@@ -56,7 +56,7 @@ class TierCard extends StatelessWidget {
   final List<String> requirements;
   final String status;
   final Color statusColor;
-  final Color leadingColor;
+  final bool isCurrentTier;
 
   /// Null for a locked card or an unknown backend status: the card renders as
   /// disabled rather than navigating somewhere it cannot act.
@@ -75,11 +75,13 @@ class TierCard extends StatelessWidget {
     return Semantics(
       button: enabled,
       enabled: enabled,
-      label: '$title. $status${reason == null ? '' : '. $reason'}',
+      label:
+          '$title. ${isCurrentTier ? 'Current tier. ' : ''}'
+          '$status${reason == null ? '' : '. $reason'}',
       onTap: onTap,
       excludeSemantics: true,
       child: Opacity(
-        opacity: enabled ? 1 : 0.62,
+        opacity: enabled || isCurrentTier ? 1 : 0.62,
         child: _card(context, reason: reason, action: action, enabled: enabled),
       ),
     );
@@ -96,32 +98,27 @@ class TierCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: leadingColor.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$tier',
-              style: TextStyle(
-                color: leadingColor,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+          BocTierBadge(tier: tier, size: 40),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(fontSize: 14),
+                      ),
+                    ),
+                    if (isCurrentTier) ...[
+                      const SizedBox(width: BocSpace.xs),
+                      const SmallPill(text: 'Current tier'),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Text(

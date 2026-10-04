@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_profile_model.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/service/user_service.dart';
@@ -45,12 +46,12 @@ Map<String, Object?> _tierCard(int tier, String status) => {
   'checkLists': <String>[],
 };
 
-UserTierInfoData _tiers() => UserTierInfoData.fromJson({
+UserTierInfoData _tiers({int currentTier = 0}) => UserTierInfoData.fromJson({
   'userId': 'user-1',
-  'currentTier': 0,
+  'currentTier': currentTier,
   'currentTierSummary': {
-    'tier': 0,
-    'tierLabel': 'Tier 0',
+    'tier': currentTier,
+    'tierLabel': 'Tier $currentTier',
     'dailyTransferLimit': _limit('₦0'),
     'maxWalletBalance': _limit('₦0'),
   },
@@ -122,9 +123,12 @@ class _Kyc extends KycService with KycConfigurationFixture {
 }
 
 class _Users extends UserService {
-  _Users() : super(ApiService(Dio()));
+  _Users({UserTierInfoData? tiers})
+    : _tiersData = tiers ?? _tiers(),
+      super(ApiService(Dio()));
 
   var tierCalls = 0;
+  final UserTierInfoData _tiersData;
 
   @override
   Future<NotifierState<UserOwnProfileData>> getOwnProfile() async =>
@@ -147,7 +151,7 @@ class _Users extends UserService {
   @override
   Future<NotifierState<UserTierInfoData>> getOwnTier() async {
     tierCalls++;
-    return NotifierState.done(_tiers());
+    return NotifierState.done(_tiersData);
   }
 }
 
@@ -187,8 +191,9 @@ void main() {
     WidgetTester tester, {
     required _Gateway gateway,
     required String route,
+    UserTierInfoData? tiers,
   }) async {
-    users = _Users();
+    users = _Users(tiers: tiers);
     kyc = _Kyc();
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('PonnamKarthik/fluttertoast'),
@@ -240,6 +245,27 @@ void main() {
   /// Drains the toast plugin's own timer so it does not outlive the tree.
   Future<void> settleToast(WidgetTester tester) =>
       tester.pump(const Duration(seconds: 1));
+
+  testWidgets('the matching tier card is marked as the current tier', (
+    tester,
+  ) async {
+    await mountFlow(
+      tester,
+      gateway: _Gateway(KycCaptureOutcome.cancelled),
+      route: '/account/tier',
+      tiers: _tiers(currentTier: 1),
+    );
+
+    final tierOneCard = find.byWidgetPredicate(
+      (widget) => widget is TierCard && widget.tier == 1,
+    );
+    expect(
+      find.descendant(of: tierOneCard, matching: find.text('Current tier')),
+      findsOneWidget,
+    );
+    expect(find.text('Current tier'), findsOneWidget);
+    expect(tester.getSemantics(tierOneCard).label, contains('Current tier'));
+  });
 
   Future<void> runIdentityCapture(
     WidgetTester tester, {

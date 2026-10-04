@@ -223,6 +223,8 @@ class ThemeSelector extends StatelessWidget {
         final selected = value == option.mode;
         return Expanded(
           child: InkWell(
+            highlightColor: Colors.transparent,
+            splashColor: Colors.transparent,
             onTap: () => onChanged(option.mode),
             borderRadius: BorderRadius.circular(13),
             child: Container(

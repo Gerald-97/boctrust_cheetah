@@ -90,9 +90,9 @@ class AppBottomNavigation extends StatelessWidget {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          BocSpace.md + BocSpace.xxs,
+          BocSpace.sm,
           0,
-          BocSpace.md + BocSpace.xxs,
+          BocSpace.sm,
           BocSpace.xs,
         ),
         child: Center(

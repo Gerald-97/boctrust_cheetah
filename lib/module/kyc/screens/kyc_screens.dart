@@ -220,14 +220,31 @@ extension KycScreens on AppFlowNavigatorState {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Your current tier',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: BocColors.goldLight),
+                Row(
+                  children: [
+                    BocTierBadge(tier: summary.tier, size: 36),
+                    const SizedBox(width: BocSpace.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your current tier',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(color: BocColors.goldLight),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            summary.tierLabel,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
-                LimitRow(label: 'Tier', value: summary.tierLabel),
                 LimitRow(
                   label: 'Daily transfer limit',
                   value: summary.dailyTransferLimit.displayValue,
@@ -258,13 +275,8 @@ extension KycScreens on AppFlowNavigatorState {
                   .map((requirement) => requirement.label)
                   .toList(growable: false),
               status: data.tiers[index].statusLabel,
+              isCurrentTier: data.tiers[index].tier == data.currentTier,
               statusColor: switch (data.tiers[index].status) {
-                TierCardStatus.verified => BocColors.green,
-                TierCardStatus.inProgress => BocColors.gold,
-                TierCardStatus.locked ||
-                TierCardStatus.unknown => BocColors.grey,
-              },
-              leadingColor: switch (data.tiers[index].status) {
                 TierCardStatus.verified => BocColors.green,
                 TierCardStatus.inProgress => BocColors.gold,
                 TierCardStatus.locked ||

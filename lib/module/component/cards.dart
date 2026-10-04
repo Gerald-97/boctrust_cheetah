@@ -344,32 +344,45 @@ class BocTierBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final asset = switch (tier) {
+      1 => 'assets/svg/tier_1.svg',
+      2 => 'assets/svg/tier_2.svg',
+      3 => 'assets/svg/tier_3.svg',
+      _ => null,
+    };
     return Semantics(
       label: 'Tier $tier',
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SvgPicture.asset(
-              'assets/svg/tier_badge.svg',
-              width: size,
-              height: size,
-            ),
-            Text(
-              '$tier',
-              textScaler: TextScaler.noScaling,
-              style: TextStyle(
-                fontFamily: kFigureFontFamily,
-                fontSize: size * 0.5,
-                fontWeight: FontWeight.w600,
-                color: BocColors.blue,
-                height: 1,
+        child: asset != null
+            ? SvgPicture.asset(
+                asset,
+                width: size,
+                height: size,
+                excludeFromSemantics: true,
+              )
+            : Stack(
+                alignment: Alignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'assets/svg/tier_badge.svg',
+                    width: size,
+                    height: size,
+                  ),
+                  Text(
+                    '$tier',
+                    textScaler: TextScaler.noScaling,
+                    style: TextStyle(
+                      fontFamily: kFigureFontFamily,
+                      fontSize: size * 0.5,
+                      fontWeight: FontWeight.w600,
+                      color: BocColors.blue,
+                      height: 1,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
