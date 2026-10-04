@@ -50,6 +50,7 @@ flutter:
   assets:
     - assets/branding/cheetah_app_icon.svg
     - assets/svg/
+    - assets/svg/nav/
     - assets/img/
     - assets/font/
     - assets/png/
