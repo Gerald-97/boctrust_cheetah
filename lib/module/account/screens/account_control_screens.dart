@@ -1,9 +1,9 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of 'account_screens.dart';
 
 /// Security Center, delete account and statement request. Controls whose
 /// contract does not exist yet stay visible and explain themselves; none of
 /// them shows sample devices, balances or results.
-extension AccountControlScreens on AppFlowNavigatorState {
+extension _AccountControlScreens on _AccountPageState {
   bool _isAvailable(FeatureCapability capability) =>
       ref.watch(featureAvailabilityProvider(capability)).isAvailable;
 
@@ -17,13 +17,13 @@ extension AccountControlScreens on AppFlowNavigatorState {
       FeatureCapability.biometricTransfers,
       FeatureCapability.freezeAccount,
     ]) {
-      _assertPlaceholderFor(capability, FeatureAvailability.unavailable);
+      assertPlaceholderFor(capability, FeatureAvailability.unavailable);
     }
     return AppScaffold(
       title: 'Security Center',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ListView(
         padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
@@ -200,11 +200,11 @@ extension AccountControlScreens on AppFlowNavigatorState {
                         if (!mounted || !dialogContext.mounted) return;
                         if (result.succeeded) {
                           Navigator.pop(dialogContext);
-                          _showSuccessMessage('Biometric login is on.');
+                          showSuccessMessage('Biometric login is on.');
                         } else if (result.cancelled) {
                           Navigator.pop(dialogContext);
                         } else {
-                          _showErrorMessage(
+                          showErrorMessage(
                             result.message ??
                                 'We could not turn on biometric login.',
                           );
@@ -225,9 +225,9 @@ extension AccountControlScreens on AppFlowNavigatorState {
     final result = await ref.read(biometricLoginProvider.notifier).disable();
     if (!mounted) return;
     if (result.succeeded) {
-      _showSuccessMessage('Biometric login is off.');
+      showSuccessMessage('Biometric login is off.');
     } else if (!result.cancelled && result.message != null) {
-      _showErrorMessage(result.message!);
+      showErrorMessage(result.message!);
     }
   }
 
@@ -237,8 +237,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Delete account',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: Column(
         children: [
@@ -315,7 +315,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
     final result = ref.read(accountDeletionEligibilityProvider);
     final eligibility = result.data;
     if (!result.isDone || eligibility == null) {
-      _showErrorMessage(result.message ?? 'We could not check your account.');
+      showErrorMessage(result.message ?? 'We could not check your account.');
       return;
     }
     if (!eligibility.canDelete) {
@@ -350,9 +350,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
     if (!mounted) return;
     final deletion = ref.read(accountDeletionProvider);
     if (!deletion.isDone) {
-      _showErrorMessage(
-        deletion.message ?? 'We could not delete your account.',
-      );
+      showErrorMessage(deletion.message ?? 'We could not delete your account.');
       return;
     }
     // A deleted account must not stay remembered on this device. The
@@ -380,8 +378,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Preferences',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ListView(
         padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
@@ -392,13 +390,13 @@ extension AccountControlScreens on AppFlowNavigatorState {
                 icon: IconsaxPlusLinear.notification,
                 title: 'Notifications',
                 subtitle: 'Choose what we tell you about',
-                onTap: () => _go(AppScreen.notificationPreferences),
+                onTap: () => go(AppRoutes.notificationPreferences),
               ),
               SettingsTile(
                 icon: Icons.accessibility_new_rounded,
                 title: 'Accessibility',
                 subtitle: 'Text size, contrast and bold text',
-                onTap: () => _go(AppScreen.accessibilityPreferences),
+                onTap: () => go(AppRoutes.accessibilityPreferences),
               ),
             ],
           ),
@@ -422,8 +420,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Notifications',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ListView(
         padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
@@ -486,8 +484,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Accessibility',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ListView(
         padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
@@ -547,7 +545,7 @@ extension AccountControlScreens on AppFlowNavigatorState {
   }
 
   Widget _accountStatementScreen() {
-    _assertPlaceholderFor(
+    assertPlaceholderFor(
       FeatureCapability.accountStatement,
       FeatureAvailability.unavailable,
     );
@@ -555,8 +553,8 @@ extension AccountControlScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Account statement',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: Column(
         children: [

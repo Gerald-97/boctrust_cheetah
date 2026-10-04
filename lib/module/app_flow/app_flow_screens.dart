@@ -1,63 +1,41 @@
 part of 'app_flow_navigator.dart';
 
-enum AppScreen {
-  securityCenter,
-  deleteAccount,
-  accountStatement,
-  preferences,
-  myProfile,
-  notificationPreferences,
-  accessibilityPreferences,
-  linkedBanks,
-  loans,
-  cards,
-  account,
-}
-
 enum AppSection { home, save, send, payments, account }
 
 /// What a registered route opens and whether it needs a session.
 class AppRouteDefinition {
-  /// A screen still hosted by [AppFlowNavigator].
-  const AppRouteDefinition(AppScreen this.screen, {this.isPublic = false})
-    : unavailable = null,
-      page = null;
+  /// A screen built by [page].
+  const AppRouteDefinition.page(
+    Widget Function() this.page, {
+    this.isPublic = false,
+  }) : unavailable = null;
 
   /// A route with no working feature yet, rendered by
   /// [UnavailableRouteScreen].
   const AppRouteDefinition.unavailable(
     UnavailableDestination this.unavailable, {
     this.isPublic = false,
-  }) : screen = null,
-       page = null;
+  }) : page = null;
 
-  /// A standalone screen that navigates with named routes, outside the flow.
-  const AppRouteDefinition.page(
-    Widget Function() this.page, {
-    this.isPublic = false,
-  }) : screen = null,
-       unavailable = null;
-
-  final AppScreen? screen;
   final Widget Function()? page;
+  final UnavailableDestination? unavailable;
 
   /// Reachable without a signed-in session. Every other route needs a session
   /// and a created PIN.
   final bool isPublic;
-  final UnavailableDestination? unavailable;
 
-  /// Builds this route's standalone page, or null for a flow screen.
-  Widget Function()? get pageBuilder {
+  /// Builds this route's page.
+  Widget Function() get pageBuilder {
     final destination = unavailable;
     if (destination != null) {
       return () => UnavailableRouteScreen(destination: destination);
     }
-    return page;
+    return page!;
   }
 }
 
-/// The single route registry. [AppRoutes.allRoutes], [AppRoutes.publicRoutes]
-/// and [appScreenForRoute] are all derived from it.
+/// The single route registry. [AppRoutes.allRoutes] and
+/// [AppRoutes.publicRoutes] are derived from it.
 ///
 /// Public routes: entry, sign-in and recovery, first-PIN setup (which needs a
 /// session but no PIN yet), and static support and legal pages that hold no
@@ -209,7 +187,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
 
   // Account and verification.
-  AppRoutes.account: AppRouteDefinition(AppScreen.account),
+  AppRoutes.account: AppRouteDefinition.page(AccountScreen.account),
   AppRoutes.tierOverview: AppRouteDefinition.page(KycTiersScreen.new),
   // Compatibility routes: both open the identity screen, preselecting the
   // identity type rather than standing for a whole tier.
@@ -233,24 +211,28 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
       capability: FeatureCapability.beneficiaries,
     ),
   ),
-  AppRoutes.linkedBanks: AppRouteDefinition(AppScreen.linkedBanks),
-  AppRoutes.securitySettings: AppRouteDefinition(AppScreen.securityCenter),
-  AppRoutes.deleteAccount: AppRouteDefinition(AppScreen.deleteAccount),
-  AppRoutes.accountStatement: AppRouteDefinition(AppScreen.accountStatement),
-  AppRoutes.myProfile: AppRouteDefinition(AppScreen.myProfile),
-  AppRoutes.preferences: AppRouteDefinition(AppScreen.preferences),
-  AppRoutes.notificationPreferences: AppRouteDefinition(
-    AppScreen.notificationPreferences,
+  AppRoutes.linkedBanks: AppRouteDefinition.page(AccountScreen.linkedBanks),
+  AppRoutes.securitySettings: AppRouteDefinition.page(
+    AccountScreen.securityCenter,
   ),
-  AppRoutes.accessibilityPreferences: AppRouteDefinition(
-    AppScreen.accessibilityPreferences,
+  AppRoutes.deleteAccount: AppRouteDefinition.page(AccountScreen.deleteAccount),
+  AppRoutes.accountStatement: AppRouteDefinition.page(
+    AccountScreen.accountStatement,
+  ),
+  AppRoutes.myProfile: AppRouteDefinition.page(AccountScreen.myProfile),
+  AppRoutes.preferences: AppRouteDefinition.page(AccountScreen.preferences),
+  AppRoutes.notificationPreferences: AppRouteDefinition.page(
+    AccountScreen.notificationPreferences,
+  ),
+  AppRoutes.accessibilityPreferences: AppRouteDefinition.page(
+    AccountScreen.accessibilityPreferences,
   ),
   // Preferences holds the theme picker.
-  AppRoutes.themeSettings: AppRouteDefinition(AppScreen.preferences),
-  AppRoutes.loansComingSoon: AppRouteDefinition(AppScreen.loans),
-  AppRoutes.loansNotifyMe: AppRouteDefinition(AppScreen.loans),
-  AppRoutes.cardsComingSoon: AppRouteDefinition(AppScreen.cards),
-  AppRoutes.cardsNotifyMe: AppRouteDefinition(AppScreen.cards),
+  AppRoutes.themeSettings: AppRouteDefinition.page(AccountScreen.preferences),
+  AppRoutes.loansComingSoon: AppRouteDefinition.page(AccountScreen.loans),
+  AppRoutes.loansNotifyMe: AppRouteDefinition.page(AccountScreen.loans),
+  AppRoutes.cardsComingSoon: AppRouteDefinition.page(AccountScreen.cards),
+  AppRoutes.cardsNotifyMe: AppRouteDefinition.page(AccountScreen.cards),
 
   // Support, legal and social: public, and never customer data.
   AppRoutes.support: AppRouteDefinition.unavailable(
@@ -318,11 +300,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.receipt: AppRouteDefinition.page(SendScreen.receipt),
 };
 
-AppScreen appScreenForRoute(String? routeName) =>
-    appRouteDefinitions[routeName]?.screen ?? AppScreen.account;
-
-/// The hub route for a bottom-navigation section, for screens outside the
-/// flow.
+/// The hub route for a bottom-navigation section.
 String appRouteForSection(AppSection section) => switch (section) {
   AppSection.home => AppRoutes.home,
   AppSection.save => AppRoutes.savingsHub,

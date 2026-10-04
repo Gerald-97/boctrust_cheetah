@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'support/flow_harness.dart';
 
 const _gtb = BankData(name: 'Guaranty Trust Bank', code: '058');
@@ -107,7 +108,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: flowApp(route: null, screen: AppScreen.linkedBanks),
+        child: flowApp(route: AppRoutes.linkedBanks),
       ),
     );
     await tester.pump();

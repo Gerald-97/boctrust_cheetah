@@ -8,6 +8,7 @@ import 'package:boctrust_savings_loan/module/onboarding/provider/security_action
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'support/flow_harness.dart';
 
 class ZeroBalanceEligibility extends AccountDeletionEligibilityNotifier {
@@ -44,7 +45,7 @@ void main() {
     final pinCheck = ScriptedPinCheck();
     await pumpFlow(
       tester,
-      screen: AppScreen.deleteAccount,
+      route: AppRoutes.deleteAccount,
       overrides: [
         featureAvailabilityProvider(
           FeatureCapability.accountDeletion,

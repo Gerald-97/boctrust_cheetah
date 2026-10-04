@@ -16,7 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'kyc_configuration_fixtures.dart';
 import 'responsive_fixtures.dart';
 
-/// Overrides that let [AppFlowNavigator] mount without a network or device
+/// Overrides that let an app page mount without a network or device
 /// storage: every request resolves as a 503.
 Future<List<Override>> flowTestOverrides() async {
   SharedPreferences.setMockInitialValues({});
@@ -43,47 +43,36 @@ Future<List<Override>> flowTestOverrides() async {
 }
 
 Widget flowApp({
-  required String? route,
-  AppScreen? screen,
+  required String route,
   AppRouteArguments arguments = const AppRouteArguments(),
 }) {
   return MaterialApp(
     theme: CheetahTheme.lightTheme,
     onGenerateRoute: AppRouter.onGenerateRoute,
-    home: appHome(route: route, screen: screen, arguments: arguments),
+    home: appHome(route: route, arguments: arguments),
   );
 }
 
-/// What [route] opens, without its access gate: a standalone page, or the
-/// flow navigator at [screen] (or the route's flow screen).
+/// What [route] opens, without its access gate.
 Widget appHome({
-  String? route,
-  AppScreen? screen,
+  required String route,
   AppRouteArguments arguments = const AppRouteArguments(),
-}) {
-  final page = screen == null ? appRouteDefinitions[route]?.pageBuilder : null;
-  if (page != null) {
-    return RouteMessageScope(arguments: arguments, child: page());
-  }
-  return AppFlowNavigator(
-    initialScreen: screen ?? appScreenForRoute(route),
-    initialRouteName: route,
-    routeArguments: arguments,
-  );
-}
+}) => RouteMessageScope(
+  arguments: arguments,
+  child: appRouteDefinitions[route]!.pageBuilder(),
+);
 
-/// Mounts the app flow at [route] (or [screen]) and settles the transition.
+/// Mounts the app at [route] and settles the transition.
 Future<void> pumpFlow(
   WidgetTester tester, {
-  String? route,
-  AppScreen? screen,
+  required String route,
   AppRouteArguments arguments = const AppRouteArguments(),
   List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [...await flowTestOverrides(), ...overrides],
-      child: flowApp(route: route, screen: screen, arguments: arguments),
+      child: flowApp(route: route, arguments: arguments),
     ),
   );
   await tester.pump(const Duration(milliseconds: 300));

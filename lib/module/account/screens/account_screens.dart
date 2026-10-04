@@ -1,4 +1,147 @@
-part of '../../app_flow/app_flow_navigator.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
+import 'package:intl/intl.dart' show DateFormat;
+
+import '../../../app/app_router.dart';
+import '../../../app/auth_navigation_provider.dart';
+import '../../../app/boc_icons.dart';
+import '../../../app/feature_capability.dart';
+import '../../../app/services.dart';
+import '../../../app/theme.dart';
+import '../../../app/theme_controller.dart';
+import '../../../utils/validators.dart' as validators;
+import '../../app_flow/app_flow_navigator.dart';
+import '../../app_flow/flow_page.dart';
+import '../../component/password_strength_component.dart';
+import '../../component/text_fields.dart';
+import '../../home/model/user_home_model.dart';
+import '../../home/provider/home_provider.dart';
+import '../../kyc/model/kyc_contact_requirement.dart';
+import '../../onboarding/model/auth_enums.dart';
+import '../../onboarding/model/auth_flow_models.dart';
+import '../../onboarding/model/remembered_biometric_profile.dart';
+import '../../onboarding/provider/auth_session_provider.dart';
+import '../../onboarding/provider/biometric_login_provider.dart';
+import '../../onboarding/provider/recovery_providers.dart';
+import '../../onboarding/provider/security_action_providers.dart';
+import '../../onboarding/provider/test_otp_provider.dart';
+import '../../onboarding/screens/auth_widgets.dart';
+import '../model/account_preferences.dart';
+import '../model/user_profile_model.dart';
+import '../model/withdrawal_bank_models.dart';
+import '../provider/account_deletion_provider.dart';
+import '../provider/account_preferences_provider.dart';
+import '../provider/user_providers.dart';
+import '../provider/withdrawal_bank_providers.dart';
+import 'contact_verification.dart';
+
+part 'account_control_screens.dart';
+part 'linked_bank_accounts_screen.dart';
+
+enum _AccountPage {
+  account,
+  securityCenter,
+  deleteAccount,
+  accountStatement,
+  preferences,
+  myProfile,
+  notificationPreferences,
+  accessibilityPreferences,
+  linkedBanks,
+  loans,
+  cards,
+}
+
+/// The Account tab and everything reached from it.
+class AccountScreen extends ConsumerStatefulWidget {
+  const AccountScreen.account({super.key}) : _page = _AccountPage.account;
+  const AccountScreen.securityCenter({super.key})
+    : _page = _AccountPage.securityCenter;
+  const AccountScreen.deleteAccount({super.key})
+    : _page = _AccountPage.deleteAccount;
+  const AccountScreen.accountStatement({super.key})
+    : _page = _AccountPage.accountStatement;
+  const AccountScreen.preferences({super.key})
+    : _page = _AccountPage.preferences;
+  const AccountScreen.myProfile({super.key}) : _page = _AccountPage.myProfile;
+  const AccountScreen.notificationPreferences({super.key})
+    : _page = _AccountPage.notificationPreferences;
+  const AccountScreen.accessibilityPreferences({super.key})
+    : _page = _AccountPage.accessibilityPreferences;
+  const AccountScreen.linkedBanks({super.key})
+    : _page = _AccountPage.linkedBanks;
+  const AccountScreen.loans({super.key}) : _page = _AccountPage.loans;
+  const AccountScreen.cards({super.key}) : _page = _AccountPage.cards;
+
+  final _AccountPage _page;
+
+  @override
+  ConsumerState<AccountScreen> createState() => _AccountPageState();
+}
+
+/// Owns the text controllers the account sheets use for passwords, PINs and
+/// one-time codes, for as long as its page is open.
+class _AccountPageState extends FlowPageState<AccountScreen> {
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _currentSecretController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _otpController.dispose();
+    _currentSecretController.dispose();
+    _pinController.dispose();
+    _confirmPinController.dispose();
+    super.dispose();
+  }
+
+  void refreshAuthFormState(VoidCallback update) => setState(update);
+
+  Future<void> _confirmSignOut() => confirmSignOut(context, ref);
+
+  Future<void> _openAuthDestination(
+    AuthDestination destination, {
+    AuthNavigationMode mode = AuthNavigationMode.push,
+  }) => openAuthDestination(ref, destination, mode: mode);
+
+  @override
+  Widget build(BuildContext context) => popScope(switch (widget._page) {
+    _AccountPage.account => _accountScreen(),
+    _AccountPage.securityCenter => _securityCenterScreen(),
+    _AccountPage.deleteAccount => _deleteAccountScreen(),
+    _AccountPage.accountStatement => _accountStatementScreen(),
+    _AccountPage.preferences => _preferencesScreen(),
+    _AccountPage.myProfile => _myProfileScreen(),
+    _AccountPage.notificationPreferences => _notificationPreferencesScreen(),
+    _AccountPage.accessibilityPreferences => _accessibilityPreferencesScreen(),
+    _AccountPage.linkedBanks => _linkedBankAccountsScreen(),
+    _AccountPage.loans => _comingSoonScreen(
+      capability: FeatureCapability.loans,
+      title: 'Loans',
+      icon: IconsaxPlusLinear.percentage_circle,
+      message:
+          "Loans aren't part of the BOCTRUST app yet — this release is focused on Savings.",
+    ),
+    _AccountPage.cards => _comingSoonScreen(
+      capability: FeatureCapability.cards,
+      title: 'Cards',
+      icon: IconsaxPlusLinear.card,
+      message:
+          "Virtual and physical debit cards aren't part of the BOCTRUST app yet. This release is focused on Savings.",
+    ),
+  });
+}
 
 /// Which credential the security-check overlay was asked to verify.
 ///
@@ -6,19 +149,19 @@ part of '../../app_flow/app_flow_navigator.dart';
 /// navigator's `State`, so the launcher can re-check `mounted` before acting.
 enum SecurityCheckMethod { password, pin }
 
-extension AccountScreens on AppFlowNavigatorState {
+extension _AccountScreens on _AccountPageState {
   Widget _comingSoonScreen({
     required FeatureCapability capability,
     required String title,
     required IconData icon,
     required String message,
   }) {
-    _assertPlaceholderFor(capability, FeatureAvailability.comingSoon);
+    assertPlaceholderFor(capability, FeatureAvailability.comingSoon);
     return AppScaffold(
       title: title,
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ScrollableFill(
         child: Center(
@@ -123,7 +266,7 @@ extension AccountScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Account',
       activeSection: AppSection.account,
-      onSectionSelected: _goSection,
+      onSectionSelected: goSection,
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([
@@ -210,7 +353,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   icon: IconsaxPlusLinear.profile,
                   title: 'My profile',
                   subtitle: 'Personal details and verification',
-                  onTap: () => _go(AppScreen.myProfile),
+                  onTap: () => go(AppRoutes.myProfile),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.shield_tick,
@@ -233,7 +376,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   icon: IconsaxPlusLinear.document_text,
                   title: 'Account statement',
                   subtitle: 'Request a statement by email',
-                  onTap: () => _go(AppScreen.accountStatement),
+                  onTap: () => go(AppRoutes.accountStatement),
                 ),
               ],
             ),
@@ -256,19 +399,19 @@ extension AccountScreens on AppFlowNavigatorState {
                   icon: IconsaxPlusLinear.bank,
                   title: 'Linked banks',
                   subtitle: 'Accounts you withdraw to',
-                  onTap: () => _go(AppScreen.linkedBanks),
+                  onTap: () => go(AppRoutes.linkedBanks),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.shield,
                   title: 'Security Center',
                   subtitle: 'Password, PIN, devices and protection',
-                  onTap: () => _go(AppScreen.securityCenter),
+                  onTap: () => go(AppRoutes.securitySettings),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.setting_4,
                   title: 'Preferences',
                   subtitle: 'Notifications, accessibility and theme',
-                  onTap: () => _go(AppScreen.preferences),
+                  onTap: () => go(AppRoutes.preferences),
                 ),
               ],
             ),
@@ -280,14 +423,14 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Loans',
                   subtitle: "Borrowing isn't available yet",
                   trailing: const SmallPill(text: 'Coming soon'),
-                  onTap: () => _go(AppScreen.loans),
+                  onTap: () => go(AppRoutes.loansComingSoon),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.card,
                   title: 'Cards',
                   subtitle: "Virtual & physical cards aren't available yet",
                   trailing: const SmallPill(text: 'Coming soon'),
-                  onTap: () => _go(AppScreen.cards),
+                  onTap: () => go(AppRoutes.cardsComingSoon),
                 ),
               ],
             ),
@@ -301,7 +444,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Chat with support',
                   subtitle: 'Not available yet',
                   trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => _showMessage(
+                  onTap: () => showMessage(
                     'In-app chat is not available yet. Please call or email '
                     'support.',
                   ),
@@ -323,7 +466,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Privacy Policy',
                   subtitle: 'Not available in the app yet',
                   trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => _showMessage(
+                  onTap: () => showMessage(
                     'The privacy policy is not available in the app yet.',
                   ),
                 ),
@@ -332,7 +475,7 @@ extension AccountScreens on AppFlowNavigatorState {
                   title: 'Terms & Conditions',
                   subtitle: 'Not available in the app yet',
                   trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => _showMessage(
+                  onTap: () => showMessage(
                     'The terms and conditions are not available in the app yet.',
                   ),
                 ),
@@ -394,8 +537,8 @@ extension AccountScreens on AppFlowNavigatorState {
     return AppScaffold(
       title: 'My profile',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       showBottomNavigation: false,
       body: ListView(
         padding: const EdgeInsets.only(top: BocSpace.xs, bottom: BocSpace.lg),
@@ -463,7 +606,7 @@ extension AccountScreens on AppFlowNavigatorState {
                 title: 'Delete account',
                 subtitle: 'Close your account permanently',
                 titleColor: context.bocColors.errorText,
-                onTap: () => _go(AppScreen.deleteAccount),
+                onTap: () => go(AppRoutes.deleteAccount),
               ),
             ],
           ),
@@ -550,11 +693,9 @@ extension AccountScreens on AppFlowNavigatorState {
                 if (!mounted || !dialogContext.mounted) return;
                 if (result.isDone) Navigator.pop(dialogContext);
                 if (result.isDone) {
-                  _showSuccessMessage(result.message ?? 'Password updated.');
+                  showSuccessMessage(result.message ?? 'Password updated.');
                 } else {
-                  _showErrorMessage(
-                    result.message ?? 'Password update failed.',
-                  );
+                  showErrorMessage(result.message ?? 'Password update failed.');
                 }
               },
               child: const Text('Update'),
@@ -653,11 +794,11 @@ extension AccountScreens on AppFlowNavigatorState {
                 if (!mounted || !dialogContext.mounted) return;
                 if (result.isDone) Navigator.pop(dialogContext);
                 if (result.isDone) {
-                  _showSuccessMessage(
+                  showSuccessMessage(
                     result.message ?? 'Transaction PIN updated.',
                   );
                 } else {
-                  _showErrorMessage(
+                  showErrorMessage(
                     result.message ?? 'Transaction PIN update failed.',
                   );
                 }
@@ -793,7 +934,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       );
                       if (awaitingOtp) {
                         if (validators.otp(_otpController.text) != null) {
-                          _showMessage('Enter the 6-digit code.');
+                          showMessage('Enter the 6-digit code.');
                           return;
                         }
                         await notifier.verifyOtp(_otpController.text);
@@ -804,11 +945,11 @@ extension AccountScreens on AppFlowNavigatorState {
                               _pinController.text,
                             ) !=
                             null) {
-                          _showMessage('Choose a PIN that is hard to guess.');
+                          showMessage('Choose a PIN that is hard to guess.');
                           return;
                         }
                         if (_confirmPinController.text != _pinController.text) {
-                          _showMessage('PINs do not match.');
+                          showMessage('PINs do not match.');
                           return;
                         }
                         await notifier.reset(_pinController.text);
@@ -817,7 +958,7 @@ extension AccountScreens on AppFlowNavigatorState {
                             sheetContext.mounted) {
                           Navigator.pop(sheetContext);
                           if (mounted) {
-                            _showSuccessMessage(
+                            showSuccessMessage(
                               result.message ?? 'Transaction PIN reset.',
                             );
                           }
@@ -826,7 +967,7 @@ extension AccountScreens on AppFlowNavigatorState {
                       }
                       final identifier = _identifierController.text.trim();
                       if (identifier.isEmpty) {
-                        _showMessage('Enter your email or phone number.');
+                        showMessage('Enter your email or phone number.');
                         return;
                       }
                       await notifier.start(
@@ -920,11 +1061,11 @@ extension AccountScreens on AppFlowNavigatorState {
               if (pin &&
                   validators.transactionPin(_currentSecretController.text) !=
                       null) {
-                _showMessage('Enter a 4-digit PIN.');
+                showMessage('Enter a 4-digit PIN.');
                 return;
               }
               if (!pin && _currentSecretController.text.isEmpty) {
-                _showMessage('Enter your current password.');
+                showMessage('Enter your current password.');
                 return;
               }
               if (pin) {
@@ -947,9 +1088,9 @@ extension AccountScreens on AppFlowNavigatorState {
                       ? 'Current ${pin ? 'PIN' : 'password'} verified.'
                       : 'Verification failed.');
               if (result.isDone) {
-                _showSuccessMessage(message);
+                showSuccessMessage(message);
               } else {
-                _showErrorMessage(message);
+                showErrorMessage(message);
               }
             },
             child: const Text('Verify'),

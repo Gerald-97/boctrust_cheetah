@@ -202,7 +202,7 @@ void main() {
   });
 
   test('linked banks resolves to the live screen, not a preview', () {
-    expect(appScreenForRoute(AppRoutes.linkedBanks), AppScreen.linkedBanks);
+    expect(appRouteDefinitions[AppRoutes.linkedBanks]?.page, isNotNull);
     // Not an unavailable page, so no fabricated bank rows can be rendered.
     expect(appRouteDefinitions[AppRoutes.linkedBanks]?.unavailable, isNull);
   });

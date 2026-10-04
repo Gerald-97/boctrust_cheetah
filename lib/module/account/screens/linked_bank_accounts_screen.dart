@@ -1,11 +1,11 @@
-part of '../../app_flow/app_flow_navigator.dart';
+part of 'account_screens.dart';
 
 /// Live withdrawal bank accounts.
 ///
 /// Replaces the former preview, which showed fabricated accounts. Nothing here
 /// is rendered unless the server returned it: an empty or failed load shows an
 /// empty state or an inline retry, never a sample row.
-extension LinkedBankAccountsScreen on AppFlowNavigatorState {
+extension _LinkedBankAccountsScreen on _AccountPageState {
   Widget _linkedBankAccountsScreen() {
     final catalogueState = ref.watch(bankCatalogueProvider);
     final accountsState = ref.watch(withdrawalBankAccountsProvider);
@@ -26,8 +26,8 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
     return AppScaffold(
       title: 'Linked banks',
       activeSection: AppSection.account,
-      onBack: _back,
-      onSectionSelected: _goSection,
+      onBack: back,
+      onSectionSelected: goSection,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24).clearOfNav(context),
         children: [
@@ -136,9 +136,9 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
     if (!mounted) return;
 
     if (result.isDone) {
-      _showSuccessMessage(result.message ?? 'Account removed.');
+      showSuccessMessage(result.message ?? 'Account removed.');
     } else if (result.isError) {
-      _showErrorMessage(result.message ?? 'We could not remove that account.');
+      showErrorMessage(result.message ?? 'We could not remove that account.');
     }
   }
 
@@ -156,9 +156,9 @@ extension LinkedBankAccountsScreen on AppFlowNavigatorState {
     if (!mounted) return;
 
     if (result.isDone) {
-      _showSuccessMessage(result.message ?? 'Withdrawal account saved.');
+      showSuccessMessage(result.message ?? 'Withdrawal account saved.');
     } else if (result.isError) {
-      _showErrorMessage(result.message ?? 'We could not save that account.');
+      showErrorMessage(result.message ?? 'We could not save that account.');
     }
   }
 }

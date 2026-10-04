@@ -46,47 +46,38 @@ void main() {
     const Size(1440, 900),
   ]) {
     for (final scale in [1.0, 2.0]) {
-      final scenarios =
-          <({AppScreen? screen, String? route, bool populated, bool keyboard})>[
-            for (final screen in AppScreen.values)
-              (screen: screen, route: null, populated: false, keyboard: false),
-            // Standalone screens outside the flow navigator.
-            for (final route in AppRoutes.allRoutes.where(
-              (r) => appRouteDefinitions[r]?.page != null,
-            ))
-              (screen: null, route: route, populated: false, keyboard: false),
-            for (final route in AppRoutes.allRoutes.where(
-              (r) => appRouteDefinitions[r]?.unavailable != null,
-            ))
-              (screen: null, route: route, populated: false, keyboard: false),
-            for (final screen in [AppScreen.account, AppScreen.linkedBanks])
-              (screen: screen, route: null, populated: true, keyboard: false),
-            for (final route in [
-              AppRoutes.home,
-              AppRoutes.savingsHub,
-              AppRoutes.flexSave,
-              AppRoutes.addMoney,
-              AppRoutes.tierOverview,
-              AppRoutes.tier1Bvn,
-              AppRoutes.governmentIdVerification,
-              AppRoutes.tier3Address,
-            ])
-              (screen: null, route: route, populated: true, keyboard: false),
-            for (final route in [
-              AppRoutes.login,
-              AppRoutes.createPassword,
-              AppRoutes.otp,
-              AppRoutes.createFirstPin,
-              AppRoutes.governmentIdVerification,
-              AppRoutes.tier3Address,
-            ])
-              (screen: null, route: route, populated: false, keyboard: true),
-          ];
+      final scenarios = <({String route, bool populated, bool keyboard})>[
+        // Every registered route, as it first opens.
+        for (final route in AppRoutes.allRoutes)
+          (route: route, populated: false, keyboard: false),
+        for (final route in [
+          AppRoutes.account,
+          AppRoutes.linkedBanks,
+          AppRoutes.home,
+          AppRoutes.savingsHub,
+          AppRoutes.flexSave,
+          AppRoutes.addMoney,
+          AppRoutes.tierOverview,
+          AppRoutes.tier1Bvn,
+          AppRoutes.governmentIdVerification,
+          AppRoutes.tier3Address,
+        ])
+          (route: route, populated: true, keyboard: false),
+        for (final route in [
+          AppRoutes.login,
+          AppRoutes.createPassword,
+          AppRoutes.otp,
+          AppRoutes.createFirstPin,
+          AppRoutes.governmentIdVerification,
+          AppRoutes.tier3Address,
+        ])
+          (route: route, populated: false, keyboard: true),
+      ];
       for (final scenario in scenarios) {
         testWidgets('$scenario at $size text $scale', (tester) async {
           final savings =
               scenario.route == AppRoutes.savingsHub ||
-              scenario.route?.startsWith('/savings/') == true ||
+              scenario.route.startsWith('/savings/') == true ||
               scenario.route == AppRoutes.addMoney ||
               scenario.route == AppRoutes.bankTransferFunding ||
               scenario.route == AppRoutes.cardFunding;
@@ -150,7 +141,7 @@ void main() {
                   ),
                   child: child!,
                 ),
-                home: appHome(route: scenario.route, screen: scenario.screen),
+                home: appHome(route: scenario.route),
               ),
             ),
           );

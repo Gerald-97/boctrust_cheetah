@@ -159,14 +159,10 @@ class AppRouter {
       final arguments = settings.arguments is AppRouteArguments
           ? settings.arguments! as AppRouteArguments
           : const AppRouteArguments();
-      final page = definition.pageBuilder;
-      final screen = page != null
-          ? RouteMessageScope(arguments: arguments, child: page())
-          : AppFlowRouteScreen(
-              initialScreen: appScreenForRoute(name),
-              initialRouteName: name,
-              routeArguments: arguments,
-            );
+      final screen = RouteMessageScope(
+        arguments: arguments,
+        child: definition.pageBuilder(),
+      );
       return AppRoutes.privateRoutes.contains(name)
           ? PrivateRouteGate(routeName: name, child: screen)
           : screen;

@@ -1,13 +1,14 @@
 import 'package:boctrust_savings_loan/app/preferences.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
-import 'package:boctrust_savings_loan/module/app_flow/app_flow_navigator.dart';
 import 'package:boctrust_savings_loan/module/component/text_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'support/flow_harness.dart';
 import 'support/responsive_fixtures.dart';
 
 void main() {
@@ -80,7 +81,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: CheetahTheme.lightTheme,
-          home: const AppFlowNavigator(initialScreen: AppScreen.securityCenter),
+          home: appHome(route: AppRoutes.securitySettings),
         ),
       ),
     );
