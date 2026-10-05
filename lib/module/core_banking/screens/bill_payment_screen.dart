@@ -97,9 +97,11 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     super.dispose();
   }
 
+  /// Moves to [step]. The reviewed draft is dropped first, so a [change]
+  /// that builds a new draft keeps it.
   void _go(_Step step, [VoidCallback? change]) => setState(() {
-    change?.call();
     _draft = null;
+    change?.call();
     _step = step;
   });
 
