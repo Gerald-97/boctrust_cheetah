@@ -63,10 +63,11 @@ class BalanceCard extends StatelessWidget {
   final bool hidden;
   final VoidCallback onToggle;
 
-  /// Shown after the label with a copy button, when the server supplied it.
+  /// Shown under the balance with a copy button, when the server supplied
+  /// it.
   final String? accountNumber;
 
-  /// The funding bank, shown after [accountNumber] when supplied.
+  /// The funding bank, shown under [accountNumber] when supplied.
   final String? bankName;
   final VoidCallback? onCopyAccountNumber;
 
@@ -143,41 +144,14 @@ class BalanceCard extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text.rich(
-                        TextSpan(
-                          text: account == null ? label : '$label - ',
-                          children: [
-                            if (account != null)
-                              TextSpan(
-                                text: account,
-                                style: theme.textTheme.titleSmall
-                                    ?.copyWith(
-                                      color: colors.onNavy,
-                                      fontWeight: FontWeight.w700,
-                                    )
-                                    .figures,
-                              ),
-                            if (account != null && bankName != null)
-                              TextSpan(text: ' · $bankName'),
-                          ],
-                        ),
+                      child: Text(
+                        label,
                         style: muted,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (account != null && onCopyAccountNumber != null)
-                      IconButton(
-                        tooltip: 'Copy account number',
-                        onPressed: onCopyAccountNumber,
-                        icon: SvgPicture.asset(
-                          'assets/svg/copy.svg',
-                          width: 20,
-                          height: 20,
-                        ),
-                      )
-                    else
-                      const SizedBox(height: BocSpace.minTouch),
+                    const SizedBox(height: BocSpace.minTouch),
                     if (loading)
                       Padding(
                         padding: const EdgeInsets.only(left: BocSpace.xs),
@@ -242,6 +216,35 @@ class BalanceCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (account != null)
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      account,
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            color: colors.onNavy,
+                                            fontWeight: FontWeight.w700,
+                                          )
+                                          .figures,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (onCopyAccountNumber != null)
+                                    IconButton(
+                                      tooltip: 'Copy account number',
+                                      onPressed: onCopyAccountNumber,
+                                      visualDensity: VisualDensity.compact,
+                                      icon: SvgPicture.asset(
+                                        'assets/svg/copy.svg',
+                                        width: 18,
+                                        height: 18,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             if (note != null)
                               Text(
                                 note,
@@ -276,6 +279,16 @@ class BalanceCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Under the tier row so a long bank name has the full width.
+                if (account != null && bankName != null)
+                  Text(
+                    bankName!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onNavyMuted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
