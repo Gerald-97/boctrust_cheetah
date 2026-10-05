@@ -165,13 +165,15 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.airtime: AppRouteDefinition.page(PaymentsScreen.airtime),
   AppRoutes.data: AppRouteDefinition.page(PaymentsScreen.data),
   AppRoutes.billerListElectricity: AppRouteDefinition.page(
-    PaymentsScreen.billers,
+    PaymentsScreen.electricity,
   ),
-  AppRoutes.billerListWater: AppRouteDefinition.page(PaymentsScreen.billers),
-  AppRoutes.billerListCable: AppRouteDefinition.page(PaymentsScreen.billers),
-  AppRoutes.billerListInternet: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billerListWater: AppRouteDefinition.page(PaymentsScreen.water),
+  AppRoutes.billerListCable: AppRouteDefinition.page(PaymentsScreen.cableTv),
+  AppRoutes.billerListInternet: AppRouteDefinition.page(
+    PaymentsScreen.internet,
+  ),
   AppRoutes.billerListEducation: AppRouteDefinition.page(
-    PaymentsScreen.billers,
+    PaymentsScreen.education,
   ),
   AppRoutes.billerListMore: AppRouteDefinition.page(PaymentsScreen.billers),
   AppRoutes.billPay: AppRouteDefinition.page(PaymentsScreen.billers),
@@ -198,14 +200,8 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
   AppRoutes.nextOfKin: AppRouteDefinition.page(NextOfKinScreen.new),
   AppRoutes.tier3Address: AppRouteDefinition.page(KycUtilityBillScreen.new),
-  AppRoutes.manageBeneficiaries: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Beneficiaries',
-      heading: 'Beneficiaries are unavailable',
-      message: 'Saved beneficiaries are not available yet.',
-      section: AppSection.account,
-      capability: FeatureCapability.beneficiaries,
-    ),
+  AppRoutes.manageBeneficiaries: AppRouteDefinition.page(
+    BeneficiariesScreen.new,
   ),
   AppRoutes.linkedBanks: AppRouteDefinition.page(AccountScreen.linkedBanks),
   AppRoutes.securitySettings: AppRouteDefinition.page(

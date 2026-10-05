@@ -65,20 +65,18 @@ void main() {
     );
   });
 
-  test('no capability depends on a Core money-moving operation', () {
-    // Transfers, transfer status and bill payment stay unavailable until
+  test('money-moving Core operations are staging-only until G2', () {
+    // Transfers and bill payment stay out of release builds until
     // transaction-bound authorization and response semantics are published.
     bool movesMoney(ApiOperation operation) =>
         operation.backend == ApiBackend.core &&
-        (operation.path == CoreApiEndpoints.ownAccountTransfer ||
-            operation.path == CoreApiEndpoints.intrabankWithdrawals);
+        operation.method == 'POST' &&
+        CoreApiEndpoints.moneyMoving.contains(operation.path);
 
     for (final MapEntry(:key, :value) in capabilityRequirements.entries) {
-      expect(
-        value.operations.where(movesMoney),
-        isEmpty,
-        reason: '$key must not require a money-moving Core operation',
-      );
+      if (value.operations.any(movesMoney)) {
+        expect(value.stagingOnly, isTrue, reason: '$key moves money');
+      }
     }
     for (final capability in [
       FeatureCapability.transfers,
@@ -90,19 +88,37 @@ void main() {
     }
   });
 
-  test(
-    'mobile banking capabilities stay unavailable until their slice ships',
-    () {
-      for (final capability in [
-        FeatureCapability.ownAccountTransfers,
-        FeatureCapability.savingsWithdrawals,
-      ]) {
-        expect(
-          availabilityOf(capability),
-          FeatureAvailability.unavailable,
-          reason: '$capability has no registered contract yet',
-        );
-      }
-    },
-  );
+  test('Core mobile banking slices are available only in staging', () {
+    const slices = [
+      FeatureCapability.ownAccountTransfers,
+      FeatureCapability.savingsWithdrawals,
+      FeatureCapability.boctrustTransfers,
+      FeatureCapability.interbankTransfers,
+      FeatureCapability.airtime,
+      FeatureCapability.data,
+      FeatureCapability.bills,
+      FeatureCapability.beneficiaries,
+    ];
+    for (final capability in slices) {
+      expect(availabilityOf(capability), FeatureAvailability.unavailable);
+      expect(
+        availabilityFor(
+          capabilityRequirements[capability],
+          configuredBackends: ApiBackend.values.toSet(),
+          staging: true,
+        ),
+        FeatureAvailability.available,
+        reason: '$capability',
+      );
+      expect(
+        availabilityFor(
+          capabilityRequirements[capability],
+          configuredBackends: {ApiBackend.user},
+          staging: true,
+        ),
+        FeatureAvailability.unavailable,
+        reason: '$capability needs Core',
+      );
+    }
+  });
 }

@@ -61,6 +61,27 @@ void main() {
       expect(data.accounts[1].availableBalance, isNull);
     });
 
+    test('a comma-grouped balance is kept as a plain decimal string', () {
+      final data = CustomerBankAccountsData.fromJson({
+        'totalAvailableBalance': 100,
+        'products': [
+          {
+            ..._account('bocFlex', '1100925452'),
+            'availableBalance': '100,000.00',
+            'ledgerBalance': '1,234,567.89',
+          },
+          _account('a', '0000000002', availableBalance: '1,00.00'),
+          _account('b', '0000000003', availableBalance: '1000,000.00'),
+          _account('c', '0000000004', availableBalance: ',100.00'),
+        ],
+      });
+      expect(data.activeFlexAccount?.availableBalance, '100000.00');
+      expect(data.activeFlexAccount?.ledgerBalance, '1234567.89');
+      expect(data.accounts[1].availableBalance, isNull);
+      expect(data.accounts[2].availableBalance, isNull);
+      expect(data.accounts[3].availableBalance, isNull);
+    });
+
     test('the Flex account must be exactly one active account', () {
       CustomerBankAccount? flex(List<Map<String, Object?>> products) =>
           CustomerBankAccountsData.fromJson({

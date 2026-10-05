@@ -19,6 +19,7 @@ import '../send/model/transaction_models.dart';
 import '../kyc/screens/kyc_screens.dart';
 import '../home/screens/home_screen.dart';
 import '../account/screens/account_screens.dart';
+import '../core_banking/screens/beneficiaries_screen.dart';
 import '../notifications/screens/notifications_screen.dart';
 import 'flow_page.dart';
 import '../payments/screens/payments_screens.dart';

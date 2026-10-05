@@ -49,6 +49,10 @@ enum CoreRejection {
   accountRestricted('Your account is restricted. Please contact support.'),
   accountMissing('This account is not available.'),
   referenceCollision('Something went wrong. You can try again.'),
+  recipientUnresolved(
+    "We couldn't verify the receiving account. Check the details and try "
+    'again.',
+  ),
   other('This request was declined.');
 
   const CoreRejection(this.message);
@@ -95,9 +99,13 @@ final class UnknownSubmission extends CoreSubmissionOutcome {
 }
 
 /// Classifies a money-moving response.
+///
+/// [interbank]: Core documents a `500` on interbank transfers as a failed
+/// name enquiry or a rejected transfer, so nothing moved.
 CoreSubmissionOutcome mapCoreSubmission(
-  ServiceResponse<CoreTransferAck> response,
-) {
+  ServiceResponse<CoreTransferAck> response, {
+  bool interbank = false,
+}) {
   final ack = response.data;
   if (response.status == ServiceStatus.success && ack != null) {
     return AcceptedSubmission(ack);
@@ -116,6 +124,9 @@ CoreSubmissionOutcome mapCoreSubmission(
     403 => const RejectedSubmission(CoreRejection.accountRestricted),
     404 => const RejectedSubmission(CoreRejection.accountMissing),
     409 => const RejectedSubmission(CoreRejection.referenceCollision),
+    500 when interbank => const RejectedSubmission(
+      CoreRejection.recipientUnresolved,
+    ),
     final int c when c >= 400 && c < 500 => const RejectedSubmission(
       CoreRejection.other,
     ),

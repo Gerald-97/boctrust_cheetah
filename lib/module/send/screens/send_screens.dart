@@ -10,7 +10,8 @@ import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
-import '../../component/text_fields.dart';
+import '../../core_banking/screens/boctrust_transfer_screen.dart';
+import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/own_account_move_screen.dart';
 import '../model/transaction_models.dart';
 import '../provider/transaction_provider.dart';
@@ -57,10 +58,13 @@ class _SendScreenState extends FlowPageState<SendScreen> {
               _available(FeatureCapability.savingsWithdrawals)
           ? OwnAccountMoveFlow(onExit: back, onSectionSelected: goSection)
           : _sendOwnScreen(),
-    _SendPage.beneficiary => _sendBeneficiaryScreen(),
+    _SendPage.beneficiary =>
+      _available(FeatureCapability.boctrustTransfers)
+          ? BoctrustTransferFlow(onExit: back, onSectionSelected: goSection)
+          : _sendBeneficiaryScreen(),
     _SendPage.otherBank =>
-      _available(FeatureCapability.transfers)
-          ? _TransferFlow(onExit: back)
+      _available(FeatureCapability.interbankTransfers)
+          ? InterbankTransferFlow(onExit: back, onSectionSelected: goSection)
           : _sendBankScreen(),
     _SendPage.authorize => _authPinScreen(),
     _SendPage.receipt => _successScreen(),
@@ -84,9 +88,13 @@ const _historyUnavailable = UnavailableDestination(
 /// details, resolves a recipient, or reports a result.
 extension SendScreens on FlowPageState {
   Widget _sendHubScreen() {
-    final transfers = ref
-        .watch(featureAvailabilityProvider(FeatureCapability.transfers))
-        .isAvailable;
+    final transfers = [
+      FeatureCapability.transfers,
+      FeatureCapability.ownAccountTransfers,
+      FeatureCapability.savingsWithdrawals,
+      FeatureCapability.boctrustTransfers,
+      FeatureCapability.interbankTransfers,
+    ].any((c) => ref.watch(featureAvailabilityProvider(c)).isAvailable);
     return AppScaffold(
       title: 'Send money',
       activeSection: AppSection.send,

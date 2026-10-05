@@ -40,6 +40,11 @@ abstract class SessionScopedNotifier<T> extends Notifier<NotifierState<T>>
     return _inFlight ??= _load(session.accessToken);
   }
 
+  /// Loads only when nothing is held yet; an in-flight load is shared.
+  Future<void> ensureLoaded() async {
+    if (state.data == null) await load();
+  }
+
   Future<NotifierState<T>> _load(String accessToken) async {
     final token = beginRequest();
     final retained = state.data;
