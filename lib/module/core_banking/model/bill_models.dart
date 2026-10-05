@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import 'beneficiary_models.dart';
 import 'core_json.dart';
 
 /// A bill category from `GET /me/bills/billers/categories`.
@@ -8,16 +9,11 @@ class BillerCategory extends Equatable {
     required this.id,
     required this.name,
     this.description,
-    this.isAirtime = false,
   });
 
   final String id;
   final String name;
   final String? description;
-  final bool isAirtime;
-
-  /// Data plans: no flag is published, so the category name decides.
-  bool get isData => name.toLowerCase().contains('data');
 
   static List<BillerCategory> listFromJson(Object? json) => List.unmodifiable([
     for (final row in coreRows(json, const ['categories', 'items', 'data']))
@@ -30,12 +26,11 @@ class BillerCategory extends Equatable {
             id: id,
             name: name,
             description: coreText(row['description']),
-            isAirtime: row['isAirtime'] == true,
           ),
   ]);
 
   @override
-  List<Object?> get props => [id, name, description, isAirtime];
+  List<Object?> get props => [id, name, description];
 }
 
 /// A biller from `GET /me/bills/billers`. Only active billers are kept.
@@ -120,6 +115,24 @@ enum BillerGroup {
     r'school|universit|polytechnic|college|\bfees?\b|waec|jamb|neco|exam|'
     r'education',
   );
+
+  /// The specific tile a biller belongs to, or null when none fits.
+  static BillerGroup? of(Biller biller) =>
+      values.where((g) => g != all && g.matches(biller)).firstOrNull;
+
+  /// The tile a category's name suggests, e.g. for its icon.
+  static BillerGroup? ofCategory(String name) =>
+      of(Biller(id: '', categoryId: '', name: name, categoryName: name));
+
+  /// What a saved customer of this tile is stored as; null for tiles Core
+  /// cannot save (airtime, data, education).
+  BeneficiaryType? get beneficiaryType => switch (this) {
+    electricity => BeneficiaryType.electricity,
+    water => BeneficiaryType.water,
+    cableTv => BeneficiaryType.cableTv,
+    internet => BeneficiaryType.internet,
+    _ => null,
+  };
 
   bool matches(Biller biller) {
     final name = biller.name.toLowerCase();

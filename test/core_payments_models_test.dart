@@ -100,10 +100,7 @@ void main() {
         {'id': '9', 'name': 'Subscriptions'},
         {'name': 'no id'},
       ]);
-      expect(categories.map((c) => (c.id, c.isAirtime)), [
-        ('4', true),
-        ('9', false),
-      ]);
+      expect(categories.map((c) => c.id), ['4', '9']);
 
       final billers = Biller.listFromJson({
         'billers': [
@@ -201,15 +198,13 @@ void main() {
         ),
         {'type': 'bank_account', 'bankCode': '058', 'number': '0123456789'},
       );
-      expect(
-        BeneficiaryType.forCategoryName('Electricity Bills'),
-        BeneficiaryType.electricity,
-      );
-      expect(
-        BeneficiaryType.forCategoryName('Cable TV'),
-        BeneficiaryType.cableTv,
-      );
-      expect(BeneficiaryType.forCategoryName('Mobile/Recharge'), isNull);
+      // A bill customer is saved under its tile, wherever Core files it.
+      BeneficiaryType? typeOf(String name, String category) => BillerGroup.of(
+        Biller(id: '1', categoryId: '1', name: name, categoryName: category),
+      )?.beneficiaryType;
+      expect(typeOf('EKEDC NEW', 'Utility Bills'), BeneficiaryType.electricity);
+      expect(typeOf('DSTV', 'Cable TV Bills'), BeneficiaryType.cableTv);
+      expect(typeOf('MTN', 'Mobile/Recharge'), isNull);
     });
   });
 

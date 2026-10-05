@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
-import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/core_money.dart';
 import '../model/intrabank_models.dart';
@@ -49,9 +48,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(boctrustTransferProvider.notifier).clear();
-      if (ref.read(customerBankAccountsProvider).data == null) {
-        unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-      }
+      unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
     });
   }
 
@@ -130,18 +127,12 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
         : ownNumbers.contains(number)
         ? 'Use "Between my accounts" for your own accounts.'
         : null;
-    final amount = parseNairaToKobo(
-      _amount.text,
-      maxKobo: balanceToKobo(available) ?? '0',
-    );
-    final amountMessage = amountError(_amount.text, amount);
-    final narrationTooLong =
-        _narration.text.trim().length > kNarrationMaxLength;
+    final amount = amountWithin(_amount.text, available);
     final ready =
         number.isNotEmpty &&
         numberError == null &&
         amount is ValidMoney &&
-        !narrationTooLong;
+        narrationFits(_narration.text);
     return [
       const FlowHeading('Who are you sending to?'),
       AppTextField(
@@ -153,27 +144,12 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
       ),
       if (numberError != null) FieldError(numberError),
       const SizedBox(height: BocSpace.sm),
-      AppTextField(
-        label: 'Amount (₦)',
-        controller: _amount,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => _edit(),
-      ),
-      if (amountMessage != null) FieldError(amountMessage),
-      const SizedBox(height: BocSpace.xxs),
-      Text(
-        'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      const SizedBox(height: BocSpace.sm),
-      AppTextField(
-        label: 'Narration (optional)',
-        controller: _narration,
-        onChanged: (_) => _edit(),
-        validator: (_) => narrationTooLong
-            ? 'Use $kNarrationMaxLength characters or fewer.'
-            : null,
-        autovalidateMode: AutovalidateMode.always,
+      CoreAmountFields(
+        input: amount,
+        available: available,
+        amount: _amount,
+        narration: _narration,
+        onChanged: _edit,
       ),
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(

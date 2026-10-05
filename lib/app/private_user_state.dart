@@ -45,7 +45,6 @@ void clearPrivateUserState(Ref ref) {
   ref.invalidate(notificationPreferencesProvider);
   ref.read(savingsPlansProvider.notifier).clear();
   ref.read(transactionHistoryProvider.notifier).clear();
-  ref.read(transferSubmissionProvider.notifier).clear();
   ref.read(bankCatalogueProvider.notifier).clear();
   ref.read(withdrawalBankAccountsProvider.notifier).clear();
   ref.read(withdrawalBankDraftProvider.notifier).clear();

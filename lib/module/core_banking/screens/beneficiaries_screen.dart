@@ -208,8 +208,8 @@ class _AddBankBeneficiaryState extends ConsumerState<_AddBankBeneficiary> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && ref.read(interbankBanksProvider).data == null) {
-        unawaited(ref.read(interbankBanksProvider.notifier).load());
+      if (mounted) {
+        unawaited(ref.read(interbankBanksProvider.notifier).ensureLoaded());
       }
     });
   }

@@ -5,14 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/feature_capability.dart';
+import '../../../app/session_scoped_notifier.dart';
 import '../../../app/theme.dart';
-import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/core_money.dart';
 import '../model/core_submission_models.dart';
 import '../model/interbank_models.dart';
-import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../service/core_transfer_service.dart';
@@ -67,20 +66,15 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(interbankTransferProvider.notifier).clear();
-      for (final load in [
-        if (ref.read(interbankBanksProvider).data == null)
-          ref.read(interbankBanksProvider.notifier).load,
-        if (ref.read(customerBankAccountsProvider).data == null)
-          ref.read(customerBankAccountsProvider.notifier).load,
+      for (final notifier in <SessionScopedNotifier<Object?>>[
+        ref.read(interbankBanksProvider.notifier),
+        ref.read(customerBankAccountsProvider.notifier),
         if (ref
-                .read(
-                  featureAvailabilityProvider(FeatureCapability.beneficiaries),
-                )
-                .isAvailable &&
-            ref.read(beneficiariesProvider).data == null)
-          ref.read(beneficiariesProvider.notifier).load,
+            .read(featureAvailabilityProvider(FeatureCapability.beneficiaries))
+            .isAvailable)
+          ref.read(beneficiariesProvider.notifier),
       ]) {
-        unawaited(load());
+        unawaited(notifier.ensureLoaded());
       }
     });
   }
@@ -178,6 +172,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
                 ref.read(interbankTransferProvider.notifier).reset();
                 setState(() => _step = _Step.recipient);
               },
+              acceptedStatus: _statusCard(),
               acceptedExtra: switch (submission.outcome) {
                 AcceptedSubmission(:final ack) => _afterAccepted(ack),
                 _ => const [],
@@ -277,41 +272,20 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         .data
         ?.activeFlexAccount
         ?.availableBalance;
-    final amount = parseNairaToKobo(
-      _amount.text,
-      maxKobo: balanceToKobo(available) ?? '0',
-    );
-    final message = amountError(_amount.text, amount);
-    final narrationTooLong =
-        _narration.text.trim().length > kNarrationMaxLength;
+    final amount = amountWithin(_amount.text, available);
     return [
       FlowHeading('How much to ${recipient.name}?'),
-      AppTextField(
-        label: 'Amount (₦)',
-        controller: _amount,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => setState(() => _draft = null),
-      ),
-      if (message != null) FieldError(message),
-      const SizedBox(height: BocSpace.xxs),
-      Text(
-        'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      const SizedBox(height: BocSpace.sm),
-      AppTextField(
-        label: 'Narration (optional)',
-        controller: _narration,
-        onChanged: (_) => setState(() => _draft = null),
-        validator: (_) => narrationTooLong
-            ? 'Use $kNarrationMaxLength characters or fewer.'
-            : null,
-        autovalidateMode: AutovalidateMode.always,
+      CoreAmountFields(
+        input: amount,
+        available: available,
+        amount: _amount,
+        narration: _narration,
+        onChanged: () => setState(() => _draft = null),
       ),
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(
         label: 'Review',
-        onPressed: amount is ValidMoney && !narrationTooLong
+        onPressed: amount is ValidMoney && narrationFits(_narration.text)
             ? () => setState(() {
                 _draft = InterbankTransferDraft(
                   bankCode: recipient.bankCode,
@@ -399,6 +373,32 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     }
   }
 
+  /// The checked status, which replaces the "submitted" card once known.
+  Widget? _statusCard() {
+    final status = _status;
+    if (status == null) return null;
+    return ApiStateCard(
+      title: switch (status.state) {
+        InterbankTransferState.completed => 'Transfer completed',
+        InterbankTransferState.failed => 'Transfer failed',
+        InterbankTransferState.pending => 'Transfer processing',
+        InterbankTransferState.unknown => 'Status not recognised',
+      },
+      message:
+          status.message ??
+          [
+            if (status.reference != null) 'Reference ${status.reference}.',
+            if (status.state == InterbankTransferState.pending)
+              'Check again in a moment.',
+          ].join(' '),
+      tone: switch (status.state) {
+        InterbankTransferState.completed => ApiStateTone.info,
+        InterbankTransferState.failed => ApiStateTone.error,
+        _ => ApiStateTone.warning,
+      },
+    );
+  }
+
   List<Widget> _afterAccepted(CoreTransferAck ack) {
     final reference = ack.reference;
     final draft = _draft;
@@ -420,50 +420,22 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           tone: ApiStateTone.info,
         )
       else ...[
-        if (status != null)
-          ApiStateCard(
-            title: switch (status.state) {
-              InterbankTransferState.completed => 'Transfer completed',
-              InterbankTransferState.failed => 'Transfer failed',
-              InterbankTransferState.pending => 'Transfer processing',
-              InterbankTransferState.unknown => 'Status not recognised',
-            },
-            message: status.message ?? 'Reference $reference',
-            tone: switch (status.state) {
-              InterbankTransferState.completed => ApiStateTone.info,
-              InterbankTransferState.failed => ApiStateTone.error,
-              _ => ApiStateTone.warning,
-            },
-          ),
         if (_statusError != null) FieldError(_statusError!),
         if (status == null ||
             status.state == InterbankTransferState.pending ||
-            status.state == InterbankTransferState.unknown) ...[
-          const SizedBox(height: BocSpace.sm),
+            status.state == InterbankTransferState.unknown)
           SecondaryButton(
             label: _checkingStatus ? 'Checking…' : 'Check status',
             onPressed: _checkingStatus ? null : () => _checkStatus(reference),
           ),
-        ],
       ],
       if (_beneficiaries && !alreadySaved) ...[
         const SizedBox(height: BocSpace.sm),
-        SecondaryButton(
-          label: 'Save as beneficiary',
-          onPressed: () async {
-            final error = await ref
-                .read(beneficiariesProvider.notifier)
-                .add(
-                  bankBeneficiaryRequest(
-                    bankCode: draft.bankCode,
-                    number: draft.accountNumber,
-                  ),
-                );
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(error ?? 'Beneficiary saved.')),
-            );
-          },
+        SaveBeneficiaryButton(
+          body: bankBeneficiaryRequest(
+            bankCode: draft.bankCode,
+            number: draft.accountNumber,
+          ),
         ),
       ],
     ];

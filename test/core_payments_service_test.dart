@@ -120,7 +120,7 @@ void main() {
     });
     final service = CoreBillService(_api(core));
 
-    expect((await service.getCategories()).data?.single.isAirtime, isTrue);
+    expect((await service.getCategories()).data?.single.id, '4');
     expect((await service.getBillers()).data?.single.id, '157');
     expect((await service.getPaymentItems()).data?.single.amountNaira, isNull);
     final paid = await service.pay(

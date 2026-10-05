@@ -15,20 +15,6 @@ enum BeneficiaryType {
 
   static BeneficiaryType? parse(Object? value) =>
       values.where((type) => type.wireValue == value).firstOrNull;
-
-  /// The bill beneficiary type for a biller category, or null when the
-  /// category (airtime, data, education…) cannot be saved.
-  static BeneficiaryType? forCategoryName(String name) {
-    final text = name.toLowerCase();
-    if (text.contains('electric') || text.contains('power')) {
-      return electricity;
-    }
-    if (text.contains('water')) return water;
-    if (text.contains('cable') || text.contains('tv')) return cableTv;
-    if (text.contains('internet')) return internet;
-    if (text.contains('bet')) return betting;
-    return null;
-  }
 }
 
 /// A saved bank account or biller customer from `GET /me/beneficiaries`.

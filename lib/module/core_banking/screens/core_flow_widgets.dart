@@ -8,6 +8,8 @@ import '../../app_flow/app_ui.dart';
 import '../model/core_money.dart';
 import '../model/core_submission_models.dart';
 import '../model/interbank_models.dart';
+import '../model/intrabank_models.dart';
+import '../provider/core_payments_providers.dart';
 import '../service/transaction_authorizer.dart';
 
 /// Integer Kobo as display Naira (`'150000'` → `₦1,500.00`).
@@ -17,6 +19,25 @@ String nairaFromKobo(String kobo) =>
 /// `•••• 7777` for a number the customer typed.
 String maskNumber(String number) =>
     number.length <= 4 ? number : '•••• ${number.substring(number.length - 4)}';
+
+const _noBalance = InvalidMoney(
+  "We couldn't load this account's balance, so the amount can't be "
+  'checked yet. Pull down to refresh or try again shortly.',
+);
+
+/// [text] checked against an available [balance] (a decimal Naira string).
+/// Kobo for transfers, or two-decimal Naira when [naira] (bills). A missing
+/// balance is explained, never reported as "exceeds your limit".
+MoneyInput amountWithin(String text, String? balance, {bool naira = false}) {
+  final max = balanceToKobo(balance);
+  if (max == null) return _noBalance;
+  return naira
+      ? parseNairaAmount(text, maxKobo: max)
+      : parseNairaToKobo(text, maxKobo: max);
+}
+
+/// Whether an optional narration fits Core's limit.
+bool narrationFits(String text) => text.trim().length <= kNarrationMaxLength;
 
 /// The amount error to show under a field, or null while empty or valid.
 String? amountError(String text, MoneyInput amount) => text.trim().isEmpty
@@ -53,6 +74,7 @@ class CoreSubmissionResult extends StatelessWidget {
     required this.onDone,
     required this.onChangeDetails,
     this.acceptedExtra = const [],
+    this.acceptedStatus,
     super.key,
   });
 
@@ -67,6 +89,10 @@ class CoreSubmissionResult extends StatelessWidget {
   /// Shown under an accepted result (status check, save beneficiary).
   final List<Widget> acceptedExtra;
 
+  /// A later, authoritative status (interbank) that replaces the
+  /// "submitted" card, so the two never contradict each other.
+  final Widget? acceptedStatus;
+
   @override
   Widget build(BuildContext context) {
     if (inFlight) {
@@ -74,15 +100,17 @@ class CoreSubmissionResult extends StatelessWidget {
     }
     final children = switch (outcome) {
       AcceptedSubmission(:final ack) => [
-        ApiStateCard(
-          title: '$noun submitted',
-          message: [
-            if (ack.reference != null) 'Reference ${ack.reference}.',
-            if (ack.status != null) 'Status: ${ack.status}.',
-            'Your balance will update shortly.',
-          ].join(' '),
-          tone: ApiStateTone.info,
-        ),
+        ?acceptedStatus,
+        if (acceptedStatus == null)
+          ApiStateCard(
+            title: '$noun submitted',
+            message: [
+              if (ack.reference != null) 'Reference ${ack.reference}.',
+              if (ack.status != null) 'Status: ${ack.status}.',
+              'Your balance will update shortly.',
+            ].join(' '),
+            tone: ApiStateTone.info,
+          ),
         ...acceptedExtra,
         const SizedBox(height: BocSpace.md),
         PrimaryButton(label: 'Done', onPressed: onDone),
@@ -314,5 +342,114 @@ class BankSelectorTile extends StatelessWidget {
               },
       ),
     ],
+  );
+}
+
+/// The amount (or a fixed price), the available balance and an optional
+/// narration, shared by every transfer and payment form.
+class CoreAmountFields extends StatelessWidget {
+  const CoreAmountFields({
+    required this.input,
+    required this.available,
+    required this.onChanged,
+    this.amount,
+    this.fixedAmount,
+    this.narration,
+    super.key,
+  }) : assert((amount == null) != (fixedAmount == null));
+
+  /// The checked amount, from [amountWithin].
+  final MoneyInput input;
+
+  /// The source account's balance, a decimal Naira string.
+  final String? available;
+  final VoidCallback onChanged;
+
+  /// The typed amount; null when the plan has a [fixedAmount].
+  final TextEditingController? amount;
+
+  /// A two-decimal Naira price the customer cannot change.
+  final String? fixedAmount;
+  final TextEditingController? narration;
+
+  @override
+  Widget build(BuildContext context) {
+    final fixed = fixedAmount;
+    final amount = this.amount;
+    final message = amountError(fixed ?? amount!.text, input);
+    final narration = this.narration;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (amount != null)
+          AppTextField(
+            label: 'Amount (₦)',
+            controller: amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => onChanged(),
+          )
+        else
+          BocSummaryGrid(
+            items: [
+              (
+                label: 'Amount',
+                value: formatApiAmount(fixed, currency: 'NGN') ?? fixed!,
+              ),
+            ],
+          ),
+        if (message != null) FieldError(message),
+        const SizedBox(height: BocSpace.xxs),
+        Text(
+          'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (narration != null) ...[
+          const SizedBox(height: BocSpace.sm),
+          AppTextField(
+            label: 'Narration (optional)',
+            controller: narration,
+            onChanged: (_) => onChanged(),
+            validator: (_) => narrationFits(narration.text)
+                ? null
+                : 'Use $kNarrationMaxLength characters or fewer.',
+            autovalidateMode: AutovalidateMode.always,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Saves [body] as a beneficiary once; repeat taps while saving are ignored.
+class SaveBeneficiaryButton extends ConsumerStatefulWidget {
+  const SaveBeneficiaryButton({required this.body, super.key});
+
+  /// From `bankBeneficiaryRequest` or `billBeneficiaryRequest`.
+  final Map<String, Object?> body;
+
+  @override
+  ConsumerState<SaveBeneficiaryButton> createState() =>
+      _SaveBeneficiaryButtonState();
+}
+
+class _SaveBeneficiaryButtonState extends ConsumerState<SaveBeneficiaryButton> {
+  bool _saving = false;
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final error = await ref
+        .read(beneficiariesProvider.notifier)
+        .add(widget.body);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error ?? 'Beneficiary saved.')));
+  }
+
+  @override
+  Widget build(BuildContext context) => SecondaryButton(
+    label: _saving ? 'Saving…' : 'Save as beneficiary',
+    onPressed: _saving ? null : _save,
   );
 }

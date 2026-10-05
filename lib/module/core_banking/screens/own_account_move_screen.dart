@@ -5,16 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
-import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
 import '../model/core_money.dart';
-import '../model/core_submission_models.dart';
 import '../model/customer_bank_account_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/intrabank_submission_providers.dart';
 import '../service/transaction_authorizer.dart';
+import 'core_flow_widgets.dart';
 
 enum _MoveStep { form, review, result }
 
@@ -143,19 +142,11 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
         .where((account) => account.productCode == _productCode)
         .firstOrNull;
     final source = direction == OwnAccountDirection.toSavings ? flex : product;
-    final amount = parseNairaToKobo(
-      _amount.text,
-      maxKobo: balanceToKobo(source?.availableBalance) ?? '0',
-    );
-    final narrationTooLong =
-        _narration.text.trim().length > kNarrationMaxLength;
-    final amountError = _amount.text.trim().isEmpty
-        ? null
-        : switch (amount) {
-            InvalidMoney(:final message) => message,
-            ValidMoney() => null,
-          };
-    final ready = product != null && amount is ValidMoney && !narrationTooLong;
+    final amount = amountWithin(_amount.text, source?.availableBalance);
+    final ready =
+        product != null &&
+        amount is ValidMoney &&
+        narrationFits(_narration.text);
 
     return [
       if (directions.length > 1) ...[
@@ -190,35 +181,12 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
         onChanged: (code) => _edit(() => _productCode = code),
       ),
       const SizedBox(height: BocSpace.sm),
-      AppTextField(
-        label: 'Amount (₦)',
-        controller: _amount,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => _edit(() {}),
-      ),
-      if (amountError != null) ...[
-        const SizedBox(height: BocSpace.xxs),
-        Text(
-          amountError,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      ],
-      if (source != null) ...[
-        const SizedBox(height: BocSpace.xxs),
-        Text(
-          'Available: ${formatApiAmount(source.availableBalance, currency: 'NGN') ?? 'unavailable'}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-      const SizedBox(height: BocSpace.sm),
-      AppTextField(
-        label: 'Narration (optional)',
-        controller: _narration,
-        onChanged: (_) => _edit(() {}),
-        validator: (_) => narrationTooLong
-            ? 'Use $kNarrationMaxLength characters or fewer.'
-            : null,
-        autovalidateMode: AutovalidateMode.always,
+      CoreAmountFields(
+        input: amount,
+        available: source?.availableBalance,
+        amount: _amount,
+        narration: _narration,
+        onChanged: () => _edit(() {}),
       ),
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(
@@ -238,19 +206,11 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     ];
   }
 
-  String _naira(String kobo) =>
-      formatApiAmount(
-        '${kobo.substring(0, kobo.length - 2).padLeft(1, '0')}.'
-        '${kobo.substring(kobo.length - 2)}',
-        currency: 'NGN',
-      ) ??
-      '';
-
   List<Widget> _review(CustomerBankAccount flex, CustomerBankAccount? product) {
     final draft = _draft;
     if (draft == null || product == null) return const [];
     final toSavings = draft.direction == OwnAccountDirection.toSavings;
-    final amount = _naira(draft.amountKobo.padLeft(3, '0'));
+    final amount = nairaFromKobo(draft.amountKobo);
     final narration = draft.narration?.trim() ?? '';
     return [
       BocSummaryGrid(
@@ -285,16 +245,8 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     OwnAccountMoveDraft draft,
     TransactionSummary summary,
   ) async {
-    final authorized = await ref
-        .read(transactionAuthorizerProvider)
-        .authorize(context, summary);
-    if (!mounted) return;
-    if (!authorized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This transfer was not authorized.')),
-      );
-      return;
-    }
+    final authorized = await authorizeCoreTransaction(context, ref, summary);
+    if (!authorized || !mounted) return;
     setState(() => _step = _MoveStep.result);
     await ref.read(ownAccountMoveProvider.notifier).submit(draft);
     if (!mounted) return;
@@ -304,48 +256,17 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
 
   List<Widget> _result() {
     final state = ref.watch(ownAccountMoveProvider);
-    if (state.inFlight) {
-      return const [ApiLoadingSection(label: 'Sending your transfer')];
-    }
-    return switch (state.outcome) {
-      AcceptedSubmission(:final ack) => [
-        ApiStateCard(
-          title: 'Transfer submitted',
-          message: ack.reference == null
-              ? 'Your balances will update shortly.'
-              : 'Reference ${ack.reference}. Your balances will update '
-                    'shortly.',
-          tone: ApiStateTone.info,
-        ),
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(label: 'Done', onPressed: widget.onExit),
-      ],
-      RejectedSubmission(:final message) => [
-        ApiStateCard(
-          title: 'Transfer declined',
-          message: message,
-          tone: ApiStateTone.error,
-        ),
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(
-          label: 'Change details',
-          onPressed: () {
-            ref.read(ownAccountMoveProvider.notifier).reset();
-            setState(() => _step = _MoveStep.form);
-          },
-        ),
-      ],
-      // Unknown: never resend, never claim an outcome.
-      final UnknownSubmission unknown => [
-        ApiStateCard(
-          title: 'Transfer not confirmed',
-          message: unknown.message,
-          tone: ApiStateTone.warning,
-        ),
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(label: 'Done', onPressed: widget.onExit),
-      ],
-      null => const [],
-    };
+    return [
+      CoreSubmissionResult(
+        inFlight: state.inFlight,
+        outcome: state.outcome,
+        noun: 'Transfer',
+        onDone: widget.onExit,
+        onChangeDetails: () {
+          ref.read(ownAccountMoveProvider.notifier).reset();
+          setState(() => _step = _MoveStep.form);
+        },
+      ),
+    ];
   }
 }

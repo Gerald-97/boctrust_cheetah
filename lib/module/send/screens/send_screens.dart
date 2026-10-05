@@ -10,7 +10,6 @@ import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
-import '../../component/text_fields.dart';
 import '../../core_banking/screens/boctrust_transfer_screen.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/own_account_move_screen.dart';
@@ -66,8 +65,6 @@ class _SendScreenState extends FlowPageState<SendScreen> {
     _SendPage.otherBank =>
       _available(FeatureCapability.interbankTransfers)
           ? InterbankTransferFlow(onExit: back, onSectionSelected: goSection)
-          : _available(FeatureCapability.transfers)
-          ? _TransferFlow(onExit: back)
           : _sendBankScreen(),
     _SendPage.authorize => _authPinScreen(),
     _SendPage.receipt => _successScreen(),

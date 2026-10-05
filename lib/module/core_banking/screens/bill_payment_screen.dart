@@ -6,6 +6,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/services.dart';
+import '../../../app/session_scoped_notifier.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
@@ -59,33 +60,17 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(billPaymentProvider.notifier).clear();
-      final beneficiaries = ref
-          .read(featureAvailabilityProvider(FeatureCapability.beneficiaries))
-          .isAvailable;
-      for (final (data, load) in [
-        (
-          ref.read(billerCategoriesProvider).data,
-          ref.read(billerCategoriesProvider.notifier).load,
-        ),
-        (
-          ref.read(billersProvider).data,
-          ref.read(billersProvider.notifier).load,
-        ),
-        (
-          ref.read(paymentItemsProvider).data,
-          ref.read(paymentItemsProvider.notifier).load,
-        ),
-        (
-          ref.read(customerBankAccountsProvider).data,
-          ref.read(customerBankAccountsProvider.notifier).load,
-        ),
-        if (beneficiaries)
-          (
-            ref.read(beneficiariesProvider).data,
-            ref.read(beneficiariesProvider.notifier).load,
-          ),
+      for (final notifier in <SessionScopedNotifier<Object?>>[
+        ref.read(billerCategoriesProvider.notifier),
+        ref.read(billersProvider.notifier),
+        ref.read(paymentItemsProvider.notifier),
+        ref.read(customerBankAccountsProvider.notifier),
+        if (ref
+            .read(featureAvailabilityProvider(FeatureCapability.beneficiaries))
+            .isAvailable)
+          ref.read(beneficiariesProvider.notifier),
       ]) {
-        if (data == null) unawaited(load());
+        unawaited(notifier.ensureLoaded());
       }
     });
   }
@@ -206,32 +191,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     VoidCallback onTap,
   ) => SettingsTile(icon: icon, title: title, subtitle: subtitle, onTap: onTap);
 
-  static IconData _iconFor(String text) {
-    final name = text.toLowerCase();
-    if (name.contains('recharge') || name.contains('airtime')) {
-      return IconsaxPlusLinear.mobile;
-    }
-    if (RegExp(r'\bdata\b').hasMatch(name)) return IconsaxPlusLinear.chart;
-    if (name.contains('cable') || name.contains('tv')) {
-      return IconsaxPlusLinear.monitor;
-    }
-    if (name.contains('utility') || name.contains('electric')) {
-      return IconsaxPlusLinear.flash;
-    }
-    if (name.contains('water')) return IconsaxPlusLinear.drop;
-    if (name.contains('internet') || name.contains('subscription')) {
-      return IconsaxPlusLinear.wifi;
-    }
-    if (name.contains('school') || name.contains('universit')) {
-      return IconsaxPlusLinear.teacher;
-    }
-    if (name.contains('bank') || name.contains('money')) {
-      return IconsaxPlusLinear.bank;
-    }
-    return IconsaxPlusLinear.receipt_item;
-  }
-
-  IconData get _groupIcon => switch (widget.group) {
+  static IconData _iconOf(BillerGroup? group) => switch (group) {
     BillerGroup.airtime => IconsaxPlusLinear.mobile,
     BillerGroup.data => IconsaxPlusLinear.chart,
     BillerGroup.electricity => IconsaxPlusLinear.flash,
@@ -239,8 +199,25 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     BillerGroup.cableTv => IconsaxPlusLinear.monitor,
     BillerGroup.internet => IconsaxPlusLinear.wifi,
     BillerGroup.education => IconsaxPlusLinear.teacher,
-    BillerGroup.all => _iconFor(_category?.name ?? ''),
+    BillerGroup.all || null => IconsaxPlusLinear.receipt_item,
   };
+
+  /// The tile this biller belongs to: the one opened, or (from More) the
+  /// one its name and category suggest.
+  BillerGroup? _groupOf(Biller biller) =>
+      widget.group == BillerGroup.all ? BillerGroup.of(biller) : widget.group;
+
+  /// Billers sorted by name, recomputed only when the list itself changes.
+  List<Biller>? _billerSource;
+  List<Biller> _sortedBillers = const [];
+  List<Biller> _sorted(List<Biller> source) {
+    if (!identical(source, _billerSource)) {
+      _billerSource = source;
+      _sortedBillers = [...source]
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    }
+    return _sortedBillers;
+  }
 
   List<Widget> _categories() {
     final state = ref.watch(billerCategoriesProvider);
@@ -267,7 +244,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         _group([
           for (final category in categories)
             _tile(
-              _iconFor(category.name),
+              _iconOf(BillerGroup.ofCategory(category.name)),
               category.name,
               category.description ?? 'See billers',
               () => _go(_Step.biller, () => _category = category),
@@ -288,13 +265,13 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     if (notice != null) return [notice];
     if (byCategory && category == null) return const [];
     final billers = [
-      for (final biller in state.data!)
+      for (final biller in _sorted(state.data!))
         if ((byCategory
                 ? biller.categoryId == category!.id
                 : widget.group.matches(biller)) &&
             _matchesQuery(biller.name))
           biller,
-    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    ];
     return [
       FlowHeading(byCategory ? category!.name : 'Choose a provider'),
       _search('Search billers'),
@@ -310,7 +287,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         _group([
           for (final biller in billers)
             _tile(
-              _groupIcon,
+              _iconOf(_groupOf(biller)),
               biller.name,
               biller.customerFieldLabel,
               () => _go(_Step.item, () => _biller = biller),
@@ -373,12 +350,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         ?.activeFlexAccount
         ?.availableBalance;
     final fixed = item.amountNaira;
-    final amountText = fixed ?? _amount.text;
-    final amount = parseNairaAmount(
-      amountText,
-      maxKobo: balanceToKobo(available) ?? '0',
-    );
-    final message = amountError(amountText, amount);
+    final amount = amountWithin(fixed ?? _amount.text, available, naira: true);
     final customerId = _customerId.text.trim();
     final saved = _beneficiaries
         ? [
@@ -419,27 +391,12 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         onChanged: (_) => _go(_Step.details),
       ),
       const SizedBox(height: BocSpace.sm),
-      if (fixed == null)
-        AppTextField(
-          label: 'Amount (₦)',
-          controller: _amount,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => _go(_Step.details),
-        )
-      else
-        BocSummaryGrid(
-          items: [
-            (
-              label: 'Amount',
-              value: formatApiAmount(fixed, currency: 'NGN') ?? fixed,
-            ),
-          ],
-        ),
-      if (message != null) FieldError(message),
-      const SizedBox(height: BocSpace.xxs),
-      Text(
-        'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
-        style: Theme.of(context).textTheme.bodySmall,
+      CoreAmountFields(
+        input: amount,
+        available: available,
+        amount: fixed == null ? _amount : null,
+        fixedAmount: fixed,
+        onChanged: () => _go(_Step.details),
       ),
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(
@@ -508,15 +465,11 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
 
   List<Widget> _saveBeneficiary() {
     final draft = _draft;
-    final category = _category;
     final biller = _biller;
     final item = _item;
-    final type = category == null
-        ? null
-        : BeneficiaryType.forCategoryName(category.name);
+    final type = biller == null ? null : _groupOf(biller)?.beneficiaryType;
     if (!_beneficiaries ||
         draft == null ||
-        category == null ||
         biller == null ||
         item == null ||
         type == null) {
@@ -528,28 +481,17 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     if (saved) return const [];
     return [
       const SizedBox(height: BocSpace.sm),
-      SecondaryButton(
-        label: 'Save as beneficiary',
-        onPressed: () async {
-          final error = await ref
-              .read(beneficiariesProvider.notifier)
-              .add(
-                billBeneficiaryRequest(
-                  type: type,
-                  billerId: biller.id,
-                  billerName: biller.name,
-                  categoryId: category.id,
-                  categoryName: category.name,
-                  paymentItemId: item.id,
-                  paymentItemName: item.name,
-                  number: draft.customerId,
-                ),
-              );
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error ?? 'Beneficiary saved.')),
-          );
-        },
+      SaveBeneficiaryButton(
+        body: billBeneficiaryRequest(
+          type: type,
+          billerId: biller.id,
+          billerName: biller.name,
+          categoryId: biller.categoryId,
+          categoryName: biller.categoryName ?? _category?.name ?? '',
+          paymentItemId: item.id,
+          paymentItemName: item.name,
+          number: draft.customerId,
+        ),
       ),
     ];
   }
