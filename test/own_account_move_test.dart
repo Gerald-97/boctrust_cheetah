@@ -4,9 +4,16 @@ import 'dart:typed_data';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/screens/own_account_move_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
+import 'package:boctrust_savings_loan/app/theme.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/flow_harness.dart';
 
 class _Recorder implements HttpClientAdapter {
   final requests = <RequestOptions>[];
@@ -77,5 +84,31 @@ void main() {
       'fromProductCode': 'bocSmartSave',
       'amount': '100',
     });
+  });
+
+  testWidgets('a tab on Between my accounts switches to that section', (
+    tester,
+  ) async {
+    final selected = <AppSection>[];
+    var exits = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: await flowTestOverrides(),
+        child: MaterialApp(
+          theme: CheetahTheme.lightTheme,
+          home: OwnAccountMoveFlow(
+            onExit: () => exits++,
+            onSectionSelected: selected.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Account').last);
+    await tester.pump();
+
+    expect(selected, [AppSection.account]);
+    expect(exits, 0);
   });
 }

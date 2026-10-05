@@ -22,9 +22,16 @@ enum _MoveStep { form, review, result }
 /// accounts. Only the directions whose capability is available are offered,
 /// and nothing is sent until the transaction is authorized.
 class OwnAccountMoveFlow extends ConsumerStatefulWidget {
-  const OwnAccountMoveFlow({required this.onExit, super.key});
+  const OwnAccountMoveFlow({
+    required this.onExit,
+    required this.onSectionSelected,
+    super.key,
+  });
 
   final VoidCallback onExit;
+
+  /// A bottom-navigation tab, which leaves the flow for that section.
+  final ValueChanged<AppSection> onSectionSelected;
 
   @override
   ConsumerState<OwnAccountMoveFlow> createState() => _OwnAccountMoveFlowState();
@@ -98,7 +105,7 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
         _MoveStep.review => () => setState(() => _step = _MoveStep.form),
         _ => widget.onExit,
       },
-      onSectionSelected: (_) => widget.onExit(),
+      onSectionSelected: widget.onSectionSelected,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           BocSpace.gutter,

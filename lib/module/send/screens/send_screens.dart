@@ -60,7 +60,7 @@ class _SendScreenState extends FlowPageState<SendScreen> {
     _SendPage.ownAccount =>
       _available(FeatureCapability.ownAccountTransfers) ||
               _available(FeatureCapability.savingsWithdrawals)
-          ? OwnAccountMoveFlow(onExit: back)
+          ? OwnAccountMoveFlow(onExit: back, onSectionSelected: goSection)
           : _sendOwnScreen(),
     _SendPage.beneficiary => _sendBeneficiaryScreen(),
     _SendPage.otherBank =>
