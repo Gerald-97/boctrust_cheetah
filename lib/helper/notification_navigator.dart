@@ -31,9 +31,12 @@ class NotificationNavigator {
 
   static Future<void> dispatch(Map<String, dynamic> payload) async {
     final intent = parse(payload);
-    // A hub is a tab of the open shell, not a page to stack on it.
+    // A hub is a tab of the shell when the shell is on top. Over other
+    // pages it opens above them, so a flow in progress is not discarded.
     final section = sectionForRoute(intent.routeName);
-    if (section != null && selectOpenSection(section)) return;
+    if (section != null && selectOpenSection(section, dropPages: false)) {
+      return;
+    }
     await pushTo(
       intent.routeName,
       arguments: AppRouteArguments(entityId: intent.entityId),

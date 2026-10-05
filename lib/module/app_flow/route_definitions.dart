@@ -327,14 +327,16 @@ void replaceWithSection(BuildContext context, AppSection section) {
 }
 
 /// Shows [section] in the topmost open [SectionShell], dropping the pages
-/// above it. False when no shell is open.
-bool selectOpenSection(AppSection section) {
+/// above it. False when no shell is open, or when [dropPages] is false and
+/// pages are open above the shell.
+bool selectOpenSection(AppSection section, {bool dropPages = true}) {
   final shell = _SectionShellState._open
       .where((shell) => shell._route?.isActive ?? false)
       .lastOrNull;
   final route = shell?._route;
   final navigator = route?.navigator;
   if (shell == null || navigator == null) return false;
+  if (!dropPages && !route!.isCurrent) return false;
   navigator.popUntil((candidate) => candidate == route);
   shell._select(section);
   return true;

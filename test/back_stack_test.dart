@@ -216,6 +216,23 @@ void main() {
       expect(navigatorOf(tester).canPop(), isFalse);
     });
 
+    testWidgets('a hub notification keeps the pages open above the shell', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.home);
+      navigatorOf(tester).pushNamed(AppRoutes.notifications);
+      await settle(tester);
+
+      unawaited(
+        NotificationNavigator.dispatch({'route': AppRoutes.savingsHub}),
+      );
+      await settle(tester);
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+
+      await systemBack(tester);
+      expect(find.byType(NotificationsScreen), findsOneWidget);
+    });
+
     testWidgets('a deep-linked hub route opens the shell on that tab', (
       tester,
     ) async {
