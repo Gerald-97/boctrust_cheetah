@@ -31,7 +31,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends FlowPageState<HomeScreen> {
   @override
-  Widget build(BuildContext context) => popScope(_homeScreen(), exitsApp: true);
+  Widget build(BuildContext context) => popScope(_homeScreen());
 }
 
 extension HomeScreenParts on FlowPageState {

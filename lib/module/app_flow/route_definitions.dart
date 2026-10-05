@@ -77,10 +77,10 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
     isPublic: true,
   ),
 
-  AppRoutes.home: AppRouteDefinition.page(HomeScreen.new),
+  AppRoutes.home: AppRouteDefinition.page(SectionShell.home),
 
   // Savings.
-  AppRoutes.savingsHub: AppRouteDefinition.page(SaveHubScreen.new),
+  AppRoutes.savingsHub: AppRouteDefinition.page(SectionShell.save),
   AppRoutes.flexSave: AppRouteDefinition.page(FlexScreen.new),
   AppRoutes.flexTopUp: AppRouteDefinition.page(AddMoneyScreen.new),
   AppRoutes.flexWithdraw: AppRouteDefinition.unavailable(
@@ -155,13 +155,13 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
 
   // Send.
-  AppRoutes.sendHub: AppRouteDefinition.page(SendScreen.hub),
+  AppRoutes.sendHub: AppRouteDefinition.page(SectionShell.send),
   AppRoutes.sendOwnAccount: AppRouteDefinition.page(SendScreen.ownAccount),
   AppRoutes.sendBeneficiary: AppRouteDefinition.page(SendScreen.beneficiary),
   AppRoutes.sendOtherBank: AppRouteDefinition.page(SendScreen.otherBank),
 
   // Payments.
-  AppRoutes.paymentsHub: AppRouteDefinition.page(PaymentsScreen.hub),
+  AppRoutes.paymentsHub: AppRouteDefinition.page(SectionShell.payments),
   AppRoutes.airtime: AppRouteDefinition.page(PaymentsScreen.airtime),
   AppRoutes.data: AppRouteDefinition.page(PaymentsScreen.data),
   AppRoutes.billerListElectricity: AppRouteDefinition.page(
@@ -187,7 +187,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
 
   // Account and verification.
-  AppRoutes.account: AppRouteDefinition.page(AccountScreen.account),
+  AppRoutes.account: AppRouteDefinition.page(SectionShell.account),
   AppRoutes.tierOverview: AppRouteDefinition.page(KycTiersScreen.new),
   // Compatibility routes: both open the identity screen, preselecting the
   // identity type rather than standing for a whole tier.
@@ -305,11 +305,37 @@ String appRouteForSection(AppSection section) => switch (section) {
   AppSection.account => AppRoutes.account,
 };
 
-/// Switches to a bottom-navigation section: replaces the current page with
-/// the section hub using the gentler section transition.
+/// The section whose hub [route] is, or null for any other route.
+AppSection? sectionForRoute(String route) => AppSection.values
+    .where((section) => appRouteForSection(section) == route)
+    .firstOrNull;
+
+/// Switches to a bottom-navigation section.
+///
+/// On a hub, the shell selects the section in place. On a page above a
+/// shell, the pages above it are dropped first, so tabs never stack. A page
+/// with no shell beneath is replaced by one.
 void replaceWithSection(BuildContext context, AppSection section) {
-  Navigator.of(context).pushReplacementNamed(
-    appRouteForSection(section),
-    arguments: const AppRouteArguments(transition: AppRouteTransition.section),
-  );
+  final scope = _SectionShellScope.maybeOf(context);
+  if (scope != null) {
+    scope.select(section);
+    return;
+  }
+  if (!selectOpenSection(section)) {
+    Navigator.of(context).pushReplacementNamed(appRouteForSection(section));
+  }
+}
+
+/// Shows [section] in the topmost open [SectionShell], dropping the pages
+/// above it. False when no shell is open.
+bool selectOpenSection(AppSection section) {
+  final shell = _SectionShellState._open
+      .where((shell) => shell._route?.isActive ?? false)
+      .lastOrNull;
+  final route = shell?._route;
+  final navigator = route?.navigator;
+  if (shell == null || navigator == null) return false;
+  navigator.popUntil((candidate) => candidate == route);
+  shell._select(section);
+  return true;
 }

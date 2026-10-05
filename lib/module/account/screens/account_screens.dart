@@ -95,11 +95,6 @@ class _AccountPageState extends FlowPageState<AccountScreen> {
   final _confirmPinController = TextEditingController();
 
   @override
-  void onNothingToPop() {
-    if (widget._page == _AccountPage.account) goReplacing(AppRoutes.home);
-  }
-
-  @override
   void dispose() {
     _identifierController.dispose();
     _passwordController.dispose();

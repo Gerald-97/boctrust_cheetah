@@ -42,8 +42,14 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   AppRouteArguments get routeArguments =>
       RouteMessageScope.argumentsOf(context);
 
-  void go(String route, {AppRouteArguments? arguments}) =>
-      Navigator.of(context).pushNamed(route, arguments: arguments);
+  /// Opens [route] on top of this page. A hub route switches to its tab.
+  void go(String route, {AppRouteArguments? arguments}) {
+    if (sectionForRoute(route) case final section? when arguments == null) {
+      goSection(section);
+      return;
+    }
+    Navigator.of(context).pushNamed(route, arguments: arguments);
+  }
 
   /// Replaces this page, so Back skips it.
   void goReplacing(String route) =>
@@ -53,6 +59,10 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   /// the pages above it. With none beneath, [route] takes this page's place,
   /// and any earlier pages stay under it.
   void returnTo(String route) {
+    if (sectionForRoute(route) case final section?) {
+      goSection(section);
+      return;
+    }
     final navigator = Navigator.of(context);
     final self = ModalRoute.of(context);
     var found = false;
@@ -68,9 +78,7 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
     }
   }
 
-  /// A tab replaces this page with the section hub, with the section
-  /// transition. Tabs never stack: Back from a hub with nothing beneath it
-  /// returns Home.
+  /// Switches to a bottom-navigation tab; see [replaceWithSection].
   void goSection(AppSection section) => replaceWithSection(context, section);
 
   /// Pops this page. A page with nothing beneath it runs
@@ -88,15 +96,18 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   void onNothingToPop() {}
 
   /// System Back for this page: pops when there is a page beneath, otherwise
-  /// runs [onNothingToPop] rather than closing the app. Only Home, with
-  /// [exitsApp], lets Back leave the app.
-  Widget popScope(Widget child, {bool exitsApp = false}) => PopScope(
-    canPop: Navigator.of(context).canPop() || exitsApp,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop) back();
-    },
-    child: child,
-  );
+  /// runs [onNothingToPop] rather than closing the app. A hub inside a
+  /// [SectionShell] leaves Back to the shell.
+  Widget popScope(Widget child) {
+    if (isInSectionShell(context)) return child;
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) back();
+      },
+      child: child,
+    );
+  }
 
   /// The honest page for a destination that is not built yet. Savings pages
   /// keep a way back to the Savings hub.

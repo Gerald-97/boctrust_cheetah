@@ -72,9 +72,6 @@ class SaveHubScreen extends ConsumerStatefulWidget {
 
 class _SaveHubScreenState extends _HomeDataPageState<SaveHubScreen> {
   @override
-  void onNothingToPop() => goReplacing(AppRoutes.home);
-
-  @override
   Widget buildPage(BuildContext context) => _saveHubScreen();
 }
 

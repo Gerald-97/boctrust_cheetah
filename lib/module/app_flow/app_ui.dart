@@ -11,7 +11,6 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/app_router.dart';
 import '../../app/feature_capability.dart';
-import '../../app/route_arguments.dart';
 import '../../app/services.dart';
 import '../../app/theme.dart';
 import '../../app/theme_controller.dart';
@@ -33,6 +32,7 @@ import '../onboarding/provider/auth_session_provider.dart';
 import '../onboarding/provider/test_otp_provider.dart';
 
 part 'route_definitions.dart';
+part 'section_shell.dart';
 
 part '../component/branding.dart';
 

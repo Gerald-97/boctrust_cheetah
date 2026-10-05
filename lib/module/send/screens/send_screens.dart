@@ -50,11 +50,6 @@ class _SendScreenState extends FlowPageState<SendScreen> {
       ref.watch(featureAvailabilityProvider(capability)).isAvailable;
 
   @override
-  void onNothingToPop() {
-    if (widget._page == _SendPage.hub) goReplacing(AppRoutes.home);
-  }
-
-  @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _SendPage.hub => _sendHubScreen(),
     _SendPage.ownAccount =>

@@ -1,6 +1,7 @@
 import '../app/app_router.dart';
 import '../app/navigators.dart';
 import '../app/route_arguments.dart';
+import '../module/app_flow/app_ui.dart';
 import 'notification_payload.dart';
 
 class NotificationIntent {
@@ -30,6 +31,9 @@ class NotificationNavigator {
 
   static Future<void> dispatch(Map<String, dynamic> payload) async {
     final intent = parse(payload);
+    // A hub is a tab of the open shell, not a page to stack on it.
+    final section = sectionForRoute(intent.routeName);
+    if (section != null && selectOpenSection(section)) return;
     await pushTo(
       intent.routeName,
       arguments: AppRouteArguments(entityId: intent.entityId),

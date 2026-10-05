@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/auth_navigation_provider.dart';
+import 'package:boctrust_savings_loan/app/navigators.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
+import 'package:boctrust_savings_loan/helper/notification_navigator.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/account/screens/account_screens.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
@@ -43,6 +47,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
           theme: CheetahTheme.lightTheme,
           onGenerateRoute: AppRouter.onGenerateRoute,
           onGenerateInitialRoutes: (_) => [
@@ -75,7 +80,7 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 
-  testWidgets('a Home quick action pushes, so Back returns to Home', (
+  testWidgets('a Home quick action opens the tab, so Back returns to Home', (
     tester,
   ) async {
     await openAlone(tester, AppRoutes.home);
@@ -117,20 +122,110 @@ void main() {
     });
   }
 
-  testWidgets('a tab switch uses the gentler section transition', (
-    tester,
-  ) async {
-    await openAlone(tester, AppRoutes.home);
-    await tester.tap(find.text('Account').last);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 280));
+  group('section shell', () {
+    NavigatorState navigatorOf(WidgetTester tester) =>
+        tester.state<NavigatorState>(find.byType(Navigator));
 
-    expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.byType(AccountScreen), findsOneWidget);
+    testWidgets('a tab switch keeps the same nav pill and pushes no route', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.home);
+      final pill = tester.renderObject(find.byKey(AppBottomNavigation.pillKey));
 
-    await tester.pump(const Duration(milliseconds: 80));
-    expect(find.byType(HomeScreen), findsNothing);
-    expect(find.byType(AccountScreen), findsOneWidget);
+      await tapTab(tester, 'Save');
+
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+      expect(find.byKey(AppBottomNavigation.pillKey), findsOneWidget);
+      expect(
+        identical(
+          tester.renderObject(find.byKey(AppBottomNavigation.pillKey)),
+          pill,
+        ),
+        isTrue,
+      );
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
+
+    testWidgets('a tab switch cross-fades the body', (tester) async {
+      await openAlone(tester, AppRoutes.home);
+      await tester.tap(find.text('Account').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      double opacityOf(Type hub) => tester
+          .widget<AnimatedOpacity>(
+            find
+                .ancestor(
+                  of: find.byType(hub, skipOffstage: false),
+                  matching: find.byType(AnimatedOpacity, skipOffstage: false),
+                )
+                .first,
+          )
+          .opacity;
+      expect(opacityOf(AccountScreen), 1);
+      expect(opacityOf(HomeScreen), 0);
+    });
+
+    testWidgets('a visited tab keeps its scroll position', (tester) async {
+      await openAlone(tester, AppRoutes.account);
+      // Short enough that the Account hub scrolls.
+      tester.view.physicalSize = const Size(400, 700);
+      await settle(tester);
+      ScrollPosition position() =>
+          tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+      position().jumpTo(200);
+      await settle(tester);
+
+      await tapTab(tester, 'Send');
+      await tapTab(tester, 'Account');
+
+      expect(position().pixels, 200);
+    });
+
+    testWidgets('a tab from a child page drops the child pages', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.home);
+      await tapTab(tester, 'Send');
+      navigatorOf(tester).pushNamed(AppRoutes.notifications);
+      await settle(tester);
+      expect(find.byType(NotificationsScreen), findsOneWidget);
+
+      await tapTab(tester, 'Save');
+
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+      expect(find.byType(NotificationsScreen), findsNothing);
+      expect(navigatorOf(tester).canPop(), isFalse);
+      await systemBack(tester);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
+
+    testWidgets('a notification for a hub selects its tab in the open shell', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.home);
+
+      // Completes only when the opened page closes.
+      unawaited(
+        NotificationNavigator.dispatch({'route': AppRoutes.savingsHub}),
+      );
+      await settle(tester);
+
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+      expect(find.byKey(AppBottomNavigation.pillKey), findsOneWidget);
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
+
+    testWidgets('a deep-linked hub route opens the shell on that tab', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.paymentsHub);
+      expect(find.byType(PaymentsScreen), findsOneWidget);
+      expect(find.byKey(AppBottomNavigation.pillKey), findsOneWidget);
+
+      await systemBack(tester);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
   });
 
   testWidgets('a lone savings page falls back to the Savings hub', (

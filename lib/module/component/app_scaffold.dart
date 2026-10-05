@@ -25,6 +25,8 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onBack = this.onBack;
+    // A hub in a SectionShell sits under the shell's own pill.
+    final ownsPill = showBottomNavigation && !isInSectionShell(context);
     return Scaffold(
       // Content scrolls under the floating nav pill; scrollables pad their
       // ends with [FloatingNavClearance.clearOfNav] so nothing stays hidden.
@@ -46,7 +48,7 @@ class AppScaffold extends StatelessWidget {
         bottom: !showBottomNavigation,
         child: ResponsiveContent(child: body),
       ),
-      bottomNavigationBar: showBottomNavigation
+      bottomNavigationBar: ownsPill
           ? AppBottomNavigation(
               selected: activeSection,
               onSelected: onSectionSelected,

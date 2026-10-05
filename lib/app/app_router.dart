@@ -126,34 +126,12 @@ class AppRouter {
     required RouteSettings settings,
     required Widget page,
   }) {
-    final arguments = settings.arguments;
-    final isSectionTransition =
-        arguments is AppRouteArguments &&
-        arguments.transition == AppRouteTransition.section;
     return PageRouteBuilder<dynamic>(
       settings: settings,
-      transitionDuration: Duration(
-        milliseconds: isSectionTransition ? 320 : 260,
-      ),
+      transitionDuration: const Duration(milliseconds: 260),
       reverseTransitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        if (isSectionTransition) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-          return FadeTransition(
-            opacity: Tween<double>(begin: 0.82, end: 1).animate(curved),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(.025, 0),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        }
         final curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
