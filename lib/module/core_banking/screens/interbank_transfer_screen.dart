@@ -171,7 +171,17 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
                 ref.read(interbankTransferProvider.notifier).reset();
                 setState(() => _step = _Step.recipient);
               },
-              acceptedStatus: _statusCard(),
+              amount: _draft == null ? null : nairaFromKobo(_draft!.amountKobo),
+              details: [
+                if (_draft case final draft?) ...[
+                  (label: 'To', value: draft.accountName),
+                  (label: 'Bank', value: draft.bankName),
+                  (label: 'Account number', value: draft.accountNumber),
+                ],
+              ],
+              // Interbank success comes only from the status read.
+              trustResponseCode: false,
+              acceptedOverride: _statusOverride(),
               acceptedExtra: switch (submission.outcome) {
                 AcceptedSubmission(:final ack) => _afterAccepted(ack),
                 _ => const [],
@@ -372,34 +382,34 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     }
   }
 
-  /// The checked status, which replaces the "submitted" card once known.
-  Widget? _statusCard() {
+  /// The checked status, which replaces the reply's own once known.
+  CoreResultOverride? _statusOverride() {
     final status = _status;
     if (status == null) return null;
-    return ApiStateCard(
-      title: switch (status.state) {
-        InterbankTransferState.completed => 'Transfer completed',
-        InterbankTransferState.failed => 'Transfer failed',
-        InterbankTransferState.pending => 'Transfer processing',
-        InterbankTransferState.unknown => 'Status not recognised',
-      },
-      message:
-          status.message ??
-          switch (status.state) {
-            InterbankTransferState.completed =>
-              'The money has reached the receiving bank.',
-            InterbankTransferState.failed =>
-              'The receiving bank did not accept this transfer.',
-            InterbankTransferState.pending => 'Check again in a moment.',
-            InterbankTransferState.unknown =>
-              'Check your balance before trying again.',
-          },
-      tone: switch (status.state) {
-        InterbankTransferState.completed => ApiStateTone.info,
-        InterbankTransferState.failed => ApiStateTone.error,
-        _ => ApiStateTone.warning,
-      },
-    );
+    return switch (status.state) {
+      InterbankTransferState.completed => (
+        kind: BocStatusKind.success,
+        title: 'Transfer successful',
+        message: status.message ?? 'The money has reached the receiving bank.',
+      ),
+      InterbankTransferState.failed => (
+        kind: BocStatusKind.failed,
+        title: 'Transfer failed',
+        message:
+            status.message ??
+            'The receiving bank did not accept this transfer.',
+      ),
+      InterbankTransferState.pending => (
+        kind: BocStatusKind.pending,
+        title: 'Transfer processing',
+        message: status.message ?? 'Check again in a moment.',
+      ),
+      InterbankTransferState.unknown => (
+        kind: BocStatusKind.pending,
+        title: 'Status not recognised',
+        message: status.message ?? 'Check your balance before trying again.',
+      ),
+    };
   }
 
   List<Widget> _afterAccepted(CoreTransferAck ack) {

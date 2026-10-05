@@ -195,25 +195,7 @@ class BocStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.bocColors;
     final theme = Theme.of(context);
-    final (icon, color, container) = switch (kind) {
-      BocStatusKind.success => (
-        Icons.check_rounded,
-        colors.success,
-        colors.successContainer,
-      ),
-      BocStatusKind.pending => (
-        IconsaxPlusLinear.clock_1,
-        colors.warning,
-        colors.warningContainer,
-      ),
-      BocStatusKind.failed => (
-        Icons.close_rounded,
-        colors.error,
-        colors.errorContainer,
-      ),
-    };
     final secondaryLabel = this.secondaryLabel;
     return Scaffold(
       body: SafeArea(
@@ -228,16 +210,7 @@ class BocStatusScreen extends StatelessWidget {
                     liveRegion: true,
                     child: Column(
                       children: [
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: container,
-                            shape: BoxShape.circle,
-                          ),
-                          child: SizedBox.square(
-                            dimension: 64,
-                            child: Icon(icon, color: color, size: 32),
-                          ),
-                        ),
+                        BocStatusMark(kind: kind),
                         const SizedBox(height: BocSpace.lg),
                         Text(
                           title,
@@ -373,4 +346,201 @@ class BocMoneyText extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The outcome badge for a transaction, animated in the brand palette:
+/// success pops in, draws its check and sends out gold ripples; failure
+/// draws its cross and shakes once; pending turns a slow arc. With reduced
+/// motion it shows the finished badge at once.
+class BocStatusMark extends StatefulWidget {
+  const BocStatusMark({required this.kind, this.size = 96, super.key});
+
+  final BocStatusKind kind;
+  final double size;
+
+  @override
+  State<BocStatusMark> createState() => _BocStatusMarkState();
+}
+
+class _BocStatusMarkState extends State<BocStatusMark>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: Duration(
+      milliseconds: widget.kind == BocStatusKind.pending ? 1400 : 1100,
+    ),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = widget.kind == BocStatusKind.pending ? 0.25 : 1;
+    } else if (!_controller.isAnimating && _controller.value == 0) {
+      widget.kind == BocStatusKind.pending
+          ? _controller.repeat()
+          : _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final (color, container, label) = switch (widget.kind) {
+      BocStatusKind.success => (
+        colors.success,
+        colors.successContainer,
+        'Successful',
+      ),
+      BocStatusKind.pending => (
+        colors.warning,
+        colors.warningContainer,
+        'Processing',
+      ),
+      BocStatusKind.failed => (colors.error, colors.errorContainer, 'Failed'),
+    };
+    final size = widget.size;
+    return Semantics(
+      label: label,
+      liveRegion: true,
+      child: SizedBox.square(
+        // Room for the ripples, which grow past the badge.
+        dimension: size * 1.6,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => CustomPaint(
+            painter: _StatusMarkPainter(
+              kind: widget.kind,
+              t: _controller.value,
+              size: size,
+              color: color,
+              container: container,
+              ripple: BocColors.gold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusMarkPainter extends CustomPainter {
+  const _StatusMarkPainter({
+    required this.kind,
+    required this.t,
+    required this.size,
+    required this.color,
+    required this.container,
+    required this.ripple,
+  });
+
+  final BocStatusKind kind;
+
+  /// Controller value, 0–1 (a looping turn for pending).
+  final double t;
+  final double size;
+  final Color color;
+  final Color container;
+  final Color ripple;
+
+  /// [t] mapped into the [begin, end] window, eased.
+  static double _phase(double t, double begin, double end, [Curve? curve]) {
+    final v = ((t - begin) / (end - begin)).clamp(0.0, 1.0);
+    return (curve ?? Curves.easeOutCubic).transform(v);
+  }
+
+  @override
+  void paint(Canvas canvas, Size canvasSize) {
+    final pending = kind == BocStatusKind.pending;
+    var center = canvasSize.center(Offset.zero);
+    final radius = size / 2;
+
+    if (kind == BocStatusKind.failed) {
+      // One decaying shake once the cross is drawn.
+      final shake = _phase(t, 0.7, 1, Curves.linear);
+      if (shake > 0 && shake < 1) {
+        center += Offset(
+          math.sin(shake * math.pi * 6) * (1 - shake) * size * 0.06,
+          0,
+        );
+      }
+    }
+
+    if (kind == BocStatusKind.success) {
+      for (final delay in const [0.45, 0.6]) {
+        final p = _phase(t, delay, delay + 0.4);
+        if (p <= 0 || p >= 1) continue;
+        canvas.drawCircle(
+          center,
+          radius * (1 + p * 0.55),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = size * 0.03
+            ..color = ripple.withValues(alpha: 0.45 * (1 - p)),
+        );
+      }
+    }
+
+    final pop = pending ? 1.0 : _phase(t, 0, 0.35, Curves.easeOutBack);
+    canvas.drawCircle(center, radius * pop, Paint()..color = container);
+    canvas.drawCircle(center, radius * 0.66 * pop, Paint()..color = color);
+
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = size * 0.07
+      ..color = Colors.white;
+    final r = radius * 0.3;
+
+    switch (kind) {
+      case BocStatusKind.success:
+        final check = Path()
+          ..moveTo(center.dx - r, center.dy + r * 0.05)
+          ..lineTo(center.dx - r * 0.25, center.dy + r * 0.75)
+          ..lineTo(center.dx + r, center.dy - r * 0.6);
+        _drawPartial(canvas, check, _phase(t, 0.3, 0.7), stroke);
+      case BocStatusKind.failed:
+        final first = Path()
+          ..moveTo(center.dx - r * 0.8, center.dy - r * 0.8)
+          ..lineTo(center.dx + r * 0.8, center.dy + r * 0.8);
+        final second = Path()
+          ..moveTo(center.dx + r * 0.8, center.dy - r * 0.8)
+          ..lineTo(center.dx - r * 0.8, center.dy + r * 0.8);
+        _drawPartial(canvas, first, _phase(t, 0.3, 0.5), stroke);
+        _drawPartial(canvas, second, _phase(t, 0.5, 0.7), stroke);
+      case BocStatusKind.pending:
+        // Clock hands, with a gold arc turning round the badge.
+        canvas.drawLine(center, center.translate(0, -r * 0.8), stroke);
+        canvas.drawLine(center, center.translate(r * 0.55, 0), stroke);
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius * 0.84),
+          t * math.pi * 2,
+          math.pi * 0.6,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = size * 0.05
+            ..color = ripple,
+        );
+    }
+  }
+
+  static void _drawPartial(Canvas canvas, Path path, double p, Paint paint) {
+    if (p <= 0) return;
+    for (final metric in path.computeMetrics()) {
+      canvas.drawPath(metric.extractPath(0, metric.length * p), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StatusMarkPainter old) =>
+      old.t != t || old.kind != kind || old.color != color;
 }

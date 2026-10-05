@@ -161,3 +161,99 @@ class _TicketEdgeClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(_TicketEdgeClipper oldClipper) => false;
 }
+
+/// The outcome of a transfer or payment, shown in place inside its flow:
+/// the animated status badge, the amount, a plain-language message, the
+/// details and what to do next. It renders only what it is given; the flow
+/// decides the outcome from Core's reply.
+class TransactionResultView extends StatelessWidget {
+  const TransactionResultView({
+    required this.kind,
+    required this.title,
+    required this.message,
+    required this.primaryLabel,
+    required this.onPrimary,
+    this.amount,
+    this.details = const [],
+    this.secondaryLabel,
+    this.onSecondary,
+    this.extra = const [],
+    super.key,
+  });
+
+  final BocStatusKind kind;
+  final String title;
+  final String message;
+
+  /// Formatted Naira, e.g. `₦1,000.00`.
+  final String? amount;
+  final List<({String label, String value})> details;
+  final String primaryLabel;
+  final VoidCallback onPrimary;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
+
+  /// Follow-up actions under the details, e.g. Check status.
+  final List<Widget> extra;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final amount = this.amount;
+    final secondaryLabel = this.secondaryLabel;
+    final accent = switch (kind) {
+      BocStatusKind.success => colors.successText,
+      BocStatusKind.pending => colors.warningText,
+      BocStatusKind.failed => colors.errorText,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: BocSpace.md),
+        Center(child: BocStatusMark(kind: kind)),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleLarge?.copyWith(color: accent),
+        ),
+        if (amount != null) ...[
+          const SizedBox(height: BocSpace.xs),
+          Center(
+            child: BocMoneyText(amount, style: theme.textTheme.displaySmall),
+          ),
+        ],
+        const SizedBox(height: BocSpace.xs),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium,
+        ),
+        if (details.isNotEmpty) ...[
+          const SizedBox(height: BocSpace.lg),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: BocSpace.lg,
+              vertical: BocSpace.sm,
+            ),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(BocRadius.md),
+              border: theme.brightness == Brightness.dark
+                  ? Border.all(color: colors.border)
+                  : null,
+            ),
+            child: TransactionDetailRows(rows: details),
+          ),
+        ],
+        ...extra,
+        const SizedBox(height: BocSpace.lg),
+        PrimaryButton(label: primaryLabel, onPressed: onPrimary),
+        if (secondaryLabel != null) ...[
+          const SizedBox(height: BocSpace.xs),
+          BocTextButton(label: secondaryLabel, onPressed: onSecondary),
+        ],
+      ],
+    );
+  }
+}

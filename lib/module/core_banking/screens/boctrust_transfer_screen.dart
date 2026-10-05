@@ -105,6 +105,18 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
                   inFlight: ref.watch(boctrustTransferProvider).inFlight,
                   outcome: ref.watch(boctrustTransferProvider).outcome,
                   noun: 'Transfer',
+                  amount: _draft == null
+                      ? null
+                      : nairaFromKobo(_draft!.amountKobo),
+                  details: [
+                    if (_draft case final draft?) ...[
+                      (label: 'Bank', value: 'BOCTRUST'),
+                      (
+                        label: 'Account number',
+                        value: maskNumber(draft.toAccountNumber),
+                      ),
+                    ],
+                  ],
                   onDone: widget.onExit,
                   onChangeDetails: () {
                     ref.read(boctrustTransferProvider.notifier).reset();

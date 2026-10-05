@@ -82,8 +82,17 @@ Future<bool> authorizeCoreTransaction(
   return authorized;
 }
 
-/// What happened to a submitted transfer or payment. Accepted is shown as
-/// submitted, never completed; unknown never offers a resend.
+/// An outcome to show in place of the one read from Core's reply, e.g. an
+/// interbank transfer's checked status.
+typedef CoreResultOverride = ({
+  BocStatusKind kind,
+  String title,
+  String message,
+});
+
+/// What happened to a submitted transfer or payment, on the shared
+/// [TransactionResultView]. Success is shown only for an approved reply;
+/// unknown never offers a resend.
 class CoreSubmissionResult extends StatelessWidget {
   const CoreSubmissionResult({
     required this.inFlight,
@@ -91,8 +100,11 @@ class CoreSubmissionResult extends StatelessWidget {
     required this.noun,
     required this.onDone,
     required this.onChangeDetails,
+    this.amount,
+    this.details = const [],
     this.acceptedExtra = const [],
-    this.acceptedStatus,
+    this.trustResponseCode = true,
+    this.acceptedOverride,
     super.key,
   });
 
@@ -104,59 +116,94 @@ class CoreSubmissionResult extends StatelessWidget {
   final VoidCallback onDone;
   final VoidCallback onChangeDetails;
 
+  /// Formatted Naira.
+  final String? amount;
+
+  /// What was sent, e.g. biller and plan; the reference is added here.
+  final List<({String label, String value})> details;
+
   /// Shown under an accepted result (status check, save beneficiary).
   final List<Widget> acceptedExtra;
 
-  /// A later, authoritative status (interbank) that replaces the
-  /// "submitted" card, so the two never contradict each other.
-  final Widget? acceptedStatus;
+  /// Whether an approved `responseCode` means the money moved. False where
+  /// a separate status read is authoritative (interbank).
+  final bool trustResponseCode;
+
+  /// A later, authoritative status that replaces the reply's own.
+  final CoreResultOverride? acceptedOverride;
 
   @override
   Widget build(BuildContext context) {
     if (inFlight) {
       return ApiLoadingSection(label: 'Sending your ${noun.toLowerCase()}');
     }
-    final children = switch (outcome) {
-      AcceptedSubmission(:final ack) => [
-        ?acceptedStatus,
-        if (acceptedStatus == null)
-          ApiStateCard(
-            title: '$noun submitted',
-            message: [
-              if (ack.reference != null) 'Reference ${ack.reference}.',
-              if (ack.status != null) 'Status: ${ack.status}.',
-              'Your balance will update shortly.',
-            ].join(' '),
-            tone: ApiStateTone.info,
-          ),
-        ...acceptedExtra,
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(label: 'Done', onPressed: onDone),
-      ],
-      RejectedSubmission(:final message) => [
-        ApiStateCard(
-          title: '$noun declined',
+    final lower = noun.toLowerCase();
+    switch (outcome) {
+      case AcceptedSubmission(:final ack):
+        final reference = ack.displayReference;
+        final CoreResultOverride(:kind, :title, :message) =
+            acceptedOverride ??
+            switch (trustResponseCode
+                ? ack.outcome
+                : CoreAckOutcome.processing) {
+              CoreAckOutcome.succeeded => (
+                kind: BocStatusKind.success,
+                title: '$noun successful',
+                message: 'Your balance will update shortly.',
+              ),
+              CoreAckOutcome.failed => (
+                kind: BocStatusKind.failed,
+                title: '$noun failed',
+                message:
+                    'This $lower did not go through. If your balance '
+                    'changed, contact support with the reference below.',
+              ),
+              CoreAckOutcome.processing => (
+                kind: BocStatusKind.pending,
+                title: '$noun processing',
+                message:
+                    "We're waiting for confirmation. Check your balance "
+                    'shortly before trying again.',
+              ),
+            };
+        return TransactionResultView(
+          kind: kind,
+          title: title,
           message: message,
-          tone: ApiStateTone.error,
-        ),
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(label: 'Change details', onPressed: onChangeDetails),
-      ],
-      final UnknownSubmission unknown => [
-        ApiStateCard(
+          amount: amount,
+          details: [
+            ...details,
+            if (reference != null) (label: 'Reference', value: reference),
+          ],
+          extra: acceptedExtra,
+          primaryLabel: 'Done',
+          onPrimary: onDone,
+        );
+      case RejectedSubmission(:final message):
+        return TransactionResultView(
+          kind: BocStatusKind.failed,
+          title: '$noun declined',
+          message: '$message No money has left your account.',
+          amount: amount,
+          details: details,
+          primaryLabel: 'Change details',
+          onPrimary: onChangeDetails,
+          secondaryLabel: 'Close',
+          onSecondary: onDone,
+        );
+      case final UnknownSubmission unknown:
+        return TransactionResultView(
+          kind: BocStatusKind.pending,
           title: '$noun not confirmed',
           message: unknown.message,
-          tone: ApiStateTone.warning,
-        ),
-        const SizedBox(height: BocSpace.md),
-        PrimaryButton(label: 'Done', onPressed: onDone),
-      ],
-      null => const <Widget>[],
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
-    );
+          amount: amount,
+          details: details,
+          primaryLabel: 'Done',
+          onPrimary: onDone,
+        );
+      case null:
+        return const SizedBox.shrink();
+    }
   }
 }
 

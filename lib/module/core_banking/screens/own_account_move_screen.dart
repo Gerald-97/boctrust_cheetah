@@ -280,6 +280,24 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
         inFlight: state.inFlight,
         outcome: state.outcome,
         noun: 'Transfer',
+        amount: _draft == null ? null : nairaFromKobo(_draft!.amountKobo),
+        details: [
+          if (_draft case final draft?)
+            (
+              label: draft.direction == OwnAccountDirection.toSavings
+                  ? 'To'
+                  : 'From',
+              value:
+                  ref
+                      .watch(customerBankAccountsProvider)
+                      .data
+                      ?.accounts
+                      .where((a) => a.productCode == draft.productCode)
+                      .firstOrNull
+                      ?.productName ??
+                  draft.productCode,
+            ),
+        ],
         onDone: widget.onExit,
         onChangeDetails: () {
           ref.read(ownAccountMoveProvider.notifier).reset();

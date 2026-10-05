@@ -245,4 +245,25 @@ void main() {
       'Covenant University Fees Payment',
     ]);
   });
+
+  test('a 00 acknowledgement is success; a failure status is failure', () {
+    // The live staging reply to POST /me/bills/payments.
+    final paid = CoreTransferAck.fromJson({
+      'status': 'SuccesfulButFeeNotTaken',
+      'reference': '',
+      'uniqueIdentifier': '0200020312100518411600',
+      'responseCode': '00',
+      'message': 'Main Transaction Was Successful But Fee Was Not Taken.',
+    });
+    expect(paid.outcome, CoreAckOutcome.succeeded);
+    expect(paid.displayReference, '0200020312100518411600');
+    expect(
+      const CoreTransferAck(responseCode: '51', status: 'Failed').outcome,
+      CoreAckOutcome.failed,
+    );
+    expect(
+      const CoreTransferAck(responseCode: '09').outcome,
+      CoreAckOutcome.processing,
+    );
+  });
 }

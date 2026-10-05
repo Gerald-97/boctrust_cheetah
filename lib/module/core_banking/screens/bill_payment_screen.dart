@@ -128,6 +128,20 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
               inFlight: submission.inFlight,
               outcome: submission.outcome,
               noun: 'Payment',
+              amount: _draft == null
+                  ? null
+                  : formatApiAmount(_draft!.amountNaira, currency: 'NGN'),
+              details: [
+                if ((_biller, _item, _draft) case (
+                  final biller?,
+                  final item?,
+                  final draft?,
+                )) ...[
+                  (label: 'Biller', value: biller.name),
+                  (label: 'Plan', value: item.name),
+                  (label: biller.customerFieldLabel, value: draft.customerId),
+                ],
+              ],
               onDone: widget.onExit,
               onChangeDetails: () {
                 ref.read(billPaymentProvider.notifier).reset();

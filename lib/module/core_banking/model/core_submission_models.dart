@@ -5,6 +5,9 @@ import '../../../app/services.dart';
 String? _text(Object? value) =>
     value is String && value.trim().isNotEmpty ? value.trim() : null;
 
+/// What an acknowledgement says happened to the money.
+enum CoreAckOutcome { succeeded, failed, processing }
+
 /// The body Core returns when it accepts a transfer. Acceptance is not
 /// completion.
 class CoreTransferAck extends Equatable {
@@ -32,6 +35,21 @@ class CoreTransferAck extends Equatable {
   final String? message;
   final String? status;
   final String? uniqueIdentifier;
+
+  /// BankOne answers `00` for an approved transaction, even when its status
+  /// adds a caveat such as `SuccesfulButFeeNotTaken`. Any other code is a
+  /// failure only when the status says so; otherwise it is still processing.
+  CoreAckOutcome get outcome {
+    if (responseCode == '00') return CoreAckOutcome.succeeded;
+    final text = status?.toLowerCase() ?? '';
+    return text.contains('fail') || text.contains('declin')
+        ? CoreAckOutcome.failed
+        : CoreAckOutcome.processing;
+  }
+
+  /// The reference to quote to support: Core's reference, or BankOne's
+  /// unique identifier when the reference comes back empty.
+  String? get displayReference => reference ?? uniqueIdentifier;
 
   @override
   List<Object?> get props => [
