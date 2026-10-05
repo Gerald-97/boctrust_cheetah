@@ -198,14 +198,8 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
   AppRoutes.nextOfKin: AppRouteDefinition.page(NextOfKinScreen.new),
   AppRoutes.tier3Address: AppRouteDefinition.page(KycUtilityBillScreen.new),
-  AppRoutes.manageBeneficiaries: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Beneficiaries',
-      heading: 'Beneficiaries are unavailable',
-      message: 'Saved beneficiaries are not available yet.',
-      section: AppSection.account,
-      capability: FeatureCapability.beneficiaries,
-    ),
+  AppRoutes.manageBeneficiaries: AppRouteDefinition.page(
+    BeneficiariesScreen.new,
   ),
   AppRoutes.linkedBanks: AppRouteDefinition.page(AccountScreen.linkedBanks),
   AppRoutes.securitySettings: AppRouteDefinition.page(

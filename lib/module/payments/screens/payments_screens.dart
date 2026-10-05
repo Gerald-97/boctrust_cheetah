@@ -7,6 +7,7 @@ import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
+import '../../core_banking/screens/bill_payment_screen.dart';
 import '../../send/screens/send_screens.dart';
 
 enum _PaymentsPage { hub, scan, airtime, data, billers }
@@ -28,13 +29,28 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
+  bool _available(FeatureCapability capability) =>
+      ref.watch(featureAvailabilityProvider(capability)).isAvailable;
+
+  Widget _bills(BillPaymentKind kind) =>
+      BillPaymentFlow(kind: kind, onExit: back, onSectionSelected: goSection);
+
   @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _PaymentsPage.hub => _paymentsScreen(),
     _PaymentsPage.scan => _scanScreen(),
-    _PaymentsPage.airtime => _airtimeScreen(),
-    _PaymentsPage.data => _dataScreen(),
-    _PaymentsPage.billers => _billerListScreen(),
+    _PaymentsPage.airtime =>
+      _available(FeatureCapability.airtime)
+          ? _bills(BillPaymentKind.airtime)
+          : _airtimeScreen(),
+    _PaymentsPage.data =>
+      _available(FeatureCapability.data)
+          ? _bills(BillPaymentKind.data)
+          : _dataScreen(),
+    _PaymentsPage.billers =>
+      _available(FeatureCapability.bills)
+          ? _bills(BillPaymentKind.bills)
+          : _billerListScreen(),
   });
 }
 
@@ -81,12 +97,17 @@ extension PaymentsScreens on FlowPageState {
               ),
             ),
           ),
-          const ApiStateCard(
-            title: 'Bill payments are unavailable',
-            message: 'Airtime, data, and bill payments are not available yet.',
-            tone: ApiStateTone.blocked,
-          ),
-          const SizedBox(height: BocSpace.md),
+          if (!ref
+              .watch(featureAvailabilityProvider(FeatureCapability.bills))
+              .isAvailable) ...[
+            const ApiStateCard(
+              title: 'Bill payments are unavailable',
+              message:
+                  'Airtime, data, and bill payments are not available yet.',
+              tone: ApiStateTone.blocked,
+            ),
+            const SizedBox(height: BocSpace.md),
+          ],
           _BillerGrid(
             billers: [
               (IconsaxPlusLinear.mobile, 'Airtime', AppRoutes.airtime),
