@@ -28,6 +28,10 @@ abstract class CoreSubmissionNotifier<D extends Object>
   /// Sends [draft] to Core.
   Future<ServiceResponse<CoreTransferAck>> send(D draft);
 
+  /// Whether [send] is an interbank transfer, whose `500` is a documented
+  /// rejection rather than an unknown outcome.
+  bool get interbank => false;
+
   @override
   CoreSubmissionState<D> build() {
     trackDisposal();
@@ -45,7 +49,7 @@ abstract class CoreSubmissionNotifier<D extends Object>
     state = CoreSubmissionState<D>(draft: draft, inFlight: true);
     CoreSubmissionOutcome outcome;
     try {
-      outcome = mapCoreSubmission(await send(draft));
+      outcome = mapCoreSubmission(await send(draft), interbank: interbank);
     } catch (_) {
       outcome = const UnknownSubmission();
     }
