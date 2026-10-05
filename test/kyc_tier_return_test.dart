@@ -63,14 +63,15 @@ UserTierInfoData _tiers({int currentTier = 0}) => UserTierInfoData.fromJson({
   'tiers': [_tierCard(1, 'in_progress'), _tierCard(2, 'in_progress')],
 });
 
-KycStatusData _notStarted() => KycStatusData.fromJson({
-  'userId': 'user-1',
-  'tier': 0,
-  'identity': {'status': 'not_started'},
-  'governmentId': {'status': 'not_started'},
-  'utilityBill': {'status': 'not_started'},
-  'nextAction': 'verify_identity',
-});
+KycStatusData _notStarted({String utilityBill = 'not_started'}) =>
+    KycStatusData.fromJson({
+      'userId': 'user-1',
+      'tier': 0,
+      'identity': {'status': 'not_started'},
+      'governmentId': {'status': 'not_started'},
+      'utilityBill': {'status': utilityBill},
+      'nextAction': 'verify_identity',
+    });
 
 KycInitiationData _dojahIdentity() => KycInitiationData.fromJson({
   'verificationId': 'kiv-1',
@@ -110,10 +111,13 @@ class _Kyc extends KycService with KycConfigurationFixture {
 
   var statusCalls = 0;
 
+  /// The utility bill status the backend reports.
+  var utilityBill = 'not_started';
+
   @override
   Future<NotifierState<KycStatusData>> getStatus() async {
     statusCalls++;
-    return NotifierState.done(_notStarted());
+    return NotifierState.done(_notStarted(utilityBill: utilityBill));
   }
 
   @override
@@ -203,9 +207,10 @@ void main() {
     required _Gateway gateway,
     required String route,
     UserTierInfoData? tiers,
+    String utilityBill = 'not_started',
   }) async {
     users = _Users(tiers: tiers);
-    kyc = _Kyc();
+    kyc = _Kyc()..utilityBill = utilityBill;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('PonnamKarthik/fluttertoast'),
       (call) async => true,
@@ -431,5 +436,51 @@ void main() {
       gateway.uri?.queryParameters['user_data[email]'],
       'person@example.test',
     );
+  });
+
+  group('a submitted utility bill', () {
+    NavigatorState navigatorOf(WidgetTester tester) =>
+        tester.state<NavigatorState>(find.byType(Navigator));
+
+    testWidgets('Back to tiers pops to the open tier list', (tester) async {
+      await mountFlow(
+        tester,
+        gateway: _Gateway(KycCaptureOutcome.cancelled),
+        route: '/account/tier',
+        utilityBill: 'pending',
+      );
+      navigatorOf(tester).pushNamed('/account/tier/address');
+      await tester.pumpAndSettle();
+      expect(find.text('Submitted for review'), findsOneWidget);
+
+      await tapAndSettle(tester, find.text('Back to tiers'));
+
+      expect(
+        find.text('Address verification', skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.text('Account tiers', skipOffstage: false), findsOneWidget);
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
+
+    testWidgets('Back to tiers on a deep-linked address page lands on tiers', (
+      tester,
+    ) async {
+      await mountFlow(
+        tester,
+        gateway: _Gateway(KycCaptureOutcome.cancelled),
+        route: '/account/tier/address',
+        utilityBill: 'pending',
+      );
+
+      await tapAndSettle(tester, find.text('Back to tiers'));
+
+      expect(find.text('Account tiers'), findsOneWidget);
+      expect(
+        find.text('Address verification', skipOffstage: false),
+        findsNothing,
+      );
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
   });
 }

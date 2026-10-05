@@ -1652,7 +1652,7 @@ extension KycScreens on KycScreenState {
                       'the review completes.',
               tone: ApiStateTone.info,
               actionLabel: 'Back to tiers',
-              onAction: () => _go(AppRoutes.tierOverview),
+              onAction: _returnToTierList,
             )
           else ...[
             _utilityBillForm(flow, busy),
