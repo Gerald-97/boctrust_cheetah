@@ -49,6 +49,25 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   void goReplacing(String route) =>
       Navigator.of(context).pushReplacementNamed(route);
 
+  /// Returns to the nearest page named [route] beneath this one, dropping
+  /// the pages above it. With none beneath, [route] takes this page's place,
+  /// and any earlier pages stay under it.
+  void returnTo(String route) {
+    final navigator = Navigator.of(context);
+    final self = ModalRoute.of(context);
+    var found = false;
+    navigator.popUntil((candidate) {
+      found = candidate.settings.name == route;
+      return found || candidate.isFirst;
+    });
+    if (found) return;
+    if (self?.isCurrent ?? false) {
+      navigator.pushReplacementNamed(route);
+    } else {
+      navigator.pushNamed(route);
+    }
+  }
+
   /// A tab replaces this page with the section hub, with the section
   /// transition. Tabs never stack: Back from a hub with nothing beneath it
   /// returns Home.
@@ -92,7 +111,7 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
       onSectionSelected: goSection,
       action: destination.section == AppSection.save
           ? OutlinedButton(
-              onPressed: () => go(AppRoutes.savingsHub),
+              onPressed: () => returnTo(AppRoutes.savingsHub),
               child: const Text('Back to Savings'),
             )
           : null,

@@ -153,6 +153,57 @@ void main() {
     expect(find.byType(SaveHubScreen), findsOneWidget);
   });
 
+  group('Back to Savings', () {
+    NavigatorState navigatorOf(WidgetTester tester) =>
+        tester.state<NavigatorState>(find.byType(Navigator));
+
+    Future<void> tapBackToSavings(WidgetTester tester) async {
+      final button = find.text('Back to Savings');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await settle(tester);
+    }
+
+    testWidgets('pops to the hub beneath instead of stacking one', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.savingsHub);
+      navigatorOf(tester).pushNamed(AppRoutes.flexSave);
+      await settle(tester);
+      navigatorOf(tester).pushNamed(AppRoutes.flexWithdraw);
+      await settle(tester);
+
+      await tapBackToSavings(tester);
+
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+      expect(find.byType(FlexScreen, skipOffstage: false), findsNothing);
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
+
+    testWidgets('replaces a lone unavailable page with the hub', (
+      tester,
+    ) async {
+      await openAlone(tester, AppRoutes.flexWithdraw);
+
+      await tapBackToSavings(tester);
+
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+      expect(navigatorOf(tester).canPop(), isFalse);
+    });
+
+    testWidgets('keeps Home beneath when no hub is open', (tester) async {
+      await openAlone(tester, AppRoutes.home);
+      navigatorOf(tester).pushNamed(AppRoutes.flexWithdraw);
+      await settle(tester);
+
+      await tapBackToSavings(tester);
+      expect(find.byType(SaveHubScreen), findsOneWidget);
+
+      await systemBack(tester);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
+  });
+
   testWidgets('a deep-linked account page stays on system Back', (
     tester,
   ) async {
