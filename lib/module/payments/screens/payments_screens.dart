@@ -7,22 +7,51 @@ import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
+import '../../core_banking/model/bill_models.dart';
 import '../../core_banking/screens/bill_payment_screen.dart';
 import '../../send/screens/send_screens.dart';
 
-enum _PaymentsPage { hub, scan, airtime, data, billers }
+enum _PaymentsPage { hub, scan, bills }
 
 /// The Payments hub and its bill, airtime, data and QR destinations.
 class PaymentsScreen extends ConsumerStatefulWidget {
-  const PaymentsScreen.hub({super.key}) : _page = _PaymentsPage.hub;
-  const PaymentsScreen.scan({super.key}) : _page = _PaymentsPage.scan;
-  const PaymentsScreen.airtime({super.key}) : _page = _PaymentsPage.airtime;
-  const PaymentsScreen.data({super.key}) : _page = _PaymentsPage.data;
+  const PaymentsScreen.hub({super.key})
+    : _page = _PaymentsPage.hub,
+      _group = null;
+  const PaymentsScreen.scan({super.key})
+    : _page = _PaymentsPage.scan,
+      _group = null;
+  const PaymentsScreen.airtime({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.airtime;
+  const PaymentsScreen.data({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.data;
+  const PaymentsScreen.electricity({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.electricity;
+  const PaymentsScreen.water({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.water;
+  const PaymentsScreen.cableTv({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.cableTv;
+  const PaymentsScreen.internet({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.internet;
+  const PaymentsScreen.education({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.education;
 
-  /// Every biller category and bill pay share one unavailable page.
-  const PaymentsScreen.billers({super.key}) : _page = _PaymentsPage.billers;
+  /// More: every category, chosen by the customer.
+  const PaymentsScreen.billers({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.all;
 
   final _PaymentsPage _page;
+
+  /// The bill tile this page opens; null for the hub and scan pages.
+  final BillerGroup? _group;
 
   @override
   ConsumerState<PaymentsScreen> createState() => _PaymentsScreenState();
@@ -32,26 +61,32 @@ class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
   bool _available(FeatureCapability capability) =>
       ref.watch(featureAvailabilityProvider(capability)).isAvailable;
 
-  Widget _bills(BillPaymentKind kind) =>
-      BillPaymentFlow(kind: kind, onExit: back, onSectionSelected: goSection);
-
   @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _PaymentsPage.hub => _paymentsScreen(),
     _PaymentsPage.scan => _scanScreen(),
-    _PaymentsPage.airtime =>
-      _available(FeatureCapability.airtime)
-          ? _bills(BillPaymentKind.airtime)
-          : _airtimeScreen(),
-    _PaymentsPage.data =>
-      _available(FeatureCapability.data)
-          ? _bills(BillPaymentKind.data)
-          : _dataScreen(),
-    _PaymentsPage.billers =>
-      _available(FeatureCapability.bills)
-          ? _bills(BillPaymentKind.bills)
-          : _billerListScreen(),
+    _PaymentsPage.bills => _billsPage(widget._group ?? BillerGroup.all),
   });
+
+  Widget _billsPage(BillerGroup group) {
+    final capability = switch (group) {
+      BillerGroup.airtime => FeatureCapability.airtime,
+      BillerGroup.data => FeatureCapability.data,
+      _ => FeatureCapability.bills,
+    };
+    if (_available(capability)) {
+      return BillPaymentFlow(
+        group: group,
+        onExit: back,
+        onSectionSelected: goSection,
+      );
+    }
+    return switch (group) {
+      BillerGroup.airtime => _airtimeScreen(),
+      BillerGroup.data => _dataScreen(),
+      _ => _billerListScreen(),
+    };
+  }
 }
 
 /// Only wallet funding is live. Bills, airtime, data, and QR payments have no

@@ -17,34 +17,20 @@ import '../provider/core_payments_providers.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 
-enum BillPaymentKind {
-  airtime('Airtime'),
-  data('Data'),
-  bills('Pay bills');
-
-  const BillPaymentKind(this.title);
-  final String title;
-
-  bool includes(BillerCategory category) => switch (this) {
-    airtime => category.isAirtime,
-    data => category.isData && !category.isAirtime,
-    bills => !category.isAirtime && !category.isData,
-  };
-}
-
 enum _Step { category, biller, item, details, review, result }
 
-/// Pays airtime, data or a bill from BocFlex: category, biller, plan, the
-/// customer's identifier with the biller, then the amount.
+/// Pays airtime, data or a bill from BocFlex: biller, plan, the customer's
+/// identifier with the biller, then the amount. A tile's [group] opens its
+/// billers directly; [BillerGroup.all] starts from the full category list.
 class BillPaymentFlow extends ConsumerStatefulWidget {
   const BillPaymentFlow({
-    required this.kind,
+    required this.group,
     required this.onExit,
     required this.onSectionSelected,
     super.key,
   });
 
-  final BillPaymentKind kind;
+  final BillerGroup group;
   final VoidCallback onExit;
   final ValueChanged<AppSection> onSectionSelected;
 
@@ -55,7 +41,9 @@ class BillPaymentFlow extends ConsumerStatefulWidget {
 class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   final _customerId = TextEditingController();
   final _amount = TextEditingController();
-  _Step _step = _Step.category;
+  late _Step _step = widget.group == BillerGroup.all
+      ? _Step.category
+      : _Step.biller;
   BillerCategory? _category;
   Biller? _biller;
   PaymentItem? _item;
@@ -117,7 +105,10 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
 
   VoidCallback get _back => switch (_step) {
     _Step.category || _Step.result => widget.onExit,
-    _Step.biller => () => _go(_Step.category),
+    _Step.biller =>
+      widget.group == BillerGroup.all
+          ? () => _go(_Step.category)
+          : widget.onExit,
     _Step.item => () => _go(_Step.biller),
     _Step.details => () => _go(_Step.item),
     _Step.review => () => _go(_Step.details),
@@ -127,7 +118,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   Widget build(BuildContext context) {
     final submission = ref.watch(billPaymentProvider);
     return AppScaffold(
-      title: widget.kind.title,
+      title: widget.group.title,
       activeSection: AppSection.payments,
       onBack: _back,
       onSectionSelected: widget.onSectionSelected,
@@ -207,13 +198,9 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       'No bill categories are available.',
     );
     if (notice != null) return [notice];
-    final all = state.data!;
-    final matching = all.where(widget.kind.includes).toList();
-    // No published flag for this kind: offer everything rather than nothing.
-    final shown = matching.isEmpty ? all : matching;
     return [
       const FlowHeading('Choose a category'),
-      for (final category in shown)
+      for (final category in state.data!)
         _choice(
           category.name,
           () => _go(_Step.biller, () => _category = category),
@@ -230,17 +217,22 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       ref.read(billersProvider.notifier).load,
       'No billers are available.',
     );
-    if (notice != null || category == null) return [?notice];
+    final byCategory = widget.group == BillerGroup.all;
+    if (notice != null) return [notice];
+    if (byCategory && category == null) return const [];
     final billers = [
       for (final biller in state.data!)
-        if (biller.categoryId == category.id) biller,
-    ];
+        if (byCategory
+            ? biller.categoryId == category!.id
+            : widget.group.matches(biller))
+          biller,
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return [
-      FlowHeading(category.name),
+      FlowHeading(byCategory ? category!.name : 'Choose a biller'),
       if (billers.isEmpty)
         const ApiStateCard(
           title: 'No billers',
-          message: 'No billers are available in this category.',
+          message: 'No billers are available here yet.',
           tone: ApiStateTone.info,
         ),
       for (final biller in billers)
@@ -318,9 +310,11 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       AppTextField(
         label: biller.customerFieldLabel,
         controller: _customerId,
-        keyboardType: widget.kind == BillPaymentKind.bills
-            ? TextInputType.text
-            : TextInputType.phone,
+        keyboardType:
+            widget.group == BillerGroup.airtime ||
+                widget.group == BillerGroup.data
+            ? TextInputType.phone
+            : TextInputType.text,
         onChanged: (_) => _go(_Step.details),
       ),
       const SizedBox(height: BocSpace.sm),

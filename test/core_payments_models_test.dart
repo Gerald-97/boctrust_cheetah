@@ -210,4 +210,36 @@ void main() {
       expect(BeneficiaryType.forCategoryName('Mobile/Recharge'), isNull);
     });
   });
+
+  test('bill tiles match billers across categories', () {
+    Biller biller(String name, {String category = 'Others', String? field}) =>
+        Biller(
+          id: name,
+          categoryId: '1',
+          categoryName: category,
+          name: name,
+          customerFieldLabel: field ?? 'Customer ID',
+        );
+    final billers = [
+      biller('MTN', category: 'Mobile/Recharge'),
+      biller('Airtel Data', category: 'Mobile/Recharge'),
+      biller('Airtel Data Plans'),
+      biller('Kano Electricity', category: 'Airlines'),
+      biller('EKEDC NEW', category: 'Utility Bills', field: 'Meter No'),
+      biller('Lagos Water Corporation', category: 'Utility Bills'),
+      biller('DSTV Subscriptions', category: 'Cable TV Bills'),
+      biller('Pay IPNX subscriptions', category: 'Subscriptions'),
+      biller('Covenant University Fees Payment', category: 'PayChoice'),
+    ];
+    List<String> names(BillerGroup group) =>
+        [for (final b in billers) if (group.matches(b)) b.name];
+
+    expect(names(BillerGroup.airtime), ['MTN']);
+    expect(names(BillerGroup.data), ['Airtel Data', 'Airtel Data Plans']);
+    expect(names(BillerGroup.electricity), ['Kano Electricity', 'EKEDC NEW']);
+    expect(names(BillerGroup.water), ['Lagos Water Corporation']);
+    expect(names(BillerGroup.cableTv), ['DSTV Subscriptions']);
+    expect(names(BillerGroup.internet), ['Pay IPNX subscriptions']);
+    expect(names(BillerGroup.education), ['Covenant University Fees Payment']);
+  });
 }

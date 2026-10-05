@@ -44,12 +44,14 @@ class Biller extends Equatable {
     required this.id,
     required this.categoryId,
     required this.name,
+    this.categoryName,
     this.customerFieldLabel = 'Customer ID',
   });
 
   /// Sent as text even though the list publishes a number.
   final String id;
   final String categoryId;
+  final String? categoryName;
   final String name;
 
   /// What the biller calls the customer's identifier (e.g. "SmartCard No").
@@ -74,7 +76,67 @@ class Biller extends Equatable {
   ]);
 
   @override
-  List<Object?> get props => [id, categoryId, name, customerFieldLabel];
+  List<Object?> get props => [
+    id,
+    categoryId,
+    categoryName,
+    name,
+    customerFieldLabel,
+  ];
+}
+
+/// The Payments tiles. Core's categories are broad (electricity sits under
+/// Utility Bills, and some under Airlines), so a tile matches billers by
+/// name, category and identifier label across every category.
+enum BillerGroup {
+  airtime('Airtime'),
+  data('Data'),
+  electricity('Electricity'),
+  water('Water'),
+  cableTv('Cable TV'),
+  internet('Internet'),
+  education('Education'),
+
+  /// Every category, chosen by the customer.
+  all('Pay bills');
+
+  const BillerGroup(this.title);
+  final String title;
+
+  static final _data = RegExp(r'\bdata\b');
+  static final _electricity = RegExp(
+    r'electric|\bdisco\b|\b(ekedc|ikedc|aedc|phed|kedco|ibedc|eedc|bedc|'
+    r'jed|yedc)\b',
+  );
+  static final _cable = RegExp(
+    r'cable|\btv\b|dstv|gotv|startimes|multichoice|decoder|hitv|daarsat',
+  );
+  static final _internet = RegExp(
+    r'internet|ipnx|spectranet|smile|swift|broadband|wifi|fib(re|er)|\bisp\b',
+  );
+  static final _education = RegExp(
+    r'school|universit|polytechnic|college|\bfees?\b|waec|jamb|neco|exam|'
+    r'education',
+  );
+
+  bool matches(Biller biller) {
+    final name = biller.name.toLowerCase();
+    final category = biller.categoryName?.toLowerCase() ?? '';
+    return switch (this) {
+      airtime =>
+        (category.contains('recharge') || category.contains('airtime')) &&
+            !_data.hasMatch(name),
+      data => _data.hasMatch(name),
+      electricity =>
+        _electricity.hasMatch(name) ||
+            biller.customerFieldLabel.toLowerCase().contains('meter'),
+      water => name.contains('water'),
+      cableTv => category.contains('cable') || _cable.hasMatch(name),
+      internet => _internet.hasMatch(name),
+      education => _education.hasMatch(name),
+      all => true,
+    };
+  }
 }
 
 final _naira = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$');
