@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
@@ -100,9 +102,14 @@ class BeneficiariesNotifier extends SessionScopedNotifier<List<Beneficiary>> {
           ? 'This beneficiary is already saved.'
           : result.message ?? 'We could not save this beneficiary.';
     }
+    // A list load started before the save would land later without it and
+    // overwrite the new row, so let it finish first.
+    if (isLoadInFlight) await load();
     if (ref.mounted && ref.read(authSessionProvider)?.accessToken == token) {
       final rows = state.data;
-      if (rows != null) {
+      if (rows == null) {
+        unawaited(load());
+      } else if (!rows.any((row) => row.id == saved.id)) {
         state = NotifierState.done(List.unmodifiable([...rows, saved]));
       }
     }

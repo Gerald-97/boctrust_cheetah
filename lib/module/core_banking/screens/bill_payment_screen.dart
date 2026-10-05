@@ -322,6 +322,12 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
           message: 'This biller has no plans available.',
           tone: ApiStateTone.info,
         )
+      else if (shown.isEmpty)
+        const ApiStateCard(
+          title: 'No matches',
+          message: 'No plan matches your search.',
+          tone: ApiStateTone.info,
+        )
       else
         _group([
           for (final item in shown)

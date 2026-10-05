@@ -52,7 +52,9 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     }
     // A previous visit's result must never show on a new move.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(ownAccountMoveProvider.notifier).clear();
+      if (!mounted) return;
+      ref.read(ownAccountMoveProvider.notifier).clear();
+      unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
     });
   }
 
@@ -82,7 +84,8 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = ref.watch(customerBankAccountsProvider).data;
+    final accountsState = ref.watch(customerBankAccountsProvider);
+    final accounts = accountsState.data;
     final flex = accounts?.activeFlexAccount;
     final products = [
       for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
@@ -113,7 +116,18 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
-          if (flex == null || products.isEmpty || direction == null)
+          if (accounts == null && accountsState.isError)
+            ApiStateCard(
+              title: 'Accounts unavailable',
+              message:
+                  accountsState.message ?? 'We could not load your accounts.',
+              tone: ApiStateTone.error,
+              actionLabel: 'Retry',
+              onAction: ref.read(customerBankAccountsProvider.notifier).load,
+            )
+          else if (accounts == null)
+            const ApiLoadingSection(label: 'Loading your accounts')
+          else if (flex == null || products.isEmpty || direction == null)
             const ApiStateCard(
               title: 'Nothing to move between yet',
               message:
@@ -142,7 +156,11 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
         .where((account) => account.productCode == _productCode)
         .firstOrNull;
     final source = direction == OwnAccountDirection.toSavings ? flex : product;
-    final amount = amountWithin(_amount.text, source?.availableBalance);
+    // Moving to Flex draws on the chosen savings account, so there is no
+    // balance to check until one is picked.
+    final amount = source == null
+        ? const InvalidMoney('Choose the account to move from first.')
+        : amountWithin(_amount.text, source.availableBalance);
     final ready =
         product != null &&
         amount is ValidMoney &&
@@ -213,8 +231,10 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     final amount = nairaFromKobo(draft.amountKobo);
     final narration = draft.narration?.trim() ?? '';
     return [
-      BocSummaryGrid(
-        items: [
+      CoreReviewCard(
+        caption: "You're moving",
+        amount: amount,
+        rows: [
           (
             label: 'From',
             value: toSavings ? flex.productName : product.productName,
@@ -223,7 +243,6 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
             label: 'To',
             value: toSavings ? product.productName : flex.productName,
           ),
-          (label: 'Amount', value: amount),
           if (narration.isNotEmpty) (label: 'Narration', value: narration),
         ],
       ),

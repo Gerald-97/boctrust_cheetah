@@ -106,11 +106,12 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
       _resolving = true;
       _resolveError = null;
     });
-    final result = await ref
-        .read(coreTransferServiceProvider)
-        .nameEnquiry(bankCode: bank.code, accountNumber: number);
+    final name = await lookUpAccountName(
+      ref,
+      bankCode: bank.code,
+      accountNumber: number,
+    );
     if (!mounted || lookup != _lookup) return;
-    final name = result.data?.name;
     setState(() {
       _resolving = false;
       _recipient = name == null
@@ -121,9 +122,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
               accountNumber: number,
               name: name,
             );
-      _resolveError = name == null
-          ? "We couldn't find this account. Check the bank and number."
-          : null;
+      _resolveError = name == null ? kAccountNotFound : null;
     });
   }
 
@@ -386,11 +385,15 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
       },
       message:
           status.message ??
-          [
-            if (status.reference != null) 'Reference ${status.reference}.',
-            if (status.state == InterbankTransferState.pending)
-              'Check again in a moment.',
-          ].join(' '),
+          switch (status.state) {
+            InterbankTransferState.completed =>
+              'The money has reached the receiving bank.',
+            InterbankTransferState.failed =>
+              'The receiving bank did not accept this transfer.',
+            InterbankTransferState.pending => 'Check again in a moment.',
+            InterbankTransferState.unknown =>
+              'Check your balance before trying again.',
+          },
       tone: switch (status.state) {
         InterbankTransferState.completed => ApiStateTone.info,
         InterbankTransferState.failed => ApiStateTone.error,

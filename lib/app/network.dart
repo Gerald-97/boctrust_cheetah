@@ -154,7 +154,7 @@ class ApiService {
       if (Env.isStaging) {
         apiLogger.w({
           'event': 'PARSE_ERROR',
-          'url': response.requestOptions.uri.replace(query: '').toString(),
+          'url': response.requestOptions.uri.toString().split('?').first,
           'model': '$T',
           'error': error is FormatException
               ? error.message

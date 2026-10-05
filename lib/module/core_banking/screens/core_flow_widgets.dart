@@ -9,7 +9,9 @@ import '../model/core_money.dart';
 import '../model/core_submission_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
+import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
+import '../service/core_transfer_service.dart';
 import '../service/transaction_authorizer.dart';
 
 /// Integer Kobo as display Naira (`'150000'` → `₦1,500.00`).
@@ -22,8 +24,24 @@ String maskNumber(String number) =>
 
 const _noBalance = InvalidMoney(
   "We couldn't load this account's balance, so the amount can't be "
-  'checked yet. Pull down to refresh or try again shortly.',
+  'checked yet. Tap Retry below.',
 );
+
+/// Shown when Core finds no account for a name check.
+const kAccountNotFound =
+    "We couldn't find this account. Check the bank and number.";
+
+/// The account name at [bankCode], or null when Core cannot confirm it.
+Future<String?> lookUpAccountName(
+  WidgetRef ref, {
+  required String bankCode,
+  required String accountNumber,
+}) async =>
+    (await ref
+            .read(coreTransferServiceProvider)
+            .nameEnquiry(bankCode: bankCode, accountNumber: accountNumber))
+        .data
+        ?.name;
 
 /// [text] checked against an available [balance] (a decimal Naira string).
 /// Kobo for transfers, or two-decimal Naira when [naira] (bills). A missing
@@ -347,7 +365,7 @@ class BankSelectorTile extends StatelessWidget {
 
 /// The amount (or a fixed price), the available balance and an optional
 /// narration, shared by every transfer and payment form.
-class CoreAmountFields extends StatelessWidget {
+class CoreAmountFields extends ConsumerWidget {
   const CoreAmountFields({
     required this.input,
     required this.available,
@@ -373,7 +391,7 @@ class CoreAmountFields extends StatelessWidget {
   final TextEditingController? narration;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final fixed = fixedAmount;
     final amount = this.amount;
     final message = amountError(fixed ?? amount!.text, input);
@@ -399,9 +417,21 @@ class CoreAmountFields extends StatelessWidget {
           ),
         if (message != null) FieldError(message),
         const SizedBox(height: BocSpace.xxs),
-        Text(
-          'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
-          style: Theme.of(context).textTheme.bodySmall,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Available: ${formatApiAmount(available, currency: 'NGN') ?? 'unavailable'}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            // Every balance shown here comes from the account list.
+            if (available == null)
+              BocTextButton(
+                label: 'Retry',
+                onPressed: ref.read(customerBankAccountsProvider.notifier).load,
+              ),
+          ],
         ),
         if (narration != null) ...[
           const SizedBox(height: BocSpace.sm),

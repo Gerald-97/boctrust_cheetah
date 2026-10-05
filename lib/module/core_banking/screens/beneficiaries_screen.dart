@@ -11,7 +11,6 @@ import '../../app_flow/flow_page.dart';
 import '../model/beneficiary_models.dart';
 import '../model/interbank_models.dart';
 import '../provider/core_payments_providers.dart';
-import '../service/core_transfer_service.dart';
 import 'core_flow_widgets.dart';
 
 /// The Beneficiaries route: the saved list when the capability is
@@ -59,6 +58,9 @@ class BeneficiariesView extends ConsumerStatefulWidget {
 }
 
 class _BeneficiariesViewState extends ConsumerState<BeneficiariesView> {
+  /// Ids being removed; a second tap on one of them is ignored.
+  final _deleting = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +70,15 @@ class _BeneficiariesViewState extends ConsumerState<BeneficiariesView> {
   }
 
   Future<void> _delete(Beneficiary beneficiary) async {
+    if (!_deleting.add(beneficiary.id)) return;
+    try {
+      await _confirmAndDelete(beneficiary);
+    } finally {
+      if (mounted) setState(() => _deleting.remove(beneficiary.id));
+    }
+  }
+
+  Future<void> _confirmAndDelete(Beneficiary beneficiary) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -119,7 +130,7 @@ class _BeneficiariesViewState extends ConsumerState<BeneficiariesView> {
       trailing: IconButton(
         tooltip: 'Remove',
         icon: const Icon(IconsaxPlusLinear.trash),
-        onPressed: () => _delete(b),
+        onPressed: _deleting.contains(b.id) ? null : () => _delete(b),
       ),
     );
     return AppScaffold(
@@ -233,14 +244,16 @@ class _AddBankBeneficiaryState extends ConsumerState<_AddBankBeneficiary> {
     if (bank == null) return;
     final lookup = ++_lookup;
     setState(() => _busy = true);
-    final result = await ref
-        .read(coreTransferServiceProvider)
-        .nameEnquiry(bankCode: bank.code, accountNumber: _number.text.trim());
+    final name = await lookUpAccountName(
+      ref,
+      bankCode: bank.code,
+      accountNumber: _number.text.trim(),
+    );
     if (!mounted || lookup != _lookup) return;
     setState(() {
       _busy = false;
-      _name = result.data?.name;
-      _error = _name == null ? "We couldn't find this account." : null;
+      _name = name;
+      _error = name == null ? kAccountNotFound : null;
     });
   }
 
