@@ -100,6 +100,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   /// Moves to [step]. The reviewed draft is dropped first, so a [change]
   /// that builds a new draft keeps it.
   void _go(_Step step, [VoidCallback? change]) => setState(() {
+    if (step != _step) _query = '';
     _draft = null;
     change?.call();
     _step = step;
@@ -183,14 +184,63 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         : null;
   }
 
-  Widget _choice(String title, VoidCallback onTap, {String? subtitle}) =>
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(title),
-        subtitle: subtitle == null ? null : Text(subtitle),
-        trailing: const Icon(IconsaxPlusLinear.arrow_right_3),
-        onTap: onTap,
-      );
+  String _query = '';
+
+  bool _matchesQuery(String text) =>
+      _query.isEmpty || text.toLowerCase().contains(_query);
+
+  Widget _search(String hint) => CoreSearchField(
+    key: ValueKey(_step),
+    hintText: hint,
+    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+  );
+
+  /// Tappable rows in one grouped card, as on the Account settings.
+  Widget _group(List<Widget> tiles) =>
+      SettingsGroup(padding: EdgeInsets.zero, children: tiles);
+
+  Widget _tile(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) => SettingsTile(icon: icon, title: title, subtitle: subtitle, onTap: onTap);
+
+  static IconData _iconFor(String text) {
+    final name = text.toLowerCase();
+    if (name.contains('recharge') || name.contains('airtime')) {
+      return IconsaxPlusLinear.mobile;
+    }
+    if (RegExp(r'\bdata\b').hasMatch(name)) return IconsaxPlusLinear.chart;
+    if (name.contains('cable') || name.contains('tv')) {
+      return IconsaxPlusLinear.monitor;
+    }
+    if (name.contains('utility') || name.contains('electric')) {
+      return IconsaxPlusLinear.flash;
+    }
+    if (name.contains('water')) return IconsaxPlusLinear.drop;
+    if (name.contains('internet') || name.contains('subscription')) {
+      return IconsaxPlusLinear.wifi;
+    }
+    if (name.contains('school') || name.contains('universit')) {
+      return IconsaxPlusLinear.teacher;
+    }
+    if (name.contains('bank') || name.contains('money')) {
+      return IconsaxPlusLinear.bank;
+    }
+    return IconsaxPlusLinear.receipt_item;
+  }
+
+  IconData get _groupIcon => switch (widget.group) {
+    BillerGroup.airtime => IconsaxPlusLinear.mobile,
+    BillerGroup.data => IconsaxPlusLinear.chart,
+    BillerGroup.electricity => IconsaxPlusLinear.flash,
+    BillerGroup.water => IconsaxPlusLinear.drop,
+    BillerGroup.cableTv => IconsaxPlusLinear.monitor,
+    BillerGroup.internet => IconsaxPlusLinear.wifi,
+    BillerGroup.education => IconsaxPlusLinear.teacher,
+    BillerGroup.all => _iconFor(_category?.name ?? ''),
+  };
 
   List<Widget> _categories() {
     final state = ref.watch(billerCategoriesProvider);
@@ -200,14 +250,29 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       'No bill categories are available.',
     );
     if (notice != null) return [notice];
-    return [
-      const FlowHeading('Choose a category'),
+    final categories = [
       for (final category in state.data!)
-        _choice(
-          category.name,
-          () => _go(_Step.biller, () => _category = category),
-          subtitle: category.description,
-        ),
+        if (_matchesQuery(category.name)) category,
+    ];
+    return [
+      const FlowHeading('What would you like to pay?'),
+      _search('Search categories'),
+      if (categories.isEmpty)
+        const ApiStateCard(
+          title: 'No matches',
+          message: 'No category matches your search.',
+          tone: ApiStateTone.info,
+        )
+      else
+        _group([
+          for (final category in categories)
+            _tile(
+              _iconFor(category.name),
+              category.name,
+              category.description ?? 'See billers',
+              () => _go(_Step.biller, () => _category = category),
+            ),
+        ]),
     ];
   }
 
@@ -224,21 +289,33 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     if (byCategory && category == null) return const [];
     final billers = [
       for (final biller in state.data!)
-        if (byCategory
-            ? biller.categoryId == category!.id
-            : widget.group.matches(biller))
+        if ((byCategory
+                ? biller.categoryId == category!.id
+                : widget.group.matches(biller)) &&
+            _matchesQuery(biller.name))
           biller,
     ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return [
-      FlowHeading(byCategory ? category!.name : 'Choose a biller'),
+      FlowHeading(byCategory ? category!.name : 'Choose a provider'),
+      _search('Search billers'),
       if (billers.isEmpty)
-        const ApiStateCard(
-          title: 'No billers',
-          message: 'No billers are available here yet.',
+        ApiStateCard(
+          title: _query.isEmpty ? 'No billers' : 'No matches',
+          message: _query.isEmpty
+              ? 'No billers are available here yet.'
+              : 'No biller matches your search.',
           tone: ApiStateTone.info,
-        ),
-      for (final biller in billers)
-        _choice(biller.name, () => _go(_Step.item, () => _biller = biller)),
+        )
+      else
+        _group([
+          for (final biller in billers)
+            _tile(
+              _groupIcon,
+              biller.name,
+              biller.customerFieldLabel,
+              () => _go(_Step.item, () => _biller = biller),
+            ),
+        ]),
     ];
   }
 
@@ -255,25 +332,34 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       for (final item in state.data!)
         if (item.billerId == biller.id) item,
     ];
+    final shown = [
+      for (final item in items)
+        if (_matchesQuery(item.name)) item,
+    ];
     return [
       FlowHeading(biller.name),
+      if (items.length > 6) _search('Search plans'),
       if (items.isEmpty)
         const ApiStateCard(
           title: 'No plans',
           message: 'This biller has no plans available.',
           tone: ApiStateTone.info,
-        ),
-      for (final item in items)
-        _choice(
-          item.name,
-          () => _go(_Step.details, () {
-            _item = item;
-            _amount.clear();
-          }),
-          subtitle: item.amountNaira == null
-              ? 'Enter amount'
-              : formatApiAmount(item.amountNaira, currency: 'NGN'),
-        ),
+        )
+      else
+        _group([
+          for (final item in shown)
+            _tile(
+              IconsaxPlusLinear.receipt_item,
+              item.name,
+              item.amountNaira == null
+                  ? 'Enter your amount'
+                  : formatApiAmount(item.amountNaira, currency: 'NGN') ?? '',
+              () => _go(_Step.details, () {
+                _item = item;
+                _amount.clear();
+              }),
+            ),
+        ]),
     ];
   }
 
@@ -304,11 +390,24 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         : const <Beneficiary>[];
     return [
       FlowHeading(item.name),
-      for (final b in saved)
-        _choice(b.nickname ?? b.maskedNumber, () {
-          _customerId.text = b.number;
-          _go(_Step.details);
-        }, subtitle: b.paymentItemName),
+      if (saved.isNotEmpty) ...[
+        SettingsGroup(
+          caption: 'Saved',
+          padding: const EdgeInsets.only(bottom: BocSpace.md),
+          children: [
+            for (final b in saved)
+              _tile(
+                IconsaxPlusLinear.profile,
+                b.nickname ?? b.maskedNumber,
+                b.paymentItemName ?? b.maskedNumber,
+                () {
+                  _customerId.text = b.number;
+                  _go(_Step.details);
+                },
+              ),
+          ],
+        ),
+      ],
       AppTextField(
         label: biller.customerFieldLabel,
         controller: _customerId,
@@ -369,13 +468,13 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         formatApiAmount(draft.amountNaira, currency: 'NGN') ??
         draft.amountNaira;
     return [
-      const FlowHeading('Review your payment'),
-      BocSummaryGrid(
-        items: [
+      CoreReviewCard(
+        caption: "You're paying",
+        amount: amount,
+        rows: [
           (label: 'Biller', value: biller.name),
           (label: 'Plan', value: item.name),
           (label: biller.customerFieldLabel, value: draft.customerId),
-          (label: 'Amount', value: amount),
         ],
       ),
       const SizedBox(height: BocSpace.lg),

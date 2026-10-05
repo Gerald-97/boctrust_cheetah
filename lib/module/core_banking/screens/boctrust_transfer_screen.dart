@@ -198,15 +198,16 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     final amount = nairaFromKobo(draft.amountKobo);
     final narration = draft.narration?.trim() ?? '';
     return [
-      const FlowHeading('Review your transfer'),
-      BocSummaryGrid(
-        items: [
-          (label: 'To account', value: maskNumber(draft.toAccountNumber)),
-          (label: 'Amount', value: amount),
+      CoreReviewCard(
+        caption: "You're sending",
+        amount: amount,
+        rows: [
+          (label: 'Bank', value: 'BOCTRUST'),
+          (label: 'Account number', value: maskNumber(draft.toAccountNumber)),
           if (narration.isNotEmpty) (label: 'Narration', value: narration),
         ],
       ),
-      const SizedBox(height: BocSpace.sm),
+      const SizedBox(height: BocSpace.md),
       const ApiStateCard(
         title: 'Check the account number',
         message:

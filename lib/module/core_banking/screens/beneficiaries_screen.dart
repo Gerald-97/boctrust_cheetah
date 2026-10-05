@@ -110,9 +110,12 @@ class _BeneficiariesViewState extends ConsumerState<BeneficiariesView> {
       for (final b in rows)
         if (b.type != BeneficiaryType.bankAccount) b,
     ];
-    Widget tile(Beneficiary b, String detail) => ListTile(
-      title: Text(b.nickname ?? b.name),
-      subtitle: Text('$detail · ${b.maskedNumber}'),
+    Widget tile(Beneficiary b, String detail) => SettingsTile(
+      icon: b.type == BeneficiaryType.bankAccount
+          ? IconsaxPlusLinear.bank
+          : IconsaxPlusLinear.receipt_item,
+      title: b.nickname ?? b.name,
+      subtitle: '$detail · ${b.maskedNumber}',
       trailing: IconButton(
         tooltip: 'Remove',
         icon: const Icon(IconsaxPlusLinear.trash),
@@ -277,20 +280,16 @@ class _AddBankBeneficiaryState extends ConsumerState<_AddBankBeneficiary> {
         padding: const EdgeInsets.all(BocSpace.gutter),
         children: [
           const FlowHeading('Add bank account'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(_bank?.name ?? 'Choose a bank'),
-            trailing: const Icon(IconsaxPlusLinear.arrow_down_1),
-            onTap: banks.isEmpty
-                ? null
-                : () async {
-                    final bank = await showBankPicker(context, banks);
-                    if (bank != null) {
-                      _changed();
-                      setState(() => _bank = bank);
-                    }
-                  },
+          BankSelectorTile(
+            bank: _bank,
+            banks: banks,
+            loading: ref.watch(interbankBanksProvider).isLoading,
+            onSelected: (bank) {
+              _changed();
+              setState(() => _bank = bank);
+            },
           ),
+          const SizedBox(height: BocSpace.md),
           AppTextField(
             label: 'Account number',
             controller: _number,

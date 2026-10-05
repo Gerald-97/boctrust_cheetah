@@ -65,10 +65,12 @@ class Biller extends Equatable {
               coreId(row['billerCategoryId']) ?? coreId(row['categoryId']),
               coreText(row['name']),
             )
-            case (final String id, final String categoryId, final String name))
+            case (final String id, final String categoryId, final String name)
+            when name.toLowerCase() != 'null')
           Biller(
             id: id,
             categoryId: categoryId,
+            categoryName: coreText(row['categoryName']),
             name: name,
             customerFieldLabel:
                 coreText(row['customerField1']) ?? 'Customer ID',
@@ -125,7 +127,8 @@ enum BillerGroup {
     return switch (this) {
       airtime =>
         (category.contains('recharge') || category.contains('airtime')) &&
-            !_data.hasMatch(name),
+            !_data.hasMatch(name) &&
+            !_education.hasMatch(name),
       data => _data.hasMatch(name),
       electricity =>
         _electricity.hasMatch(name) ||

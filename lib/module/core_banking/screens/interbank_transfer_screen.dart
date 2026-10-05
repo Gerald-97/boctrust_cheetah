@@ -210,11 +210,11 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           padding: const EdgeInsets.only(bottom: BocSpace.md),
           children: [
             for (final b in saved)
-              ListTile(
-                title: Text(b.nickname ?? b.name),
-                subtitle: Text(
-                  '${b.bankName ?? b.bankCode ?? ''} · ${b.maskedNumber}',
-                ),
+              SettingsTile(
+                icon: IconsaxPlusLinear.profile,
+                title: b.nickname ?? b.name,
+                subtitle:
+                    '${b.bankName ?? b.bankCode ?? ''} · ${b.maskedNumber}',
                 onTap: () => _useBeneficiary(b, banks),
               ),
           ],
@@ -229,21 +229,13 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           onAction: ref.read(interbankBanksProvider.notifier).load,
         )
       else
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(_bank?.name ?? 'Choose a bank'),
-          subtitle: banksState.isLoading && banks.isEmpty
-              ? const Text('Loading banks…')
-              : null,
-          trailing: const Icon(IconsaxPlusLinear.arrow_down_1),
-          onTap: banks.isEmpty
-              ? null
-              : () async {
-                  final bank = await showBankPicker(context, banks);
-                  if (bank != null) _changeRecipient(() => _bank = bank);
-                },
+        BankSelectorTile(
+          bank: _bank,
+          banks: banks,
+          loading: banksState.isLoading,
+          onSelected: (bank) => _changeRecipient(() => _bank = bank),
         ),
-      const SizedBox(height: BocSpace.sm),
+      const SizedBox(height: BocSpace.md),
       AppTextField(
         label: 'Account number',
         controller: _account,
@@ -342,13 +334,13 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     final amount = nairaFromKobo(draft.amountKobo);
     final narration = draft.narration?.trim() ?? '';
     return [
-      const FlowHeading('Review your transfer'),
-      BocSummaryGrid(
-        items: [
+      CoreReviewCard(
+        caption: "You're sending",
+        amount: amount,
+        rows: [
           (label: 'To', value: draft.accountName),
           (label: 'Bank', value: draft.bankName),
-          (label: 'Account', value: draft.accountNumber),
-          (label: 'Amount', value: amount),
+          (label: 'Account number', value: draft.accountNumber),
           if (narration.isNotEmpty) (label: 'Narration', value: narration),
         ],
       ),

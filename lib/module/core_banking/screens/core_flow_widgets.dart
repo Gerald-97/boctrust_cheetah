@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
@@ -200,5 +201,118 @@ class FieldError extends StatelessWidget {
       message,
       style: TextStyle(color: Theme.of(context).colorScheme.error),
     ),
+  );
+}
+
+/// The review summary, laid out like the receipt card: what is being done,
+/// the amount large, then the details.
+class CoreReviewCard extends StatelessWidget {
+  const CoreReviewCard({
+    required this.caption,
+    required this.amount,
+    required this.rows,
+    super.key,
+  });
+
+  /// e.g. "You're sending" or "You're paying".
+  final String caption;
+
+  /// Formatted Naira, e.g. `₦100.00`.
+  final String amount;
+  final List<({String label, String value})> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        BocSpace.lg,
+        BocSpace.lg,
+        BocSpace.lg,
+        BocSpace.md,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(BocRadius.md),
+        border: theme.brightness == Brightness.dark
+            ? Border.all(color: colors.border)
+            : null,
+      ),
+      child: Column(
+        children: [
+          Text(caption, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: BocSpace.xs),
+          BocMoneyText(amount, style: theme.textTheme.displaySmall),
+          const SizedBox(height: BocSpace.md),
+          Divider(height: 1, color: colors.border),
+          const SizedBox(height: BocSpace.xs),
+          TransactionDetailRows(rows: rows),
+        ],
+      ),
+    );
+  }
+}
+
+/// The search box used above long lists, as on the Payments grid.
+class CoreSearchField extends StatelessWidget {
+  const CoreSearchField({
+    required this.hintText,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String hintText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: BocSpace.md),
+    child: TextField(
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: const Icon(IconsaxPlusLinear.search_normal_1),
+      ),
+    ),
+  );
+}
+
+/// The receiving-bank row: a settings-style tile that opens [showBankPicker].
+class BankSelectorTile extends StatelessWidget {
+  const BankSelectorTile({
+    required this.bank,
+    required this.banks,
+    required this.loading,
+    required this.onSelected,
+    super.key,
+  });
+
+  final CommercialBank? bank;
+  final List<CommercialBank> banks;
+  final bool loading;
+  final ValueChanged<CommercialBank> onSelected;
+
+  @override
+  Widget build(BuildContext context) => SettingsGroup(
+    padding: EdgeInsets.zero,
+    children: [
+      SettingsTile(
+        icon: IconsaxPlusLinear.bank,
+        title: bank?.name ?? 'Choose a bank',
+        subtitle: loading && banks.isEmpty
+            ? 'Loading banks…'
+            : bank == null
+            ? 'The receiving bank'
+            : 'Tap to change',
+        onTap: banks.isEmpty
+            ? null
+            : () async {
+                final picked = await showBankPicker(context, banks);
+                if (picked != null) onSelected(picked);
+              },
+      ),
+    ],
   );
 }

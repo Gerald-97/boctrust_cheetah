@@ -110,6 +110,7 @@ void main() {
           {
             'billerId': 157,
             'billerCategoryId': '9',
+            'categoryName': 'Cable TV Bills',
             'name': 'DSTV',
             'customerField1': 'SmartCard No',
             'isActive': true,
@@ -125,6 +126,7 @@ void main() {
       });
       expect(billers.map((b) => b.id), ['157', '158']);
       expect(billers.first.customerFieldLabel, 'SmartCard No');
+      expect(billers.first.categoryName, 'Cable TV Bills');
       expect(billers.last.customerFieldLabel, 'Customer ID');
 
       final items = PaymentItem.listFromJson([
@@ -222,6 +224,7 @@ void main() {
         );
     final billers = [
       biller('MTN', category: 'Mobile/Recharge'),
+      biller('WAEC Payments', category: 'Mobile/Recharge'),
       biller('Airtel Data', category: 'Mobile/Recharge'),
       biller('Airtel Data Plans'),
       biller('Kano Electricity', category: 'Airlines'),
@@ -231,8 +234,10 @@ void main() {
       biller('Pay IPNX subscriptions', category: 'Subscriptions'),
       biller('Covenant University Fees Payment', category: 'PayChoice'),
     ];
-    List<String> names(BillerGroup group) =>
-        [for (final b in billers) if (group.matches(b)) b.name];
+    List<String> names(BillerGroup group) => [
+      for (final b in billers)
+        if (group.matches(b)) b.name,
+    ];
 
     expect(names(BillerGroup.airtime), ['MTN']);
     expect(names(BillerGroup.data), ['Airtel Data', 'Airtel Data Plans']);
@@ -240,6 +245,9 @@ void main() {
     expect(names(BillerGroup.water), ['Lagos Water Corporation']);
     expect(names(BillerGroup.cableTv), ['DSTV Subscriptions']);
     expect(names(BillerGroup.internet), ['Pay IPNX subscriptions']);
-    expect(names(BillerGroup.education), ['Covenant University Fees Payment']);
+    expect(names(BillerGroup.education), [
+      'WAEC Payments',
+      'Covenant University Fees Payment',
+    ]);
   });
 }
