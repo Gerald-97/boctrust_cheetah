@@ -64,6 +64,8 @@ enum FeatureCapability {
   // Core mobile banking slices, unavailable until each is registered.
   ownAccountTransfers,
   savingsWithdrawals,
+  boctrustTransfers,
+  interbankTransfers,
   // Products that have not launched.
   loans,
   cards,
@@ -74,6 +76,7 @@ class CapabilityRequirement {
     this.operations = const {},
     this.localOnly = false,
     this.comingSoon = false,
+    this.stagingOnly = false,
   });
 
   /// Every endpoint the action needs. Listed only once the endpoint, typed
@@ -85,12 +88,39 @@ class CapabilityRequirement {
 
   /// A product that has not launched.
   final bool comingSoon;
+
+  /// Reachable only in staging builds: the endpoints exist but their
+  /// response schemas, success semantics or authorization are not yet
+  /// published, so staging verifies them against live responses first.
+  final bool stagingOnly;
 }
 
 const _withdrawalBankAccountById =
     '${ApiEndpoints.withdrawalBankAccounts}/{bankAccountId}';
 const _completeUtilityBillUpload =
     '/users/me/kyc/utility-bill/{verificationId}/complete';
+
+const _billPayment = CapabilityRequirement(
+  stagingOnly: true,
+  operations: {
+    (
+      backend: ApiBackend.core,
+      method: 'GET',
+      path: CoreApiEndpoints.billerCategories,
+    ),
+    (backend: ApiBackend.core, method: 'GET', path: CoreApiEndpoints.billers),
+    (
+      backend: ApiBackend.core,
+      method: 'GET',
+      path: CoreApiEndpoints.paymentItems,
+    ),
+    (
+      backend: ApiBackend.core,
+      method: 'POST',
+      path: CoreApiEndpoints.billPayments,
+    ),
+  },
+);
 
 /// The single source of truth for what the app may do. A capability missing
 /// from this map has no contract and is unavailable.
@@ -233,6 +263,101 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // The runtime provider still decides whether this device has a usable
   // enrolled biometric.
   FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
+  // Core mobile banking, verified on staging before release. Money-moving
+  // POSTs still pass `transactionAuthorizerProvider` first.
+  FeatureCapability.ownAccountTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.ownAccountTransfer,
+      ),
+    },
+  ),
+  FeatureCapability.savingsWithdrawals: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankWithdrawals,
+      ),
+    },
+  ),
+  FeatureCapability.boctrustTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransfers,
+      ),
+    },
+  ),
+  FeatureCapability.interbankTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.interbankBanks,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankNameEnquiry,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransfers,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.interbankTransferStatusTemplate,
+      ),
+    },
+  ),
+  FeatureCapability.airtime: _billPayment,
+  FeatureCapability.data: _billPayment,
+  FeatureCapability.bills: _billPayment,
+  FeatureCapability.beneficiaries: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.beneficiaries,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.beneficiaries,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'DELETE',
+        path: CoreApiEndpoints.beneficiaryTemplate,
+      ),
+    },
+  ),
   FeatureCapability.loans: CapabilityRequirement(comingSoon: true),
   FeatureCapability.cards: CapabilityRequirement(comingSoon: true),
 };
@@ -244,9 +369,13 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
 FeatureAvailability availabilityFor(
   CapabilityRequirement? requirement, {
   required Set<ApiBackend> configuredBackends,
+  bool staging = false,
 }) {
   if (requirement == null) return FeatureAvailability.unavailable;
   if (requirement.comingSoon) return FeatureAvailability.comingSoon;
+  if (requirement.stagingOnly && !staging) {
+    return FeatureAvailability.unavailable;
+  }
   if (requirement.localOnly) return FeatureAvailability.available;
   if (requirement.operations.isEmpty) return FeatureAvailability.unavailable;
   final reachable = requirement.operations.every(
@@ -270,6 +399,7 @@ final featureAvailabilityProvider =
       (ref, capability) => availabilityFor(
         capabilityRequirements[capability],
         configuredBackends: ref.watch(configuredApiBackendsProvider),
+        staging: ref.watch(stagingModeProvider),
       ),
     );
 

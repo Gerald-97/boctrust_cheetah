@@ -10,12 +10,19 @@ const kFlexProductCode = 'bocFlex';
 
 final _decimal = RegExp(r'^-?\d+(\.\d+)?$');
 
-/// A money value kept as the exact decimal string the server sent, or null
-/// when it is missing or not a plain decimal string. Never parsed to double.
+/// Thousands grouped by commas in threes, as Core formats balances
+/// (`"100,000.00"`).
+final _groupedDecimal = RegExp(r'^-?\d{1,3}(,\d{3})+(\.\d+)?$');
+
+/// A money value kept as the exact decimal string the server sent, with any
+/// thousands commas removed, or null when it is missing or not a decimal
+/// string. Never parsed to double.
 String? _decimalString(Object? value) {
   if (value is! String) return null;
   final text = value.trim();
-  return _decimal.hasMatch(text) ? text : null;
+  if (_decimal.hasMatch(text)) return text;
+  if (_groupedDecimal.hasMatch(text)) return text.replaceAll(',', '');
+  return null;
 }
 
 String? _text(Object? value) {

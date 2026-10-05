@@ -5,13 +5,14 @@ import '../../../app/core_network.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/core_submission_models.dart';
+import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 
 final coreTransferServiceProvider = Provider<CoreTransferService>(
   (ref) => CoreTransferService(ref.watch(coreApiServiceProvider)),
 );
 
-/// Money-moving Core requests. Each method sends exactly one POST and never
+/// Core transfers. Each money-moving method sends exactly one POST and never
 /// retries; the caller classifies the result with `mapCoreSubmission`.
 class CoreTransferService {
   const CoreTransferService(this._api);
@@ -34,6 +35,77 @@ class CoreTransferService {
           : CoreApiEndpoints.intrabankWithdrawals,
       data: draft.toJson(),
       parser: CoreTransferAck.fromJson,
+    );
+  }
+
+  Future<ServiceResponse<CoreTransferAck>> transferToBoctrust(
+    BoctrustTransferDraft draft,
+  ) async {
+    final api = _api;
+    if (api == null) return _unconfigured;
+    return api.postData<CoreTransferAck>(
+      CoreApiEndpoints.intrabankTransfers,
+      data: draft.toJson(),
+      parser: CoreTransferAck.fromJson,
+    );
+  }
+
+  /// Classify with `mapCoreSubmission(response, interbank: true)`.
+  Future<ServiceResponse<CoreTransferAck>> transferToOtherBank(
+    InterbankTransferDraft draft,
+  ) async {
+    final api = _api;
+    if (api == null) return _unconfigured;
+    return api.postData<CoreTransferAck>(
+      CoreApiEndpoints.interbankTransfers,
+      data: draft.toJson(),
+      parser: CoreTransferAck.fromJson,
+    );
+  }
+
+  static const _readUnavailable = 'Transfers are not available right now.';
+
+  Future<NotifierState<List<CommercialBank>>> getBanks() async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_readUnavailable);
+    return NotifierState.fromResponse(
+      await api.getData<List<CommercialBank>>(
+        CoreApiEndpoints.interbankBanks,
+        parser: CommercialBank.listFromJson,
+      ),
+    );
+  }
+
+  /// The account name at [bankCode]; only ten-digit numbers are sent.
+  Future<NotifierState<NameEnquiryResult>> nameEnquiry({
+    required String bankCode,
+    required String accountNumber,
+  }) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_readUnavailable);
+    if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
+      return const NotifierState.error('Enter a 10-digit account number.');
+    }
+    return NotifierState.fromResponse(
+      await api.postData<NameEnquiryResult>(
+        CoreApiEndpoints.interbankNameEnquiry,
+        data: {'accountNumber': accountNumber, 'bankCode': bankCode},
+        parser: NameEnquiryResult.fromJson,
+      ),
+    );
+  }
+
+  /// A read only; never resends the transfer.
+  Future<NotifierState<InterbankTransferStatus>> getTransferStatus(
+    String reference,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_readUnavailable);
+    return NotifierState.fromResponse(
+      await api.getData<InterbankTransferStatus>(
+        CoreApiEndpoints.interbankTransferStatus(reference),
+        parser: InterbankTransferStatus.fromJson,
+      ),
     );
   }
 }

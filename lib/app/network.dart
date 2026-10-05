@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helper/secure_storage.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
+import 'api_logger.dart';
 import 'interceptors.dart';
 import 'services.dart';
 import 'session_expiry_coordinator.dart';
@@ -147,7 +148,19 @@ class ApiService {
         statusCode: statusCode,
         meta: meta,
       );
-    } catch (_) {
+    } catch (error) {
+      // Staging reads this beside the logged RESPONSE body to fit a model to
+      // a reply whose schema is unpublished. Parser messages carry no data.
+      if (Env.isStaging) {
+        apiLogger.w({
+          'event': 'PARSE_ERROR',
+          'url': response.requestOptions.uri.replace(query: '').toString(),
+          'model': '$T',
+          'error': error is FormatException
+              ? error.message
+              : error.runtimeType.toString(),
+        });
+      }
       return ServiceResponse<T>.error(
         'The server response was invalid.',
         statusCode: statusCode,
