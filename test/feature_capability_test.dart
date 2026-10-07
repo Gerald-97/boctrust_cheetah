@@ -123,6 +123,32 @@ void main() {
       );
     }
   });
+  test('scan to pay needs Core name enquiry in staging, not remote OCR', () {
+    final requirement = capabilityRequirements[FeatureCapability.scanToPay]!;
+    expect(requirement.operations, {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankNameEnquiry,
+      ),
+    });
+    expect(
+      availabilityFor(
+        requirement,
+        configuredBackends: {ApiBackend.user},
+        staging: true,
+      ),
+      FeatureAvailability.unavailable,
+    );
+    expect(
+      availabilityFor(
+        requirement,
+        configuredBackends: ApiBackend.values.toSet(),
+      ),
+      FeatureAvailability.unavailable,
+    );
+  });
+
   group('transfer authorization readiness', () {
     test('is on in staging builds only', () {
       bool ready({required bool staging}) {

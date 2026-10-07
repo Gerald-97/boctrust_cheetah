@@ -230,8 +230,7 @@ extension SendScreens on FlowPageState {
     section: AppSection.send,
     heading: 'Scan to pay is unavailable',
     message:
-        'Paying with a merchant QR code or payment code is not '
-        'available yet.',
+        'Reading an account from a photo is not available right now.',
   );
 
   /// Checking a PIN is not a transaction contract: without a server-bound

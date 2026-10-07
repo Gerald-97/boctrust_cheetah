@@ -378,14 +378,14 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
-  // Reads an account number from a photo; the number only fills a field.
+  // The photo is read on the device; Core only verifies the recipient name.
   FeatureCapability.scanToPay: CapabilityRequirement(
     stagingOnly: true,
     operations: {
       (
         backend: ApiBackend.core,
         method: 'POST',
-        path: CoreApiEndpoints.snapToPay,
+        path: CoreApiEndpoints.interbankNameEnquiry,
       ),
     },
   ),
