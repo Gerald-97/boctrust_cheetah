@@ -230,4 +230,106 @@ void main() {
     expect(logged, isNot(contains('04512345678')));
     expect(logged, contains('1000.00'));
   });
+  group('a credential-bearing request', () {
+    // Prints everything Logger receives, including error and stack trace,
+    // so nothing the interceptor hands over can hide from the assertion.
+    late List<String> emitted;
+    late LoggingInterceptor staging;
+
+    setUp(() {
+      emitted = [];
+      staging = LoggingInterceptor(
+        includeSensitiveData: true,
+        logger: Logger(
+          filter: ProductionFilter(),
+          printer: _EverythingPrinter(emitted),
+          output: _CapturingOutput(),
+        ),
+      );
+    });
+
+    RequestOptions transfer() => RequestOptions(
+      path: '/me/intrabank/transfers',
+      method: 'POST',
+      data: {
+        'toAccountNumber': '1100037777',
+        'amount': '1000',
+        'nested': {'transactionPin': '0007'},
+      },
+    );
+
+    test('keeps the PIN out of a structured request body', () {
+      staging.onRequest(transfer(), RequestInterceptorHandler());
+      expect(emitted.join(), isNot(contains('0007')));
+    });
+
+    test('never logs a raw error message, error or stack trace in staging', () {
+      final request = transfer();
+      staging.onError(
+        DioException(
+          requestOptions: request,
+          message: 'Bad PIN 0007 for transfer',
+          error: StateError('pin 0007 rejected'),
+          stackTrace: StackTrace.fromString('#0 submit (pin=0007)'),
+          response: Response<Object?>(
+            requestOptions: request,
+            statusCode: 401,
+            data: 'The transaction PIN 0007 is incorrect.',
+          ),
+        ),
+        _SwallowingErrorHandler(),
+      );
+      final logged = emitted.join('\n');
+      expect(logged, contains('401'));
+      expect(logged, isNot(contains('0007')));
+    });
+
+    test('masks a PIN the server echoes in a response', () {
+      final request = transfer();
+      staging.onResponse(
+        Response<Object?>(
+          requestOptions: request,
+          statusCode: 200,
+          data: {'message': 'PIN 0007 accepted'},
+        ),
+        ResponseInterceptorHandler(),
+      );
+      expect(emitted.join(), isNot(contains('0007')));
+    });
+
+    test('an ordinary request still logs its raw error in staging', () {
+      final request = RequestOptions(path: '/me/bank-accounts');
+      staging.onError(
+        DioException(
+          requestOptions: request,
+          message: 'Connection reset by peer',
+        ),
+        _SwallowingErrorHandler(),
+      );
+      expect(emitted.join(), contains('Connection reset by peer'));
+    });
+  });
+}
+
+class _EverythingPrinter extends LogPrinter {
+  _EverythingPrinter(this.sink);
+  final List<String> sink;
+
+  @override
+  List<String> log(LogEvent event) {
+    final lines = [
+      '${event.message}',
+      if (event.error != null) 'error: ${event.error}',
+      if (event.stackTrace != null) 'stack: ${event.stackTrace}',
+    ];
+    sink.addAll(lines);
+    return lines;
+  }
+}
+
+/// Records nothing and lets the error stop here, so a test can call
+/// `onError` without an unhandled future.
+class _SwallowingErrorHandler extends ErrorInterceptorHandler {
+  @override
+  void next(DioException err) {}
 }

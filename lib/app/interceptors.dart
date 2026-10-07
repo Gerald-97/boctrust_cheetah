@@ -46,39 +46,48 @@ class LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     options.extra[_requestStartedAtKey] = DateTime.now().microsecondsSinceEpoch;
-    _logger.i({
-      'event': 'REQUEST',
-      'method': options.method,
-      'url': _urlWithoutQuery(options),
-      'query': _visible(options.queryParameters),
-      'headers': _visible(options.headers),
-      'body': _visible(options.data),
-      'extra': _visible(_requestExtra(options)),
-    });
+    _logger.i(
+      _masked({
+        'event': 'REQUEST',
+        'method': options.method,
+        'url': _urlWithoutQuery(options),
+        'query': _visible(options.queryParameters),
+        'headers': _visible(options.headers),
+        'body': _visible(options.data),
+        'extra': _visible(_requestExtra(options)),
+      }, _credentialValues(options.data)),
+    );
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     final request = response.requestOptions;
-    _logger.i({
-      'event': 'RESPONSE',
-      'method': request.method,
-      'url': _urlWithoutQuery(request),
-      'statusCode': response.statusCode,
-      'statusMessage': response.statusMessage,
-      'durationMs': _durationMilliseconds(request),
-      // 'headers': _visible(response.headers.map),
-      'body': _visible(response.data),
-    });
+    _logger.i(
+      _masked({
+        'event': 'RESPONSE',
+        'method': request.method,
+        'url': _urlWithoutQuery(request),
+        'statusCode': response.statusCode,
+        'statusMessage': response.statusMessage,
+        'durationMs': _durationMilliseconds(request),
+        // 'headers': _visible(response.headers.map),
+        'body': _visible(response.data),
+      }, _credentialValues(request.data)),
+    );
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final request = err.requestOptions;
+    final credentials = _credentialValues(request.data);
+    // A request carrying a PIN or password never hands Logger the raw
+    // exception, in any environment: its message, error or stack trace can
+    // echo the credential as plain text that key-based redaction cannot see.
+    final raw = includeSensitiveData && credentials.isEmpty;
     _logger.e(
-      {
+      _masked({
         'event': 'ERROR',
         'method': request.method,
         'url': _urlWithoutQuery(request),
@@ -86,18 +95,67 @@ class LoggingInterceptor extends Interceptor {
         'statusCode': err.response?.statusCode,
         'durationMs': _durationMilliseconds(request),
         'type': err.type.name,
-        'message': includeSensitiveData
-            ? err.message
-            : 'The API request failed.',
+        'message': raw ? err.message : 'The API request failed.',
         'requestHeaders': _visible(request.headers),
         'requestBody': _visible(request.data),
         // 'responseHeaders': _visible(err.response?.headers.map),
         'responseBody': _visible(err.response?.data),
-      },
-      error: includeSensitiveData ? err.error : err.error?.runtimeType,
-      stackTrace: err.stackTrace,
+      }, credentials),
+      error: raw ? err.error : err.error?.runtimeType,
+      stackTrace: credentials.isEmpty ? err.stackTrace : null,
     );
     handler.next(err);
+  }
+
+  /// Keys whose values are credentials a customer typed.
+  static const _credentialKeyParts = {'password', 'pin'};
+
+  /// The credential values [body] carries, read at log time only so they can
+  /// be masked wherever a server or exception echoes them. Never stored.
+  static Set<String> _credentialValues(Object? body) {
+    final found = <String>{};
+    void visit(Object? value) {
+      if (value is Map) {
+        value.forEach((key, nested) {
+          final keyString = _normalize(key);
+          if (nested is! bool &&
+              nested is! Map &&
+              nested is! Iterable &&
+              nested != null &&
+              _credentialKeyParts.any(keyString.contains)) {
+            final text = nested.toString();
+            if (text.isNotEmpty) found.add(text);
+          } else {
+            visit(nested);
+          }
+        });
+      } else if (value is Iterable) {
+        value.forEach(visit);
+      }
+    }
+
+    visit(body);
+    return found;
+  }
+
+  /// [logged] with every occurrence of [secrets] replaced in its strings.
+  static Object? _masked(Object? logged, Set<String> secrets) {
+    if (secrets.isEmpty) return logged;
+    if (logged is String) {
+      return secrets.fold<String>(
+        logged,
+        (text, secret) => text.replaceAll(secret, '[REDACTED]'),
+      );
+    }
+    if (logged is Map) {
+      return logged.map<Object?, Object?>(
+        (key, value) => MapEntry(key, _masked(value, secrets)),
+      );
+    }
+    if (logged is Iterable) {
+      return logged.map((value) => _masked(value, secrets)).toList();
+    }
+    return logged;
   }
 
   /// Redacted in every environment, including staging. These values are either

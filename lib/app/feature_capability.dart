@@ -406,3 +406,27 @@ final featureAvailabilityProvider =
 extension FeatureAvailabilityX on FeatureAvailability {
   bool get isAvailable => this == FeatureAvailability.available;
 }
+
+/// Whether the recorded Core contract evidence supports sending a transfer
+/// with a transaction PIN. Flip only when every readiness item in
+/// `docs/verification/contracts/2026-10-07-core-pin-status.json` is met:
+/// a stable wrong-PIN discriminator, fixture-confirmed status and outcome
+/// mapping, classified duplicates, credential-safe logging and verified
+/// navigation and session races. Currently blocked on the first two.
+const kTransferAuthorizationEvidenceReady = false;
+
+/// Transfer PIN authorization is never ready outside staging; production
+/// activation is a separate release decision.
+bool transferAuthorizationReady({
+  required bool evidenceReady,
+  required bool staging,
+}) => evidenceReady && staging;
+
+/// Every transfer PIN submit path checks this first. While false, no
+/// PIN-authorized transfer is sent.
+final transferAuthorizationReadyProvider = Provider<bool>(
+  (ref) => transferAuthorizationReady(
+    evidenceReady: kTransferAuthorizationEvidenceReady,
+    staging: ref.watch(stagingModeProvider),
+  ),
+);

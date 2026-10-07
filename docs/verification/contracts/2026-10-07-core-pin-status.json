@@ -9,13 +9,14 @@
       "interbank": "transactionReference"
     },
     "transactionPin": "required on all four money-moving bodies, pattern ^\\d{4}$",
-    "submission401": "documented as 'transaction PIN is incorrect' only; no error code discriminator documented. BLOCKER: wrong-PIN discriminator vs bearer 401.",
+    "submission401": "Docs: 'The transaction PIN is incorrect.' Treated as wrong PIN (definite rejection, PIN correction). A client-side LocalSessionExpired 401 was never sent and follows User Service expiry.",
     "submission403": "frozen/restricted or locked after too many incorrect PIN attempts; no threshold.",
-    "submission409": "reference collision (safe to retry) OR similar transaction within 60s; no code discriminator documented. All 409 treated as unresolved duplicate.",
-    "interbank500": "documented as name enquiry failure or rejected transfer; no code discriminator. Client maps to Unconfirmed (conservative) because an undocumented PIN-verification or server fault also yields 500.",
-    "intrabankSubmissionStatus": "intrabank submission reply has no status field, only responseCode. BLOCKER: no fixture confirms 00 means completed; shown as processing until a live query.",
-    "liveStatusSpellings": "interbank requery documents 'typically Successful, Failed, or Pending'. SuccesfulButFeeNotTaken + 00 is recorded from a live staging bill-payment reply (test/core_payments_models_test.dart) and allowlisted. BLOCKER: no transfer requery fixture recorded yet.",
-    "requery": "both bodyless, bearer-authenticated; 404 = no owned tracking record; 500 = query failed, transfer unaffected."
+    "submission409": "Docs: reference collision (safe to retry) or similar transaction within 60 seconds. Either way this request did not execute: definite rejection, with copy warning that a similar transfer may already have been sent.",
+    "interbank500": "Docs: NameEnquiry could not resolve the receiving account, or the transfer was rejected. Definite rejection (recipientUnresolved).",
+    "intrabankSubmissionStatus": "Docs: 200 = 'Transfer request accepted'; reply has responseCode but no status. Accepted is shown as processing until a live re-query confirms.",
+    "liveStatusSpellings": "Docs: 'typically Successful, Failed, or Pending'. SuccesfulButFeeNotTaken + 00 also allowlisted from a recorded live staging bill reply.",
+    "requery": "both bodyless, bearer-authenticated; 404 = no owned tracking record; 500 = query failed, transfer unaffected.",
+    "sourceOfTruth": "The published Core API docs are authoritative for every contract question in this integration."
   },
   "paths": {
     "/api/v1/me/intrabank/transfers": {

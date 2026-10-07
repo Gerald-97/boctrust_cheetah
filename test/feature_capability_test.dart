@@ -1,6 +1,8 @@
 import 'package:boctrust_savings_loan/app/api_endpoints.dart';
 import 'package:boctrust_savings_loan/app/core_api_endpoints.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
+import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Whether a contract is declared at all, whatever this build configures.
@@ -120,5 +122,29 @@ void main() {
         reason: '$capability needs Core',
       );
     }
+  });
+  group('transfer authorization readiness', () {
+    test('is false by default, even in staging', () {
+      final container = ProviderContainer(
+        overrides: [stagingModeProvider.overrideWithValue(true)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(transferAuthorizationReadyProvider), isFalse);
+    });
+
+    test('production stays unavailable even when evidence is ready', () {
+      expect(
+        transferAuthorizationReady(evidenceReady: true, staging: false),
+        isFalse,
+      );
+      expect(
+        transferAuthorizationReady(evidenceReady: true, staging: true),
+        isTrue,
+      );
+      expect(
+        transferAuthorizationReady(evidenceReady: false, staging: true),
+        isFalse,
+      );
+    });
   });
 }
