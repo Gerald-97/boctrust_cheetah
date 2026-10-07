@@ -321,15 +321,6 @@ extension SavingsScreens on FlowPageState {
         account.productCode,
       if (flex != null) kFlexProductCode,
     };
-    // Core's catalogue when it has one, otherwise the User Service catalogue.
-    // Account opening is out of scope, so unowned products are read-only.
-    final catalogue = (productsState.data?.isNotEmpty ?? false)
-        ? productsState.data!
-        : userCatalogue;
-    final unowned = [
-      for (final product in catalogue)
-        if (!ownedCodes.contains(product.code)) product,
-    ];
     final theme = Theme.of(context);
     return AppScaffold(
       title: 'Save',
@@ -360,6 +351,10 @@ extension SavingsScreens on FlowPageState {
               FlexSavingsTile(
                 title:
                     flex.productName ??
+                    productsState.data
+                        ?.where((p) => p.code == kFlexProductCode)
+                        .firstOrNull
+                        ?.name ??
                     userCatalogue
                         .where((p) => p.code == kFlexProductCode)
                         .firstOrNull
@@ -382,86 +377,175 @@ extension SavingsScreens on FlowPageState {
               const SizedBox(height: BocSpace.sm),
               _coreAccountTile(account, hidden: hidden),
             ],
-            if (unowned.isNotEmpty) ...[
-              const SizedBox(height: BocSpace.lg),
-              Semantics(
-                header: true,
-                child: Text(
-                  'Available products',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              for (final product in unowned) ...[
-                const SizedBox(height: BocSpace.sm),
-                SurfaceCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(product.name, style: theme.textTheme.titleSmall),
-                      if (product.description != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          product.description!,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ],
             const SizedBox(height: BocSpace.lg),
             Semantics(
               header: true,
-              child: Text('Choose a plan', style: theme.textTheme.titleMedium),
-            ),
-            const SizedBox(height: BocSpace.sm),
-            SizedBox(
-              height: 168,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                children: [
-                  for (final (type, icon, description) in const [
-                    (
-                      SavingsProductType.smartSave,
-                      IconsaxPlusLinear.flag,
-                      'Daily, weekly or monthly auto-save toward a goal',
-                    ),
-                    (
-                      SavingsProductType.fixed,
-                      IconsaxPlusLinear.lock,
-                      'Fixed term, higher rate, locked until maturity',
-                    ),
-                    (
-                      SavingsProductType.padi,
-                      IconsaxPlusLinear.profile_2user,
-                      'Save with friends and take turns receiving the pot',
-                    ),
-                  ]) ...[
-                    PlanTypeCard(
-                      title: type.displayName,
-                      description: description,
-                      icon: icon,
-                      accent: _productAccent(type),
-                      container: switch (type) {
-                        SavingsProductType.fixed =>
-                          context.bocColors.fixedContainer,
-                        SavingsProductType.padi =>
-                          context.bocColors.padiContainer,
-                        _ => context.bocColors.smartSaveContainer,
-                      },
-                      onTap: () => _startPlanCreation(type),
-                    ),
-                    const SizedBox(width: BocSpace.sm),
-                  ],
-                ],
+              child: Text(
+                'Savings products',
+                style: theme.textTheme.titleMedium,
               ),
             ),
+            const SizedBox(height: BocSpace.sm),
+            ..._productCatalogue(productsState, ownedCodes),
           ],
         ),
       ),
     );
+  }
+
+  /// The Core product catalogue (`GET /bank-products`) minus products the
+  /// customer already holds (`GET /me/bank-accounts`), with its loading,
+  /// failure and empty states.
+  List<Widget> _productCatalogue(
+    NotifierState<List<CoreBankProduct>> state,
+    Set<String> ownedCodes,
+  ) {
+    final products =
+        state.data ??
+        (state.status == ServiceStatus.empty
+            ? const <CoreBankProduct>[]
+            : null);
+    if (products == null) {
+      return switch (state.status) {
+        ServiceStatus.idle || ServiceStatus.loading => [
+          for (var i = 0; i < 3; i++) ...[
+            if (i > 0) const SizedBox(height: BocSpace.sm),
+            const BankProductSkeleton(),
+          ],
+        ],
+        ServiceStatus.blocked => const [
+          ApiStateCard(
+            title: 'Savings products unavailable',
+            message: 'Savings products are not available right now.',
+            tone: ApiStateTone.blocked,
+          ),
+        ],
+        _ => [
+          ApiStateCard(
+            title: 'Unable to load savings products',
+            message: state.message ?? 'Please try again to load products.',
+            tone: ApiStateTone.warning,
+            actionLabel: 'Retry',
+            onAction: _refreshSavings,
+          ),
+        ],
+      };
+    }
+    final unowned = [
+      for (final product in products)
+        if (!ownedCodes.contains(product.code)) product,
+    ];
+    return [
+      if (state.isError) ...[
+        ApiStateCard(
+          title: 'Refresh failed',
+          message:
+              'Showing previously loaded products. Refresh to check for '
+              'updates.',
+          tone: ApiStateTone.warning,
+          actionLabel: 'Retry',
+          onAction: _refreshSavings,
+        ),
+        const SizedBox(height: BocSpace.sm),
+      ],
+      if (products.isEmpty)
+        SavingsEmptyState(
+          icon: IconsaxPlusLinear.box_search,
+          title: 'No savings products yet',
+          message:
+              'New ways to grow your money will show up here as soon as '
+              'they are available.',
+          actionLabel: 'Refresh',
+          onAction: _refreshSavings,
+        )
+      else if (unowned.isEmpty)
+        const SavingsEmptyState(
+          icon: IconsaxPlusLinear.wallet_money,
+          title: "You're all set",
+          message:
+              'You already hold every savings product we offer. New '
+              'products will appear here.',
+        )
+      else
+        for (final (i, product) in unowned.indexed) ...[
+          if (i > 0) const SizedBox(height: BocSpace.sm),
+          _bankProductCard(product),
+        ],
+    ];
+  }
+
+  /// The wizard behind a catalogue product, or null when the app has none.
+  SavingsProductType? _planTypeFor(CoreBankProduct product) {
+    if (product.isFixedDeposit) return SavingsProductType.fixed;
+    final key = '${product.code} ${product.name}'.toLowerCase();
+    if (key.contains('smart')) return SavingsProductType.smartSave;
+    if (key.contains('padi')) return SavingsProductType.padi;
+    if (key.contains('fixed')) return SavingsProductType.fixed;
+    return null;
+  }
+
+  Widget _bankProductCard(CoreBankProduct product) {
+    final colors = context.bocColors;
+    final type = _planTypeFor(product);
+    final rate = product.interestRate;
+    final days = product.tenureDays;
+    final kind = _productKindLabel(product.discriminator);
+    return BankProductCard(
+      title: product.name,
+      description: product.description,
+      icon: switch (type) {
+        SavingsProductType.smartSave => IconsaxPlusLinear.flag,
+        SavingsProductType.fixed => IconsaxPlusLinear.lock,
+        SavingsProductType.padi => IconsaxPlusLinear.profile_2user,
+        _ => IconsaxPlusLinear.save_2,
+      },
+      accent: type == null ? colors.goldStrong : _productAccent(type),
+      container: switch (type) {
+        SavingsProductType.smartSave => colors.smartSaveContainer,
+        SavingsProductType.fixed => colors.fixedContainer,
+        SavingsProductType.padi => colors.padiContainer,
+        _ => colors.goldPale,
+      },
+      facts: [
+        if (rate != null)
+          (
+            icon: IconsaxPlusLinear.percentage_circle,
+            label: '${_formatRate(rate)}% p.a.',
+          ),
+        if (days != null)
+          (
+            icon: IconsaxPlusLinear.calendar_1,
+            label: days == 1 ? '1-day tenure' : '$days-day tenure',
+          ),
+        if (kind != null) (icon: IconsaxPlusLinear.bank, label: kind),
+      ],
+      onTap: () => type == null
+          ? BocUnavailableSheet.show(
+              context,
+              title: '${product.name} is not available yet',
+            )
+          : _startPlanCreation(type),
+    );
+  }
+
+  /// A published rate as written, without float noise: 7 → "7", 7.5 → "7.5".
+  String _formatRate(num rate) {
+    final fixed = rate.toStringAsFixed(2);
+    return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  /// BankOne's product family in customer words, or null when unknown.
+  String? _productKindLabel(String? discriminator) {
+    if (discriminator == null) return null;
+    return switch (discriminator.toLowerCase().replaceAll(
+      RegExp('[^a-z]'),
+      '',
+    )) {
+      'fixeddeposit' => 'Fixed deposit',
+      'savingsorcurrent' || 'savings' => 'Savings account',
+      'current' => 'Current account',
+      _ => null,
+    };
   }
 
   bool _canCreatePlan(SavingsProductType type) {

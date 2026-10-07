@@ -107,21 +107,29 @@ void main() {
     });
   });
 
-  test('bank products parse names without numeric terms', () {
+  test('bank products parse names and published terms', () {
     final products = CoreBankProduct.listFromJson([
       {
         'code': 'regular_savings',
         'name': 'Regular Savings',
         'description': 'Save regularly.',
-        'interestRate': 7,
+        'interestRate': 7.5,
         'tenure': 30,
+        'productDiscriminator': 'FixedDeposit',
       },
+      {'code': 'flex', 'name': 'Flex', 'interestRate': 'seven', 'tenure': -1},
       {'code': '', 'name': 'Nameless'},
       'nope',
     ]);
 
-    expect(products.single.code, 'regular_savings');
-    expect(products.single.description, 'Save regularly.');
+    expect(products.map((p) => p.code), ['regular_savings', 'flex']);
+    expect(products.first.description, 'Save regularly.');
+    expect(products.first.interestRate, 7.5);
+    expect(products.first.tenureDays, 30);
+    expect(products.first.isFixedDeposit, isTrue);
+    // Terms that are not usable numbers are dropped, not guessed.
+    expect(products.last.interestRate, isNull);
+    expect(products.last.tenureDays, isNull);
     expect(() => products.add(products.first), throwsUnsupportedError);
   });
 }

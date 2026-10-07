@@ -154,7 +154,7 @@ void main() {
     await open(tester, AppRoutes.flexSave);
     await tester.tap(find.byType(BocBackButton));
     await tester.pumpAndSettle();
-    expect(find.text('Choose a plan'), findsOneWidget);
+    expect(find.text('Savings products'), findsOneWidget);
   });
   for (final route in [
     AppRoutes.newSavingsChooser,

@@ -116,71 +116,285 @@ class FlexSavingsTile extends StatelessWidget {
   }
 }
 
-/// A savings product in the "Choose a plan" carousel.
-class PlanTypeCard extends StatelessWidget {
-  const PlanTypeCard({
+/// One Core catalogue product on the Save hub: name, description and the
+/// facts the server published for it, such as rate and tenure.
+class BankProductCard extends StatelessWidget {
+  const BankProductCard({
     required this.title,
-    required this.description,
     required this.icon,
     required this.accent,
     required this.container,
     required this.onTap,
+    this.description,
+    this.facts = const [],
     super.key,
   });
 
   final String title;
-  final String description;
+  final String? description;
   final IconData icon;
   final Color accent;
   final Color container;
+
+  /// Preformatted facts shown as chips under the description.
+  final List<({IconData icon, String label})> facts;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.bocColors;
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 168,
-      child: Material(
-        color: context.bocColors.surface,
-        borderRadius: BorderRadius.circular(BocRadius.md),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(BocSpace.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: container,
-                    borderRadius: BorderRadius.circular(BocRadius.sm),
+    final text = description;
+    return Material(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(BocRadius.md),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(BocSpace.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(BocRadius.md),
+            border: Border.all(color: colors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: container,
+                      borderRadius: BorderRadius.circular(BocRadius.sm),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 44,
+                      child: Icon(icon, color: accent),
+                    ),
                   ),
-                  child: SizedBox.square(
-                    dimension: 40,
-                    child: Icon(icon, color: accent),
+                  const SizedBox(width: BocSpace.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.titleSmall),
+                        if (text != null) ...[
+                          const SizedBox(height: BocSpace.xxs),
+                          Text(
+                            text,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: BocSpace.xs),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Icon(
+                      IconsaxPlusLinear.arrow_right_3,
+                      size: 20,
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+              if (facts.isNotEmpty) ...[
                 const SizedBox(height: BocSpace.sm),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: BocSpace.xxs),
-                Expanded(
-                  child: Text(
-                    description,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall,
-                  ),
+                Wrap(
+                  spacing: BocSpace.xs,
+                  runSpacing: BocSpace.xs,
+                  children: [
+                    for (final fact in facts)
+                      _ProductFactChip(icon: fact.icon, label: fact.label),
+                  ],
                 ),
               ],
-            ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProductFactChip extends StatelessWidget {
+  const _ProductFactChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BocSpace.xs,
+        vertical: BocSpace.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(BocRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: colors.textSecondary),
+          const SizedBox(width: BocSpace.xxs),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: colors.textMain),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Placeholder rows while the product catalogue loads.
+class BankProductSkeleton extends StatelessWidget {
+  const BankProductSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    Widget bar(double width, double height) => Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(BocRadius.xs),
+      ),
+    );
+    return Semantics(
+      label: 'Loading savings products',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.all(BocSpace.md),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(BocRadius.md),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(44, 44),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    bar(140, 14),
+                    const SizedBox(height: BocSpace.xs),
+                    bar(double.infinity, 10),
+                    const SizedBox(height: BocSpace.xxs),
+                    bar(180, 10),
+                    const SizedBox(height: BocSpace.sm),
+                    Row(
+                      children: [
+                        bar(72, 22),
+                        const SizedBox(width: BocSpace.xs),
+                        bar(64, 22),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty state for a section with nothing to list: a soft icon badge, a
+/// title, a short explanation and at most one action.
+class SavingsEmptyState extends StatelessWidget {
+  const SavingsEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    super.key,
+  }) : assert(
+         (actionLabel == null) == (onAction == null),
+         'Provide both actionLabel and onAction, or neither.',
+       );
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final label = actionLabel;
+    final action = onAction;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: BocSpace.lg,
+        vertical: BocSpace.xl,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(BocRadius.md),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.goldPale,
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(BocSpace.xs),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox.square(
+                  dimension: 56,
+                  child: Icon(icon, size: 28, color: colors.goldStrong),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: BocSpace.md),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: BocSpace.xxs),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+          ),
+          if (label != null && action != null) ...[
+            const SizedBox(height: BocSpace.sm),
+            TextButton.icon(
+              onPressed: action,
+              style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+              icon: const Icon(IconsaxPlusLinear.refresh, size: 18),
+              label: Text(label),
+            ),
+          ],
+        ],
       ),
     );
   }

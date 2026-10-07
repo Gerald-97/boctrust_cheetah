@@ -54,19 +54,27 @@ class _Accounts extends CustomerBankAccountsNotifier {
   Future<NotifierState<CustomerBankAccountsData>> load() async => state;
 }
 
+final _catalogue = NotifierState.done(
+  CoreBankProduct.listFromJson([
+    {'code': 'bocFlex', 'name': 'Boc Flex'},
+    {'code': 'regular_savings', 'name': 'Regular Savings'},
+    {
+      'code': 'fixed_deposit',
+      'name': 'Fixed Deposit',
+      'description': 'Lock funds for a fixed term.',
+      'interestRate': 12.5,
+      'tenure': 90,
+      'productDiscriminator': 'FixedDeposit',
+    },
+  ]),
+);
+
 class _Products extends CoreBankProductsNotifier {
+  _Products(this.initial);
+  final NotifierState<List<CoreBankProduct>> initial;
+
   @override
-  NotifierState<List<CoreBankProduct>> build() => NotifierState.done(
-    CoreBankProduct.listFromJson([
-      {'code': 'bocFlex', 'name': 'Boc Flex'},
-      {'code': 'regular_savings', 'name': 'Regular Savings'},
-      {
-        'code': 'fixed_deposit',
-        'name': 'Fixed Deposit',
-        'description': 'Lock funds for a fixed term.',
-      },
-    ]),
-  );
+  NotifierState<List<CoreBankProduct>> build() => initial;
 
   @override
   Future<NotifierState<List<CoreBankProduct>>> load() async => state;
@@ -81,6 +89,7 @@ Future<void> _pump(
   WidgetTester tester,
   String route, {
   required NotifierState<CustomerBankAccountsData> accounts,
+  NotifierState<List<CoreBankProduct>>? products,
 }) async {
   tester.view.physicalSize = const Size(800, 2000);
   tester.view.devicePixelRatio = 1;
@@ -94,7 +103,9 @@ Future<void> _pump(
       userProfileProvider.overrideWith(LayoutProfile.new),
       userHomeProvider.overrideWith(_Home.new),
       customerBankAccountsProvider.overrideWith(() => _Accounts(accounts)),
-      coreBankProductsProvider.overrideWith(_Products.new),
+      coreBankProductsProvider.overrideWith(
+        () => _Products(products ?? _catalogue),
+      ),
     ],
   );
   await tester.pump(const Duration(milliseconds: 300));
@@ -146,5 +157,39 @@ void main() {
     expect(find.text('Frozen'), findsOneWidget);
     expect(find.text('Fixed Deposit'), findsOneWidget);
     expect(find.text('Lock funds for a fixed term.'), findsOneWidget);
+    expect(find.text('12.5% p.a.'), findsOneWidget);
+    expect(find.text('90-day tenure'), findsOneWidget);
+    expect(find.text('Fixed deposit'), findsOneWidget);
+    // Owned products are not offered again, and there is one product list.
+    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.text('Choose a plan'), findsNothing);
+  });
+
+  testWidgets('an empty Core catalogue shows the empty state', (tester) async {
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(_accounts),
+      products: const NotifierState.done(<CoreBankProduct>[]),
+    );
+
+    expect(find.text('No savings products yet'), findsOneWidget);
+    expect(find.text('Refresh'), findsOneWidget);
+  });
+
+  testWidgets('owning every product shows the all-set state', (tester) async {
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(_accounts),
+      products: NotifierState.done(
+        CoreBankProduct.listFromJson([
+          {'code': 'bocFlex', 'name': 'Boc Flex'},
+          {'code': 'regular_savings', 'name': 'Regular Savings'},
+        ]),
+      ),
+    );
+
+    expect(find.text("You're all set"), findsOneWidget);
   });
 }

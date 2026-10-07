@@ -22,11 +22,12 @@ Execution notes: `docs/superpowers/execution/2026-10-02-kyc-core-execution-log.m
 | Data | Authority |
 |---|---|
 | Home wallet balance, Flex balance, owned savings accounts | Core `GET /me/bank-accounts` (active `bocFlex` account, decimal strings) |
-| Savings product names/descriptions | Core `GET /bank-products` (read-only; account opening out of scope) |
+| Savings product catalogue (name, description, rate, tenure, type) | Core `GET /bank-products`, minus products owned in `GET /me/bank-accounts` (read-only; account opening out of scope) |
 | Profile, tier, KYC, dedicated virtual account (Add money) | User Service |
 
-Core `totalAvailableBalance`, `interestRate`, `tenure` and `loanCycle` are JSON
-numbers and are never displayed. There is no runtime fallback from Core to the
+Core `totalAvailableBalance` and `loanCycle` are JSON numbers and are never
+displayed. `interestRate` (percent, labelled per annum pending confirmation) and `tenure` (days) are shown on product
+cards as published facts only and are never used in a calculation. There is no runtime fallback from Core to the
 User Service `flexWallet` balance.
 
 ## Shipped
