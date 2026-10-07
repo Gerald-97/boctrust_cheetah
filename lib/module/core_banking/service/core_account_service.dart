@@ -6,6 +6,7 @@ import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/bank_product_models.dart';
 import '../model/core_account_summary.dart';
+import '../model/core_account_transactions.dart';
 import '../model/customer_bank_account_models.dart';
 
 const _coreUnavailable = 'Account services are not available right now.';
@@ -69,6 +70,33 @@ class CoreAccountService {
       await api.getData<CoreAccountSummary>(
         CoreApiEndpoints.bankAccountSummary(accountNumber),
         parser: CoreAccountSummary.fromJson,
+      ),
+    );
+  }
+
+  /// Live transaction rows for one of the caller's accounts over [range].
+  /// Rows stay untyped until the item schema is published.
+  Future<NotifierState<List<Object?>>> getAccountTransactions(
+    String accountNumber,
+    CoreHistoryRange range, {
+    int numberOfItems = 50,
+    DateTime? today,
+  }) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_coreUnavailable);
+    if (!_accountNumber.hasMatch(accountNumber)) {
+      return const NotifierState.error('Account not found.');
+    }
+    final (:fromDate, :toDate) = range.window(today ?? DateTime.now());
+    return NotifierState.fromResponse(
+      await api.getData<List<Object?>>(
+        CoreApiEndpoints.bankAccountTransactions(accountNumber),
+        queryParameters: {
+          'fromDate': fromDate,
+          'toDate': toDate,
+          'numberOfItems': numberOfItems,
+        },
+        parser: coreTransactionRows,
       ),
     );
   }

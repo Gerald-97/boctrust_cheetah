@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_summary.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
 import 'package:dio/dio.dart';
@@ -72,6 +73,25 @@ void main() {
         '${core.requests.single.method} ${core.requests.single.path}',
         'GET /me/bank-accounts/1100919408/summary',
       );
+    });
+  });
+
+  test('transactions request the documented window and item count', () async {
+    final core = _Core({'accountNumber': '1100919408', 'transactions': []});
+    final service = _service(core);
+
+    await service.getAccountTransactions(
+      '1100919408',
+      CoreHistoryRange.last30Days,
+      today: DateTime(2026, 10, 7),
+    );
+
+    final request = core.requests.single;
+    expect(request.path, '/me/bank-accounts/1100919408/transactions');
+    expect(request.queryParameters, {
+      'fromDate': '07-09-2026',
+      'toDate': '07-10-2026',
+      'numberOfItems': 50,
     });
   });
 }

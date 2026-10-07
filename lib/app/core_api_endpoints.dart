@@ -16,6 +16,12 @@ abstract final class CoreApiEndpoints {
   static const bankAccountSummaryTemplate =
       '$bankAccounts/{accountNumber}/summary';
 
+  /// Live transaction history of one of the caller's accounts.
+  static String bankAccountTransactions(String accountNumber) =>
+      '${bankAccount(accountNumber)}/transactions';
+  static const bankAccountTransactionsTemplate =
+      '$bankAccounts/{accountNumber}/transactions';
+
   static const ownAccountTransfer = '/me/intrabank/transfers/own';
 
   /// Product account → BocFlex.
