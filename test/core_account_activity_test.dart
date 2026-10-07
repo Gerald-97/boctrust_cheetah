@@ -44,7 +44,9 @@ CoreAccountService _service(_Core core) => CoreAccountService(
 
 void main() {
   group('summary', () {
-    test('parses numeric balances to exact strings and drops customerId', () {
+    // Live staging (7 October 2026): the list's "99,864.50" came back here
+    // as ledgerBalance 9986450, so these numbers are Kobo.
+    test('reads Kobo balances as Naira and drops customerId', () {
       final summary = CoreAccountSummary.fromJson({
         'accountNumber': '1100919408',
         'customerId': 'C1',
@@ -52,11 +54,11 @@ void main() {
         'product': 'Boc Flex',
         'branch': 'HQ',
         'accountStatus': 'active',
-        'availableBalance': 7654.3,
-        'ledgerBalance': 100,
+        'availableBalance': 765430,
+        'ledgerBalance': 9986450,
       });
       expect(summary.availableBalance, '7654.30');
-      expect(summary.ledgerBalance, '100.00');
+      expect(summary.ledgerBalance, '99864.50');
       expect(summary.status, CoreAccountStatus.active);
       expect(summary.props, isNot(contains('C1')));
     });

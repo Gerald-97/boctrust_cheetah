@@ -1,7 +1,17 @@
 import 'package:equatable/equatable.dart';
 
 import 'core_json.dart';
+import 'core_money.dart';
 import 'customer_bank_account_models.dart';
+
+/// A whole, non-negative Kobo number as a Naira decimal string, else null.
+///
+/// The docs only say "number"; live staging showed the summary's balances
+/// are Kobo (the account list's "99,864.50" arrived as 9986450).
+String? _koboToNaira(Object? value) =>
+    value is num && value >= 0 && value == value.roundToDouble()
+    ? koboToNaira('${value.toInt()}')
+    : null;
 
 /// A live BankOne summary of one of the customer's accounts. The internal
 /// `customerId` in the reply is deliberately not kept.
@@ -30,8 +40,8 @@ class CoreAccountSummary extends Equatable {
       name: coreText(json['name']),
       product: coreText(json['product']),
       branch: coreText(json['branch']),
-      availableBalance: coreAmount(json['availableBalance']),
-      ledgerBalance: coreAmount(json['ledgerBalance']),
+      availableBalance: _koboToNaira(json['availableBalance']),
+      ledgerBalance: _koboToNaira(json['ledgerBalance']),
     );
   }
 
@@ -41,7 +51,7 @@ class CoreAccountSummary extends Equatable {
   final String? product;
   final String? branch;
 
-  /// Exact decimal strings in Naira, or null when not returned.
+  /// Naira decimal strings converted from the reply's Kobo, or null.
   final String? availableBalance;
   final String? ledgerBalance;
 
