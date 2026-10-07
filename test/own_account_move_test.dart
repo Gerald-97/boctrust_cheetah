@@ -60,6 +60,7 @@ void main() {
         amountKobo: '150000',
         narration: '  Rent  ',
       ),
+      transactionPin: '0007',
     );
     await service.moveBetweenOwnAccounts(
       const OwnAccountMoveDraft(
@@ -67,6 +68,7 @@ void main() {
         productCode: 'bocSmartSave',
         amountKobo: '100',
       ),
+      transactionPin: '0123',
     );
 
     expect(
@@ -78,11 +80,13 @@ void main() {
       'toProductCode': 'bocSmartSave',
       'amount': '150000',
       'narration': 'Rent',
+      'transactionPin': '0007',
     });
     expect(recorder.requests[1].path, '/me/intrabank/withdrawals');
     expect(recorder.requests[1].data, {
       'fromProductCode': 'bocSmartSave',
       'amount': '100',
+      'transactionPin': '0123',
     });
   });
 

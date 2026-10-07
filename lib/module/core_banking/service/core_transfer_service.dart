@@ -13,8 +13,10 @@ final coreTransferServiceProvider = Provider<CoreTransferService>(
   (ref) => CoreTransferService(ref.watch(coreApiServiceProvider)),
 );
 
-/// Core transfers. Each money-moving method sends exactly one POST and never
-/// retries; the caller classifies the result with `mapCoreSubmission`.
+/// Core transfers. Each money-moving method sends exactly one POST with the
+/// customer's transaction PIN and never retries; the caller classifies the
+/// result with `mapCoreTransferSubmission`. The PIN is used only for that
+/// request body and never kept.
 class CoreTransferService {
   const CoreTransferService(this._api);
   final ApiService? _api;
@@ -26,40 +28,43 @@ class CoreTransferService {
   );
 
   Future<ServiceResponse<CoreTransferAck>> moveBetweenOwnAccounts(
-    OwnAccountMoveDraft draft,
-  ) async {
+    OwnAccountMoveDraft draft, {
+    required String transactionPin,
+  }) async {
     final api = _api;
     if (api == null) return _unconfigured;
     return api.postData<CoreTransferAck>(
       draft.direction == OwnAccountDirection.toSavings
           ? CoreApiEndpoints.ownAccountTransfer
           : CoreApiEndpoints.intrabankWithdrawals,
-      data: draft.toJson(),
+      data: {...draft.toJson(), 'transactionPin': transactionPin},
       parser: CoreTransferAck.fromJson,
     );
   }
 
   Future<ServiceResponse<CoreTransferAck>> transferToBoctrust(
-    BoctrustTransferDraft draft,
-  ) async {
+    BoctrustTransferDraft draft, {
+    required String transactionPin,
+  }) async {
     final api = _api;
     if (api == null) return _unconfigured;
     return api.postData<CoreTransferAck>(
       CoreApiEndpoints.intrabankTransfers,
-      data: draft.toJson(),
+      data: {...draft.toJson(), 'transactionPin': transactionPin},
       parser: CoreTransferAck.fromJson,
     );
   }
 
-  /// Classify with `mapCoreSubmission(response, interbank: true)`.
+  /// Classify with `mapCoreTransferSubmission(response, interbank: true)`.
   Future<ServiceResponse<CoreTransferAck>> transferToOtherBank(
-    InterbankTransferDraft draft,
-  ) async {
+    InterbankTransferDraft draft, {
+    required String transactionPin,
+  }) async {
     final api = _api;
     if (api == null) return _unconfigured;
     return api.postData<CoreTransferAck>(
       CoreApiEndpoints.interbankTransfers,
-      data: draft.toJson(),
+      data: {...draft.toJson(), 'transactionPin': transactionPin},
       parser: CoreTransferAck.fromJson,
     );
   }

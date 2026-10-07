@@ -1,11 +1,8 @@
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/beneficiary_models.dart';
-import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
-import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_payments_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_beneficiary_service.dart';
-import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,19 +10,6 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/savings_fixtures.dart';
-
-class _Transfers extends CoreTransferService {
-  _Transfers() : super(ApiService(Dio()));
-  int sent = 0;
-
-  @override
-  Future<ServiceResponse<CoreTransferAck>> transferToOtherBank(
-    InterbankTransferDraft draft,
-  ) async {
-    sent++;
-    return const ServiceResponse(status: ServiceStatus.error, statusCode: 500);
-  }
-}
 
 const _ada = Beneficiary(
   id: 'b1',
@@ -61,32 +45,7 @@ ProviderContainer _container(List<Override> overrides) {
   return container;
 }
 
-const _draft = InterbankTransferDraft(
-  bankCode: '000014',
-  bankName: 'Zenith',
-  accountNumber: '0123456789',
-  accountName: 'ADA OBI',
-  amountKobo: '5000',
-);
-
 void main() {
-  test('an interbank 500 is a rejection the customer may retry', () async {
-    final transfers = _Transfers();
-    final container = _container([
-      coreTransferServiceProvider.overrideWithValue(transfers),
-    ]);
-    final notifier = container.read(interbankTransferProvider.notifier);
-
-    await notifier.submit(_draft);
-    expect(
-      container.read(interbankTransferProvider).outcome,
-      const RejectedSubmission(CoreRejection.recipientUnresolved),
-    );
-    notifier.reset();
-    await notifier.submit(_draft);
-    expect(transfers.sent, 2);
-  });
-
   test('beneficiaries change only after Core confirms', () async {
     final service = _Beneficiaries();
     final container = _container([

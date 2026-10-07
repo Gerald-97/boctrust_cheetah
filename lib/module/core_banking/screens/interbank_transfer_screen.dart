@@ -10,15 +10,15 @@ import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/core_money.dart';
-import '../model/core_submission_models.dart';
 import '../model/interbank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
-import '../service/core_transfer_service.dart';
+import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'core_transfer_attempt_view.dart';
 
-enum _Step { recipient, amount, review, result }
+enum _Step { recipient, amount, review }
 
 final _tenDigits = RegExp(r'^\d{10}$');
 
@@ -52,9 +52,6 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
   String? _resolveError;
   int _lookup = 0;
   InterbankTransferDraft? _draft;
-  InterbankTransferStatus? _status;
-  bool _checkingStatus = false;
-  String? _statusError;
 
   bool get _beneficiaries => ref
       .watch(featureAvailabilityProvider(FeatureCapability.beneficiaries))
@@ -65,7 +62,6 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(interbankTransferProvider.notifier).clear();
       for (final notifier in <SessionScopedNotifier<Object?>>[
         ref.read(interbankBanksProvider.notifier),
         ref.read(customerBankAccountsProvider.notifier),
@@ -138,13 +134,24 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     unawaited(_resolve());
   }
 
+  /// An empty form, after an unresolved transfer is set aside.
+  void _startDifferent() {
+    for (final controller in [_account, _amount, _narration]) {
+      controller.clear();
+    }
+    _changeRecipient(() {
+      _bank = null;
+      _step = _Step.recipient;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final submission = ref.watch(interbankTransferProvider);
+    final attempt = ref.watch(coreTransferAttemptProvider).current;
     return AppScaffold(
       title: 'To another bank',
       activeSection: AppSection.send,
-      onBack: switch (_step) {
+      onBack: switch (showsAttempt(attempt) ? null : _step) {
         _Step.amount => () => setState(() => _step = _Step.recipient),
         _Step.review => () => setState(() => _step = _Step.amount),
         _ => widget.onExit,
@@ -157,38 +164,20 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           BocSpace.gutter,
           BocSpace.lg,
         ).clearOfNav(context),
-        children: switch (_step) {
-          _Step.recipient => _recipientStep(),
-          _Step.amount => _amountStep(),
-          _Step.review => _review(),
-          _Step.result => [
-            CoreSubmissionResult(
-              inFlight: submission.inFlight,
-              outcome: submission.outcome,
-              noun: 'Transfer',
-              onDone: widget.onExit,
-              onChangeDetails: () {
-                ref.read(interbankTransferProvider.notifier).reset();
-                setState(() => _step = _Step.recipient);
+        children: showsAttempt(attempt)
+            ? [
+                CoreTransferAttemptView(
+                  attempt: attempt!,
+                  onExit: widget.onExit,
+                  onEditDetails: () => setState(() => _step = _Step.recipient),
+                  onStartDifferent: _startDifferent,
+                ),
+              ]
+            : switch (_step) {
+                _Step.recipient => _recipientStep(),
+                _Step.amount => _amountStep(),
+                _Step.review => _review(),
               },
-              amount: _draft == null ? null : nairaFromKobo(_draft!.amountKobo),
-              details: [
-                if (_draft case final draft?) ...[
-                  (label: 'To', value: draft.accountName),
-                  (label: 'Bank', value: draft.bankName),
-                  (label: 'Account number', value: draft.accountNumber),
-                ],
-              ],
-              // Interbank success comes only from the status read.
-              trustResponseCode: false,
-              acceptedOverride: _statusOverride(),
-              acceptedExtra: switch (submission.outcome) {
-                AcceptedSubmission(:final ack) => _afterAccepted(ack),
-                _ => const [],
-              },
-            ),
-          ],
-        },
       ),
     );
   }
@@ -340,117 +329,15 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     ];
   }
 
-  Future<void> _confirm(InterbankTransferDraft draft, String amount) async {
-    final authorized = await authorizeCoreTransaction(
-      context,
-      ref,
-      TransactionSummary(
-        title: 'Send to ${draft.accountName}',
-        amountDisplay: amount,
-        lines: [('Bank', draft.bankName), ('Account', draft.accountNumber)],
-      ),
-    );
-    if (!authorized || !mounted) return;
-    setState(() {
-      _step = _Step.result;
-      _status = null;
-      _statusError = null;
-    });
-    await ref.read(interbankTransferProvider.notifier).submit(draft);
-    if (!mounted) return;
-    unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-  }
-
-  Future<void> _checkStatus(String reference) async {
-    setState(() {
-      _checkingStatus = true;
-      _statusError = null;
-    });
-    final result = await ref
-        .read(coreTransferServiceProvider)
-        .getTransferStatus(reference);
-    if (!mounted) return;
-    setState(() {
-      _checkingStatus = false;
-      _status = result.data ?? _status;
-      _statusError = result.data == null
-          ? result.message ?? 'We could not check this transfer.'
-          : null;
-    });
-    if (result.data?.state == InterbankTransferState.completed) {
-      unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-    }
-  }
-
-  /// The checked status, which replaces the reply's own once known.
-  CoreResultOverride? _statusOverride() {
-    final status = _status;
-    if (status == null) return null;
-    return switch (status.state) {
-      InterbankTransferState.completed => (
-        kind: BocStatusKind.success,
-        title: 'Transfer successful',
-        message: status.message ?? 'The money has reached the receiving bank.',
-      ),
-      InterbankTransferState.failed => (
-        kind: BocStatusKind.failed,
-        title: 'Transfer failed',
-        message:
-            status.message ??
-            'The receiving bank did not accept this transfer.',
-      ),
-      InterbankTransferState.pending => (
-        kind: BocStatusKind.pending,
-        title: 'Transfer processing',
-        message: status.message ?? 'Check again in a moment.',
-      ),
-      InterbankTransferState.unknown => (
-        kind: BocStatusKind.pending,
-        title: 'Status not recognised',
-        message: status.message ?? 'Check your balance before trying again.',
-      ),
-    };
-  }
-
-  List<Widget> _afterAccepted(CoreTransferAck ack) {
-    final reference = ack.reference;
-    final draft = _draft;
-    final status = _status;
-    final alreadySaved =
-        draft == null ||
-        (ref.watch(beneficiariesProvider).data ?? const <Beneficiary>[]).any(
-          (b) =>
-              b.bankCode == draft.bankCode && b.number == draft.accountNumber,
-        );
-    return [
-      const SizedBox(height: BocSpace.md),
-      if (reference == null)
-        const ApiStateCard(
-          title: 'Status unavailable',
-          message:
-              'No reference was returned, so this transfer cannot be '
-              'tracked here. Check your balance shortly.',
-          tone: ApiStateTone.info,
-        )
-      else ...[
-        if (_statusError != null) FieldError(_statusError!),
-        if (status == null ||
-            status.state == InterbankTransferState.pending ||
-            status.state == InterbankTransferState.unknown)
-          SecondaryButton(
-            label: _checkingStatus ? 'Checking…' : 'Check status',
-            onPressed: _checkingStatus ? null : () => _checkStatus(reference),
-          ),
-      ],
-      if (_beneficiaries && !alreadySaved) ...[
-        const SizedBox(height: BocSpace.sm),
-        SaveBeneficiaryButton(
-          body: bankBeneficiaryRequest(
-            bankCode: draft.bankCode,
-            number: draft.accountNumber,
-          ),
+  Future<void> _confirm(InterbankTransferDraft draft, String amount) =>
+      authorizeAndSubmitTransfer(
+        context,
+        ref,
+        draft: draft,
+        summary: TransactionSummary(
+          title: 'Send to ${draft.accountName}',
+          amountDisplay: amount,
+          lines: [('Bank', draft.bankName), ('Account', draft.accountNumber)],
         ),
-      ],
-    ];
-  }
+      );
 }

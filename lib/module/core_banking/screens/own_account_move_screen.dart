@@ -11,11 +11,12 @@ import '../model/core_money.dart';
 import '../model/customer_bank_account_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
-import '../provider/intrabank_submission_providers.dart';
+import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'core_transfer_attempt_view.dart';
 
-enum _MoveStep { form, review, result }
+enum _MoveStep { form, review }
 
 /// Moves money between BocFlex and one of the customer's savings product
 /// accounts. Only the directions whose capability is available are offered,
@@ -50,10 +51,8 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     for (final controller in [_amount, _narration]) {
       controller.addListener(() => setState(() {}));
     }
-    // A previous visit's result must never show on a new move.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(ownAccountMoveProvider.notifier).clear();
       unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
     });
   }
@@ -82,8 +81,18 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     _step = _MoveStep.form;
   });
 
+  /// An empty form, after an unresolved transfer is set aside.
+  void _startDifferent() => setState(() {
+    _amount.clear();
+    _narration.clear();
+    _productCode = null;
+    _draft = null;
+    _step = _MoveStep.form;
+  });
+
   @override
   Widget build(BuildContext context) {
+    final attempt = ref.watch(coreTransferAttemptProvider).current;
     final accountsState = ref.watch(customerBankAccountsProvider);
     final accounts = accountsState.data;
     final flex = accounts?.activeFlexAccount;
@@ -103,10 +112,9 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
     return AppScaffold(
       title: 'Between my accounts',
       activeSection: AppSection.send,
-      onBack: switch (_step) {
-        _MoveStep.review => () => setState(() => _step = _MoveStep.form),
-        _ => widget.onExit,
-      },
+      onBack: _step == _MoveStep.review && !showsAttempt(attempt)
+          ? () => setState(() => _step = _MoveStep.form)
+          : widget.onExit,
       onSectionSelected: widget.onSectionSelected,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -116,7 +124,14 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
-          if (accounts == null && accountsState.isError)
+          if (showsAttempt(attempt))
+            CoreTransferAttemptView(
+              attempt: attempt!,
+              onExit: widget.onExit,
+              onEditDetails: () => setState(() => _step = _MoveStep.form),
+              onStartDifferent: _startDifferent,
+            )
+          else if (accounts == null && accountsState.isError)
             ApiStateCard(
               title: 'Accounts unavailable',
               message:
@@ -139,7 +154,6 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
             ...switch (_step) {
               _MoveStep.form => _form(directions, direction, flex, products),
               _MoveStep.review => _review(flex, product),
-              _MoveStep.result => _result(),
             },
         ],
       ),
@@ -263,47 +277,5 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
   Future<void> _confirm(
     OwnAccountMoveDraft draft,
     TransactionSummary summary,
-  ) async {
-    final authorized = await authorizeCoreTransaction(context, ref, summary);
-    if (!authorized || !mounted) return;
-    setState(() => _step = _MoveStep.result);
-    await ref.read(ownAccountMoveProvider.notifier).submit(draft);
-    if (!mounted) return;
-    // Balances come from Core only; never subtract locally.
-    unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-  }
-
-  List<Widget> _result() {
-    final state = ref.watch(ownAccountMoveProvider);
-    return [
-      CoreSubmissionResult(
-        inFlight: state.inFlight,
-        outcome: state.outcome,
-        noun: 'Transfer',
-        amount: _draft == null ? null : nairaFromKobo(_draft!.amountKobo),
-        details: [
-          if (_draft case final draft?)
-            (
-              label: draft.direction == OwnAccountDirection.toSavings
-                  ? 'To'
-                  : 'From',
-              value:
-                  ref
-                      .watch(customerBankAccountsProvider)
-                      .data
-                      ?.accounts
-                      .where((a) => a.productCode == draft.productCode)
-                      .firstOrNull
-                      ?.productName ??
-                  draft.productCode,
-            ),
-        ],
-        onDone: widget.onExit,
-        onChangeDetails: () {
-          ref.read(ownAccountMoveProvider.notifier).reset();
-          setState(() => _step = _MoveStep.form);
-        },
-      ),
-    ];
-  }
+  ) => authorizeAndSubmitTransfer(context, ref, draft: draft, summary: summary);
 }

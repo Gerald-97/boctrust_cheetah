@@ -76,6 +76,7 @@ void main() {
         toAccountNumber: '1100037777',
         amountKobo: '1',
       ),
+      transactionPin: '0007',
     );
     final sent = await service.transferToOtherBank(
       const InterbankTransferDraft(
@@ -85,6 +86,7 @@ void main() {
         accountName: 'ADA OBI',
         amountKobo: '5000',
       ),
+      transactionPin: '0007',
     );
     final status = await service.getTransferStatus(sent.data!.reference!);
 
@@ -103,7 +105,9 @@ void main() {
     expect(core.requests[2].data, {
       'toAccountNumber': '1100037777',
       'amount': '1',
+      'transactionPin': '0007',
     });
+    expect(core.requests[3].data, containsPair('transactionPin', '0007'));
   });
 
   test('bill catalogues and payment', () async {

@@ -9,7 +9,6 @@ import '../model/beneficiary_models.dart';
 import '../model/bill_models.dart';
 import '../model/core_submission_models.dart';
 import '../model/interbank_models.dart';
-import '../model/intrabank_models.dart';
 import '../service/core_beneficiary_service.dart';
 import '../service/core_bill_service.dart';
 import '../service/core_transfer_service.dart';
@@ -135,36 +134,8 @@ class BeneficiariesNotifier extends SessionScopedNotifier<List<Beneficiary>> {
   }
 }
 
-// Money movement: one POST per draft, never retried automatically.
-
-final boctrustTransferProvider =
-    NotifierProvider<
-      BoctrustTransferNotifier,
-      CoreSubmissionState<BoctrustTransferDraft>
-    >(BoctrustTransferNotifier.new);
-
-class BoctrustTransferNotifier
-    extends CoreSubmissionNotifier<BoctrustTransferDraft> {
-  @override
-  Future<ServiceResponse<CoreTransferAck>> send(BoctrustTransferDraft draft) =>
-      ref.read(coreTransferServiceProvider).transferToBoctrust(draft);
-}
-
-final interbankTransferProvider =
-    NotifierProvider<
-      InterbankTransferNotifier,
-      CoreSubmissionState<InterbankTransferDraft>
-    >(InterbankTransferNotifier.new);
-
-class InterbankTransferNotifier
-    extends CoreSubmissionNotifier<InterbankTransferDraft> {
-  @override
-  bool get interbank => true;
-
-  @override
-  Future<ServiceResponse<CoreTransferAck>> send(InterbankTransferDraft draft) =>
-      ref.read(coreTransferServiceProvider).transferToOtherBank(draft);
-}
+// Bill payments: one POST per draft, never retried automatically. Transfers
+// go through `coreTransferAttemptProvider`.
 
 final billPaymentProvider =
     NotifierProvider<

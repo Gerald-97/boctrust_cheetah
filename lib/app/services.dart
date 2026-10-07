@@ -110,6 +110,10 @@ class ApiMeta extends Equatable {
   List<Object?> get props => [requestId, correlationId, extra];
 }
 
+/// `errorCode` of a request the client refused to send because the local
+/// session had already expired. Nothing reached the server.
+const kLocalSessionExpiredCode = 'local_session_expired';
+
 class ServiceResponse<T> extends Equatable {
   const ServiceResponse({
     required this.status,

@@ -106,6 +106,16 @@ enum CoreRejection {
   accountRestricted('Your account is restricted. Please contact support.'),
   accountMissing('This account is not available.'),
   referenceCollision('Something went wrong. You can try again.'),
+  wrongPin('That PIN is incorrect. Please try again.'),
+  transferRestricted(
+    'Transfers are restricted on this account, or it was locked after too '
+    'many incorrect PIN attempts. Please contact support.',
+  ),
+  possibleDuplicate(
+    'A similar transfer was sent moments ago, so this one was not sent. '
+    'Check your balance before sending again.',
+  ),
+  sessionExpired('Your session has expired. Please sign in again.'),
   recipientUnresolved(
     "We couldn't verify the receiving account. Check the details and try "
     'again.',
@@ -189,5 +199,29 @@ CoreSubmissionOutcome mapCoreSubmission(
     ),
     // No status, a server fault, or a 2xx that could not be read.
     _ => const UnknownSubmission(),
+  };
+}
+
+/// Classifies a transfer or withdrawal response by the Core docs, which say
+/// of these POSTs: 401 is an incorrect transaction PIN, 403 a restricted or
+/// PIN-locked account, and 409 a reference collision or a similar transfer
+/// within 60 seconds; none of them moved money. A 401 the client produced
+/// itself for an expired session was never sent.
+CoreSubmissionOutcome mapCoreTransferSubmission(
+  ServiceResponse<CoreTransferAck> response, {
+  bool interbank = false,
+}) {
+  if (response.status == ServiceStatus.success) {
+    return mapCoreSubmission(response, interbank: interbank);
+  }
+  return switch (response.statusCode) {
+    401 => RejectedSubmission(
+      response.errorCode == kLocalSessionExpiredCode
+          ? CoreRejection.sessionExpired
+          : CoreRejection.wrongPin,
+    ),
+    403 => const RejectedSubmission(CoreRejection.transferRestricted),
+    409 => const RejectedSubmission(CoreRejection.possibleDuplicate),
+    _ => mapCoreSubmission(response, interbank: interbank),
   };
 }

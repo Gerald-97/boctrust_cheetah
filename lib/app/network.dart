@@ -179,6 +179,7 @@ class ApiService {
       return ServiceResponse<T>.error(
         'Your session has expired. Please sign in again.',
         statusCode: 401,
+        errorCode: kLocalSessionExpiredCode,
         noAuth: noAuth,
       );
     }

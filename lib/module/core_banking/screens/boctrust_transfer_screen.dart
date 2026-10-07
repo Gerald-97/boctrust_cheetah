@@ -8,11 +8,12 @@ import '../../app_flow/app_ui.dart';
 import '../model/core_money.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
-import '../provider/core_payments_providers.dart';
+import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'core_transfer_attempt_view.dart';
 
-enum _Step { form, review, result }
+enum _Step { form, review }
 
 final _tenDigits = RegExp(r'^\d{10}$');
 
@@ -47,7 +48,6 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(boctrustTransferProvider.notifier).clear();
       unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
     });
   }
@@ -65,15 +65,25 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     _step = _Step.form;
   });
 
+  /// An empty form, after an unresolved transfer is set aside.
+  void _startDifferent() => setState(() {
+    for (final controller in [_account, _amount, _narration]) {
+      controller.clear();
+    }
+    _draft = null;
+    _step = _Step.form;
+  });
+
   @override
   Widget build(BuildContext context) {
+    final attempt = ref.watch(coreTransferAttemptProvider).current;
     final accountsState = ref.watch(customerBankAccountsProvider);
     final accounts = accountsState.data;
     final flex = accounts?.activeFlexAccount;
     return AppScaffold(
       title: 'To a BOCTRUST account',
       activeSection: AppSection.send,
-      onBack: _step == _Step.review
+      onBack: _step == _Step.review && !showsAttempt(attempt)
           ? () => setState(() => _step = _Step.form)
           : widget.onExit,
       onSectionSelected: widget.onSectionSelected,
@@ -85,7 +95,14 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
-          if (flex == null)
+          if (showsAttempt(attempt))
+            CoreTransferAttemptView(
+              attempt: attempt!,
+              onExit: widget.onExit,
+              onEditDetails: () => setState(() => _step = _Step.form),
+              onStartDifferent: _startDifferent,
+            )
+          else if (flex == null)
             accountsState.isLoading ||
                     accounts == null && !accountsState.isError
                 ? const ApiLoadingSection(label: 'Loading your account')
@@ -100,30 +117,6 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
                 for (final a in accounts!.accounts) a.accountNumber,
               }),
               _Step.review => _review(),
-              _Step.result => [
-                CoreSubmissionResult(
-                  inFlight: ref.watch(boctrustTransferProvider).inFlight,
-                  outcome: ref.watch(boctrustTransferProvider).outcome,
-                  noun: 'Transfer',
-                  amount: _draft == null
-                      ? null
-                      : nairaFromKobo(_draft!.amountKobo),
-                  details: [
-                    if (_draft case final draft?) ...[
-                      (label: 'Bank', value: 'BOCTRUST'),
-                      (
-                        label: 'Account number',
-                        value: maskNumber(draft.toAccountNumber),
-                      ),
-                    ],
-                  ],
-                  onDone: widget.onExit,
-                  onChangeDetails: () {
-                    ref.read(boctrustTransferProvider.notifier).reset();
-                    setState(() => _step = _Step.form);
-                  },
-                ),
-              ],
             },
         ],
       ),
@@ -211,20 +204,15 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     ];
   }
 
-  Future<void> _confirm(BoctrustTransferDraft draft, String amount) async {
-    final authorized = await authorizeCoreTransaction(
-      context,
-      ref,
-      TransactionSummary(
-        title: 'Send to BOCTRUST account',
-        amountDisplay: amount,
-        lines: [('To', maskNumber(draft.toAccountNumber))],
-      ),
-    );
-    if (!authorized || !mounted) return;
-    setState(() => _step = _Step.result);
-    await ref.read(boctrustTransferProvider.notifier).submit(draft);
-    if (!mounted) return;
-    unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-  }
+  Future<void> _confirm(BoctrustTransferDraft draft, String amount) =>
+      authorizeAndSubmitTransfer(
+        context,
+        ref,
+        draft: draft,
+        summary: TransactionSummary(
+          title: 'Send to BOCTRUST account',
+          amountDisplay: amount,
+          lines: [('To', maskNumber(draft.toAccountNumber))],
+        ),
+      );
 }
