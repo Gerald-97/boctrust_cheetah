@@ -173,11 +173,14 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
                   onStartDifferent: _startDifferent,
                 ),
               ]
-            : switch (_step) {
-                _Step.recipient => _recipientStep(),
-                _Step.amount => _amountStep(),
-                _Step.review => _review(),
-              },
+            : [
+                const SetAsideTransfers(),
+                ...switch (_step) {
+                  _Step.recipient => _recipientStep(),
+                  _Step.amount => _amountStep(),
+                  _Step.review => _review(),
+                },
+              ],
       ),
     );
   }

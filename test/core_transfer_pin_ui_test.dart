@@ -132,6 +132,7 @@ void main() {
     await tester.tap(find.text('Start anyway'));
     await _settle(tester);
     expect(find.text('Who are you sending to?'), findsOneWidget);
+    expect(find.text('Earlier transfer not confirmed'), findsOneWidget);
     expect(transfers.pins, ['0007']);
   });
 }

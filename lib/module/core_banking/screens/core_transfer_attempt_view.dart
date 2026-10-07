@@ -8,6 +8,7 @@ import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/core_submission_models.dart';
+import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
@@ -108,24 +109,59 @@ class CoreTransferAttemptView extends ConsumerWidget {
         );
       case AcceptedSubmission(:final ack):
         final reference = ack.displayReference;
+        final (kind, title, message) = switch (attempt.live?.state) {
+          CoreLiveState.completed => (
+            BocStatusKind.success,
+            'Transfer successful',
+            'Your balance will update shortly.',
+          ),
+          CoreLiveState.failed => (
+            BocStatusKind.failed,
+            'Transfer failed',
+            'This transfer did not go through. If your balance changed, '
+                'contact support with the reference below.',
+          ),
+          CoreLiveState.reversed => (
+            BocStatusKind.failed,
+            'Transfer reversed',
+            'This transfer was reversed and the money returned to your '
+                'account.',
+          ),
+          CoreLiveState.unknown => (
+            BocStatusKind.pending,
+            'Transfer not confirmed',
+            "We couldn't confirm this transfer. Check your balance before "
+                'trying again.',
+          ),
+          CoreLiveState.pending || null => (
+            BocStatusKind.pending,
+            'Transfer processing',
+            "We're waiting for confirmation. Check your balance shortly "
+                'before trying again.',
+          ),
+        };
         return TransactionResultView(
-          kind: BocStatusKind.pending,
-          title: 'Transfer processing',
-          message:
-              "We're waiting for confirmation. Check your balance shortly "
-              'before trying again.',
+          kind: kind,
+          title: title,
+          message: message,
           amount: amount,
           details: [
             ...details,
             if (reference != null) (label: 'Reference', value: reference),
           ],
           extra: [
+            ..._checkStatus(ref),
             ..._saveBeneficiary(ref),
-            const SizedBox(height: BocSpace.sm),
-            _startDifferent(context, ref),
+            if (attempt.unresolved) ...[
+              const SizedBox(height: BocSpace.sm),
+              _startDifferent(context, ref),
+            ],
           ],
           primaryLabel: 'Done',
-          onPrimary: onExit,
+          onPrimary: () {
+            notifier.startNewTransfer();
+            onExit();
+          },
         );
       case UnknownSubmission(:final message):
         return TransactionResultView(
@@ -141,6 +177,41 @@ class CoreTransferAttemptView extends ConsumerWidget {
       case null:
         return const SizedBox.shrink();
     }
+  }
+
+  /// Check status while the outcome is open; nothing without a tracking
+  /// reference, which is never substituted by a receipt reference.
+  List<Widget> _checkStatus(WidgetRef ref) {
+    if (!attempt.unresolved) return const [];
+    if (attempt.tracking == null) {
+      return const [
+        SizedBox(height: BocSpace.md),
+        ApiStateCard(
+          title: 'Status unavailable',
+          message:
+              'No tracking reference was returned, so this transfer cannot '
+              'be checked here. Check your balance shortly.',
+          tone: ApiStateTone.info,
+        ),
+      ];
+    }
+    final error = attempt.checkError;
+    return [
+      const SizedBox(height: BocSpace.md),
+      if (error != null) FieldError(error),
+      SecondaryButton(
+        label: attempt.checking
+            ? 'Checking…'
+            : attempt.live == null && error == null
+            ? 'Check status'
+            : 'Check again',
+        onPressed: attempt.checking
+            ? null
+            : () => ref
+                  .read(coreTransferAttemptProvider.notifier)
+                  .check(attempt.id),
+      ),
+    ];
   }
 
   Widget _startDifferent(BuildContext context, WidgetRef ref) => BocTextButton(
@@ -200,6 +271,49 @@ class CoreTransferAttemptView extends ConsumerWidget {
         ),
       ),
     ];
+  }
+}
+
+/// Transfers the customer set aside while unresolved, shown above each
+/// transfer form so they stay visible and can still be checked.
+class SetAsideTransfers extends ConsumerWidget {
+  const SetAsideTransfers({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attempts = ref.watch(coreTransferAttemptProvider).acknowledged;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final attempt in attempts)
+          Padding(
+            padding: const EdgeInsets.only(bottom: BocSpace.sm),
+            child: ApiStateCard(
+              title: switch (attempt.live?.state) {
+                CoreLiveState.completed => 'Earlier transfer successful',
+                CoreLiveState.failed => 'Earlier transfer failed',
+                CoreLiveState.reversed => 'Earlier transfer reversed',
+                _ => 'Earlier transfer not confirmed',
+              },
+              message: [
+                _describe(ref, attempt.draft).amount ?? '',
+                ?attempt.checkError,
+              ].where((line) => line.isNotEmpty).join(' · '),
+              tone: attempt.unresolved
+                  ? ApiStateTone.warning
+                  : ApiStateTone.info,
+              actionLabel: attempt.unresolved && attempt.tracking != null
+                  ? (attempt.checking ? 'Checking…' : 'Check status')
+                  : null,
+              onAction: attempt.checking
+                  ? null
+                  : () => ref
+                        .read(coreTransferAttemptProvider.notifier)
+                        .check(attempt.id),
+            ),
+          ),
+      ],
+    );
   }
 }
 

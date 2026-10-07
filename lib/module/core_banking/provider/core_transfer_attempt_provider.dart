@@ -9,6 +9,7 @@ import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../service/core_transfer_service.dart';
+import 'core_account_providers.dart';
 
 enum CoreTransferPhase {
   /// Reviewed and reserved; the PIN sheet is open. Nothing has been sent.
@@ -24,6 +25,9 @@ class CoreTransferAttempt extends Equatable {
     required this.draft,
     required this.phase,
     this.outcome,
+    this.live,
+    this.checking = false,
+    this.checkError,
   });
 
   final int id;
@@ -33,6 +37,14 @@ class CoreTransferAttempt extends Equatable {
   final Object draft;
   final CoreTransferPhase phase;
   final CoreSubmissionOutcome? outcome;
+
+  /// The latest live BankOne status. Once final it is kept until a reversal
+  /// replaces it; a later failed or unclear check never erases it.
+  final CoreLiveTransferStatus? live;
+  final bool checking;
+
+  /// Why the last check could not confirm a status, shown beside the result.
+  final String? checkError;
 
   CoreTransferKind get kind => draft is InterbankTransferDraft
       ? CoreTransferKind.interbank
@@ -50,7 +62,8 @@ class CoreTransferAttempt extends Equatable {
     CoreTransferPhase.authorizing => false,
     CoreTransferPhase.submitting => true,
     CoreTransferPhase.settled => switch (outcome) {
-      AcceptedSubmission() || UnknownSubmission() => true,
+      AcceptedSubmission() => !_isFinal(live?.state),
+      UnknownSubmission() => true,
       RejectedSubmission() || null => false,
     },
   };
@@ -61,8 +74,46 @@ class CoreTransferAttempt extends Equatable {
   }) =>
       CoreTransferAttempt(id: id, draft: draft, phase: phase, outcome: outcome);
 
+  CoreTransferAttempt _checked({
+    required CoreLiveTransferStatus? live,
+    bool checking = false,
+    String? checkError,
+  }) => CoreTransferAttempt(
+    id: id,
+    draft: draft,
+    phase: phase,
+    outcome: outcome,
+    live: live,
+    checking: checking,
+    checkError: checkError,
+  );
+
+  /// This attempt with [status] as its live result.
+  CoreTransferAttempt withLive(CoreLiveTransferStatus status) =>
+      _checked(live: status);
+
   @override
-  List<Object?> get props => [id, draft, phase, outcome];
+  List<Object?> get props => [
+    id,
+    draft,
+    phase,
+    outcome,
+    live,
+    checking,
+    checkError,
+  ];
+}
+
+bool _isFinal(CoreLiveState? state) =>
+    state == CoreLiveState.completed ||
+    state == CoreLiveState.failed ||
+    state == CoreLiveState.reversed;
+
+/// Whether [next] may replace [previous]: a final result is kept unless the
+/// money was reversed.
+bool _replaces(CoreLiveState? previous, CoreLiveState next) {
+  if (!_isFinal(previous)) return true;
+  return next == CoreLiveState.reversed && previous != CoreLiveState.reversed;
 }
 
 class CoreTransferAttemptState extends Equatable {
@@ -219,6 +270,68 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
       return;
     }
     _set(acknowledged: [...state.acknowledged, current]);
+  }
+
+  /// Asks BankOne for [id]'s live status: a read that never resends. Works
+  /// for the current attempt and for one set aside. Does nothing without a
+  /// tracking reference or while a check is already running.
+  Future<void> check(int id) async {
+    final attempt = _find(id);
+    final tracking = attempt?.tracking;
+    if (attempt == null || tracking == null || attempt.checking) return;
+    final generation = _generation;
+    _replace(attempt._checked(live: attempt.live, checking: true));
+    final result = await ref
+        .read(coreTransferServiceProvider)
+        .requeryTransfer(tracking);
+    final latest = _find(id);
+    if (!ref.mounted || generation != _generation || latest == null) return;
+    final previous = latest.live;
+    final next = result.data;
+    if (next == null) {
+      _replace(
+        latest._checked(
+          live: previous,
+          checkError: result.statusCode == 404
+              ? "We couldn't find this transfer to check."
+              : "We couldn't check this transfer. Try again shortly.",
+        ),
+      );
+      return;
+    }
+    if (!_replaces(previous?.state, next.state)) {
+      _replace(
+        latest._checked(
+          live: previous,
+          checkError: next.state == previous?.state
+              ? null
+              : "The latest check didn't match the confirmed result.",
+        ),
+      );
+      return;
+    }
+    _replace(latest._checked(live: next));
+    // Balances come from Core only; refresh once when money settles.
+    if (next.state == CoreLiveState.completed ||
+        next.state == CoreLiveState.reversed) {
+      ref.read(customerBankAccountsProvider.notifier).load().ignore();
+    }
+  }
+
+  CoreTransferAttempt? _find(int id) {
+    final current = state.current;
+    if (current?.id == id) return current;
+    return state.acknowledged.where((a) => a.id == id).firstOrNull;
+  }
+
+  void _replace(CoreTransferAttempt attempt) {
+    final current = state.current;
+    state = CoreTransferAttemptState(
+      current: current?.id == attempt.id ? attempt : current,
+      acknowledged: [
+        for (final a in state.acknowledged) a.id == attempt.id ? attempt : a,
+      ],
+    );
   }
 
   /// Drops everything, including a late reply, when the session ends.

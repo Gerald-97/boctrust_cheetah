@@ -124,6 +124,7 @@ class _OwnAccountMoveFlowState extends ConsumerState<OwnAccountMoveFlow> {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
+          if (!showsAttempt(attempt)) const SetAsideTransfers(),
           if (showsAttempt(attempt))
             CoreTransferAttemptView(
               attempt: attempt!,

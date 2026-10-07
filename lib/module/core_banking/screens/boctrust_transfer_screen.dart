@@ -95,6 +95,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
+          if (!showsAttempt(attempt)) const SetAsideTransfers(),
           if (showsAttempt(attempt))
             CoreTransferAttemptView(
               attempt: attempt!,
