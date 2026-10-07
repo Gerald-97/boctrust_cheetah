@@ -165,7 +165,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     if (photo == null || !mounted) return;
     setState(() => _reading = true);
     try {
-      await _read(await photo.readAsBytes());
+      await _read(await compute(shrinkWholeForSnap, await photo.readAsBytes()));
     } finally {
       if (mounted) setState(() => _reading = false);
     }

@@ -85,7 +85,7 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
     imageQuality: 85,
   );
   if (photo == null || !context.mounted) return null;
-  final bytes = await photo.readAsBytes();
+  final bytes = await compute(shrinkWholeForSnap, await photo.readAsBytes());
   if (!context.mounted) return null;
   return readAccountNumber(context, ref, bytes);
 }

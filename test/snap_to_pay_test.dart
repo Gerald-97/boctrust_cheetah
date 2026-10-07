@@ -73,5 +73,10 @@ void main() {
     // 92% of the width scaled to 1000; 35% of the height kept in proportion.
     expect(upload.width, 1000);
     expect(upload.height, 507);
+
+    // A gallery photo has no frame, so it is shrunk whole.
+    final whole = img.decodeImage(shrinkForSnap(photo, cropToFrame: false))!;
+    expect(whole.width, 1000);
+    expect(whole.height, 1333);
   });
 }
