@@ -13,18 +13,29 @@ import '../model/core_json.dart';
 /// Core's documented upload limit for a snap-to-pay photo.
 const kSnapImageMaxBytes = 8 * 1024 * 1024;
 
-/// A camera capture made small enough for snap-to-pay: upright, at most
-/// 1280 px wide, JPEG quality 80. Staging rejected a 1.5 MB upload with 413
-/// and reset a 766 KB one, so full-size captures are never sent. Run it off
-/// the UI thread (`compute`). Unreadable bytes are returned unchanged.
+/// A camera capture cut down for snap-to-pay: upright, cropped to a centre
+/// band around the on-screen frame (92% of the width, 35% of the height),
+/// grayscale, at most 1000 px wide, JPEG quality 75.
+///
+/// Staging slows sharply with upload size: a 38 KB photo answered in 2.4 s,
+/// a 645 KB one timed out after 30 s and 1.5 MB was rejected with 413. Run it
+/// off the UI thread (`compute`). Unreadable bytes are returned unchanged.
 Uint8List shrinkForSnap(Uint8List photo) {
   final decoded = img.decodeImage(photo);
   if (decoded == null) return photo;
   final upright = img.bakeOrientation(decoded);
-  final sized = upright.width > 1280
-      ? img.copyResize(upright, width: 1280)
-      : upright;
-  return img.encodeJpg(sized, quality: 80);
+  final width = (upright.width * 0.92).round();
+  final height = (upright.height * 0.35).round();
+  var band = img.copyCrop(
+    upright,
+    x: (upright.width - width) ~/ 2,
+    y: (upright.height - height) ~/ 2,
+    width: width,
+    height: height,
+  );
+  band = img.grayscale(band);
+  if (band.width > 1000) band = img.copyResize(band, width: 1000);
+  return img.encodeJpg(band, quality: 75);
 }
 
 final coreOcrServiceProvider = Provider<CoreOcrService>(

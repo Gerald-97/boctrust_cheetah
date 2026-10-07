@@ -65,12 +65,13 @@ void main() {
     expect(core.requests, isEmpty);
   });
 
-  test('a camera photo is shrunk for upload', () {
-    final photo = img.encodeJpg(img.Image(width: 3000, height: 2000));
+  test('a camera photo is cropped to the frame band and shrunk', () {
+    final photo = img.encodeJpg(img.Image(width: 3000, height: 4000));
 
     final upload = img.decodeImage(shrinkForSnap(photo))!;
 
-    expect(upload.width, 1280);
-    expect(upload.height, 853);
+    // 92% of the width scaled to 1000; 35% of the height kept in proportion.
+    expect(upload.width, 1000);
+    expect(upload.height, 507);
   });
 }
