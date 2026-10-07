@@ -50,4 +50,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Bundled Latin model for Scan to Pay: works offline, no Play Services download.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
