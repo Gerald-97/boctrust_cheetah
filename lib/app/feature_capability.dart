@@ -263,8 +263,9 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // The runtime provider still decides whether this device has a usable
   // enrolled biometric.
   FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
-  // Core mobile banking, verified on staging before release. Money-moving
-  // POSTs still pass `transactionAuthorizerProvider` first.
+  // Core mobile banking, verified on staging before release. Transfers send
+  // only after `transferAuthorizationReadyProvider` and a transaction PIN;
+  // bill payments still pass `transactionAuthorizerProvider` first.
   FeatureCapability.ownAccountTransfers: CapabilityRequirement(
     stagingOnly: true,
     operations: {
@@ -277,6 +278,12 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'POST',
         path: CoreApiEndpoints.ownAccountTransfer,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
       ),
     },
   ),
@@ -293,6 +300,12 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         method: 'POST',
         path: CoreApiEndpoints.intrabankWithdrawals,
       ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
+      ),
     },
   ),
   FeatureCapability.boctrustTransfers: CapabilityRequirement(
@@ -307,6 +320,12 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'POST',
         path: CoreApiEndpoints.intrabankTransfers,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
       ),
     },
   ),
@@ -332,6 +351,12 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'GET',
         path: CoreApiEndpoints.interbankTransferStatusTemplate,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferRequeryTemplate,
       ),
     },
   ),

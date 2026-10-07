@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Superseded in part (7 October 2026):** for the four mobile transfer and withdrawal POSTs, the transaction-PIN body prohibition and cached-only status behaviour here are replaced by [Core transaction PIN and live status](../specs/2026-10-07-core-pin-status-ui-design.md) and its [integration plan](2026-10-07-core-pin-status-ui-integration.md). Bills are unchanged.
+
 **Goal:** Integrate every remaining Core Service mobile endpoint (account opening, single-account read, own-account transfers and withdrawals, BOCTRUST transfers, interbank directory/enquiry/transfer/status, bill catalogues and payments, beneficiaries, snap/scan-to-pay) and close the open KYC, backend and release items, each slice shipping only when its gate is met.
 
 **Architecture:** Everything Core goes through the existing isolated transport (`coreApiServiceProvider`, `CoreApiEndpoints`, `ApiBackend.core`) and the session-scoped notifier pattern in `lib/module/core_banking/provider/core_account_providers.dart`. Money movement shares one foundation: exact money parsing, a transaction-authorization interface, one submission state machine that never auto-retries, and one outcome model. Each feature registers its own capability only when its slice is complete, so partial delivery is always honest.

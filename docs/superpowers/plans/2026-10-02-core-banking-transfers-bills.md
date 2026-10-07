@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Superseded in part (7 October 2026):** for the four mobile transfer and withdrawal POSTs, the transaction-PIN body prohibition and cached-only status behaviour here are replaced by [Core transaction PIN and live status](../specs/2026-10-07-core-pin-status-ui-design.md) and its [integration plan](2026-10-07-core-pin-status-ui-integration.md). Bills are unchanged.
+
 **Goal:** Integrate the separate Core Service into Home, Savings, Send, and Payments while keeping User Service behavior isolated and leaving money-moving actions unavailable until secure authorization and response contracts are published.
 
 **Architecture:** Add an optional Core transport rooted at its own `/api` base URL, with separate endpoint metadata, Dio instances, authentication failure policy, services, and session-scoped providers. Deliver accounts/products, interbank directory/name enquiry, and bill catalogues as independently gated slices. Do not call transfer or bill-payment submission endpoints in this release.

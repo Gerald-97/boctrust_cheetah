@@ -147,4 +147,40 @@ void main() {
       );
     });
   });
+  test('live re-queries are Core reads, never money-moving', () {
+    final interbank =
+        capabilityRequirements[FeatureCapability.interbankTransfers]!
+            .operations;
+    expect(
+      interbank,
+      contains((
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferRequeryTemplate,
+      )),
+    );
+    for (final capability in [
+      FeatureCapability.ownAccountTransfers,
+      FeatureCapability.savingsWithdrawals,
+      FeatureCapability.boctrustTransfers,
+    ]) {
+      expect(
+        capabilityRequirements[capability]!.operations,
+        contains((
+          backend: ApiBackend.core,
+          method: 'POST',
+          path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
+        )),
+      );
+    }
+    expect(
+      CoreApiEndpoints.moneyMoving,
+      isNot(
+        anyOf(
+          contains(CoreApiEndpoints.interbankTransferRequeryTemplate),
+          contains(CoreApiEndpoints.intrabankTransferRequeryTemplate),
+        ),
+      ),
+    );
+  });
 }
