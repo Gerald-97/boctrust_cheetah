@@ -34,8 +34,10 @@ class MainActivity : FlutterFragmentActivity() {
                     try {
                         val lines = recognizeLines(path)
                         mainHandler.post { result.success(lines) }
-                    } catch (e: Exception) {
-                        // The exception message may name the file; send only its type.
+                    } catch (e: Throwable) {
+                        // Includes OutOfMemoryError from the full-resolution decode, so
+                        // Dart always gets a reply. The message may name the file; send
+                        // only its type.
                         mainHandler.post {
                             result.error("recognition_failed", e.javaClass.simpleName, null)
                         }

@@ -79,6 +79,18 @@ void main() {
         .then<Object?>((_) => null, onError: (Object e) => e);
 
     expect(failure, isA<ScanRecognitionFailure>());
+    final message = (failure! as ScanRecognitionFailure).message;
+    expect(message, "We couldn't read this photo.");
     expect(failure.toString(), isNot(contains(_path)));
+  });
+
+  test('a malformed native result becomes a failure', () async {
+    _answer((_) async => {'text': '0123456789'});
+
+    final failure = await const ChannelScanTextRecognizer()
+        .recognize(_path)
+        .then<Object?>((_) => null, onError: (Object e) => e);
+
+    expect(failure, isA<ScanRecognitionFailure>());
   });
 }

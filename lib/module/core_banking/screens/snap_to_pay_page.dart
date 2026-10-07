@@ -215,6 +215,8 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       candidates = extractScanCandidates(await recognizer.recognize(path));
     } on ScanRecognitionFailure catch (failure) {
       problem = failure.message;
+    } catch (_) {
+      // Anything else still lifts the overlay, with the generic message.
     }
     if (!mounted || scan != _scan) return;
     setState(() {
@@ -248,6 +250,11 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     widget.onExit();
   }
 
+  static int _previewWidth(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return (media.size.width * media.devicePixelRatio).round();
+  }
+
   void _say(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -268,6 +275,9 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
           else
             Image.file(
               File(photo),
+              // Display only: decoding at screen size keeps a 50 MP photo
+              // from doubling memory while OCR reads the original file.
+              cacheWidth: _previewWidth(context),
               fit: BoxFit.contain,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
@@ -344,7 +354,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       if (candidates != null)
         _result(candidates)
       else
-        _message(_problem ?? "We couldn't read this photo."),
+        _message(_problem ?? ScanRecognitionFailure.unreadable),
     ];
   }
 

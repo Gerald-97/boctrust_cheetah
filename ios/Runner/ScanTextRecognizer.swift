@@ -41,12 +41,17 @@ enum ScanTextRecognizer {
       guard let candidate = observation.topCandidates(1).first else { return nil }
       // Vision's origin is bottom-left; the shared contract is top-left.
       let box = observation.boundingBox
+      // Boxes can overhang the image a little; keep the visible part, as Android does.
+      let left = min(max(Double(box.origin.x), 0), 1)
+      let top = min(max(Double(1 - (box.origin.y + box.height)), 0), 1)
+      let right = min(max(Double(box.origin.x + box.width), left), 1)
+      let bottom = min(max(Double(1 - box.origin.y), top), 1)
       return [
         "text": candidate.string,
-        "left": Double(box.origin.x),
-        "top": Double(1 - (box.origin.y + box.height)),
-        "width": Double(box.width),
-        "height": Double(box.height),
+        "left": left,
+        "top": top,
+        "width": right - left,
+        "height": bottom - top,
       ]
     }
   }

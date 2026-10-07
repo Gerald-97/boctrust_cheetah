@@ -18,6 +18,9 @@ class ScanRecognitionFailure implements Exception {
   const ScanRecognitionFailure(this.message);
   final String message;
 
+  /// What a customer sees when a photo could not be read.
+  static const unreadable = "We couldn't read this photo.";
+
   @override
   String toString() => 'ScanRecognitionFailure: $message';
 }
@@ -44,9 +47,12 @@ class ChannelScanTextRecognizer implements ScanTextRecognizer {
       result = await _channel.invokeListMethod<Object?>('recognizeImage', {
         'path': imagePath,
       });
-    } on PlatformException catch (e) {
-      // The native message may name the file, so only the code is kept.
-      throw ScanRecognitionFailure('Text recognition failed (${e.code}).');
+    } on PlatformException {
+      // The native message may name the file, so none of it is kept.
+      throw const ScanRecognitionFailure(ScanRecognitionFailure.unreadable);
+    } on TypeError {
+      // A native reply that is not a list fails the channel's cast.
+      throw const ScanRecognitionFailure(ScanRecognitionFailure.unreadable);
     } on MissingPluginException {
       throw const ScanRecognitionFailure(
         'Scanning is not available on this device.',
