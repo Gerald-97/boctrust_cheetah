@@ -1,12 +1,13 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../app/services.dart';
+import 'core_transfer_requery_models.dart';
 
 String? _text(Object? value) =>
     value is String && value.trim().isNotEmpty ? value.trim() : null;
 
 /// What an acknowledgement says happened to the money.
-enum CoreAckOutcome { succeeded, failed, processing }
+enum CoreAckOutcome { succeeded, failed, processing, unknown }
 
 /// The body Core returns when it accepts a transfer. Acceptance is not
 /// completion.
@@ -17,6 +18,8 @@ class CoreTransferAck extends Equatable {
     this.message,
     this.status,
     this.uniqueIdentifier,
+    this.retrievalReference,
+    this.transactionReference,
   });
 
   factory CoreTransferAck.fromJson(Object? json) {
@@ -27,6 +30,8 @@ class CoreTransferAck extends Equatable {
       message: _text(json['message']),
       status: _text(json['status']),
       uniqueIdentifier: _text(json['uniqueIdentifier']),
+      retrievalReference: _text(json['retrievalReference']),
+      transactionReference: _text(json['transactionReference']),
     );
   }
 
@@ -36,15 +41,47 @@ class CoreTransferAck extends Equatable {
   final String? status;
   final String? uniqueIdentifier;
 
-  /// BankOne answers `00` for an approved transaction, even when its status
-  /// adds a caveat such as `SuccesfulButFeeNotTaken`. Any other code is a
-  /// failure only when the status says so; otherwise it is still processing.
-  CoreAckOutcome get outcome {
-    if (responseCode == '00') return CoreAckOutcome.succeeded;
-    final text = status?.toLowerCase() ?? '';
-    return text.contains('fail') || text.contains('declin')
-        ? CoreAckOutcome.failed
-        : CoreAckOutcome.processing;
+  /// Intrabank re-query identifier. Not a receipt reference.
+  final String? retrievalReference;
+
+  /// Interbank re-query identifier. Not a receipt reference.
+  final String? transactionReference;
+
+  /// The identifier [kind]'s live re-query takes, or null when Core did not
+  /// return one. Receipt references are never substituted.
+  CoreTrackingReference? trackingReference(CoreTransferKind kind) {
+    final value = switch (kind) {
+      CoreTransferKind.intrabank => retrievalReference,
+      CoreTransferKind.interbank => transactionReference,
+    };
+    return value == null ? null : CoreTrackingReference(kind, value);
+  }
+
+  /// The outcome this acknowledgement shows, by the same allowlist as a live
+  /// status query.
+  ///
+  /// [codeConfirmsCompletion] is true only for an endpoint whose `00` is
+  /// recorded as final (bill payments). Otherwise success is shown as
+  /// processing until a live query confirms it. An accepted reply with no
+  /// status is processing; an unfamiliar or contradictory one is unknown.
+  CoreAckOutcome outcomeFor({required bool codeConfirmsCompletion}) {
+    final state = classifyProviderStatus(
+      status: status,
+      responseCode: responseCode,
+    );
+    return switch (state) {
+      CoreLiveState.completed =>
+        codeConfirmsCompletion
+            ? CoreAckOutcome.succeeded
+            : CoreAckOutcome.processing,
+      CoreLiveState.failed => CoreAckOutcome.failed,
+      CoreLiveState.pending => CoreAckOutcome.processing,
+      CoreLiveState.reversed || CoreLiveState.unknown when status == null =>
+        codeConfirmsCompletion && responseCode == '00'
+            ? CoreAckOutcome.succeeded
+            : CoreAckOutcome.processing,
+      CoreLiveState.reversed || CoreLiveState.unknown => CoreAckOutcome.unknown,
+    };
   }
 
   /// The reference to quote to support: Core's reference, or BankOne's
@@ -58,6 +95,8 @@ class CoreTransferAck extends Equatable {
     message,
     status,
     uniqueIdentifier,
+    retrievalReference,
+    transactionReference,
   ];
 }
 

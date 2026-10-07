@@ -28,6 +28,22 @@ abstract final class CoreApiEndpoints {
   static const interbankTransferStatusTemplate =
       '$interbankTransfers/{reference}/status';
 
+  /// Live BankOne status of an interbank transfer, by its
+  /// `transactionReference`. A read despite the POST method.
+  static String interbankTransferRequery(String transactionReference) =>
+      '$interbankTransfers/${Uri.encodeComponent(transactionReference)}'
+      '/requery';
+  static const interbankTransferRequeryTemplate =
+      '$interbankTransfers/{reference}/requery';
+
+  /// Live BankOne status of an intrabank transfer or withdrawal, by its
+  /// `retrievalReference`. A read despite the POST method.
+  static String intrabankTransferRequery(String retrievalReference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(retrievalReference)}'
+      '/requery';
+  static const intrabankTransferRequeryTemplate =
+      '$intrabankTransfers/{retrievalReference}/requery';
+
   static const billers = '/me/bills/billers';
   static const billerCategories = '/me/bills/billers/categories';
   static const paymentItems = '/me/bills/payment-items';
@@ -40,7 +56,8 @@ abstract final class CoreApiEndpoints {
       '$beneficiaries/${Uri.encodeComponent(id)}';
   static const beneficiaryTemplate = '$beneficiaries/{beneficiaryId}';
 
-  /// Every Core POST that moves money.
+  /// Every Core POST that moves money. Re-query POSTs are reads and are
+  /// deliberately absent.
   static const moneyMoving = {
     ownAccountTransfer,
     intrabankWithdrawals,

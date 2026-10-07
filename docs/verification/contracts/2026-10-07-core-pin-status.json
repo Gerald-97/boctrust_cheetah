@@ -1,0 +1,779 @@
+{
+  "source": "https://core-dev-api.centurysoftware.dev/api/v1/docs/swagger-ui-init.js",
+  "fetched": "2026-10-07",
+  "sha256": "920fbbc499d986ebf79a47ddabb0a221e35b335b217cc36cdcaf4af19730b28c",
+  "note": "Sanitized subset: mobile transfer, withdrawal and re-query operations only. Examples are the publisher's placeholders.",
+  "evidence": {
+    "trackingFields": {
+      "intrabank": "retrievalReference (^[a-f0-9]{12}$)",
+      "interbank": "transactionReference"
+    },
+    "transactionPin": "required on all four money-moving bodies, pattern ^\\d{4}$",
+    "submission401": "documented as 'transaction PIN is incorrect' only; no error code discriminator documented. BLOCKER: wrong-PIN discriminator vs bearer 401.",
+    "submission403": "frozen/restricted or locked after too many incorrect PIN attempts; no threshold.",
+    "submission409": "reference collision (safe to retry) OR similar transaction within 60s; no code discriminator documented. All 409 treated as unresolved duplicate.",
+    "interbank500": "documented as name enquiry failure or rejected transfer; no code discriminator. Client maps to Unconfirmed (conservative) because an undocumented PIN-verification or server fault also yields 500.",
+    "intrabankSubmissionStatus": "intrabank submission reply has no status field, only responseCode. BLOCKER: no fixture confirms 00 means completed; shown as processing until a live query.",
+    "liveStatusSpellings": "interbank requery documents 'typically Successful, Failed, or Pending'. SuccesfulButFeeNotTaken + 00 is recorded from a live staging bill-payment reply (test/core_payments_models_test.dart) and allowlisted. BLOCKER: no transfer requery fixture recorded yet.",
+    "requery": "both bodyless, bearer-authenticated; 404 = no owned tracking record; 500 = query failed, transfer unaffected."
+  },
+  "paths": {
+    "/api/v1/me/intrabank/transfers": {
+      "post": {
+        "tags": [
+          "Customer Intrabank (Mobile)"
+        ],
+        "summary": "Send money from the caller's BocFlex account to another BOCTrust account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerToBoctrustTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerIntrabankTransferResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed, insufficient balance, or the request itself was rejected."
+          },
+          "401": {
+            "description": "The transaction PIN is incorrect."
+          },
+          "403": {
+            "description": "The caller's BocFlex account is frozen or otherwise restricted, or the account has been locked after too many incorrect PIN attempts."
+          },
+          "404": {
+            "description": "The caller does not have a BocFlex account."
+          },
+          "409": {
+            "description": "The generated reference is already in use (extremely rare - safe to retry), or a similar transaction was submitted within the last 60 seconds."
+          }
+        }
+      }
+    },
+    "/api/v1/me/intrabank/transfers/own": {
+      "post": {
+        "tags": [
+          "Customer Intrabank (Mobile)"
+        ],
+        "summary": "Move money from the caller's BocFlex account into one of their other product accounts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerOwnAccountTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerIntrabankTransferResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (e.g. toProductCode is bocFlex), insufficient balance, or the request itself was rejected."
+          },
+          "401": {
+            "description": "The transaction PIN is incorrect."
+          },
+          "403": {
+            "description": "The caller's BocFlex account is frozen or otherwise restricted, or the account has been locked after too many incorrect PIN attempts."
+          },
+          "404": {
+            "description": "The caller does not have a BocFlex account, or no account for toProductCode."
+          },
+          "409": {
+            "description": "The generated reference is already in use (extremely rare - safe to retry), or a similar transaction was submitted within the last 60 seconds."
+          }
+        }
+      }
+    },
+    "/api/v1/me/intrabank/transfers/{retrievalReference}/requery": {
+      "post": {
+        "tags": [
+          "Customer Intrabank (Mobile)"
+        ],
+        "summary": "Check BankOne's live status for a previously-initiated intrabank transfer or withdrawal",
+        "description": "Looks up the original amount and submission date from this system's own tracking record (never from the request), then calls BankOne's TransactionStatusQuery. This never resubmits, retries, or reverses the transfer - it only reads its status.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "retrievalReference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{12}$"
+            },
+            "description": "The retrievalReference returned by the original transfer/withdrawal request."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status fetched successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerIntrabankTransferRequeryResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "retrievalReference does not match the expected format."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "No transfer with that retrieval reference belongs to the caller."
+          },
+          "500": {
+            "description": "The provider status query itself failed - safe to retry; the underlying transfer is not affected."
+          }
+        }
+      }
+    },
+    "/api/v1/me/intrabank/withdrawals": {
+      "post": {
+        "tags": [
+          "Customer Intrabank (Mobile)"
+        ],
+        "summary": "Move money from one of the caller's other product accounts back into their BocFlex account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerOwnAccountWithdrawalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Withdrawal request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerIntrabankTransferResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (e.g. fromProductCode is bocFlex), insufficient balance, or the request itself was rejected."
+          },
+          "401": {
+            "description": "The transaction PIN is incorrect."
+          },
+          "403": {
+            "description": "The source account is frozen or otherwise restricted, or the account has been locked after too many incorrect PIN attempts."
+          },
+          "404": {
+            "description": "The caller does not have an account for fromProductCode, or no BocFlex account."
+          },
+          "409": {
+            "description": "The generated reference is already in use (extremely rare - safe to retry), or a similar transaction was submitted within the last 60 seconds."
+          }
+        }
+      }
+    },
+    "/api/v1/me/interbank/transfers": {
+      "post": {
+        "tags": [
+          "Customer Interbank (Mobile)"
+        ],
+        "summary": "Send money from the caller's BocFlex account to an account at another bank",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerInterbankTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerInterbankTransferResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed, insufficient balance, or the request itself was rejected."
+          },
+          "401": {
+            "description": "The transaction PIN is incorrect."
+          },
+          "403": {
+            "description": "The caller's BocFlex account is frozen or otherwise restricted, or the account has been locked after too many incorrect PIN attempts."
+          },
+          "404": {
+            "description": "The caller does not have a BocFlex account."
+          },
+          "409": {
+            "description": "The generated reference is already in use (extremely rare - safe to retry), or a similar transaction was submitted within the last 60 seconds."
+          },
+          "500": {
+            "description": "NameEnquiry could not resolve the receiving account, or the transfer itself was rejected."
+          }
+        }
+      }
+    },
+    "/api/v1/me/interbank/transfers/{reference}/status": {
+      "get": {
+        "tags": [
+          "Customer Interbank (Mobile)"
+        ],
+        "summary": "Check the status of a transfer the caller previously made through this endpoint",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The reference returned in the original transfer's response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transfer status fetched successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerInterbankTransferStatusResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "reference does not match the expected format."
+          },
+          "404": {
+            "description": "No transfer with that reference belongs to the caller."
+          }
+        }
+      }
+    },
+    "/api/v1/me/interbank/transfers/{reference}/requery": {
+      "post": {
+        "tags": [
+          "Customer Interbank (Mobile)"
+        ],
+        "summary": "Check BankOne's live status for a previously-initiated interbank transfer",
+        "description": "Unlike GET .../status (which only replays this system's last-known submission response), this calls BankOne's TransactionStatusQuery live, resolving the original amount and date from this system's own tracking record rather than the request. Never resubmits, retries, or reverses the transfer.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The transactionReference returned by the original transfer request."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status fetched successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerInterbankTransferRequeryResponse"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "reference does not match the expected format."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "No transfer with that reference belongs to the caller."
+          },
+          "500": {
+            "description": "The provider status query itself failed - safe to retry; the underlying transfer is not affected."
+          }
+        }
+      }
+    }
+  },
+  "schemas": {
+    "CustomerInterbankTransferRequeryResponse": {
+      "type": "object",
+      "properties": {
+        "transactionReference": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "nullable": true,
+          "description": "BankOne's own status for this reference, from a live TransactionStatusQuery - typically Successful, Failed, or Pending."
+        },
+        "responseCode": {
+          "type": "string"
+        },
+        "isReversed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CustomerInterbankTransferRequest": {
+      "type": "object",
+      "required": [
+        "receiverBankCode",
+        "receiverAccountNumber",
+        "amount",
+        "transactionPin"
+      ],
+      "properties": {
+        "receiverBankCode": {
+          "type": "string",
+          "description": "From GET /me/interbank/banks.",
+          "example": "000014"
+        },
+        "receiverAccountNumber": {
+          "type": "string",
+          "example": "0123456789"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount to transfer, in Kobo.",
+          "example": "5000"
+        },
+        "narration": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Optional. Defaults to a generic narration naming the resolved receiver if omitted."
+        },
+        "transactionPin": {
+          "type": "string",
+          "pattern": "^\\d{4}$",
+          "description": "The caller's 4-digit transaction PIN, verified against user-service before the transfer runs."
+        }
+      }
+    },
+    "CustomerInterbankTransferResponse": {
+      "type": "object",
+      "properties": {
+        "transactionReference": {
+          "type": "string",
+          "description": "Use this to call GET /me/interbank/transfers/{reference}/status (cached) or POST /me/interbank/transfers/{reference}/requery (live BankOne query) if this transfer's outcome is ever uncertain.\n",
+          "example": "a1b2c3d4e5f6"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string",
+          "nullable": true
+        },
+        "uniqueIdentifier": {
+          "type": "string",
+          "nullable": true
+        },
+        "responseCode": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "CustomerInterbankTransferStatusResponse": {
+      "type": "object",
+      "description": "Reflects this system's own last-known outcome for the transfer, not a live BankOne re-query.",
+      "properties": {
+        "reference": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "completed",
+            "failed"
+          ],
+          "description": "Our own ledger status for this transfer request."
+        },
+        "transferStatus": {
+          "type": "string",
+          "nullable": true,
+          "description": "BankOne's own Status field from the cached response, once completed."
+        },
+        "responseCode": {
+          "type": "string",
+          "nullable": true
+        },
+        "message": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "CustomerIntrabankTransferRequeryResponse": {
+      "type": "object",
+      "properties": {
+        "retrievalReference": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "nullable": true,
+          "description": "BankOne's own transaction status for this reference, from a live TransactionStatusQuery."
+        },
+        "responseCode": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "CustomerIntrabankTransferResponse": {
+      "type": "object",
+      "properties": {
+        "retrievalReference": {
+          "type": "string",
+          "description": "Use this to call POST /me/intrabank/transfers/{retrievalReference}/requery if the outcome of this request is ever uncertain (e.g. this call itself times out).\n",
+          "example": "a1b2c3d4e5f6"
+        },
+        "responseCode": {
+          "type": "string",
+          "example": "00"
+        },
+        "reference": {
+          "type": "string",
+          "nullable": true
+        },
+        "message": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "CustomerOwnAccountTransferRequest": {
+      "type": "object",
+      "required": [
+        "toProductCode",
+        "amount",
+        "transactionPin"
+      ],
+      "properties": {
+        "toProductCode": {
+          "type": "string",
+          "description": "One of the caller's other product codes (e.g. bocSmartSave). Always debited from BocFlex.",
+          "example": "bocSmartSave"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount to transfer, in Kobo.",
+          "example": "1000"
+        },
+        "narration": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "transactionPin": {
+          "type": "string",
+          "pattern": "^\\d{4}$",
+          "description": "The caller's 4-digit transaction PIN, verified against user-service before the transfer runs."
+        }
+      }
+    },
+    "CustomerOwnAccountWithdrawalRequest": {
+      "type": "object",
+      "required": [
+        "fromProductCode",
+        "amount",
+        "transactionPin"
+      ],
+      "properties": {
+        "fromProductCode": {
+          "type": "string",
+          "description": "One of the caller's other product codes to withdraw from (e.g. bocSmartSave). Always credited to BocFlex.",
+          "example": "bocSmartSave"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount to withdraw, in Kobo.",
+          "example": "1000"
+        },
+        "narration": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "transactionPin": {
+          "type": "string",
+          "pattern": "^\\d{4}$",
+          "description": "The caller's 4-digit transaction PIN, verified against user-service before the withdrawal runs."
+        }
+      }
+    },
+    "CustomerToBoctrustTransferRequest": {
+      "type": "object",
+      "required": [
+        "toAccountNumber",
+        "amount",
+        "transactionPin"
+      ],
+      "properties": {
+        "toAccountNumber": {
+          "type": "string",
+          "description": "The recipient's BOCTrust account number. Always debited from the caller's BocFlex account.",
+          "example": "1100037777"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount to transfer, in Kobo.",
+          "example": "1000"
+        },
+        "narration": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Optional. Defaults to a generic narration if omitted."
+        },
+        "transactionPin": {
+          "type": "string",
+          "pattern": "^\\d{4}$",
+          "description": "The caller's 4-digit transaction PIN, verified against user-service before the transfer runs."
+        }
+      }
+    }
+  }
+}

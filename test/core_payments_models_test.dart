@@ -3,6 +3,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/beneficiary_mode
 import 'package:boctrust_savings_loan/module/core_banking/model/bill_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_money.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -246,7 +247,7 @@ void main() {
     ]);
   });
 
-  test('a 00 acknowledgement is success; a failure status is failure', () {
+  test('a bill 00 acknowledgement is success; a failure status is failure', () {
     // The live staging reply to POST /me/bills/payments.
     final paid = CoreTransferAck.fromJson({
       'status': 'SuccesfulButFeeNotTaken',
@@ -255,15 +256,191 @@ void main() {
       'responseCode': '00',
       'message': 'Main Transaction Was Successful But Fee Was Not Taken.',
     });
-    expect(paid.outcome, CoreAckOutcome.succeeded);
+    expect(
+      paid.outcomeFor(codeConfirmsCompletion: true),
+      CoreAckOutcome.succeeded,
+    );
     expect(paid.displayReference, '0200020312100518411600');
     expect(
-      const CoreTransferAck(responseCode: '51', status: 'Failed').outcome,
+      const CoreTransferAck(
+        responseCode: '51',
+        status: 'Failed',
+      ).outcomeFor(codeConfirmsCompletion: true),
       CoreAckOutcome.failed,
     );
     expect(
-      const CoreTransferAck(responseCode: '09').outcome,
+      const CoreTransferAck(
+        responseCode: '09',
+      ).outcomeFor(codeConfirmsCompletion: true),
       CoreAckOutcome.processing,
     );
+  });
+
+  group('transfer acknowledgements', () {
+    test('keep the tracking identifiers separate from receipt references', () {
+      final intrabank = CoreTransferAck.fromJson({
+        'retrievalReference': 'a1b2c3d4e5f6',
+        'responseCode': '00',
+        'reference': 'BANKONE-1',
+      });
+      expect(intrabank.retrievalReference, 'a1b2c3d4e5f6');
+      expect(intrabank.reference, 'BANKONE-1');
+      expect(
+        intrabank.trackingReference(CoreTransferKind.intrabank),
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
+      );
+
+      final interbank = CoreTransferAck.fromJson({
+        'transactionReference': 'TX-9',
+        'reference': 'R-OTHER',
+        'uniqueIdentifier': 'U-1',
+        'status': 'Pending',
+      });
+      expect(interbank.transactionReference, 'TX-9');
+      expect(
+        interbank.trackingReference(CoreTransferKind.interbank),
+        const CoreTrackingReference(CoreTransferKind.interbank, 'TX-9'),
+      );
+    });
+
+    test('never fall back to a receipt reference for tracking', () {
+      const ack = CoreTransferAck(
+        responseCode: '00',
+        reference: 'R1',
+        uniqueIdentifier: 'U1',
+      );
+      expect(ack.trackingReference(CoreTransferKind.intrabank), isNull);
+      expect(ack.trackingReference(CoreTransferKind.interbank), isNull);
+    });
+
+    test('a transfer 00 is accepted, not completed, without endpoint '
+        'evidence', () {
+      expect(
+        const CoreTransferAck(
+          responseCode: '00',
+        ).outcomeFor(codeConfirmsCompletion: false),
+        CoreAckOutcome.processing,
+      );
+      expect(
+        const CoreTransferAck(
+          responseCode: '00',
+          status: 'Successful',
+        ).outcomeFor(codeConfirmsCompletion: false),
+        CoreAckOutcome.processing,
+      );
+    });
+
+    test('no substring matching and conflicts stay unknown', () {
+      expect(
+        const CoreTransferAck(
+          responseCode: '91',
+          status: 'NotFailedYet',
+        ).outcomeFor(codeConfirmsCompletion: true),
+        CoreAckOutcome.unknown,
+      );
+      expect(
+        const CoreTransferAck(
+          responseCode: '00',
+          status: 'Failed',
+        ).outcomeFor(codeConfirmsCompletion: true),
+        CoreAckOutcome.unknown,
+      );
+      expect(
+        const CoreTransferAck(
+          responseCode: '00',
+          status: 'Declined',
+        ).outcomeFor(codeConfirmsCompletion: true),
+        CoreAckOutcome.unknown,
+      );
+    });
+  });
+
+  group('live status', () {
+    CoreLiveState classify(String? status, String? code, {bool rev = false}) =>
+        classifyProviderStatus(
+          status: status,
+          responseCode: code,
+          isReversed: rev,
+        );
+
+    test('the allowlist maps exact spellings only', () {
+      expect(classify('Successful', '00'), CoreLiveState.completed);
+      expect(classify('  successful ', null), CoreLiveState.completed);
+      expect(
+        classify('SuccesfulButFeeNotTaken', '00'),
+        CoreLiveState.completed,
+      );
+      expect(classify('Failed', '51'), CoreLiveState.failed);
+      expect(classify('Failed', null), CoreLiveState.failed);
+      expect(classify('Pending', '09'), CoreLiveState.pending);
+      expect(classify(null, '00'), CoreLiveState.unknown);
+      expect(classify('SuccessfulMaybe', '00'), CoreLiveState.unknown);
+      expect(classify('Unsuccessful', '00'), CoreLiveState.unknown);
+    });
+
+    test('conflicting fields are unknown', () {
+      expect(classify('Successful', '51'), CoreLiveState.unknown);
+      expect(classify('Failed', '00'), CoreLiveState.unknown);
+    });
+
+    test('reversal overrides every status', () {
+      expect(classify('Successful', '00', rev: true), CoreLiveState.reversed);
+      expect(classify(null, null, rev: true), CoreLiveState.reversed);
+    });
+
+    test('interbank reply parses with its tracking reference', () {
+      final live = CoreLiveTransferStatus.fromJson(CoreTransferKind.interbank, {
+        'transactionReference': 'TX-9',
+        'status': 'Successful',
+        'responseCode': '00',
+        'isReversed': true,
+      });
+      expect(live.state, CoreLiveState.reversed);
+      expect(live.isReversed, isTrue);
+      expect(
+        live.trackingReference,
+        const CoreTrackingReference(CoreTransferKind.interbank, 'TX-9'),
+      );
+    });
+
+    test('intrabank reply has no reversal field', () {
+      final live = CoreLiveTransferStatus.fromJson(CoreTransferKind.intrabank, {
+        'retrievalReference': 'a1b2c3d4e5f6',
+        'status': 'Pending',
+        'responseCode': '09',
+        'reference': null,
+      });
+      expect(live.state, CoreLiveState.pending);
+      expect(live.isReversed, isFalse);
+      expect(live.rawStatus, 'Pending');
+    });
+
+    test('tracking references compare by value and validate shape', () {
+      expect(
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'abc'),
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'abc'),
+      );
+      expect(
+        const CoreTrackingReference(
+          CoreTransferKind.intrabank,
+          'a1b2c3d4e5f6',
+        ).isWellFormed,
+        isTrue,
+      );
+      expect(
+        const CoreTrackingReference(
+          CoreTransferKind.intrabank,
+          'A1B2C3D4E5F6',
+        ).isWellFormed,
+        isFalse,
+      );
+      expect(
+        const CoreTrackingReference(
+          CoreTransferKind.interbank,
+          ' ',
+        ).isWellFormed,
+        isFalse,
+      );
+    });
   });
 }

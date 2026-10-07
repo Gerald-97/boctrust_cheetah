@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bill_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_beneficiary_service.dart';
@@ -181,5 +182,68 @@ void main() {
       (await const CoreBeneficiaryService(null).list()).status,
       ServiceStatus.blocked,
     );
+  });
+
+  group('live re-query', () {
+    test('interbank uses transactionReference and sends no body', () async {
+      final core = _Core({
+        '/me/interbank/transfers/TX%2F9/requery': {
+          'transactionReference': 'TX/9',
+          'status': 'Successful',
+          'responseCode': '00',
+          'isReversed': false,
+        },
+      });
+      final result = await CoreTransferService(_api(core)).requeryTransfer(
+        const CoreTrackingReference(CoreTransferKind.interbank, 'TX/9'),
+      );
+
+      expect(result.data?.state, CoreLiveState.completed);
+      expect(core.requests.single.method, 'POST');
+      expect(
+        core.requests.single.path,
+        '/me/interbank/transfers/TX%2F9/requery',
+      );
+      expect(core.requests.single.data, isNull);
+    });
+
+    test('intrabank uses retrievalReference', () async {
+      final core = _Core({
+        '/me/intrabank/transfers/a1b2c3d4e5f6/requery': {
+          'retrievalReference': 'a1b2c3d4e5f6',
+          'status': 'Failed',
+          'responseCode': '51',
+        },
+      });
+      final result = await CoreTransferService(_api(core)).requeryTransfer(
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
+      );
+
+      expect(result.data?.state, CoreLiveState.failed);
+      expect(core.requests.single.data, isNull);
+    });
+
+    test('a malformed reference is rejected before the network', () async {
+      final core = _Core({});
+      final service = CoreTransferService(_api(core));
+
+      final bad = await service.requeryTransfer(
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'NOT-HEX'),
+      );
+      final blank = await service.requeryTransfer(
+        const CoreTrackingReference(CoreTransferKind.interbank, ''),
+      );
+
+      expect(bad.isError, isTrue);
+      expect(blank.isError, isTrue);
+      expect(core.requests, isEmpty);
+    });
+
+    test('unconfigured Core is blocked', () async {
+      final result = await const CoreTransferService(null).requeryTransfer(
+        const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
+      );
+      expect(result.status, ServiceStatus.blocked);
+    });
   });
 }

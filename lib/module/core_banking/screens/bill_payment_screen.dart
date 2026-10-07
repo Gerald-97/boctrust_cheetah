@@ -128,6 +128,7 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
               inFlight: submission.inFlight,
               outcome: submission.outcome,
               noun: 'Payment',
+              codeConfirmsCompletion: true,
               amount: _draft == null
                   ? null
                   : formatApiAmount(_draft!.amountNaira, currency: 'NGN'),

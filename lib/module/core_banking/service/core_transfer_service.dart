@@ -5,6 +5,7 @@ import '../../../app/core_network.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/core_submission_models.dart';
+import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 
@@ -105,6 +106,35 @@ class CoreTransferService {
       await api.getData<InterbankTransferStatus>(
         CoreApiEndpoints.interbankTransferStatus(reference),
         parser: InterbankTransferStatus.fromJson,
+      ),
+    );
+  }
+
+  /// BankOne's live status for a tracked transfer. A bodyless read; it never
+  /// resends, retries or reverses the transfer. A malformed reference is
+  /// refused before any request.
+  Future<NotifierState<CoreLiveTransferStatus>> requeryTransfer(
+    CoreTrackingReference tracking,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_readUnavailable);
+    if (!tracking.isWellFormed) {
+      return const NotifierState.error(
+        "This transfer can't be checked right now.",
+      );
+    }
+    final path = switch (tracking.kind) {
+      CoreTransferKind.intrabank => CoreApiEndpoints.intrabankTransferRequery(
+        tracking.value,
+      ),
+      CoreTransferKind.interbank => CoreApiEndpoints.interbankTransferRequery(
+        tracking.value,
+      ),
+    };
+    return NotifierState.fromResponse(
+      await api.postData<CoreLiveTransferStatus>(
+        path,
+        parser: (json) => CoreLiveTransferStatus.fromJson(tracking.kind, json),
       ),
     );
   }

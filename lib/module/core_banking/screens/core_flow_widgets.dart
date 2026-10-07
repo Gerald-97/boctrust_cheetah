@@ -104,6 +104,7 @@ class CoreSubmissionResult extends StatelessWidget {
     this.details = const [],
     this.acceptedExtra = const [],
     this.trustResponseCode = true,
+    this.codeConfirmsCompletion = false,
     this.acceptedOverride,
     super.key,
   });
@@ -129,6 +130,10 @@ class CoreSubmissionResult extends StatelessWidget {
   /// a separate status read is authoritative (interbank).
   final bool trustResponseCode;
 
+  /// Whether this endpoint's `00` is recorded as final (bill payments).
+  /// Transfers show success only from a live status query.
+  final bool codeConfirmsCompletion;
+
   /// A later, authoritative status that replaces the reply's own.
   final CoreResultOverride? acceptedOverride;
 
@@ -144,7 +149,7 @@ class CoreSubmissionResult extends StatelessWidget {
         final CoreResultOverride(:kind, :title, :message) =
             acceptedOverride ??
             switch (trustResponseCode
-                ? ack.outcome
+                ? ack.outcomeFor(codeConfirmsCompletion: codeConfirmsCompletion)
                 : CoreAckOutcome.processing) {
               CoreAckOutcome.succeeded => (
                 kind: BocStatusKind.success,
@@ -164,6 +169,13 @@ class CoreSubmissionResult extends StatelessWidget {
                 message:
                     "We're waiting for confirmation. Check your balance "
                     'shortly before trying again.',
+              ),
+              CoreAckOutcome.unknown => (
+                kind: BocStatusKind.pending,
+                title: '$noun not confirmed',
+                message:
+                    "We couldn't confirm this $lower. Check your balance "
+                    'before trying again.',
               ),
             };
         return TransactionResultView(
