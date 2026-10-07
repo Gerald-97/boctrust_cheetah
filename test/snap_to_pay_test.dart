@@ -1,98 +1,88 @@
-import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 
-import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/scan_text_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/screens/snap_number_button.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/snap_to_pay_page.dart';
-import 'package:boctrust_savings_loan/module/core_banking/service/core_ocr_service.dart';
-import 'package:dio/dio.dart';
+import 'package:boctrust_savings_loan/module/core_banking/service/scan_text_recognizer.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 
-class _Core implements HttpClientAdapter {
-  final requests = <RequestOptions>[];
+class _Recognizer implements ScanTextRecognizer {
+  _Recognizer(this.read);
+
+  final Future<List<RecognizedLine>> Function(String path) read;
 
   @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    requests.add(options);
-    return ResponseBody.fromString(
-      jsonEncode({
-        'success': true,
-        'message': 'ok',
-        'data': {'number': '0123456789'},
-        'meta': {},
-      }),
-      200,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
-  }
-
-  @override
-  void close({bool force = false}) {}
+  Future<List<RecognizedLine>> recognize(String imagePath) => read(imagePath);
 }
 
-void main() {
-  late _Core core;
-  late CoreOcrService service;
+const _box = ScanTextBox(left: 0, top: 0, width: 1, height: 0.1);
 
-  setUp(() {
-    core = _Core();
-    service = CoreOcrService(
-      ApiService(
-        Dio(BaseOptions(baseUrl: 'https://core.test/api/v1'))
-          ..httpClientAdapter = core,
+void main() {
+  group('reading a photo from the account field', () {
+    late Directory dir;
+    late File photo;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('snap_number');
+      photo = File('${dir.path}/photo.jpg')..writeAsStringSync('x');
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('the photo is deleted once its number is read', () async {
+      final candidates = await readScanFile(
+        _Recognizer(
+          (_) async => const [RecognizedLine('Acct 0123456789', _box)],
+        ),
+        photo.path,
+      );
+
+      expect(candidates.accountNumbers, ['0123456789']);
+      expect(photo.existsSync(), isFalse);
+    });
+
+    test('the photo is deleted when recognition fails', () async {
+      await expectLater(
+        readScanFile(
+          _Recognizer((_) => throw const ScanRecognitionFailure('failed')),
+          photo.path,
+        ),
+        throwsA(isA<ScanRecognitionFailure>()),
+      );
+
+      expect(photo.existsSync(), isFalse);
+    });
+  });
+
+  testWidgets('with two numbers read, the tapped one is chosen', (
+    tester,
+  ) async {
+    String? chosen;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CheetahTheme.lightTheme,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => chosen = await chooseScannedNumber(
+              context,
+              const ['0123456789', '9876543210'],
+            ),
+            child: const Text('Open'),
+          ),
+        ),
       ),
     );
-  });
 
-  test('snap sends bare base64 and returns the number', () async {
-    final image = Uint8List.fromList([1, 2, 3]);
-    final result = await service.readNumber(image);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('0123456789'), findsOneWidget);
+    await tester.tap(find.text('9876543210'));
+    await tester.pumpAndSettle();
 
-    expect(result.data, '0123456789');
-    expect(core.requests.single.path, '/me/snap-to-pay');
-    expect(core.requests.single.data, {'image': base64Encode(image)});
-  });
-
-  test('an oversized photo is refused before upload', () async {
-    final result = await service.readNumber(Uint8List(kSnapImageMaxBytes + 1));
-
-    expect(result.isError, isTrue);
-    expect(core.requests, isEmpty);
-  });
-
-  test('a camera photo is cropped to the frame band and shrunk', () {
-    final photo = img.encodeJpg(img.Image(width: 3000, height: 4000));
-
-    final upload = img.decodeImage(shrinkForSnap(photo))!;
-
-    // 92% of the width scaled to 1000; 35% of the height kept in proportion.
-    expect(upload.width, 1000);
-    expect(upload.height, 507);
-
-    // A gallery photo has no frame, so it is shrunk whole.
-    final whole = img.decodeImage(shrinkForSnap(photo, cropToFrame: false))!;
-    expect(whole.width, 1000);
-    expect(whole.height, 1333);
-  });
-
-  test('a scan photo is sent without its metadata or location', () {
-    final source = img.Image(width: 1200, height: 1600);
-    source.exif.imageIfd['Model'] = 'Pixel 7 Pro';
-    source.exif.gpsIfd['GPSLatitude'] = 6.5244;
-
-    final upload = img.decodeJpg(shrinkForSnap(img.encodeJpg(source)))!;
-
-    expect(upload.exif.isEmpty, isTrue);
+    expect(chosen, '9876543210');
   });
 
   testWidgets('a scanned number routes only after the bank is selected', (

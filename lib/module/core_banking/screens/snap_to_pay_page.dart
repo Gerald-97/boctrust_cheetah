@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -13,8 +14,11 @@ import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/interbank_models.dart';
+import '../model/scan_text_models.dart';
 import '../provider/core_payments_providers.dart';
-import '../service/core_ocr_service.dart';
+import '../service/scan_candidate_extractor.dart';
+import '../service/scan_image_file.dart';
+import '../service/scan_text_recognizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 
@@ -74,8 +78,15 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     with WidgetsBindingObserver {
   CameraController? _camera;
   _CameraState _cameraState = _CameraState.starting;
-  bool _reading = false;
+  final _image = ScanImageFile();
+  bool _recognizing = false;
+
+  /// Bumped by every new image, Retake and exit, so a result that arrives
+  /// for an earlier image is ignored.
+  int _scan = 0;
+  ScanCandidates? _candidates;
   String? _number;
+  String? _problem;
 
   @override
   void initState() {
@@ -101,6 +112,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _camera?.dispose();
+    _image.clear();
     super.dispose();
   }
 
@@ -133,10 +145,10 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         if (mounted) setState(() => _cameraState = _CameraState.unavailable);
         return;
       }
-      // Captures are shrunk by shrinkForSnap before upload either way.
+      // Photos are read on the device, so small print gets every pixel.
       final camera = CameraController(
         back,
-        ResolutionPreset.medium,
+        ResolutionPreset.max,
         enableAudio: false,
       );
       await camera.initialize();
@@ -161,37 +173,88 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
 
   Future<void> _capture() async {
     final camera = _camera;
-    if (_reading || camera == null || !camera.value.isInitialized) return;
-    setState(() => _reading = true);
+    if (_recognizing || camera == null || !camera.value.isInitialized) return;
+    setState(() => _recognizing = true);
+    final XFile photo;
     try {
-      final photo = await camera.takePicture();
-      await _read(await compute(shrinkForSnap, await photo.readAsBytes()));
+      photo = await camera.takePicture();
     } on CameraException {
+      if (mounted) setState(() => _recognizing = false);
       _say("We couldn't take that photo. Try again.");
-    } finally {
-      if (mounted) setState(() => _reading = false);
+      return;
     }
+    await _recognize(photo.path);
   }
 
   Future<void> _pickFromGallery() async {
-    if (_reading) return;
-    final photo = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (photo == null || !mounted) return;
-    setState(() => _reading = true);
+    if (_recognizing) return;
+    final photo = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (photo == null) return;
+    await _recognize(photo.path);
+  }
+
+  /// Shows [path] in place of the viewfinder and reads it on the device.
+  Future<void> _recognize(String path) async {
+    _image.replace(path);
+    if (!mounted) {
+      _image.clear();
+      return;
+    }
+    final scan = ++_scan;
+    final recognizer = ref.read(scanTextRecognizerProvider);
+    setState(() {
+      _recognizing = true;
+      _candidates = null;
+      _number = null;
+      _problem = null;
+    });
+    ScanCandidates? candidates;
+    String? problem;
     try {
-      await _read(await compute(shrinkWholeForSnap, await photo.readAsBytes()));
-    } finally {
-      if (mounted) setState(() => _reading = false);
+      candidates = extractScanCandidates(await recognizer.recognize(path));
+    } on ScanRecognitionFailure catch (failure) {
+      problem = failure.message;
+    }
+    if (!mounted || scan != _scan) return;
+    final numbers = candidates?.accountNumbers ?? const [];
+    setState(() {
+      _recognizing = false;
+      _candidates = candidates;
+      _problem =
+          problem ??
+          (numbers.isEmpty
+              ? "We couldn't find a 10-digit account number."
+              : null);
+      if (numbers.length == 1) _number = numbers.single;
+    });
+    if (numbers.length > 1) await _chooseNumber();
+  }
+
+  Future<void> _chooseNumber() async {
+    final scan = _scan;
+    final numbers = _candidates?.accountNumbers ?? const [];
+    final number = await chooseScannedNumber(context, numbers);
+    if (number != null && mounted && scan == _scan) {
+      setState(() => _number = number);
     }
   }
 
-  Future<void> _read(Uint8List image) async {
-    final number = await readAccountNumber(context, ref, image);
-    if (number != null && mounted) setState(() => _number = number);
+  /// Drops the photo and returns to the live viewfinder.
+  void _retake() {
+    _scan++;
+    _image.clear();
+    setState(() {
+      _recognizing = false;
+      _candidates = null;
+      _number = null;
+      _problem = null;
+    });
+  }
+
+  void _exit() {
+    _scan++;
+    _image.clear();
+    widget.onExit();
   }
 
   void _say(String message) {
@@ -203,33 +266,108 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
 
   @override
   Widget build(BuildContext context) {
-    final number = _number;
+    final photo = _image.path;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _viewfinder(),
+          if (photo == null)
+            _viewfinder()
+          else
+            Image.file(
+              File(photo),
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
           SafeArea(
             child: Column(
               children: [
                 _topBar(),
                 const Spacer(),
-                if (number == null) _controls() else _result(number),
+                if (photo == null)
+                  _controls()
+                else if (!_recognizing)
+                  ..._still(),
               ],
             ),
           ),
-          if (_reading)
+          if (_recognizing)
             const ColoredBox(
               color: Color(0x88000000),
               child: Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: BocSpace.sm),
+                    Text(
+                      'Reading the photo…',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
       ),
     );
   }
+
+  /// Retake and Choose another over the photo, then what was read from it.
+  List<Widget> _still() {
+    final number = _number;
+    final several = (_candidates?.accountNumbers.length ?? 0) > 1;
+    return [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: BocSpace.md),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              onPressed: _retake,
+              icon: const Icon(IconsaxPlusLinear.camera),
+              label: const Text('Retake'),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              onPressed: _pickFromGallery,
+              icon: const Icon(IconsaxPlusLinear.gallery),
+              label: const Text('Choose another'),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: BocSpace.xs),
+      if (number != null)
+        _result(number)
+      else
+        _message(
+          _problem ?? 'This photo has more than one account number.',
+          onChoose: several ? _chooseNumber : null,
+        ),
+    ];
+  }
+
+  Widget _message(String message, {VoidCallback? onChoose}) => Material(
+    color: Theme.of(context).cardColor,
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    child: Padding(
+      padding: const EdgeInsets.all(BocSpace.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(message, style: Theme.of(context).textTheme.bodyLarge),
+          if (onChoose != null) ...[
+            const SizedBox(height: BocSpace.md),
+            PrimaryButton(label: 'Choose the number', onPressed: onChoose),
+          ],
+        ],
+      ),
+    ),
+  );
 
   Widget _topBar() => Padding(
     padding: const EdgeInsets.symmetric(
@@ -240,7 +378,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       children: [
         IconButton(
           tooltip: 'Back',
-          onPressed: widget.onExit,
+          onPressed: _exit,
           icon: const Icon(IconsaxPlusLinear.arrow_left_2, color: Colors.white),
         ),
         const Expanded(
@@ -277,23 +415,29 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
             )
           else
             CameraPreview(camera),
-          Center(
+          // Leaves room for the top bar and the shutter row.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BocSpace.lg,
+              96,
+              BocSpace.lg,
+              160,
+            ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                FractionallySizedBox(
-                  widthFactor: 0.86,
-                  child: Container(
-                    height: 120,
+                Expanded(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.white, width: 2),
                       borderRadius: BorderRadius.circular(BocRadius.md),
                     ),
+                    child: const SizedBox.expand(),
                   ),
                 ),
                 const SizedBox(height: BocSpace.sm),
                 const Text(
-                  'Fit the account number inside the frame',
+                  'Fit the bank name and account number inside the frame',
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white),
                 ),
               ],
@@ -358,13 +502,13 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         _RoundButton(
           tooltip: 'Choose a photo',
           icon: IconsaxPlusLinear.gallery,
-          onPressed: _reading ? null : _pickFromGallery,
+          onPressed: _recognizing ? null : _pickFromGallery,
         ),
         Semantics(
           button: true,
           label: 'Take photo',
           child: GestureDetector(
-            onTap: _cameraState == _CameraState.ready && !_reading
+            onTap: _cameraState == _CameraState.ready && !_recognizing
                 ? _capture
                 : null,
             child: Container(
@@ -413,8 +557,11 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       onRetry: canInterbank
           ? ref.read(interbankBanksProvider.notifier).load
           : null,
-      onSend: widget.onSend,
-      onScanAgain: () => setState(() => _number = null),
+      onSend: (route, number, bankCode) {
+        _retake();
+        widget.onSend(route, number, bankCode);
+      },
+      onScanAgain: _retake,
     );
   }
 }
