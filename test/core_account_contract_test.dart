@@ -117,7 +117,8 @@ void main() {
         'tenure': 30,
         'productDiscriminator': 'FixedDeposit',
       },
-      {'code': 'flex', 'name': 'Flex', 'interestRate': 'seven', 'tenure': -1},
+      // Live staging sends 0 for both when BankOne publishes no terms.
+      {'code': 'flex', 'name': 'Flex', 'interestRate': 0, 'tenure': 0},
       {'code': '', 'name': 'Nameless'},
       'nope',
     ]);

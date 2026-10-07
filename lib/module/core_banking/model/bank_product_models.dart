@@ -50,7 +50,8 @@ class CoreBankProduct extends Equatable {
       code: code,
       name: name,
       description: _text(json['description']),
-      interestRate: rate is num && rate.isFinite && rate >= 0 ? rate : null,
+      // Staging sends 0 when BankOne has no rate; never show "0% p.a.".
+      interestRate: rate is num && rate.isFinite && rate > 0 ? rate : null,
       tenureDays: tenure is num && tenure.isFinite && tenure > 0
           ? tenure.round()
           : null,
