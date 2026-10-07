@@ -114,9 +114,12 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         if (mounted) setState(() => _cameraState = _CameraState.unavailable);
         return;
       }
+      // Medium keeps a capture near the size of a picked gallery photo. On a
+      // Pixel 7 Pro a high-resolution capture made a 766 KB upload that the
+      // staging server reset after 45 seconds; ~38 KB uploads return in ~2s.
       final camera = CameraController(
         back,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
       );
       await camera.initialize();
