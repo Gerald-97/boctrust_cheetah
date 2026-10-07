@@ -124,12 +124,17 @@ void main() {
     }
   });
   group('transfer authorization readiness', () {
-    test('is false by default, even in staging', () {
-      final container = ProviderContainer(
-        overrides: [stagingModeProvider.overrideWithValue(true)],
-      );
-      addTearDown(container.dispose);
-      expect(container.read(transferAuthorizationReadyProvider), isFalse);
+    test('is on in staging builds only', () {
+      bool ready({required bool staging}) {
+        final container = ProviderContainer(
+          overrides: [stagingModeProvider.overrideWithValue(staging)],
+        );
+        addTearDown(container.dispose);
+        return container.read(transferAuthorizationReadyProvider);
+      }
+
+      expect(ready(staging: true), isTrue);
+      expect(ready(staging: false), isFalse);
     });
 
     test('production stays unavailable even when evidence is ready', () {

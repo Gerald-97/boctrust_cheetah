@@ -27,7 +27,7 @@ The published Core API docs are the source of truth for every contract question 
 
 ## Gates still open
 
-- [ ] `kTransferAuthorizationEvidenceReady` stays `false`. Before flipping it, run the staging device verification below.
+- [x] `kTransferAuthorizationEvidenceReady` turned on for staging builds on 7 October 2026 (Kenechukwu); production stays off.
 - [ ] Staging device verification with approved test accounts was **not performed**: the four review→PIN→result paths, one incorrect PIN, the restricted fixture, live-versus-cached status, the navigation guard, the set-aside escape, Core 401 isolation, missing Core configuration and session switch. Use backend-controlled pending, reversal and error cases rather than repeated real transfers.
 - [ ] Intrabank `00` is shown as Processing until checked; the docs say only "accepted". Promote it to completed only if the backend documents `00` as final.
 - [ ] The production release decision is separate. `stagingOnly` remains on every transfer capability.

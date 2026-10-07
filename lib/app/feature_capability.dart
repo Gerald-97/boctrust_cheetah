@@ -456,13 +456,11 @@ extension FeatureAvailabilityX on FeatureAvailability {
   bool get isAvailable => this == FeatureAvailability.available;
 }
 
-/// Whether the recorded Core contract evidence supports sending a transfer
-/// with a transaction PIN. Flip only when every readiness item in
-/// `docs/verification/contracts/2026-10-07-core-pin-status.json` is met:
-/// a stable wrong-PIN discriminator, fixture-confirmed status and outcome
-/// mapping, classified duplicates, credential-safe logging and verified
-/// navigation and session races. Currently blocked on the first two.
-const kTransferAuthorizationEvidenceReady = false;
+/// Whether transfers may be sent with a transaction PIN. On since
+/// 7 October 2026 (Kenechukwu): the Core docs, the source of truth, require
+/// `transactionPin` on all four transfer bodies and define 401 as an
+/// incorrect PIN. [transferAuthorizationReady] still keeps it to staging.
+const kTransferAuthorizationEvidenceReady = true;
 
 /// Transfer PIN authorization is never ready outside staging; production
 /// activation is a separate release decision.
