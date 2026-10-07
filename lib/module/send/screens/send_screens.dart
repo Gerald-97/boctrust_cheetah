@@ -13,7 +13,7 @@ import '../../app_flow/flow_page.dart';
 import '../../core_banking/screens/boctrust_transfer_screen.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/own_account_move_screen.dart';
-import '../../core_banking/screens/snap_number_button.dart';
+import '../../core_banking/screens/snap_to_pay_page.dart';
 import '../model/transaction_models.dart';
 import '../provider/transaction_provider.dart';
 
@@ -159,9 +159,16 @@ extension SendScreens on FlowPageState {
           PaymentActionCard(
             icon: IconsaxPlusLinear.scan_barcode,
             title: 'Scan to pay',
-            subtitle: 'Not available yet',
+            subtitle:
+                ref
+                    .watch(
+                      featureAvailabilityProvider(FeatureCapability.scanToPay),
+                    )
+                    .isAvailable
+                ? 'Read an account number from a photo'
+                : 'Not available yet',
             color: context.bocColors.smartSaveContainer,
-            onTap: () => go(AppRoutes.scanToPay),
+            onTap: _openScanToPay,
           ),
         ],
       ),
@@ -192,13 +199,23 @@ extension SendScreens on FlowPageState {
     message: 'Sending money to another bank is not available yet.',
   );
 
+  /// Camera access is settled before the page opens, so the system prompt
+  /// never covers the viewfinder.
+  Future<void> _openScanToPay() async {
+    if (ref
+        .read(featureAvailabilityProvider(FeatureCapability.scanToPay))
+        .isAvailable) {
+      await prepareScanCamera();
+    }
+    if (mounted) go(AppRoutes.scanToPay);
+  }
+
   Widget _scanScreen() =>
       ref
           .watch(featureAvailabilityProvider(FeatureCapability.scanToPay))
           .isAvailable
       ? SnapToPayPage(
           onExit: back,
-          onSectionSelected: goSection,
           onSend: (route, number) =>
               go(route, arguments: AppRouteArguments(entityId: number)),
         )

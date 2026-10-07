@@ -4,19 +4,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../app/app_router.dart';
-import '../../../app/feature_capability.dart';
-import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../kyc/service/dojah_camera_permission.dart';
 import '../service/core_ocr_service.dart';
-import 'core_flow_widgets.dart';
 
 final _accountNumber = RegExp(r'^\d{10}$');
 
-/// Asks for a photo from the camera or gallery and reads a ten-digit account
-/// number from it. Null when the customer cancels or no account number was
-/// found; the reason is shown as a snackbar. Never submits anything.
+/// Reads a ten-digit account number from [image]. Null when none was found;
+/// the reason is shown as a snackbar. Never submits anything.
+Future<String?> readAccountNumber(
+  BuildContext context,
+  WidgetRef ref,
+  Uint8List image,
+) async {
+  final result = await ref.read(coreOcrServiceProvider).readNumber(image);
+  if (!context.mounted) return null;
+  final number = result.data;
+  final problem = number == null
+      ? result.message ?? "We couldn't read that photo."
+      : _accountNumber.hasMatch(number)
+      ? null
+      : "That number isn't a 10-digit account number.";
+  if (problem != null) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(problem)));
+    return null;
+  }
+  return number;
+}
+
+/// Asks for a photo from the camera or gallery and reads an account number
+/// from it, for a field's suffix button.
 Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
   final source = await AppActionSheet.show<ImageSource>(
     context: context,
@@ -25,6 +44,7 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
       title: 'Read an account number',
       subtitle: 'Use a clear photo of the number.',
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           AppActionSheetOption(
             icon: IconsaxPlusLinear.camera,
@@ -32,6 +52,7 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
             subtitle: 'Use your camera',
             onTap: () => Navigator.of(sheet).pop(ImageSource.camera),
           ),
+          const SizedBox(height: 12),
           AppActionSheetOption(
             icon: IconsaxPlusLinear.gallery,
             title: 'Choose a photo',
@@ -43,21 +64,19 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
     ),
   );
   if (source == null || !context.mounted) return null;
-  void say(String message) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
   // The app declares CAMERA for identity capture, so Android requires it to
   // be granted before the camera can be opened for this photo too.
   if (source == ImageSource.camera &&
       !await requestDojahCameraPermission(
         isAndroid: !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       )) {
-    say('Allow camera access in Settings to take a photo.');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Allow camera access in Settings to take a photo.'),
+        ),
+      );
+    }
     return null;
   }
   final photo = await ImagePicker().pickImage(
@@ -66,19 +85,9 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
     imageQuality: 85,
   );
   if (photo == null || !context.mounted) return null;
-  final result = await ref
-      .read(coreOcrServiceProvider)
-      .readNumber(await photo.readAsBytes());
-  final number = result.data;
-  if (number == null) {
-    say(result.message ?? "We couldn't read that photo.");
-    return null;
-  }
-  if (!_accountNumber.hasMatch(number)) {
-    say("That number isn't a 10-digit account number.");
-    return null;
-  }
-  return number;
+  final bytes = await photo.readAsBytes();
+  if (!context.mounted) return null;
+  return readAccountNumber(context, ref, bytes);
 }
 
 /// A field suffix that fills an account number from a photo.
@@ -113,102 +122,4 @@ class _SnapNumberButtonState extends ConsumerState<SnapNumberButton> {
           )
         : const Icon(IconsaxPlusLinear.scan),
   );
-}
-
-/// Payments → Scan to pay: read a number, then choose where to send to.
-class SnapToPayPage extends ConsumerStatefulWidget {
-  const SnapToPayPage({
-    required this.onExit,
-    required this.onSectionSelected,
-    required this.onSend,
-    super.key,
-  });
-
-  final VoidCallback onExit;
-  final ValueChanged<AppSection> onSectionSelected;
-
-  /// Opens [route] with [number] to prefill its account field.
-  final void Function(String route, String number) onSend;
-
-  @override
-  ConsumerState<SnapToPayPage> createState() => _SnapToPayPageState();
-}
-
-class _SnapToPayPageState extends ConsumerState<SnapToPayPage> {
-  String? _number;
-  bool _reading = false;
-
-  Future<void> _snap() async {
-    setState(() => _reading = true);
-    final number = await snapAccountNumber(context, ref);
-    if (!mounted) return;
-    setState(() {
-      _reading = false;
-      _number = number ?? _number;
-    });
-  }
-
-  bool _available(FeatureCapability capability) =>
-      ref.watch(featureAvailabilityProvider(capability)).isAvailable;
-
-  @override
-  Widget build(BuildContext context) {
-    final number = _number;
-    return AppScaffold(
-      title: 'Scan to pay',
-      activeSection: AppSection.payments,
-      onBack: widget.onExit,
-      onSectionSelected: widget.onSectionSelected,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          BocSpace.gutter,
-          BocSpace.xxs,
-          BocSpace.gutter,
-          BocSpace.lg,
-        ).clearOfNav(context),
-        children: [
-          const FlowHeading('Pay from a photo'),
-          const Text(
-            'Take or choose a photo of an account number. You will check '
-            'the details before anything is sent.',
-          ),
-          const SizedBox(height: BocSpace.lg),
-          if (number != null) ...[
-            ApiStateCard(
-              title: number,
-              message: 'Account number read from your photo.',
-              tone: ApiStateTone.info,
-            ),
-            const SizedBox(height: BocSpace.md),
-            if (_available(FeatureCapability.boctrustTransfers)) ...[
-              PrimaryButton(
-                label: 'Send to a BOCTRUST account',
-                onPressed: () =>
-                    widget.onSend(AppRoutes.sendBeneficiary, number),
-              ),
-              const SizedBox(height: BocSpace.sm),
-            ],
-            if (_available(FeatureCapability.interbankTransfers)) ...[
-              SecondaryButton(
-                label: 'Send to another bank',
-                onPressed: () => widget.onSend(AppRoutes.sendOtherBank, number),
-              ),
-              const SizedBox(height: BocSpace.sm),
-            ],
-          ],
-          if (number == null)
-            PrimaryButton(
-              label: 'Take or choose a photo',
-              isLoading: _reading,
-              onPressed: _snap,
-            )
-          else
-            BocTextButton(
-              label: 'Use a different photo',
-              onPressed: _reading ? null : _snap,
-            ),
-        ],
-      ),
-    );
-  }
 }
