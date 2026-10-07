@@ -79,4 +79,14 @@ void main() {
     expect(whole.width, 1000);
     expect(whole.height, 1333);
   });
+
+  test('a scan photo is sent without its metadata or location', () {
+    final source = img.Image(width: 1200, height: 1600);
+    source.exif.imageIfd['Model'] = 'Pixel 7 Pro';
+    source.exif.gpsIfd['GPSLatitude'] = 6.5244;
+
+    final upload = img.decodeJpg(shrinkForSnap(img.encodeJpg(source)))!;
+
+    expect(upload.exif.isEmpty, isTrue);
+  });
 }

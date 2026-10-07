@@ -14,7 +14,7 @@ import '../model/core_json.dart';
 const kSnapImageMaxBytes = 8 * 1024 * 1024;
 
 /// A photo cut down for snap-to-pay: upright, grayscale, at most 1000 px
-/// wide, JPEG quality 75. With [cropToFrame] (a viewfinder capture) only the
+/// wide, JPEG quality 75, with all metadata removed. With [cropToFrame] (a viewfinder capture) only the
 /// centre band around the on-screen frame is kept: 92% of the width, 35% of
 /// the height. A photo from elsewhere has no frame and is kept whole.
 ///
@@ -38,6 +38,8 @@ Uint8List shrinkForSnap(Uint8List photo, {bool cropToFrame = true}) {
       : upright;
   band = img.grayscale(band);
   if (band.width > 1000) band = img.copyResize(band, width: 1000);
+  // The photo's EXIF (device, time and GPS location) never leaves the phone.
+  band.exif.clear();
   return img.encodeJpg(band, quality: 75);
 }
 
