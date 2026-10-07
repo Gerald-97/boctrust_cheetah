@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification, and to read account numbers from a photo when you send money.</string>
+	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification, and to read the account number and bank name from a photo when you send money. The photo stays on your device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>BOCTRUST reads an account number from a photo you choose when you send money.</string>
+	<string>BOCTRUST reads the account number and bank name from a photo you choose when you send money. The photo stays on your device.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>BOCTRUST uses Face ID to sign you in to your account.</string>
 	<key>NSMicrophoneUsageDescription</key>
