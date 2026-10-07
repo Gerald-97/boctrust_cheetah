@@ -16,11 +16,12 @@ import '../../app_flow/app_ui.dart';
 import '../model/interbank_models.dart';
 import '../model/scan_text_models.dart';
 import '../provider/core_payments_providers.dart';
+import '../service/core_transfer_service.dart';
+import '../service/scan_bank_matcher.dart';
 import '../service/scan_candidate_extractor.dart';
 import '../service/scan_image_file.dart';
 import '../service/scan_text_recognizer.dart';
 import 'core_flow_widgets.dart';
-import 'snap_number_button.dart';
 
 bool get _isAndroid =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -84,8 +85,9 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
   /// Bumped by every new image, Retake and exit, so a result that arrives
   /// for an earlier image is ignored.
   int _scan = 0;
+
+  /// What the photo offered for review; empty when typing a number in.
   ScanCandidates? _candidates;
-  String? _number;
   String? _problem;
 
   @override
@@ -205,7 +207,6 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     setState(() {
       _recognizing = true;
       _candidates = null;
-      _number = null;
       _problem = null;
     });
     ScanCandidates? candidates;
@@ -216,28 +217,19 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       problem = failure.message;
     }
     if (!mounted || scan != _scan) return;
-    final numbers = candidates?.accountNumbers ?? const [];
     setState(() {
       _recognizing = false;
       _candidates = candidates;
-      _problem =
-          problem ??
-          (numbers.isEmpty
-              ? "We couldn't find a 10-digit account number."
-              : null);
-      if (numbers.length == 1) _number = numbers.single;
+      _problem = problem;
     });
-    if (numbers.length > 1) await _chooseNumber();
   }
 
-  Future<void> _chooseNumber() async {
-    final scan = _scan;
-    final numbers = _candidates?.accountNumbers ?? const [];
-    final number = await chooseScannedNumber(context, numbers);
-    if (number != null && mounted && scan == _scan) {
-      setState(() => _number = number);
-    }
-  }
+  /// Reviews a typed number against the full bank list, without the photo's
+  /// text.
+  void _enterNumber() => setState(() {
+    _candidates = const ScanCandidates(accountNumbers: [], bankTextLines: []);
+    _problem = null;
+  });
 
   /// Drops the photo and returns to the live viewfinder.
   void _retake() {
@@ -246,7 +238,6 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     setState(() {
       _recognizing = false;
       _candidates = null;
-      _number = null;
       _problem = null;
     });
   }
@@ -284,11 +275,22 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
             child: Column(
               children: [
                 _topBar(),
-                const Spacer(),
+                if (photo == null || _recognizing) const Spacer(),
                 if (photo == null)
                   _controls()
                 else if (!_recognizing)
-                  ..._still(),
+                  // Scrolls when the keyboard leaves too little room.
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: _still(),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -316,8 +318,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
 
   /// Retake and Choose another over the photo, then what was read from it.
   List<Widget> _still() {
-    final number = _number;
-    final several = (_candidates?.accountNumbers.length ?? 0) > 1;
+    final candidates = _candidates;
     return [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: BocSpace.md),
@@ -340,17 +341,14 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         ),
       ),
       const SizedBox(height: BocSpace.xs),
-      if (number != null)
-        _result(number)
+      if (candidates != null)
+        _result(candidates)
       else
-        _message(
-          _problem ?? 'This photo has more than one account number.',
-          onChoose: several ? _chooseNumber : null,
-        ),
+        _message(_problem ?? "We couldn't read this photo."),
     ];
   }
 
-  Widget _message(String message, {VoidCallback? onChoose}) => Material(
+  Widget _message(String message) => Material(
     color: Theme.of(context).cardColor,
     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
     child: Padding(
@@ -360,10 +358,8 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(message, style: Theme.of(context).textTheme.bodyLarge),
-          if (onChoose != null) ...[
-            const SizedBox(height: BocSpace.md),
-            PrimaryButton(label: 'Choose the number', onPressed: onChoose),
-          ],
+          const SizedBox(height: BocSpace.md),
+          SecondaryButton(label: 'Enter number', onPressed: _enterNumber),
         ],
       ),
     ),
@@ -538,7 +534,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
   bool _available(FeatureCapability capability) =>
       ref.watch(featureAvailabilityProvider(capability)).isAvailable;
 
-  Widget _result(String number) {
+  Widget _result(ScanCandidates candidates) {
     final canBoctrust = _available(FeatureCapability.boctrustTransfers);
     final canInterbank = _available(FeatureCapability.interbankTransfers);
     final banksState = ref.watch(interbankBanksProvider);
@@ -548,7 +544,8 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       fetched: banksState.data ?? const [],
     );
     return ScannedAccountResult(
-      number: number,
+      numbers: candidates.accountNumbers,
+      bankMatch: matchScanBanks(candidates.bankTextLines, banks),
       banks: banks,
       loading: canInterbank && banksState.isLoading,
       errorMessage: canInterbank && banksState.isError
@@ -557,6 +554,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
       onRetry: canInterbank
           ? ref.read(interbankBanksProvider.notifier).load
           : null,
+      onCheck: (bank, number) => checkScannedAccount(ref, bank, number),
       onSend: (route, number, bankCode) {
         _retake();
         widget.onSend(route, number, bankCode);
@@ -584,13 +582,31 @@ List<CommercialBank> scanToPayBanks({
       if (!bank.name.toLowerCase().contains('boctrust')) bank,
 ];
 
-/// The confirmed OCR result. A bank must still be selected before routing to
-/// the matching transfer flow; OCR never infers the receiving bank.
+final _tenDigits = RegExp(r'^\d{10}$');
+
+/// Checks a scanned recipient with the enquiry its flow uses: BOCTRUST
+/// through the internal enquiry, any other bank by its code.
+Future<({String? name, String? error})> checkScannedAccount(
+  WidgetRef ref,
+  CommercialBank bank,
+  String number,
+) async => bank.isBoctrust
+    ? accountNameLookupOutcome(
+        await ref.read(coreTransferServiceProvider).boctrustNameEnquiry(number),
+      )
+    : lookUpAccountName(ref, bankCode: bank.code, accountNumber: number);
+
+/// The review of what a scan read. The number is prefilled only when one was
+/// found, and the bank only when [bankMatch] is unique; the customer confirms
+/// or changes both, then checks the account. Continue routes only the exact
+/// number and bank that check named.
 class ScannedAccountResult extends StatefulWidget {
   const ScannedAccountResult({
-    required this.number,
+    required this.numbers,
+    required this.bankMatch,
     required this.banks,
     required this.loading,
+    required this.onCheck,
     required this.onSend,
     required this.onScanAgain,
     this.errorMessage,
@@ -598,11 +614,18 @@ class ScannedAccountResult extends StatefulWidget {
     super.key,
   });
 
-  final String number;
+  /// The distinct ten-digit numbers read; empty when typing one in.
+  final List<String> numbers;
+  final BankMatch bankMatch;
   final List<CommercialBank> banks;
   final bool loading;
   final String? errorMessage;
   final VoidCallback? onRetry;
+  final Future<({String? name, String? error})> Function(
+    CommercialBank bank,
+    String number,
+  )
+  onCheck;
   final void Function(String route, String number, String? bankCode) onSend;
   final VoidCallback onScanAgain;
 
@@ -611,66 +634,189 @@ class ScannedAccountResult extends StatefulWidget {
 }
 
 class _ScannedAccountResultState extends State<ScannedAccountResult> {
+  late final _number = TextEditingController(
+    text: widget.numbers.length == 1 ? widget.numbers.single : '',
+  );
   CommercialBank? _bank;
+  bool _bankPicked = false;
+
+  /// Bumped by every edit, so a reply for an earlier pair is ignored.
+  int _lookup = 0;
+  bool _checking = false;
+  String? _error;
+  ({String code, String number, String name})? _verified;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).cardColor,
-    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-    child: Padding(
-      padding: const EdgeInsets.all(BocSpace.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Account number', style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: BocSpace.xxs),
-          Text(widget.number, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: BocSpace.md),
-          BankSelectorTile(
-            bank: _bank,
-            banks: widget.banks,
-            loading: widget.loading,
-            onSelected: (bank) => setState(() => _bank = bank),
-          ),
-          if (widget.banks.isEmpty &&
-              !widget.loading &&
-              widget.errorMessage == null) ...[
-            const SizedBox(height: BocSpace.sm),
-            const FieldError(kNoScanBanks),
-          ],
-          if (widget.errorMessage case final message?) ...[
-            const SizedBox(height: BocSpace.sm),
-            ApiStateCard(
-              title: 'Banks unavailable',
-              message: message,
-              tone: ApiStateTone.error,
-              actionLabel: widget.onRetry == null ? null : 'Retry',
-              onAction: widget.onRetry,
+  void initState() {
+    super.initState();
+    _bank = _proposed(widget.bankMatch);
+  }
+
+  /// Banks that load after the scan can still settle the proposal, until the
+  /// customer picks one themselves.
+  @override
+  void didUpdateWidget(ScannedAccountResult old) {
+    super.didUpdateWidget(old);
+    if (!_bankPicked && widget.bankMatch != old.bankMatch) {
+      _bank = _proposed(widget.bankMatch);
+      _clearCheck();
+    }
+  }
+
+  @override
+  void dispose() {
+    _number.dispose();
+    super.dispose();
+  }
+
+  static CommercialBank? _proposed(BankMatch match) =>
+      match.status == BankMatchStatus.unique ? match.candidates.first : null;
+
+  /// Any change to the pair discards its check and a late reply.
+  void _clearCheck() {
+    _lookup++;
+    _checking = false;
+    _error = null;
+    _verified = null;
+  }
+
+  void _change(VoidCallback change) => setState(() {
+    change();
+    _clearCheck();
+  });
+
+  void _pickBank(CommercialBank bank) => _change(() {
+    _bank = bank;
+    _bankPicked = true;
+  });
+
+  Future<void> _check() async {
+    final bank = _bank;
+    final number = _number.text.trim();
+    if (bank == null || !_tenDigits.hasMatch(number) || _checking) return;
+    final lookup = ++_lookup;
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
+    final result = await widget.onCheck(bank, number);
+    if (!mounted || lookup != _lookup) return;
+    final name = result.name;
+    setState(() {
+      _checking = false;
+      _verified = name == null
+          ? null
+          : (code: bank.code, number: number, name: name);
+      _error = result.error;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bank = _bank;
+    final number = _number.text.trim();
+    final verified = _verified;
+    final confirmed =
+        verified != null &&
+        bank != null &&
+        verified.code == bank.code &&
+        verified.number == number;
+    final ambiguous = widget.bankMatch.status == BankMatchStatus.ambiguous;
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(BocSpace.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: 'Account number',
+              controller: _number,
+              hintText: '10 digits',
+              keyboardType: TextInputType.number,
+              onChanged: (_) => _change(() {}),
             ),
+            if (widget.numbers.length > 1) ...[
+              const SizedBox(height: BocSpace.xs),
+              BocChoiceChips<String>(
+                options: [for (final n in widget.numbers) (value: n, label: n)],
+                selected: {number},
+                onChanged: (picked) =>
+                    _change(() => _number.text = picked.single),
+              ),
+            ],
+            const SizedBox(height: BocSpace.md),
+            if (ambiguous) ...[
+              BocChoiceChips<CommercialBank>(
+                options: [
+                  for (final b in widget.bankMatch.candidates)
+                    (value: b, label: b.name),
+                ],
+                selected: {?bank},
+                onChanged: (picked) => _pickBank(picked.single),
+              ),
+              const SizedBox(height: BocSpace.xs),
+            ],
+            BankSelectorTile(
+              bank: bank,
+              banks: widget.banks,
+              loading: widget.loading,
+              onSelected: _pickBank,
+            ),
+            if (widget.banks.isEmpty &&
+                !widget.loading &&
+                widget.errorMessage == null) ...[
+              const SizedBox(height: BocSpace.sm),
+              const FieldError(kNoScanBanks),
+            ],
+            if (widget.errorMessage case final message?) ...[
+              const SizedBox(height: BocSpace.sm),
+              ApiStateCard(
+                title: 'Banks unavailable',
+                message: message,
+                tone: ApiStateTone.error,
+                actionLabel: widget.onRetry == null ? null : 'Retry',
+                onAction: widget.onRetry,
+              ),
+            ],
+            const SizedBox(height: BocSpace.sm),
+            if (confirmed)
+              ApiStateCard(
+                title: verified.name,
+                message: '${bank.name} · ${verified.number}',
+                tone: ApiStateTone.info,
+              )
+            else if (_error case final error?)
+              FieldError(error),
+            const SizedBox(height: BocSpace.md),
+            if (confirmed)
+              PrimaryButton(
+                label: 'Continue',
+                onPressed: () => widget.onSend(
+                  bank.isBoctrust
+                      ? AppRoutes.sendBeneficiary
+                      : AppRoutes.sendOtherBank,
+                  verified.number,
+                  bank.isBoctrust ? null : bank.code,
+                ),
+              )
+            else
+              PrimaryButton(
+                label: _error == null ? 'Check account' : 'Retry',
+                isLoading: _checking,
+                onPressed: bank != null && _tenDigits.hasMatch(number)
+                    ? _check
+                    : null,
+              ),
+            const SizedBox(height: BocSpace.sm),
+            BocTextButton(label: 'Scan again', onPressed: widget.onScanAgain),
           ],
-          const SizedBox(height: BocSpace.md),
-          PrimaryButton(
-            label: 'Continue',
-            onPressed: _bank == null
-                ? null
-                : () {
-                    final bank = _bank!;
-                    widget.onSend(
-                      bank.isBoctrust
-                          ? AppRoutes.sendBeneficiary
-                          : AppRoutes.sendOtherBank,
-                      widget.number,
-                      bank.isBoctrust ? null : bank.code,
-                    );
-                  },
-          ),
-          const SizedBox(height: BocSpace.sm),
-          BocTextButton(label: 'Scan again', onPressed: widget.onScanAgain),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _RoundButton extends StatelessWidget {
