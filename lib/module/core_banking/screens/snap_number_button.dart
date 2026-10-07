@@ -65,7 +65,7 @@ Future<String?> snapAccountNumber(BuildContext context, WidgetRef ref) async {
     maxWidth: 1600,
     imageQuality: 85,
   );
-  if (photo == null) return null;
+  if (photo == null || !context.mounted) return null;
   final result = await ref
       .read(coreOcrServiceProvider)
       .readNumber(await photo.readAsBytes());
