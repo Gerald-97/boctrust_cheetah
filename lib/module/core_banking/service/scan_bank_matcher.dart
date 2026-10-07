@@ -42,6 +42,10 @@ BankMatch matchScanBanks(
     for (final bank in availableBanks) (bank, _tokens(bank.name)),
   ].where((entry) => entry.$2.isNotEmpty).toList();
 
+  final aliases = [
+    for (final entry in _aliases.entries)
+      (entry.key, _tokens(entry.value).join(' ')),
+  ];
   final hits = <String, CommercialBank>{};
   final suggestions = <String, CommercialBank>{};
   for (final line in bankTextLines) {
@@ -51,10 +55,10 @@ BankMatch matchScanBanks(
       for (var i = 0; i + name.length <= tokens.length; i++) {
         if (_sameAt(tokens, name, i)) spans.add((i, i + name.length, bank));
       }
-      for (final entry in _aliases.entries) {
-        if (_tokens(entry.value).join(' ') != name.join(' ')) continue;
+      for (final alias in aliases) {
+        if (alias.$2 != name.join(' ')) continue;
         for (var i = 0; i < tokens.length; i++) {
-          if (tokens[i] == entry.key) spans.add((i, i + 1, bank));
+          if (tokens[i] == alias.$1) spans.add((i, i + 1, bank));
         }
       }
     }

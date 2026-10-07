@@ -30,7 +30,14 @@ void main() {
   });
 
   test('the longest bank name wins over one it contains', () {
-    expect(_match(['First City Monument Bank']).candidates, [_fcmb]);
+    const union = CommercialBank(code: '032', name: 'Union Bank');
+    const unionNigeria = CommercialBank(
+      code: '033',
+      name: 'Union Bank of Nigeria',
+    );
+    final match = _match(['Union Bank of Nigeria'], [union, unionNigeria]);
+    expect(match.status, BankMatchStatus.unique);
+    expect(match.candidates, [unionNigeria]);
   });
 
   test('two banks in the text are ambiguous', () {
