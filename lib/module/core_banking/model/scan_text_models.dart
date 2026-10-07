@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'interbank_models.dart';
+
 /// A rectangle in `[0,1]` with a top-left origin, measured on the upright
 /// image after EXIF orientation: `(0,0)` is its top-left pixel and `(1,1)` its
 /// bottom-right.
@@ -47,4 +49,27 @@ class ScanCandidates extends Equatable {
 
   @override
   List<Object?> get props => [accountNumbers, bankTextLines];
+}
+
+enum BankMatchStatus {
+  /// Exactly one supported bank was named.
+  unique,
+
+  /// Several banks were named, or only near matches were found.
+  ambiguous,
+
+  /// No supported bank was found.
+  none,
+}
+
+/// The supported banks a scan's text points to, best first. Only
+/// [BankMatchStatus.unique] is safe to preselect.
+class BankMatch extends Equatable {
+  const BankMatch(this.status, this.candidates);
+
+  final BankMatchStatus status;
+  final List<CommercialBank> candidates;
+
+  @override
+  List<Object?> get props => [status, candidates];
 }
