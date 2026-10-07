@@ -78,6 +78,8 @@
 
 ### Task 1 (human checkpoint): Resolve account-opening ownership (G1)
 
+> **Resolved 7 October 2026 (Kenechukwu): the backend opens Core accounts.** Task 3 is not built; `coreAccountOpening` stays unregistered.
+
 **Files:** record the decision in `docs/verification/core-banking-integration.md`.
 
 - [ ] **Step 1:** Ask backend/product the G1 questions; record the answer and date.
@@ -255,6 +257,8 @@
 - [ ] **Step 5: Register** `beneficiaries` and `beneficiariesManage`; commit `feat(core): save and reuse beneficiaries`.
 
 ### Task 14: Snap/Scan to pay prefill (requires G7)
+
+> **Resolved 7 October 2026 (Kenechukwu): snap-to-pay with `image_picker`.** Implemented by [account activity and snap-to-pay](2026-10-07-core-account-activity-and-snap-to-pay.md); bill customer-ID fill stays deferred with bills.
 
 **Files:** Create `lib/module/core_banking/service/core_ocr_service.dart`, `lib/module/payments/screens/scan_to_pay_screen.dart`; Modify the recipient and customer-ID fields (Tasks 9, 12) to add "Scan number"; `pubspec.yaml` only if G7 approves `image_picker`; Test `test/scan_to_pay_test.dart`.
 
