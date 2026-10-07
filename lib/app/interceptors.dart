@@ -15,6 +15,11 @@ class LoggingInterceptor extends Interceptor {
     : _logger = logger ?? apiLogger;
 
   static const _requestStartedAtKey = 'apiLogger.requestStartedAt';
+
+  /// A safe path template for requests whose real path or body must never be
+  /// logged, including in staging. Its presence also suppresses request and
+  /// response payloads and raw exception details.
+  static const privacySensitivePathKey = 'apiLogger.privacySensitivePath';
   static const _sensitiveKeyParts = <String>{
     'authorization',
     'cookie',
@@ -50,10 +55,10 @@ class LoggingInterceptor extends Interceptor {
       _masked({
         'event': 'REQUEST',
         'method': options.method,
-        'url': _urlWithoutQuery(options),
-        'query': _visible(options.queryParameters),
+        'url': _urlForLog(options),
+        'query': _visibleForRequest(options, options.queryParameters),
         'headers': _visible(options.headers),
-        'body': _visible(options.data),
+        'body': _visibleForRequest(options, options.data),
         'extra': _visible(_requestExtra(options)),
       }, _credentialValues(options.data)),
     );
@@ -67,12 +72,12 @@ class LoggingInterceptor extends Interceptor {
       _masked({
         'event': 'RESPONSE',
         'method': request.method,
-        'url': _urlWithoutQuery(request),
+        'url': _urlForLog(request),
         'statusCode': response.statusCode,
         'statusMessage': response.statusMessage,
         'durationMs': _durationMilliseconds(request),
         // 'headers': _visible(response.headers.map),
-        'body': _visible(response.data),
+        'body': _visibleForRequest(request, response.data),
       }, _credentialValues(request.data)),
     );
     handler.next(response);
@@ -85,24 +90,28 @@ class LoggingInterceptor extends Interceptor {
     // A request carrying a PIN or password never hands Logger the raw
     // exception, in any environment: its message, error or stack trace can
     // echo the credential as plain text that key-based redaction cannot see.
-    final raw = includeSensitiveData && credentials.isEmpty;
+    final privacySensitive = _privacySafePath(request) != null;
+    final raw =
+        includeSensitiveData && credentials.isEmpty && !privacySensitive;
     _logger.e(
       _masked({
         'event': 'ERROR',
         'method': request.method,
-        'url': _urlWithoutQuery(request),
-        'query': _visible(request.queryParameters),
+        'url': _urlForLog(request),
+        'query': _visibleForRequest(request, request.queryParameters),
         'statusCode': err.response?.statusCode,
         'durationMs': _durationMilliseconds(request),
         'type': err.type.name,
         'message': raw ? err.message : 'The API request failed.',
         'requestHeaders': _visible(request.headers),
-        'requestBody': _visible(request.data),
+        'requestBody': _visibleForRequest(request, request.data),
         // 'responseHeaders': _visible(err.response?.headers.map),
-        'responseBody': _visible(err.response?.data),
+        'responseBody': _visibleForRequest(request, err.response?.data),
       }, credentials),
       error: raw ? err.error : err.error?.runtimeType,
-      stackTrace: credentials.isEmpty ? err.stackTrace : null,
+      stackTrace: credentials.isEmpty && !privacySensitive
+          ? err.stackTrace
+          : null,
     );
     handler.next(err);
   }
@@ -183,6 +192,9 @@ class LoggingInterceptor extends Interceptor {
   Object? _visible(Object? value) =>
       _redact(value, includeSensitiveData: includeSensitiveData);
 
+  Object? _visibleForRequest(RequestOptions request, Object? value) =>
+      _privacySafePath(request) == null ? _visible(value) : '[REDACTED]';
+
   /// Normalized form used to match keys, and to scan serialized payloads.
   static String _normalize(Object? value) =>
       value.toString().toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
@@ -262,15 +274,31 @@ class LoggingInterceptor extends Interceptor {
     return value;
   }
 
-  static String _urlWithoutQuery(RequestOptions options) {
+  static String _urlForLog(RequestOptions options) {
     final uri = options.uri;
-    if (uri.hasScheme && uri.host.isNotEmpty) return '${uri.origin}${uri.path}';
+    final template = _privacySafePath(options);
+    // The template replaces only the request path; keep the base URL's path
+    // (e.g. `/api/v1`) so the logged URL matches the one requested.
+    final path = template == null ? uri.path : '${_basePath(options)}$template';
+    if (uri.hasScheme && uri.host.isNotEmpty) return '${uri.origin}$path';
+    if (template != null) return path;
     return options.path.split('?').first;
+  }
+
+  static String _basePath(RequestOptions options) {
+    final path = Uri.tryParse(options.baseUrl)?.path ?? '';
+    return path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+  }
+
+  static String? _privacySafePath(RequestOptions options) {
+    final value = options.extra[privacySensitivePathKey];
+    return value is String && value.startsWith('/') ? value : null;
   }
 
   static Map<String, Object?> _requestExtra(RequestOptions options) {
     final extra = Map<String, Object?>.from(options.extra);
     extra.remove(_requestStartedAtKey);
+    extra.remove(privacySensitivePathKey);
     // Internal plumbing for logout revocation, not request data.
     extra.remove(AuthInterceptor.pinnedAccessTokenKey);
     return extra;

@@ -2,8 +2,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:boctrust_savings_loan/app/network.dart';
+import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'package:boctrust_savings_loan/app/theme.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/screens/snap_to_pay_page.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_ocr_service.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,5 +93,118 @@ void main() {
     final upload = img.decodeJpg(shrinkForSnap(img.encodeJpg(source)))!;
 
     expect(upload.exif.isEmpty, isTrue);
+  });
+
+  testWidgets('a scanned number routes only after the bank is selected', (
+    tester,
+  ) async {
+    final sends = <({String route, String number, String? bankCode})>[];
+    const number = '0123456789';
+    const access = CommercialBank(code: '058', name: 'Access Bank');
+
+    Future<void> pumpResult(Key key) => tester.pumpWidget(
+      MaterialApp(
+        theme: CheetahTheme.lightTheme,
+        home: Scaffold(
+          body: ScannedAccountResult(
+            key: key,
+            number: number,
+            banks: const [boctrustBank, access],
+            loading: false,
+            onSend: (route, number, bankCode) =>
+                sends.add((route: route, number: number, bankCode: bankCode)),
+            onScanAgain: () {},
+          ),
+        ),
+      ),
+    );
+
+    await pumpResult(const ValueKey('external'));
+    expect(find.text('Choose a bank'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+    await tester.tap(find.text('Choose a bank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Access Bank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    expect(sends.single, (
+      route: AppRoutes.sendOtherBank,
+      number: number,
+      bankCode: '058',
+    ));
+
+    await pumpResult(const ValueKey('boctrust'));
+    await tester.tap(find.text('Choose a bank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('BOCTRUST'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    expect(sends.last, (
+      route: AppRoutes.sendBeneficiary,
+      number: number,
+      bankCode: null,
+    ));
+  });
+
+  test('the scan bank list offers BOCTRUST once, ahead of fetched banks', () {
+    const access = CommercialBank(code: '058', name: 'Access Bank');
+    const listedBoctrust = CommercialBank(
+      code: '090117',
+      name: 'BOCTRUST Microfinance Bank',
+    );
+    const fetched = [access, listedBoctrust];
+
+    expect(
+      scanToPayBanks(canBoctrust: true, canInterbank: true, fetched: fetched),
+      [boctrustBank, access],
+    );
+    expect(
+      scanToPayBanks(canBoctrust: false, canInterbank: true, fetched: fetched),
+      [access],
+    );
+  });
+
+  group('scanned result states', () {
+    Future<void> pumpResult(
+      WidgetTester tester, {
+      String? errorMessage,
+      VoidCallback? onRetry,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        theme: CheetahTheme.lightTheme,
+        home: Scaffold(
+          body: ScannedAccountResult(
+            number: '0123456789',
+            banks: const [],
+            loading: false,
+            errorMessage: errorMessage,
+            onRetry: onRetry,
+            onSend: (_, _, _) {},
+            onScanAgain: () {},
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('a failed bank load can be retried', (tester) async {
+      var retries = 0;
+      await pumpResult(
+        tester,
+        errorMessage: 'Unable to load banks.',
+        onRetry: () => retries++,
+      );
+
+      expect(find.text('Banks unavailable'), findsOneWidget);
+      await tester.tap(find.text('Retry'));
+      expect(retries, 1);
+    });
+
+    testWidgets('no sendable bank explains why Continue is off', (
+      tester,
+    ) async {
+      await pumpResult(tester);
+
+      expect(find.text(kNoScanBanks), findsOneWidget);
+    });
   });
 }

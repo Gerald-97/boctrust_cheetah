@@ -2,12 +2,18 @@ import 'package:equatable/equatable.dart';
 
 import 'core_json.dart';
 
+/// UI-only bank entry used to route scanned BOCTRUST account numbers through
+/// the internal transfer flow. It is never sent to Core as a bank code.
+const boctrustBank = CommercialBank(code: 'BOCTRUST', name: 'BOCTRUST');
+
 /// A destination bank from `GET /me/interbank/banks`.
 class CommercialBank extends Equatable {
   const CommercialBank({required this.code, required this.name});
 
   final String code;
   final String name;
+
+  bool get isBoctrust => code == boctrustBank.code;
 
   /// Banks sorted by name; a row without a code or name is dropped, and a
   /// repeated code keeps its first row.
@@ -30,8 +36,8 @@ class CommercialBank extends Equatable {
   List<Object?> get props => [code, name];
 }
 
-/// The account name from `POST /me/interbank/name-enquiry`. The BVN and KYC
-/// level the reply may carry are dropped here and never stored.
+/// A resolved account name. Sensitive fields the Core reply may carry are
+/// dropped here and never stored.
 class NameEnquiryResult extends Equatable {
   const NameEnquiryResult(this.name);
 

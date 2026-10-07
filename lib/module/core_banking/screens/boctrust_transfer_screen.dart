@@ -10,19 +10,20 @@ import '../model/core_money.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
+import '../service/core_transfer_service.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
 
-enum _Step { form, review }
+enum _Step { recipient, amount, review }
 
 final _tenDigits = RegExp(r'^\d{10}$');
 
 /// Sends money from BocFlex to another BOCTRUST customer.
 ///
-/// Core publishes no name lookup for BOCTRUST accounts, so review shows the
-/// masked number and an irreversibility warning instead of a name.
+/// The receiving BOCTRUST account must be confirmed by name enquiry first;
+/// changing any digit discards that confirmation.
 class BoctrustTransferFlow extends ConsumerStatefulWidget {
   const BoctrustTransferFlow({
     required this.onExit,
@@ -52,7 +53,11 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
       .isAvailable;
   final _amount = TextEditingController();
   final _narration = TextEditingController();
-  _Step _step = _Step.form;
+  _Step _step = _Step.recipient;
+  String? _recipientName;
+  bool _resolving = false;
+  String? _resolveError;
+  int _lookup = 0;
   BoctrustTransferDraft? _draft;
 
   @override
@@ -72,18 +77,46 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     super.dispose();
   }
 
-  void _edit() => setState(() {
+  void _changeRecipient(VoidCallback change) => setState(() {
+    change();
+    _lookup++;
+    _recipientName = null;
+    _resolving = false;
+    _resolveError = null;
     _draft = null;
-    _step = _Step.form;
+    _step = _Step.recipient;
   });
+
+  Future<void> _resolve() async {
+    final number = _account.text.trim();
+    if (!_tenDigits.hasMatch(number) || _resolving) return;
+    final lookup = ++_lookup;
+    setState(() {
+      _resolving = true;
+      _resolveError = null;
+    });
+    final result = accountNameLookupOutcome(
+      await ref.read(coreTransferServiceProvider).boctrustNameEnquiry(number),
+    );
+    if (!mounted || lookup != _lookup) return;
+    setState(() {
+      _resolving = false;
+      _recipientName = result.name;
+      _resolveError = result.error;
+    });
+  }
 
   /// An empty form, after an unresolved transfer is set aside.
   void _startDifferent() => setState(() {
     for (final controller in [_account, _amount, _narration]) {
       controller.clear();
     }
+    _lookup++;
+    _recipientName = null;
+    _resolving = false;
+    _resolveError = null;
     _draft = null;
-    _step = _Step.form;
+    _step = _Step.recipient;
   });
 
   @override
@@ -95,9 +128,13 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     return AppScaffold(
       title: 'To a BOCTRUST account',
       activeSection: AppSection.send,
-      onBack: _step == _Step.review && !showsAttempt(attempt)
-          ? () => setState(() => _step = _Step.form)
-          : widget.onExit,
+      onBack: showsAttempt(attempt)
+          ? widget.onExit
+          : switch (_step) {
+              _Step.amount => () => setState(() => _step = _Step.recipient),
+              _Step.review => () => setState(() => _step = _Step.amount),
+              _ => widget.onExit,
+            },
       onSectionSelected: widget.onSectionSelected,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -112,7 +149,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
             CoreTransferAttemptView(
               attempt: attempt!,
               onExit: widget.onExit,
-              onEditDetails: () => setState(() => _step = _Step.form),
+              onEditDetails: () => setState(() => _step = _Step.recipient),
               onStartDifferent: _startDifferent,
             )
           else if (flex == null)
@@ -126,9 +163,10 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
                   )
           else
             ...switch (_step) {
-              _Step.form => _form(flex.availableBalance, {
+              _Step.recipient => _recipientStep({
                 for (final a in accounts!.accounts) a.accountNumber,
               }),
+              _Step.amount => _amountStep(flex.availableBalance),
               _Step.review => _review(),
             },
         ],
@@ -136,7 +174,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     );
   }
 
-  List<Widget> _form(String? available, Set<String> ownNumbers) {
+  List<Widget> _recipientStep(Set<String> ownNumbers) {
     final number = _account.text.trim();
     final numberError = number.isEmpty
         ? null
@@ -145,12 +183,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
         : ownNumbers.contains(number)
         ? 'Use "Between my accounts" for your own accounts.'
         : null;
-    final amount = amountWithin(_amount.text, available);
-    final ready =
-        number.isNotEmpty &&
-        numberError == null &&
-        amount is ValidMoney &&
-        narrationFits(_narration.text);
+    final name = _recipientName;
     return [
       const FlowHeading('Who are you sending to?'),
       AppTextField(
@@ -158,32 +191,63 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
         controller: _account,
         hintText: '10 digits',
         keyboardType: TextInputType.number,
-        onChanged: (_) => _edit(),
+        onChanged: (_) => _changeRecipient(() {}),
         suffix: _canSnap
             ? SnapNumberButton(
                 onNumber: (number) {
                   _account.text = number;
-                  _edit();
+                  _changeRecipient(() {});
                 },
               )
             : null,
       ),
       if (numberError != null) FieldError(numberError),
-      const SizedBox(height: BocSpace.sm),
+      const SizedBox(height: BocSpace.md),
+      if (name != null)
+        ApiStateCard(
+          title: name,
+          message: 'BOCTRUST · $number',
+          tone: ApiStateTone.info,
+        )
+      else if (_resolveError != null)
+        FieldError(_resolveError!),
+      const SizedBox(height: BocSpace.lg),
+      if (name == null)
+        PrimaryButton(
+          label: 'Check account',
+          isLoading: _resolving,
+          onPressed: numberError == null && _tenDigits.hasMatch(number)
+              ? _resolve
+              : null,
+        )
+      else
+        PrimaryButton(
+          label: 'Continue',
+          onPressed: () => setState(() => _step = _Step.amount),
+        ),
+    ];
+  }
+
+  List<Widget> _amountStep(String? available) {
+    final name = _recipientName;
+    if (name == null) return const [];
+    final amount = amountWithin(_amount.text, available);
+    return [
+      FlowHeading('How much to $name?'),
       CoreAmountFields(
         input: amount,
         available: available,
         amount: _amount,
         narration: _narration,
-        onChanged: _edit,
+        onChanged: () => setState(() => _draft = null),
       ),
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(
         label: 'Review',
-        onPressed: ready
+        onPressed: amount is ValidMoney && narrationFits(_narration.text)
             ? () => setState(() {
                 _draft = BoctrustTransferDraft(
-                  toAccountNumber: number,
+                  toAccountNumber: _account.text.trim(),
                   amountKobo: amount.minorUnits,
                   narration: _narration.text,
                 );
@@ -196,7 +260,8 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
 
   List<Widget> _review() {
     final draft = _draft;
-    if (draft == null) return const [];
+    final name = _recipientName;
+    if (draft == null || name == null) return const [];
     final amount = nairaFromKobo(draft.amountKobo);
     final narration = draft.narration?.trim() ?? '';
     return [
@@ -205,35 +270,31 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
         amount: amount,
         rows: [
           (label: 'Bank', value: 'BOCTRUST'),
+          (label: 'Account name', value: name),
           (label: 'Account number', value: maskNumber(draft.toAccountNumber)),
           if (narration.isNotEmpty) (label: 'Narration', value: narration),
         ],
       ),
       const SizedBox(height: BocSpace.md),
-      const ApiStateCard(
-        title: 'Check the account number',
-        message:
-            'We cannot show the account name for this transfer. Money sent '
-            'to the wrong account cannot be reversed.',
-        tone: ApiStateTone.warning,
-      ),
-      const SizedBox(height: BocSpace.lg),
       PrimaryButton(
         label: 'Send $amount',
-        onPressed: () => _confirm(draft, amount),
+        onPressed: () => _confirm(draft, amount, name),
       ),
     ];
   }
 
-  Future<void> _confirm(BoctrustTransferDraft draft, String amount) =>
-      authorizeAndSubmitTransfer(
-        context,
-        ref,
-        draft: draft,
-        summary: TransactionSummary(
-          title: 'Send to BOCTRUST account',
-          amountDisplay: amount,
-          lines: [('To', maskNumber(draft.toAccountNumber))],
-        ),
-      );
+  Future<void> _confirm(
+    BoctrustTransferDraft draft,
+    String amount,
+    String name,
+  ) => authorizeAndSubmitTransfer(
+    context,
+    ref,
+    draft: draft,
+    summary: TransactionSummary(
+      title: 'Send to BOCTRUST account',
+      amountDisplay: amount,
+      lines: [('To', name), ('Account', maskNumber(draft.toAccountNumber))],
+    ),
+  );
 }

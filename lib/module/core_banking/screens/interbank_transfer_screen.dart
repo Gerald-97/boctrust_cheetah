@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/feature_capability.dart';
-import '../../../app/session_scoped_notifier.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
@@ -32,6 +31,7 @@ class InterbankTransferFlow extends ConsumerStatefulWidget {
     required this.onExit,
     required this.onSectionSelected,
     this.initialAccountNumber,
+    this.initialBankCode,
     super.key,
   });
 
@@ -40,6 +40,7 @@ class InterbankTransferFlow extends ConsumerStatefulWidget {
 
   /// Prefills the account number, e.g. one read from a photo.
   final String? initialAccountNumber;
+  final String? initialBankCode;
 
   @override
   ConsumerState<InterbankTransferFlow> createState() =>
@@ -71,17 +72,27 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      for (final notifier in <SessionScopedNotifier<Object?>>[
-        ref.read(interbankBanksProvider.notifier),
-        ref.read(customerBankAccountsProvider.notifier),
-        if (ref
-            .read(featureAvailabilityProvider(FeatureCapability.beneficiaries))
-            .isAvailable)
-          ref.read(beneficiariesProvider.notifier),
-      ]) {
-        unawaited(notifier.ensureLoaded());
+      final banksLoad = ref
+          .read(interbankBanksProvider.notifier)
+          .ensureLoaded();
+      unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
+      if (ref
+          .read(featureAvailabilityProvider(FeatureCapability.beneficiaries))
+          .isAvailable) {
+        unawaited(ref.read(beneficiariesProvider.notifier).ensureLoaded());
+      }
+      await banksLoad;
+      if (!mounted) return;
+      final initialBankCode = widget.initialBankCode;
+      if (initialBankCode != null && _bank == null) {
+        final initialBank = ref
+            .read(interbankBanksProvider)
+            .data
+            ?.where((bank) => bank.code == initialBankCode)
+            .firstOrNull;
+        if (initialBank != null) setState(() => _bank = initialBank);
       }
     });
   }
@@ -113,7 +124,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
       _resolving = true;
       _resolveError = null;
     });
-    final name = await lookUpAccountName(
+    final result = await lookUpAccountName(
       ref,
       bankCode: bank.code,
       accountNumber: number,
@@ -121,15 +132,15 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     if (!mounted || lookup != _lookup) return;
     setState(() {
       _resolving = false;
-      _recipient = name == null
+      _recipient = result.name == null
           ? null
           : ResolvedRecipient(
               bankCode: bank.code,
               bankName: bank.name,
               accountNumber: number,
-              name: name,
+              name: result.name!,
             );
-      _resolveError = name == null ? kAccountNotFound : null;
+      _resolveError = result.error;
     });
   }
 

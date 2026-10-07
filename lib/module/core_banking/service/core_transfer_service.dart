@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
+import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/core_submission_models.dart';
@@ -70,6 +71,28 @@ class CoreTransferService {
   }
 
   static const _readUnavailable = 'Transfers are not available right now.';
+
+  /// The account name for a BOCTRUST recipient. Sensitive fields returned by
+  /// the full Core enquiry are discarded by [NameEnquiryResult].
+  Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
+    String accountNumber,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_readUnavailable);
+    if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
+      return const NotifierState.error('Enter a 10-digit account number.');
+    }
+    return NotifierState.fromResponse(
+      await api.getData<NameEnquiryResult>(
+        CoreApiEndpoints.accountEnquiry(accountNumber),
+        parser: NameEnquiryResult.fromJson,
+        requestExtra: const {
+          LoggingInterceptor.privacySensitivePathKey:
+              CoreApiEndpoints.accountEnquiryTemplate,
+        },
+      ),
+    );
+  }
 
   Future<NotifierState<List<CommercialBank>>> getBanks() async {
     final api = _api;

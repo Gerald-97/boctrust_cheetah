@@ -8,9 +8,11 @@ class AppRouteArguments {
     this.message,
     this.messageTone = AppMessageTone.info,
     this.entityId,
+    this.bankCode,
   });
 
   final String? message;
   final AppMessageTone messageTone;
   final String? entityId;
+  final String? bankCode;
 }

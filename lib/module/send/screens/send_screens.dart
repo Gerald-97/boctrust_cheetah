@@ -75,6 +75,7 @@ class _SendScreenState extends FlowPageState<SendScreen> {
               onExit: back,
               onSectionSelected: goSection,
               initialAccountNumber: routeArguments.entityId,
+              initialBankCode: routeArguments.bankCode,
             )
           : _sendBankScreen(),
     _SendPage.scan => _scanScreen(),
@@ -216,8 +217,10 @@ extension SendScreens on FlowPageState {
           .isAvailable
       ? SnapToPayPage(
           onExit: back,
-          onSend: (route, number) =>
-              go(route, arguments: AppRouteArguments(entityId: number)),
+          onSend: (route, number, bankCode) => go(
+            route,
+            arguments: AppRouteArguments(entityId: number, bankCode: bankCode),
+          ),
         )
       : _scanUnavailable();
 

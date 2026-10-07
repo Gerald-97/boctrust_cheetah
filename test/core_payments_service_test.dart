@@ -51,8 +51,13 @@ ApiService _api(_Core core) => ApiService(
 );
 
 void main() {
-  test('transfers and interbank reads use the documented endpoints', () async {
+  test('transfers and recipient reads use the documented endpoints', () async {
     final core = _Core({
+      '/accounts/1100037777/enquiry': {
+        'name': 'ADA OBI',
+        'number': '1100037777',
+        'bvn': '22222222222',
+      },
       '/me/interbank/banks': [
         {'code': '000014', 'name': 'Zenith'},
       ],
@@ -63,6 +68,10 @@ void main() {
     });
     final service = CoreTransferService(_api(core));
 
+    expect(
+      (await service.boctrustNameEnquiry('1100037777')).data,
+      const NameEnquiryResult('ADA OBI'),
+    );
     expect((await service.getBanks()).data?.single.code, '000014');
     expect(
       (await service.nameEnquiry(
@@ -92,22 +101,23 @@ void main() {
 
     expect(status.data?.state, InterbankTransferState.completed);
     expect(core.requests.map((r) => '${r.method} ${r.path}'), [
+      'GET /accounts/1100037777/enquiry',
       'GET /me/interbank/banks',
       'POST /me/interbank/name-enquiry',
       'POST /me/intrabank/transfers',
       'POST /me/interbank/transfers',
       'GET /me/interbank/transfers/r%2F2/status',
     ]);
-    expect(core.requests[1].data, {
+    expect(core.requests[2].data, {
       'accountNumber': '0123456789',
       'bankCode': '000014',
     });
-    expect(core.requests[2].data, {
+    expect(core.requests[3].data, {
       'toAccountNumber': '1100037777',
       'amount': '1',
       'transactionPin': '0007',
     });
-    expect(core.requests[3].data, containsPair('transactionPin', '0007'));
+    expect(core.requests[4].data, containsPair('transactionPin', '0007'));
   });
 
   test('bill catalogues and payment', () async {
@@ -179,6 +189,12 @@ void main() {
       ServiceStatus.blocked,
     );
     expect(
+      (await const CoreTransferService(
+        null,
+      ).boctrustNameEnquiry('1100037777')).status,
+      ServiceStatus.blocked,
+    );
+    expect(
       (await const CoreBillService(null).getBillers()).status,
       ServiceStatus.blocked,
     );
@@ -186,6 +202,17 @@ void main() {
       (await const CoreBeneficiaryService(null).list()).status,
       ServiceStatus.blocked,
     );
+  });
+
+  test('a malformed BOCTRUST enquiry number never reaches the path', () async {
+    final core = _Core({});
+
+    final result = await CoreTransferService(
+      _api(core),
+    ).boctrustNameEnquiry('11/../me');
+
+    expect(result.status, ServiceStatus.error);
+    expect(core.requests, isEmpty);
   });
 
   group('live re-query', () {

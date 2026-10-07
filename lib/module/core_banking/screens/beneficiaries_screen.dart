@@ -244,7 +244,7 @@ class _AddBankBeneficiaryState extends ConsumerState<_AddBankBeneficiary> {
     if (bank == null) return;
     final lookup = ++_lookup;
     setState(() => _busy = true);
-    final name = await lookUpAccountName(
+    final result = await lookUpAccountName(
       ref,
       bankCode: bank.code,
       accountNumber: _number.text.trim(),
@@ -252,8 +252,8 @@ class _AddBankBeneficiaryState extends ConsumerState<_AddBankBeneficiary> {
     if (!mounted || lookup != _lookup) return;
     setState(() {
       _busy = false;
-      _name = name;
-      _error = name == null ? kAccountNotFound : null;
+      _name = result.name;
+      _error = result.error;
     });
   }
 

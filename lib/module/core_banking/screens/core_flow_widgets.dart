@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
+import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
@@ -31,17 +32,36 @@ const _noBalance = InvalidMoney(
 const kAccountNotFound =
     "We couldn't find this account. Check the bank and number.";
 
-/// The account name at [bankCode], or null when Core cannot confirm it.
-Future<String?> lookUpAccountName(
+const _accountLookupUnavailable =
+    "We couldn't check this account right now. Try again.";
+
+/// Only a successful Core reply confirms a recipient. An error may contain
+/// conflict data, but that data must never unlock a transfer.
+({String? name, String? error}) accountNameLookupOutcome(
+  NotifierState<NameEnquiryResult> result,
+) {
+  final name = result.isDone ? result.data?.name.trim() : null;
+  if (name != null && name.isNotEmpty) return (name: name, error: null);
+  if (result.statusCode == 404) return (name: null, error: kAccountNotFound);
+  final message = result.message?.trim();
+  return (
+    name: null,
+    error: message == null || message.isEmpty
+        ? _accountLookupUnavailable
+        : message,
+  );
+}
+
+/// The confirmed account-name outcome at [bankCode].
+Future<({String? name, String? error})> lookUpAccountName(
   WidgetRef ref, {
   required String bankCode,
   required String accountNumber,
-}) async =>
-    (await ref
-            .read(coreTransferServiceProvider)
-            .nameEnquiry(bankCode: bankCode, accountNumber: accountNumber))
-        .data
-        ?.name;
+}) async => accountNameLookupOutcome(
+  await ref
+      .read(coreTransferServiceProvider)
+      .nameEnquiry(bankCode: bankCode, accountNumber: accountNumber),
+);
 
 /// [text] checked against an available [balance] (a decimal Naira string).
 /// Kobo for transfers, or two-decimal Naira when [naira] (bills). A missing

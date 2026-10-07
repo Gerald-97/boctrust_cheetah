@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +12,10 @@ import '../../../app/app_router.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
+import '../model/interbank_models.dart';
+import '../provider/core_payments_providers.dart';
 import '../service/core_ocr_service.dart';
+import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 
 bool get _isAndroid =>
@@ -57,7 +62,7 @@ class SnapToPayPage extends ConsumerStatefulWidget {
   final VoidCallback onExit;
 
   /// Opens [route] with [number] to prefill its account field.
-  final void Function(String route, String number) onSend;
+  final void Function(String route, String number, String? bankCode) onSend;
 
   @override
   ConsumerState<SnapToPayPage> createState() => _SnapToPayPageState();
@@ -77,6 +82,19 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startCamera();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !ref
+              .read(
+                featureAvailabilityProvider(
+                  FeatureCapability.interbankTransfers,
+                ),
+              )
+              .isAvailable) {
+        return;
+      }
+      unawaited(ref.read(interbankBanksProvider.notifier).ensureLoaded());
+    });
   }
 
   @override
@@ -376,7 +394,80 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
   bool _available(FeatureCapability capability) =>
       ref.watch(featureAvailabilityProvider(capability)).isAvailable;
 
-  Widget _result(String number) => Material(
+  Widget _result(String number) {
+    final canBoctrust = _available(FeatureCapability.boctrustTransfers);
+    final canInterbank = _available(FeatureCapability.interbankTransfers);
+    final banksState = ref.watch(interbankBanksProvider);
+    final banks = scanToPayBanks(
+      canBoctrust: canBoctrust,
+      canInterbank: canInterbank,
+      fetched: banksState.data ?? const [],
+    );
+    return ScannedAccountResult(
+      number: number,
+      banks: banks,
+      loading: canInterbank && banksState.isLoading,
+      errorMessage: canInterbank && banksState.isError
+          ? banksState.message ?? 'We could not load banks.'
+          : null,
+      onRetry: canInterbank
+          ? ref.read(interbankBanksProvider.notifier).load
+          : null,
+      onSend: widget.onSend,
+      onScanAgain: () => setState(() => _number = null),
+    );
+  }
+}
+
+/// Shown when neither transfer flow can take a scanned number.
+const kNoScanBanks =
+    'Transfers to a scanned account are unavailable right now.';
+
+/// The banks a scanned number can be sent to: BOCTRUST first, then the
+/// fetched banks. Any fetched BOCTRUST entry is dropped so a BOCTRUST number
+/// always goes through the internal flow and its account enquiry.
+List<CommercialBank> scanToPayBanks({
+  required bool canBoctrust,
+  required bool canInterbank,
+  required List<CommercialBank> fetched,
+}) => [
+  if (canBoctrust) boctrustBank,
+  if (canInterbank)
+    for (final bank in fetched)
+      if (!bank.name.toLowerCase().contains('boctrust')) bank,
+];
+
+/// The confirmed OCR result. A bank must still be selected before routing to
+/// the matching transfer flow; OCR never infers the receiving bank.
+class ScannedAccountResult extends StatefulWidget {
+  const ScannedAccountResult({
+    required this.number,
+    required this.banks,
+    required this.loading,
+    required this.onSend,
+    required this.onScanAgain,
+    this.errorMessage,
+    this.onRetry,
+    super.key,
+  });
+
+  final String number;
+  final List<CommercialBank> banks;
+  final bool loading;
+  final String? errorMessage;
+  final VoidCallback? onRetry;
+  final void Function(String route, String number, String? bankCode) onSend;
+  final VoidCallback onScanAgain;
+
+  @override
+  State<ScannedAccountResult> createState() => _ScannedAccountResultState();
+}
+
+class _ScannedAccountResultState extends State<ScannedAccountResult> {
+  CommercialBank? _bank;
+
+  @override
+  Widget build(BuildContext context) => Material(
     color: Theme.of(context).cardColor,
     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
     child: Padding(
@@ -387,26 +478,48 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         children: [
           Text('Account number', style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: BocSpace.xxs),
-          Text(number, style: Theme.of(context).textTheme.headlineSmall),
+          Text(widget.number, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: BocSpace.md),
-          if (_available(FeatureCapability.boctrustTransfers)) ...[
-            PrimaryButton(
-              label: 'Send to a BOCTRUST account',
-              onPressed: () => widget.onSend(AppRoutes.sendBeneficiary, number),
-            ),
-            const SizedBox(height: BocSpace.sm),
-          ],
-          if (_available(FeatureCapability.interbankTransfers)) ...[
-            SecondaryButton(
-              label: 'Send to another bank',
-              onPressed: () => widget.onSend(AppRoutes.sendOtherBank, number),
-            ),
-            const SizedBox(height: BocSpace.sm),
-          ],
-          BocTextButton(
-            label: 'Scan again',
-            onPressed: () => setState(() => _number = null),
+          BankSelectorTile(
+            bank: _bank,
+            banks: widget.banks,
+            loading: widget.loading,
+            onSelected: (bank) => setState(() => _bank = bank),
           ),
+          if (widget.banks.isEmpty &&
+              !widget.loading &&
+              widget.errorMessage == null) ...[
+            const SizedBox(height: BocSpace.sm),
+            const FieldError(kNoScanBanks),
+          ],
+          if (widget.errorMessage case final message?) ...[
+            const SizedBox(height: BocSpace.sm),
+            ApiStateCard(
+              title: 'Banks unavailable',
+              message: message,
+              tone: ApiStateTone.error,
+              actionLabel: widget.onRetry == null ? null : 'Retry',
+              onAction: widget.onRetry,
+            ),
+          ],
+          const SizedBox(height: BocSpace.md),
+          PrimaryButton(
+            label: 'Continue',
+            onPressed: _bank == null
+                ? null
+                : () {
+                    final bank = _bank!;
+                    widget.onSend(
+                      bank.isBoctrust
+                          ? AppRoutes.sendBeneficiary
+                          : AppRoutes.sendOtherBank,
+                      widget.number,
+                      bank.isBoctrust ? null : bank.code,
+                    );
+                  },
+          ),
+          const SizedBox(height: BocSpace.sm),
+          BocTextButton(label: 'Scan again', onPressed: widget.onScanAgain),
         ],
       ),
     ),

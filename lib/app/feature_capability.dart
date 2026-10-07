@@ -319,6 +319,11 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
       (
         backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.accountEnquiryTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
         method: 'POST',
         path: CoreApiEndpoints.intrabankTransfers,
       ),

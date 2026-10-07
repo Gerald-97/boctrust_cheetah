@@ -230,6 +230,57 @@ void main() {
     expect(logged, isNot(contains('04512345678')));
     expect(logged, contains('1000.00'));
   });
+
+  test('privacy-sensitive enquiry hides its account path and body', () {
+    final request = RequestOptions(
+      baseUrl: 'https://core.test/api/v1',
+      path: '/accounts/1100037777/enquiry',
+      method: 'GET',
+      extra: const {
+        'apiLogger.privacySensitivePath': '/accounts/{accountNumber}/enquiry',
+      },
+    );
+    interceptor.onResponse(
+      Response<Object?>(
+        requestOptions: request,
+        statusCode: 200,
+        data: {
+          'name': 'ADA OBI',
+          'bvn': '22222222222',
+          'kycLevel': '3',
+          'availableBalance': '42000.00',
+        },
+      ),
+      ResponseInterceptorHandler(),
+    );
+    interceptor.onError(
+      DioException(
+        requestOptions: request,
+        message: 'Account 1100037777 has balance 42000.00',
+        response: Response<Object?>(
+          requestOptions: request,
+          statusCode: 409,
+          data: {'name': 'ADA OBI', 'bvn': '22222222222'},
+        ),
+      ),
+      _SwallowingErrorHandler(),
+    );
+
+    final logged = output.lines.join();
+    expect(
+      logged,
+      contains('https://core.test/api/v1/accounts/{accountNumber}/enquiry'),
+    );
+    for (final sensitive in [
+      '1100037777',
+      'ADA OBI',
+      '22222222222',
+      '42000.00',
+    ]) {
+      expect(logged, isNot(contains(sensitive)));
+    }
+  });
+
   group('a credential-bearing request', () {
     // Prints everything Logger receives, including error and stack trace,
     // so nothing the interceptor hands over can hide from the assertion.
