@@ -61,6 +61,9 @@ abstract final class CoreApiEndpoints {
   static const paymentItems = '/me/bills/payment-items';
   static const billPayments = '/me/bills/payments';
 
+  /// Reads the longest run of 4+ digits from a photo.
+  static const snapToPay = '/me/snap-to-pay';
+
   static const beneficiaries = '/me/beneficiaries';
 
   /// One saved beneficiary; [id] is one path segment.

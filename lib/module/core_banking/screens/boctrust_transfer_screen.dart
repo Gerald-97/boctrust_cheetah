@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/core_money.dart';
@@ -11,6 +12,7 @@ import '../provider/core_account_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
 
 enum _Step { form, review }
@@ -25,11 +27,15 @@ class BoctrustTransferFlow extends ConsumerStatefulWidget {
   const BoctrustTransferFlow({
     required this.onExit,
     required this.onSectionSelected,
+    this.initialAccountNumber,
     super.key,
   });
 
   final VoidCallback onExit;
   final ValueChanged<AppSection> onSectionSelected;
+
+  /// Prefills the account number, e.g. one read from a photo.
+  final String? initialAccountNumber;
 
   @override
   ConsumerState<BoctrustTransferFlow> createState() =>
@@ -37,7 +43,13 @@ class BoctrustTransferFlow extends ConsumerStatefulWidget {
 }
 
 class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
-  final _account = TextEditingController();
+  late final _account = TextEditingController(
+    text: widget.initialAccountNumber,
+  );
+
+  bool get _canSnap => ref
+      .watch(featureAvailabilityProvider(FeatureCapability.scanToPay))
+      .isAvailable;
   final _amount = TextEditingController();
   final _narration = TextEditingController();
   _Step _step = _Step.form;
@@ -147,6 +159,14 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
         hintText: '10 digits',
         keyboardType: TextInputType.number,
         onChanged: (_) => _edit(),
+        suffix: _canSnap
+            ? SnapNumberButton(
+                onNumber: (number) {
+                  _account.text = number;
+                  _edit();
+                },
+              )
+            : null,
       ),
       if (numberError != null) FieldError(numberError),
       const SizedBox(height: BocSpace.sm),

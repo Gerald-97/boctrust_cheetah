@@ -373,6 +373,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // Reads an account number from a photo; the number only fills a field.
+  FeatureCapability.scanToPay: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.snapToPay,
+      ),
+    },
+  ),
   FeatureCapability.airtime: _billPayment,
   FeatureCapability.data: _billPayment,
   FeatureCapability.bills: _billPayment,

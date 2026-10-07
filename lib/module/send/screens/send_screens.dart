@@ -13,6 +13,7 @@ import '../../app_flow/flow_page.dart';
 import '../../core_banking/screens/boctrust_transfer_screen.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/own_account_move_screen.dart';
+import '../../core_banking/screens/snap_number_button.dart';
 import '../model/transaction_models.dart';
 import '../provider/transaction_provider.dart';
 
@@ -62,11 +63,19 @@ class _SendScreenState extends FlowPageState<SendScreen> {
           : _sendOwnScreen(),
     _SendPage.beneficiary =>
       _available(FeatureCapability.boctrustTransfers)
-          ? BoctrustTransferFlow(onExit: back, onSectionSelected: goSection)
+          ? BoctrustTransferFlow(
+              onExit: back,
+              onSectionSelected: goSection,
+              initialAccountNumber: routeArguments.entityId,
+            )
           : _sendBeneficiaryScreen(),
     _SendPage.otherBank =>
       _available(FeatureCapability.interbankTransfers)
-          ? InterbankTransferFlow(onExit: back, onSectionSelected: goSection)
+          ? InterbankTransferFlow(
+              onExit: back,
+              onSectionSelected: goSection,
+              initialAccountNumber: routeArguments.entityId,
+            )
           : _sendBankScreen(),
     _SendPage.scan => _scanScreen(),
     _SendPage.authorize => _authPinScreen(),
@@ -183,7 +192,19 @@ extension SendScreens on FlowPageState {
     message: 'Sending money to another bank is not available yet.',
   );
 
-  Widget _scanScreen() => transactionUnavailablePage(
+  Widget _scanScreen() =>
+      ref
+          .watch(featureAvailabilityProvider(FeatureCapability.scanToPay))
+          .isAvailable
+      ? SnapToPayPage(
+          onExit: back,
+          onSectionSelected: goSection,
+          onSend: (route, number) =>
+              go(route, arguments: AppRouteArguments(entityId: number)),
+        )
+      : _scanUnavailable();
+
+  Widget _scanUnavailable() => transactionUnavailablePage(
     capability: FeatureCapability.scanToPay,
     title: 'Scan to pay',
     section: AppSection.send,
