@@ -38,3 +38,18 @@ List<Object?> coreRows(Object? json, List<String> keys) {
   }
   throw const FormatException('Missing list.');
 }
+
+final _plainDecimal = RegExp(r'^-?\d+(\.\d+)?$');
+final _commaDecimal = RegExp(r'^-?\d{1,3}(,\d{3})+(\.\d+)?$');
+
+/// A Naira amount as an exact decimal string for display: a JSON number as
+/// two decimal places, or a decimal string (thousands commas removed). Null
+/// for anything else. Never used for arithmetic.
+String? coreAmount(Object? value) {
+  if (value is num) return value.toStringAsFixed(2);
+  if (value is! String) return null;
+  final text = value.trim();
+  if (_plainDecimal.hasMatch(text)) return text;
+  if (_commaDecimal.hasMatch(text)) return text.replaceAll(',', '');
+  return null;
+}

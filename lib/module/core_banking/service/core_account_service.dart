@@ -5,9 +5,12 @@ import '../../../app/core_network.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/bank_product_models.dart';
+import '../model/core_account_summary.dart';
 import '../model/customer_bank_account_models.dart';
 
 const _coreUnavailable = 'Account services are not available right now.';
+
+final _accountNumber = RegExp(r'^\d{10}$');
 
 final coreAccountServiceProvider = Provider<CoreAccountService>(
   (ref) => CoreAccountService(ref.watch(coreApiServiceProvider)),
@@ -39,7 +42,7 @@ class CoreAccountService {
   ) async {
     final api = _api;
     if (api == null) return const NotifierState.blocked(_coreUnavailable);
-    if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
+    if (!_accountNumber.hasMatch(accountNumber)) {
       return const NotifierState.error('Account not found.');
     }
     return NotifierState.fromResponse(
@@ -48,6 +51,24 @@ class CoreAccountService {
         parser: (json) =>
             CustomerBankAccount.tryParse(json) ??
             (throw const FormatException('Invalid account.')),
+      ),
+    );
+  }
+
+  /// A live summary of one of the caller's accounts. A number that is not
+  /// ten digits is never sent.
+  Future<NotifierState<CoreAccountSummary>> getAccountSummary(
+    String accountNumber,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_coreUnavailable);
+    if (!_accountNumber.hasMatch(accountNumber)) {
+      return const NotifierState.error('Account not found.');
+    }
+    return NotifierState.fromResponse(
+      await api.getData<CoreAccountSummary>(
+        CoreApiEndpoints.bankAccountSummary(accountNumber),
+        parser: CoreAccountSummary.fromJson,
       ),
     );
   }

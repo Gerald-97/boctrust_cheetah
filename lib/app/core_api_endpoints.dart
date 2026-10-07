@@ -10,6 +10,12 @@ abstract final class CoreApiEndpoints {
   static String bankAccount(String accountNumber) =>
       '$bankAccounts/${Uri.encodeComponent(accountNumber)}';
 
+  /// Live summary of one of the caller's accounts.
+  static String bankAccountSummary(String accountNumber) =>
+      '${bankAccount(accountNumber)}/summary';
+  static const bankAccountSummaryTemplate =
+      '$bankAccounts/{accountNumber}/summary';
+
   static const ownAccountTransfer = '/me/intrabank/transfers/own';
 
   /// Product account → BocFlex.
