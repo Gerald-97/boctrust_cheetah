@@ -102,6 +102,7 @@ class _VerifyMethodScreenState extends ConsumerState<VerifyMethodScreen> {
           ],
         ),
         buttonLabel: state.isLoading ? 'Sending code…' : 'Send code',
+        footer: const AuthLegalNotice(),
         onButtonPressed: () async {
           if (state.isLoading) return;
           final identifier = _identifierController.text;

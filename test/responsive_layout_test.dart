@@ -47,9 +47,11 @@ void main() {
   ]) {
     for (final scale in [1.0, 2.0]) {
       final scenarios = <({String route, bool populated, bool keyboard})>[
-        // Every registered route, as it first opens.
+        // Every registered route, as it first opens. Legal pages are only a
+        // platform WebView, which a widget test cannot create.
         for (final route in AppRoutes.allRoutes)
-          (route: route, populated: false, keyboard: false),
+          if (route != AppRoutes.privacyPolicy && route != AppRoutes.terms)
+            (route: route, populated: false, keyboard: false),
         for (final route in [
           AppRoutes.account,
           AppRoutes.linkedBanks,

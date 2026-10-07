@@ -22,6 +22,7 @@ import '../account/screens/account_screens.dart';
 import '../core_banking/screens/bank_account_detail_screen.dart';
 import '../core_banking/screens/beneficiaries_screen.dart';
 import '../notifications/screens/notifications_screen.dart';
+import '../legal/screens/legal_document_screen.dart';
 import 'flow_page.dart';
 import '../payments/screens/payments_screens.dart';
 import '../send/screens/send_screens.dart';

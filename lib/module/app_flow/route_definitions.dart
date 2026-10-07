@@ -245,23 +245,12 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
     supportUnavailable,
     isPublic: true,
   ),
-  // No policy-content endpoint and no bundled copy exist.
-  AppRoutes.privacyPolicy: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Privacy Policy',
-      heading: 'The privacy policy is unavailable',
-      message: 'The privacy policy is not available in the app yet.',
-      section: AppSection.account,
-    ),
+  AppRoutes.privacyPolicy: AppRouteDefinition.page(
+    LegalDocumentScreen.privacy,
     isPublic: true,
   ),
-  AppRoutes.terms: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Terms & Conditions',
-      heading: 'The terms and conditions are unavailable',
-      message: 'The terms and conditions are not available in the app yet.',
-      section: AppSection.account,
-    ),
+  AppRoutes.terms: AppRouteDefinition.page(
+    LegalDocumentScreen.terms,
     isPublic: true,
   ),
   // Official handles have not been supplied.

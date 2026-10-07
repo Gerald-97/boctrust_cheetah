@@ -108,13 +108,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 .read(loginFlowProvider.notifier)
                 .login(identifier, _passwordController.text);
           },
-          footer: TextButton(
-            onPressed: () => openAuthDestination(
-              ref,
-              AuthDestination.verificationMethod,
-              mode: AuthNavigationMode.clearStack,
-            ),
-            child: const Text('Create an account'),
+          footer: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: () => openAuthDestination(
+                  ref,
+                  AuthDestination.verificationMethod,
+                  mode: AuthNavigationMode.clearStack,
+                ),
+                child: const Text('Create an account'),
+              ),
+              const SizedBox(height: 4),
+              const AuthLegalNotice(),
+            ],
           ),
         );
       },
@@ -191,22 +198,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
         await notifier.loginWithPassword(_passwordController.text);
       },
-      footer: Semantics(
-        button: true,
-        label: 'Not ${remembered.firstName}? Sign in with another account',
-        excludeSemantics: true,
-        child: TextButton(
-          onPressed: () async {
-            notifier.cancelActiveOperation();
-            ref.read(loginFlowProvider.notifier).cancel();
-            _identifierController.clear();
-            _passwordController.clear();
-            await notifier.forgetEnrollment();
-          },
-          child: Text(
-            'Not ${remembered.firstName}? Sign in with another account',
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: true,
+            label: 'Not ${remembered.firstName}? Sign in with another account',
+            excludeSemantics: true,
+            child: TextButton(
+              onPressed: () async {
+                notifier.cancelActiveOperation();
+                ref.read(loginFlowProvider.notifier).cancel();
+                _identifierController.clear();
+                _passwordController.clear();
+                await notifier.forgetEnrollment();
+              },
+              child: Text(
+                'Not ${remembered.firstName}? Sign in with another account',
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          const AuthLegalNotice(),
+        ],
       ),
     );
   }

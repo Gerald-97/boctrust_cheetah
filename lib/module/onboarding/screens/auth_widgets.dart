@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
+import '../../../app/app_router.dart';
 import '../../../app/auth_navigation_provider.dart';
 import '../../../app/preferences.dart';
 import '../../../app/services.dart';
@@ -225,6 +226,53 @@ class AuthPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Links to the legal documents customers should be able to review before
+/// signing in or creating an account.
+class AuthLegalNotice extends StatelessWidget {
+  const AuthLegalNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.bodySmall;
+    final linkStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      minimumSize: Size.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      textStyle: textStyle?.copyWith(fontWeight: FontWeight.w600),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'By continuing, you agree to our',
+          textAlign: TextAlign.center,
+          style: textStyle,
+        ),
+        const SizedBox(height: 2),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            TextButton(
+              style: linkStyle,
+              onPressed: () => Navigator.of(context).pushNamed(AppRoutes.terms),
+              child: const Text('Terms & Conditions'),
+            ),
+            Text('and', style: textStyle),
+            TextButton(
+              style: linkStyle,
+              onPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.privacyPolicy),
+              child: const Text('Privacy Policy'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

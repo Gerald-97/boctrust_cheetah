@@ -457,25 +457,17 @@ extension _AccountScreens on _AccountPageState {
                   title: 'Email support',
                   subtitle: 'info@boctrustmfb.com',
                 ),
-                // No policy-content endpoint and no bundled copy, so these
-                // cannot open anything yet.
                 SettingsTile(
                   icon: IconsaxPlusLinear.shield_security,
                   title: 'Privacy Policy',
-                  subtitle: 'Not available in the app yet',
-                  trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => showMessage(
-                    'The privacy policy is not available in the app yet.',
-                  ),
+                  subtitle: 'How we collect and protect your information',
+                  onTap: () => go(AppRoutes.privacyPolicy),
                 ),
                 SettingsTile(
                   icon: IconsaxPlusLinear.document_text,
                   title: 'Terms & Conditions',
-                  subtitle: 'Not available in the app yet',
-                  trailing: SmallPill.unavailable('Unavailable'),
-                  onTap: () => showMessage(
-                    'The terms and conditions are not available in the app yet.',
-                  ),
+                  subtitle: 'Rules for using BOCTRUST services',
+                  onTap: () => go(AppRoutes.terms),
                 ),
               ],
             ),

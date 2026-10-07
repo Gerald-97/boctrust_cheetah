@@ -6,6 +6,7 @@ import 'response_handler.dart';
 abstract final class Env {
   static const environment = String.fromEnvironment('ENV');
   static const baseUrl = String.fromEnvironment('BASE_URL');
+  static const siteUrl = String.fromEnvironment('SITE_URL');
 
   /// Core Service root using the same `/api` convention as [baseUrl]. Blank
   /// means Core is not configured: the app boots and every Core capability
@@ -32,6 +33,25 @@ abstract final class Env {
 final stagingModeProvider = Provider<bool>((ref) => Env.isStaging);
 
 String baseUrl({int version = 1}) => '${Env.baseUrl}/v$version';
+
+/// The public BOCTRUST website root used for customer-facing content.
+Uri websiteBaseUri(String configured) {
+  final value = configured.trim();
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasQuery ||
+      uri.hasFragment ||
+      (uri.path.isNotEmpty && uri.path != '/')) {
+    throw const FormatException('Invalid SITE_URL configuration.');
+  }
+  return uri.replace(path: '/');
+}
+
+/// A page on the configured public website.
+Uri sitePageUri(String page) => websiteBaseUri(Env.siteUrl).resolve(page);
 
 /// Whether [value] is an HTTPS service root following the `/api` convention,
 /// before the version segment is appended.
@@ -76,6 +96,7 @@ class AppBootstrap {
       throw const FormatException('Invalid BASE_URL configuration.');
     }
     coreApiBaseUrl(Env.coreBaseUrl);
+    websiteBaseUri(Env.siteUrl);
 
     if (Env.secureStorageNamespace.trim().isEmpty) {
       throw const FormatException(
