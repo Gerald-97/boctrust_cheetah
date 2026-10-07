@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_ocr_service.dart';
 import 'package:dio/dio.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 
 class _Core implements HttpClientAdapter {
@@ -62,5 +63,14 @@ void main() {
 
     expect(result.isError, isTrue);
     expect(core.requests, isEmpty);
+  });
+
+  test('a camera photo is shrunk for upload', () {
+    final photo = img.encodeJpg(img.Image(width: 3000, height: 2000));
+
+    final upload = img.decodeImage(shrinkForSnap(photo))!;
+
+    expect(upload.width, 1280);
+    expect(upload.height, 853);
   });
 }

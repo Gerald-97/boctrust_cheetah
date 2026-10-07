@@ -10,6 +10,7 @@ import '../../../app/app_router.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
+import '../service/core_ocr_service.dart';
 import 'snap_number_button.dart';
 
 bool get _isAndroid =>
@@ -114,9 +115,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         if (mounted) setState(() => _cameraState = _CameraState.unavailable);
         return;
       }
-      // Medium keeps a capture near the size of a picked gallery photo. On a
-      // Pixel 7 Pro a high-resolution capture made a 766 KB upload that the
-      // staging server reset after 45 seconds; ~38 KB uploads return in ~2s.
+      // Captures are shrunk by shrinkForSnap before upload either way.
       final camera = CameraController(
         back,
         ResolutionPreset.medium,
@@ -148,7 +147,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
     setState(() => _reading = true);
     try {
       final photo = await camera.takePicture();
-      await _read(await photo.readAsBytes());
+      await _read(await compute(shrinkForSnap, await photo.readAsBytes()));
     } on CameraException {
       _say("We couldn't take that photo. Try again.");
     } finally {
