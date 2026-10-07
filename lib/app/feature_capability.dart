@@ -66,6 +66,7 @@ enum FeatureCapability {
   savingsWithdrawals,
   boctrustTransfers,
   interbankTransfers,
+  coreAccountActivity,
   // Products that have not launched.
   loans,
   cards,
@@ -357,6 +358,18 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'POST',
         path: CoreApiEndpoints.interbankTransferRequeryTemplate,
+      ),
+    },
+  ),
+  // Live summary of one account. Transactions are added once their item
+  // schema is published.
+  FeatureCapability.coreAccountActivity: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccountSummaryTemplate,
       ),
     },
   ),

@@ -40,6 +40,7 @@ class AppRoutes {
   static const groupInvite = '/savings/group/invite';
   static const groupMembers = '/savings/group/members';
   static const savingsPlanDetail = '/savings/plan';
+  static const bankAccountDetail = '/savings/account';
   static const addMoney = '/wallet/add-money';
   static const bankTransferFunding = '/wallet/bank-transfer';
   static const cardFunding = '/wallet/card';

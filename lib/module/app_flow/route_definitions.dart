@@ -92,14 +92,11 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
       capability: FeatureCapability.flexWithdraw,
     ),
   ),
-  AppRoutes.flexStatement: AppRouteDefinition.unavailable(
-    UnavailableDestination(
-      title: 'Savings statements',
-      heading: 'Unavailable',
-      message: 'Savings statements are not available yet.',
-      section: AppSection.save,
-      capability: FeatureCapability.flexStatement,
-    ),
+  AppRoutes.flexStatement: AppRouteDefinition.page(
+    BankAccountDetailScreen.flex,
+  ),
+  AppRoutes.bankAccountDetail: AppRouteDefinition.page(
+    BankAccountDetailScreen.new,
   ),
   AppRoutes.flexSettings: AppRouteDefinition.unavailable(
     UnavailableDestination(
