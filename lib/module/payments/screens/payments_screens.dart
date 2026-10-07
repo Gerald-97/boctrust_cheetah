@@ -11,15 +11,12 @@ import '../../core_banking/model/bill_models.dart';
 import '../../core_banking/screens/bill_payment_screen.dart';
 import '../../send/screens/send_screens.dart';
 
-enum _PaymentsPage { hub, scan, bills }
+enum _PaymentsPage { hub, bills }
 
 /// The Payments hub and its bill, airtime, data and QR destinations.
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen.hub({super.key})
     : _page = _PaymentsPage.hub,
-      _group = null;
-  const PaymentsScreen.scan({super.key})
-    : _page = _PaymentsPage.scan,
       _group = null;
   const PaymentsScreen.airtime({super.key})
     : _page = _PaymentsPage.bills,
@@ -50,7 +47,7 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 
   final _PaymentsPage _page;
 
-  /// The bill tile this page opens; null for the hub and scan pages.
+  /// The bill tile this page opens; null for the hub.
   final BillerGroup? _group;
 
   @override
@@ -64,7 +61,6 @@ class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
   @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _PaymentsPage.hub => _paymentsScreen(),
-    _PaymentsPage.scan => _scanScreen(),
     _PaymentsPage.bills => _billsPage(widget._group ?? BillerGroup.all),
   });
 
@@ -93,7 +89,6 @@ class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
 /// server contract, so their routes explain that instead of taking input.
 extension PaymentsScreens on FlowPageState {
   Widget _paymentsScreen() {
-    final colors = context.bocColors;
     return AppScaffold(
       title: 'Payments',
       activeSection: AppSection.payments,
@@ -106,14 +101,6 @@ extension PaymentsScreens on FlowPageState {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
-          PaymentActionCard(
-            icon: IconsaxPlusLinear.scan_barcode,
-            title: 'Scan to pay',
-            subtitle: 'Not available yet',
-            color: colors.smartSaveContainer,
-            onTap: () => go(AppRoutes.scanToPay),
-          ),
-          const SizedBox(height: BocSpace.xs),
           PaymentActionCard(
             icon: IconsaxPlusLinear.card_add,
             title: 'Add money',
@@ -178,16 +165,6 @@ extension PaymentsScreens on FlowPageState {
       ),
     );
   }
-
-  Widget _scanScreen() => transactionUnavailablePage(
-    capability: FeatureCapability.scanToPay,
-    title: 'Scan to pay',
-    section: AppSection.payments,
-    heading: 'Scan to pay is unavailable',
-    message:
-        'Paying with a merchant QR code or payment code is not '
-        'available yet.',
-  );
 
   Widget _airtimeScreen() => transactionUnavailablePage(
     capability: FeatureCapability.airtime,

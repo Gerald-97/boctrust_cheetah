@@ -159,6 +159,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.sendOwnAccount: AppRouteDefinition.page(SendScreen.ownAccount),
   AppRoutes.sendBeneficiary: AppRouteDefinition.page(SendScreen.beneficiary),
   AppRoutes.sendOtherBank: AppRouteDefinition.page(SendScreen.otherBank),
+  AppRoutes.scanToPay: AppRouteDefinition.page(SendScreen.scan),
 
   // Payments.
   AppRoutes.paymentsHub: AppRouteDefinition.page(SectionShell.payments),
@@ -177,7 +178,6 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   ),
   AppRoutes.billerListMore: AppRouteDefinition.page(PaymentsScreen.billers),
   AppRoutes.billPay: AppRouteDefinition.page(PaymentsScreen.billers),
-  AppRoutes.scanToPay: AppRouteDefinition.page(PaymentsScreen.scan),
   AppRoutes.paymentWebView: AppRouteDefinition.unavailable(
     UnavailableDestination(
       title: 'Payment',

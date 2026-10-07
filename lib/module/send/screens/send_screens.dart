@@ -23,6 +23,7 @@ enum _SendPage {
   ownAccount,
   beneficiary,
   otherBank,
+  scan,
   authorize,
   receipt,
   detail,
@@ -35,6 +36,7 @@ class SendScreen extends ConsumerStatefulWidget {
   const SendScreen.ownAccount({super.key}) : _page = _SendPage.ownAccount;
   const SendScreen.beneficiary({super.key}) : _page = _SendPage.beneficiary;
   const SendScreen.otherBank({super.key}) : _page = _SendPage.otherBank;
+  const SendScreen.scan({super.key}) : _page = _SendPage.scan;
   const SendScreen.authorize({super.key}) : _page = _SendPage.authorize;
   const SendScreen.receipt({super.key}) : _page = _SendPage.receipt;
   const SendScreen.detail({super.key}) : _page = _SendPage.detail;
@@ -66,6 +68,7 @@ class _SendScreenState extends FlowPageState<SendScreen> {
       _available(FeatureCapability.interbankTransfers)
           ? InterbankTransferFlow(onExit: back, onSectionSelected: goSection)
           : _sendBankScreen(),
+    _SendPage.scan => _scanScreen(),
     _SendPage.authorize => _authPinScreen(),
     _SendPage.receipt => _successScreen(),
     _SendPage.detail => _transactionDetailScreen(),
@@ -144,6 +147,13 @@ extension SendScreens on FlowPageState {
             ),
             const SizedBox(height: BocSpace.xs),
           ],
+          PaymentActionCard(
+            icon: IconsaxPlusLinear.scan_barcode,
+            title: 'Scan to pay',
+            subtitle: 'Not available yet',
+            color: context.bocColors.smartSaveContainer,
+            onTap: () => go(AppRoutes.scanToPay),
+          ),
         ],
       ),
     );
@@ -171,6 +181,16 @@ extension SendScreens on FlowPageState {
     section: AppSection.send,
     heading: 'Transfers are unavailable',
     message: 'Sending money to another bank is not available yet.',
+  );
+
+  Widget _scanScreen() => transactionUnavailablePage(
+    capability: FeatureCapability.scanToPay,
+    title: 'Scan to pay',
+    section: AppSection.send,
+    heading: 'Scan to pay is unavailable',
+    message:
+        'Paying with a merchant QR code or payment code is not '
+        'available yet.',
   );
 
   /// Checking a PIN is not a transaction contract: without a server-bound

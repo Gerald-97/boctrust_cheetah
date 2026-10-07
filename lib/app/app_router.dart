@@ -47,6 +47,7 @@ class AppRoutes {
   static const sendOwnAccount = '/send/own-account';
   static const sendBeneficiary = '/send/beneficiary';
   static const sendOtherBank = '/send/other-bank';
+  static const scanToPay = '/send/scan-to-pay';
   static const paymentsHub = '/payments';
   static const airtime = '/payments/airtime';
   static const data = '/payments/data';
@@ -57,7 +58,6 @@ class AppRoutes {
   static const billerListEducation = '/payments/billers/education';
   static const billerListMore = '/payments/billers/more';
   static const billPay = '/payments/bill-pay';
-  static const scanToPay = '/payments/scan-to-pay';
   static const account = '/account';
   static const tierOverview = '/account/tier';
   static const tier1Bvn = '/account/tier/bvn';
