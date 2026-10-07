@@ -30,6 +30,19 @@ class BankAccountDetailScreen extends ConsumerStatefulWidget {
 
 class _BankAccountDetailScreenState
     extends FlowPageState<BankAccountDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The Flex account's number comes from the account list.
+    if (widget._flex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(customerBankAccountsProvider.notifier).ensureLoaded();
+        }
+      });
+    }
+  }
+
   String? get _accountNumber => widget._flex
       ? ref
             .watch(customerBankAccountsProvider)

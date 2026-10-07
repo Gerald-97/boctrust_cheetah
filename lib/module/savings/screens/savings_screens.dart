@@ -8,6 +8,7 @@ import 'package:intl/intl.dart' show DateFormat;
 import '../../../app/app_router.dart';
 import '../../../app/boc_icons.dart';
 import '../../../app/feature_capability.dart';
+import '../../../app/route_arguments.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
@@ -240,7 +241,18 @@ extension SavingsScreens on FlowPageState {
   Widget _coreAccountTile(CustomerBankAccount account, {required bool hidden}) {
     final theme = Theme.of(context);
     final balance = formatApiAmount(account.availableBalance, currency: 'NGN');
+    final canOpen = ref
+        .watch(
+          featureAvailabilityProvider(FeatureCapability.coreAccountActivity),
+        )
+        .isAvailable;
     return SurfaceCard(
+      onTap: canOpen
+          ? () => go(
+              AppRoutes.bankAccountDetail,
+              arguments: AppRouteArguments(entityId: account.accountNumber),
+            )
+          : null,
       child: Row(
         children: [
           Expanded(
@@ -632,6 +644,19 @@ extension SavingsScreens on FlowPageState {
       onBack: back,
       onSectionSelected: goSection,
       actions: [
+        if (coreAccountNumber != null &&
+            ref
+                .watch(
+                  featureAvailabilityProvider(
+                    FeatureCapability.coreAccountActivity,
+                  ),
+                )
+                .isAvailable)
+          IconButton(
+            tooltip: 'Account details',
+            onPressed: () => go(AppRoutes.flexStatement),
+            icon: const Icon(IconsaxPlusLinear.document_text),
+          ),
         IconButton(
           tooltip: 'Refresh',
           onPressed: accountsState.isLoading ? null : refresh,
