@@ -546,6 +546,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
     controller: _amount,
     hintText: '₦0.00',
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    inputFormatters: [ThousandsAmountFormatter()],
     onChanged: (value) => _update(_draft.copyWith(amount: value)),
   );
 

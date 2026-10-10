@@ -5,6 +5,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
+import '../../../utils/input_formatters.dart';
 import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/core_money.dart';
@@ -489,6 +490,7 @@ class CoreAmountFields extends ConsumerWidget {
             label: 'Amount (₦)',
             controller: amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [ThousandsAmountFormatter()],
             onChanged: (_) => onChanged(),
           )
         else
