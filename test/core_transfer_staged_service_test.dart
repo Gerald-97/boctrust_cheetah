@@ -105,8 +105,8 @@ void main() {
         'receiverAccountNumber': '0123456789',
         'amount': '0.01',
       });
-      expect(_logged(intra), '/me/intrabank/transfers/initiate');
-      expect(_logged(inter), '/me/interbank/transfers/initiate');
+      expect(_logged(intra), isNull);
+      expect(_logged(inter), isNull);
     },
   );
 
@@ -164,7 +164,8 @@ void main() {
     expect(otp.path, '/me/interbank/transfers/a1b2c3d4e5f6/otp/request');
     expect(otp.data, isNull);
     expect(finalize.data, {'transactionPin': '0007', 'otpCode': '123456'});
-    expect(_logged(otp), '/me/interbank/transfers/{reference}/otp/request');
+    expect(_logged(otp), isNull);
+    // Finalize carries the PIN and OTP, so its bodies stay redacted.
     expect(_logged(finalize), '/me/interbank/transfers/{reference}/finalize');
     expect(ack.data?.transactionReference, 'TX9');
   });
@@ -209,7 +210,8 @@ void main() {
     }
   });
 
-  test('lookups and status checks are logged by template only', () async {
+  // Staging support needs these replies; none carries a PIN or OTP.
+  test('lookups and status checks are logged in full', () async {
     final core = _Core({});
     final service = _service(core);
 
@@ -222,11 +224,6 @@ void main() {
       const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
     );
 
-    expect(core.requests.map(_logged), [
-      '/me/interbank/name-enquiry',
-      '/me/interbank/transfers/{reference}/status',
-      '/me/interbank/transfers/{reference}/requery',
-      '/me/intrabank/transfers/{retrievalReference}/requery',
-    ]);
+    expect(core.requests.map(_logged), everyElement(isNull));
   });
 }

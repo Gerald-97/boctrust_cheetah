@@ -75,7 +75,6 @@ class CoreTransferService {
         path,
         data: body,
         parser: CoreTransferInitiation.fromJson,
-        requestExtra: _logAs(path),
       ),
     );
   }
@@ -98,11 +97,7 @@ class CoreTransferService {
       ),
     };
     return NotifierState.fromResponse(
-      await api.postData<bool>(
-        path,
-        parser: (_) => true,
-        requestExtra: _logAs(template),
-      ),
+      await api.postData<bool>(path, parser: (_) => true),
     );
   }
 
@@ -166,7 +161,6 @@ class CoreTransferService {
         CoreApiEndpoints.interbankNameEnquiry,
         data: {'accountNumber': accountNumber, 'bankCode': bankCode},
         parser: NameEnquiryResult.fromJson,
-        requestExtra: _logAs(CoreApiEndpoints.interbankNameEnquiry),
         cancelToken: cancelToken,
       ),
     );
@@ -182,7 +176,6 @@ class CoreTransferService {
       await api.getData<InterbankTransferStatus>(
         CoreApiEndpoints.interbankTransferStatus(reference),
         parser: InterbankTransferStatus.fromJson,
-        requestExtra: _logAs(CoreApiEndpoints.interbankTransferStatusTemplate),
       ),
     );
   }
@@ -214,7 +207,6 @@ class CoreTransferService {
       await api.postData<CoreLiveTransferStatus>(
         path,
         parser: (json) => CoreLiveTransferStatus.fromJson(tracking.kind, json),
-        requestExtra: _logAs(template),
       ),
     );
   }
