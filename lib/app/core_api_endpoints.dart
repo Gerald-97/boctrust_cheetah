@@ -22,16 +22,15 @@ abstract final class CoreApiEndpoints {
   static const bankAccountTransactionsTemplate =
       '$bankAccounts/{accountNumber}/transactions';
 
-  static const ownAccountTransfer = '/me/intrabank/transfers/own';
-
-  /// Product account → BocFlex.
-  static const intrabankWithdrawals = '/me/intrabank/withdrawals';
-
-  /// BocFlex → another BOCTRUST customer's account.
+  /// Prefix of the intrabank requery route. The bare path is no longer a
+  /// documented submit route; staged transfers replace it.
   static const intrabankTransfers = '/me/intrabank/transfers';
 
   static const interbankBanks = '/me/interbank/banks';
   static const interbankNameEnquiry = '/me/interbank/name-enquiry';
+
+  /// Prefix of the interbank status and requery routes. The bare path is no
+  /// longer a documented submit route; staged transfers replace it.
   static const interbankTransfers = '/me/interbank/transfers';
 
   /// Full Core enquiry used only to resolve a BOCTRUST recipient name.
@@ -86,11 +85,5 @@ abstract final class CoreApiEndpoints {
 
   /// Every Core POST that moves money. Re-query POSTs are reads and are
   /// deliberately absent.
-  static const moneyMoving = {
-    ownAccountTransfer,
-    intrabankWithdrawals,
-    intrabankTransfers,
-    interbankTransfers,
-    billPayments,
-  };
+  static const moneyMoving = {billPayments};
 }

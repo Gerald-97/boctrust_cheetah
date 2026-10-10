@@ -12,7 +12,6 @@ import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../core_banking/screens/boctrust_transfer_screen.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
-import '../../core_banking/screens/own_account_move_screen.dart';
 import '../../core_banking/screens/snap_to_pay_page.dart';
 import '../model/transaction_models.dart';
 import '../provider/transaction_provider.dart';
@@ -56,11 +55,7 @@ class _SendScreenState extends FlowPageState<SendScreen> {
   @override
   Widget build(BuildContext context) => popScope(switch (widget._page) {
     _SendPage.hub => _sendHubScreen(),
-    _SendPage.ownAccount =>
-      _available(FeatureCapability.ownAccountTransfers) ||
-              _available(FeatureCapability.savingsWithdrawals)
-          ? OwnAccountMoveFlow(onExit: back, onSectionSelected: goSection)
-          : _sendOwnScreen(),
+    _SendPage.ownAccount => _sendOwnScreen(),
     _SendPage.beneficiary =>
       _available(FeatureCapability.boctrustTransfers)
           ? BoctrustTransferFlow(
@@ -103,8 +98,6 @@ extension SendScreens on FlowPageState {
   Widget _sendHubScreen() {
     final transfers = [
       FeatureCapability.transfers,
-      FeatureCapability.ownAccountTransfers,
-      FeatureCapability.savingsWithdrawals,
       FeatureCapability.boctrustTransfers,
       FeatureCapability.interbankTransfers,
     ].any((c) => ref.watch(featureAvailabilityProvider(c)).isAvailable);

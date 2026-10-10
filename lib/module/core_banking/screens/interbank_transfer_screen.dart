@@ -13,7 +13,6 @@ import '../model/interbank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
-import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
@@ -362,15 +361,11 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     ];
   }
 
+  /// The single-step submit route left the Core docs; staged transfers
+  /// (initiate, OTP, finalize) are not built yet, so nothing is sent.
   Future<void> _confirm(InterbankTransferDraft draft, String amount) =>
-      authorizeAndSubmitTransfer(
+      BocUnavailableSheet.show(
         context,
-        ref,
-        draft: draft,
-        summary: TransactionSummary(
-          title: 'Send to ${draft.accountName}',
-          amountDisplay: amount,
-          lines: [('Bank', draft.bankName), ('Account', draft.accountNumber)],
-        ),
+        title: 'Transfers are not available yet',
       );
 }

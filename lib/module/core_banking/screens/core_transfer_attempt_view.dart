@@ -14,48 +14,7 @@ import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
-import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
-import 'transaction_pin_sheet.dart';
-
-/// Reserves an attempt for [draft], asks for the PIN and sends it once.
-///
-/// A rejected PIN reopens the sheet on the same attempt; closing the sheet
-/// sends nothing. The PIN lives only in this call's local variable.
-Future<void> authorizeAndSubmitTransfer(
-  BuildContext context,
-  WidgetRef ref, {
-  required Object draft,
-  required TransactionSummary summary,
-}) async {
-  final notifier = ref.read(coreTransferAttemptProvider.notifier);
-  final id = notifier.beginReview(draft);
-  if (id == null) {
-    if (!ref.read(transferAuthorizationReadyProvider)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transfers are not available yet.')),
-      );
-    }
-    return;
-  }
-  String? error;
-  while (true) {
-    final pin = await collectCoreTransactionPin(
-      context,
-      summary,
-      errorMessage: error,
-    );
-    if (pin == null || !context.mounted) {
-      notifier.cancelReview(id);
-      return;
-    }
-    await notifier.submitAuthorized(id, pin);
-    if (!context.mounted || !notifier.retryPin(id)) break;
-    error = CoreRejection.wrongPin.message;
-  }
-  // Balances come from Core only; never subtract locally.
-  unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-}
 
 /// Every transfer screen shows the session's current attempt in place of its
 /// own steps, so re-entering any transfer flow resumes it.
@@ -322,23 +281,6 @@ class SetAsideTransfers extends ConsumerWidget {
   WidgetRef ref,
   Object draft,
 ) => switch (draft) {
-  OwnAccountMoveDraft() => (
-    amount: nairaFromKobo(draft.amountKobo),
-    details: [
-      (
-        label: draft.direction == OwnAccountDirection.toSavings ? 'To' : 'From',
-        value:
-            ref
-                .watch(customerBankAccountsProvider)
-                .data
-                ?.accounts
-                .where((a) => a.productCode == draft.productCode)
-                .firstOrNull
-                ?.productName ??
-            draft.productCode,
-      ),
-    ],
-  ),
   BoctrustTransferDraft() => (
     amount: nairaFromKobo(draft.amountKobo),
     details: [

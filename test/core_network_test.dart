@@ -89,7 +89,6 @@ void main() {
       CoreApiEndpoints.bankAccount('0000000001'),
       '/me/bank-accounts/0000000001',
     );
-    expect(CoreApiEndpoints.intrabankWithdrawals, '/me/intrabank/withdrawals');
   });
 
   test('a Core capability is unavailable until Core is configured', () {

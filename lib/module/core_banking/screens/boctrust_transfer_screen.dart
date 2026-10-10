@@ -11,7 +11,6 @@ import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/core_transfer_service.dart';
-import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
@@ -283,18 +282,14 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     ];
   }
 
+  /// The single-step submit route left the Core docs; staged transfers
+  /// (initiate, OTP, finalize) are not built yet, so nothing is sent.
   Future<void> _confirm(
     BoctrustTransferDraft draft,
     String amount,
     String name,
-  ) => authorizeAndSubmitTransfer(
+  ) => BocUnavailableSheet.show(
     context,
-    ref,
-    draft: draft,
-    summary: TransactionSummary(
-      title: 'Send to BOCTRUST account',
-      amountDisplay: amount,
-      lines: [('To', name), ('Account', maskNumber(draft.toAccountNumber))],
-    ),
+    title: 'Transfers are not available yet',
   );
 }

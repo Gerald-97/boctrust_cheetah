@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/feature_capability.dart';
-import '../../../app/services.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/core_submission_models.dart';
 import '../model/core_transfer_requery_models.dart';
@@ -32,8 +31,8 @@ class CoreTransferAttempt extends Equatable {
 
   final int id;
 
-  /// An [OwnAccountMoveDraft], [BoctrustTransferDraft] or
-  /// [InterbankTransferDraft], exactly as reviewed.
+  /// A [BoctrustTransferDraft] or [InterbankTransferDraft], exactly as
+  /// reviewed.
   final Object draft;
   final CoreTransferPhase phase;
   final CoreSubmissionOutcome? outcome;
@@ -135,13 +134,12 @@ final coreTransferAttemptProvider =
       CoreTransferAttemptNotifier.new,
     );
 
-/// Owns every own-account move, withdrawal, BOCTRUST and interbank transfer
-/// for the signed-in customer.
+/// Owns every BOCTRUST and interbank transfer for the signed-in customer.
 ///
 /// Core generates every reference and offers no idempotency key, so a
-/// reviewed attempt is sent at most once per PIN entry: only a documented
-/// wrong-PIN rejection lets the same attempt be sent again. The PIN passes
-/// straight through [submitAuthorized] and is never kept.
+/// reviewed attempt may be sent at most once per PIN entry. Sending waits
+/// for the staged transfer routes; the single-step submit routes left the
+/// Core docs.
 class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
   int _nextId = 0;
 
@@ -198,55 +196,6 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     }
     _set(current: current._with(phase: CoreTransferPhase.authorizing));
     return true;
-  }
-
-  Future<void> submitAuthorized(int id, String transactionPin) async {
-    final current = state.current;
-    if (!ref.read(transferAuthorizationReadyProvider) ||
-        current == null ||
-        current.id != id ||
-        current.phase != CoreTransferPhase.authorizing) {
-      return;
-    }
-    final generation = _generation;
-    _set(current: current._with(phase: CoreTransferPhase.submitting));
-    CoreSubmissionOutcome outcome;
-    try {
-      outcome = mapCoreTransferSubmission(
-        await _send(current.draft, transactionPin),
-        interbank: current.kind == CoreTransferKind.interbank,
-      );
-    } catch (_) {
-      outcome = const UnknownSubmission();
-    }
-    if (!ref.mounted || generation != _generation || state.current?.id != id) {
-      return;
-    }
-    _set(
-      current: current._with(
-        phase: CoreTransferPhase.settled,
-        outcome: outcome,
-      ),
-    );
-  }
-
-  Future<ServiceResponse<CoreTransferAck>> _send(Object draft, String pin) {
-    final service = ref.read(coreTransferServiceProvider);
-    return switch (draft) {
-      final OwnAccountMoveDraft d => service.moveBetweenOwnAccounts(
-        d,
-        transactionPin: pin,
-      ),
-      final BoctrustTransferDraft d => service.transferToBoctrust(
-        d,
-        transactionPin: pin,
-      ),
-      final InterbankTransferDraft d => service.transferToOtherBank(
-        d,
-        transactionPin: pin,
-      ),
-      _ => throw ArgumentError.value(draft, 'draft', 'Not a transfer draft'),
-    };
   }
 
   /// Clears a resolved attempt (rejected or final) so a new one can start.

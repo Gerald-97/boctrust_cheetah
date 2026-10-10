@@ -92,10 +92,6 @@ void main() {
 
   test('Core mobile banking slices are available only in staging', () {
     const slices = [
-      FeatureCapability.ownAccountTransfers,
-      FeatureCapability.savingsWithdrawals,
-      FeatureCapability.boctrustTransfers,
-      FeatureCapability.interbankTransfers,
       FeatureCapability.airtime,
       FeatureCapability.data,
       FeatureCapability.bills,
@@ -181,40 +177,22 @@ void main() {
       );
     });
   });
-  test('live re-queries are Core reads, never money-moving', () {
-    final interbank =
-        capabilityRequirements[FeatureCapability.interbankTransfers]!
-            .operations;
-    expect(
-      interbank,
-      contains((
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.interbankTransferRequeryTemplate,
-      )),
-    );
+  // Their single-step submit routes left the Core docs; staged transfers
+  // are not built yet.
+  test('transfers have no contract, even in staging', () {
     for (final capability in [
-      FeatureCapability.ownAccountTransfers,
-      FeatureCapability.savingsWithdrawals,
       FeatureCapability.boctrustTransfers,
+      FeatureCapability.interbankTransfers,
     ]) {
       expect(
-        capabilityRequirements[capability]!.operations,
-        contains((
-          backend: ApiBackend.core,
-          method: 'POST',
-          path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
-        )),
+        availabilityFor(
+          capabilityRequirements[capability],
+          configuredBackends: ApiBackend.values.toSet(),
+          staging: true,
+        ),
+        isNot(FeatureAvailability.available),
       );
     }
-    expect(
-      CoreApiEndpoints.moneyMoving,
-      isNot(
-        anyOf(
-          contains(CoreApiEndpoints.interbankTransferRequeryTemplate),
-          contains(CoreApiEndpoints.intrabankTransferRequeryTemplate),
-        ),
-      ),
-    );
+    expect(CoreApiEndpoints.moneyMoving, {CoreApiEndpoints.billPayments});
   });
 }

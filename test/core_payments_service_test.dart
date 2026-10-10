@@ -6,7 +6,6 @@ import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bill_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
-import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_beneficiary_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_bill_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
@@ -51,74 +50,50 @@ ApiService _api(_Core core) => ApiService(
 );
 
 void main() {
-  test('transfers and recipient reads use the documented endpoints', () async {
-    final core = _Core({
-      '/accounts/1100037777/enquiry': {
-        'name': 'ADA OBI',
-        'number': '1100037777',
-        'bvn': '22222222222',
-      },
-      '/me/interbank/banks': [
-        {'code': '000014', 'name': 'Zenith'},
-      ],
-      '/me/interbank/name-enquiry': {'name': 'ADA OBI', 'bvn': '1'},
-      '/me/intrabank/transfers': {'responseCode': '00', 'reference': 'r1'},
-      '/me/interbank/transfers': {'status': 'pending', 'reference': 'r/2'},
-      '/me/interbank/transfers/r%2F2/status': {'status': 'completed'},
-    });
-    final service = CoreTransferService(_api(core));
+  test(
+    'recipient reads and transfer status use the documented endpoints',
+    () async {
+      final core = _Core({
+        '/accounts/1100037777/enquiry': {
+          'name': 'ADA OBI',
+          'number': '1100037777',
+          'bvn': '22222222222',
+        },
+        '/me/interbank/banks': [
+          {'code': '000014', 'name': 'Zenith'},
+        ],
+        '/me/interbank/name-enquiry': {'name': 'ADA OBI', 'bvn': '1'},
+        '/me/interbank/transfers/r%2F2/status': {'status': 'completed'},
+      });
+      final service = CoreTransferService(_api(core));
 
-    expect(
-      (await service.boctrustNameEnquiry('1100037777')).data,
-      const NameEnquiryResult('ADA OBI'),
-    );
-    expect((await service.getBanks()).data?.single.code, '000014');
-    expect(
-      (await service.nameEnquiry(
-        bankCode: '000014',
-        accountNumber: '0123456789',
-      )).data,
-      const NameEnquiryResult('ADA OBI'),
-    );
-    await service.transferToBoctrust(
-      const BoctrustTransferDraft(
-        toAccountNumber: '1100037777',
-        amountKobo: '1',
-      ),
-      transactionPin: '0007',
-    );
-    final sent = await service.transferToOtherBank(
-      const InterbankTransferDraft(
-        bankCode: '000014',
-        bankName: 'Zenith',
-        accountNumber: '0123456789',
-        accountName: 'ADA OBI',
-        amountKobo: '5000',
-      ),
-      transactionPin: '0007',
-    );
-    final status = await service.getTransferStatus(sent.data!.reference!);
+      expect(
+        (await service.boctrustNameEnquiry('1100037777')).data,
+        const NameEnquiryResult('ADA OBI'),
+      );
+      expect((await service.getBanks()).data?.single.code, '000014');
+      expect(
+        (await service.nameEnquiry(
+          bankCode: '000014',
+          accountNumber: '0123456789',
+        )).data,
+        const NameEnquiryResult('ADA OBI'),
+      );
+      final status = await service.getTransferStatus('r/2');
 
-    expect(status.data?.state, InterbankTransferState.completed);
-    expect(core.requests.map((r) => '${r.method} ${r.path}'), [
-      'GET /accounts/1100037777/enquiry',
-      'GET /me/interbank/banks',
-      'POST /me/interbank/name-enquiry',
-      'POST /me/intrabank/transfers',
-      'POST /me/interbank/transfers',
-      'GET /me/interbank/transfers/r%2F2/status',
-    ]);
-    expect(core.requests[2].data, {
-      'accountNumber': '0123456789',
-      'bankCode': '000014',
-    });
-    expect(core.requests[3].data, {
-      'toAccountNumber': '1100037777',
-      'amount': '1',
-      'transactionPin': '0007',
-    });
-    expect(core.requests[4].data, containsPair('transactionPin', '0007'));
-  });
+      expect(status.data?.state, InterbankTransferState.completed);
+      expect(core.requests.map((r) => '${r.method} ${r.path}'), [
+        'GET /accounts/1100037777/enquiry',
+        'GET /me/interbank/banks',
+        'POST /me/interbank/name-enquiry',
+        'GET /me/interbank/transfers/r%2F2/status',
+      ]);
+      expect(core.requests[2].data, {
+        'accountNumber': '0123456789',
+        'bankCode': '000014',
+      });
+    },
+  );
 
   test('bill catalogues and payment', () async {
     final core = _Core({

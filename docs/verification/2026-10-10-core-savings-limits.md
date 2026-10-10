@@ -31,7 +31,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [history, state
 
 ## Backend questions (Task 6)
 
-- [ ] **Old routes:** the four direct customer transfer routes are no longer documented (`/me/intrabank/transfers/own`, `/me/intrabank/withdrawals`, `/me/intrabank/transfers`, `/me/interbank/transfers`). Are they still callable, when do they sunset, and what replaces own-account transfers and product withdrawals?
+- [ ] **Own-account moves and withdrawals:** the four single-step customer transfer routes left the docs (`/me/intrabank/transfers/own`, `/me/intrabank/withdrawals`, and submitting to `/me/intrabank/transfers` and `/me/interbank/transfers`). The app no longer calls them: own-account moves and savings withdrawals were removed, and BOCTRUST and other-bank transfers stay unavailable until staged transfers are built. What replaces own-account moves and product withdrawals?
 - [ ] **Rate bands:** no customer route exposes each savings product's tenors, rates or minimum debit (`min_amount`). Plan creation stays blocked until one exists.
 - [ ] **Savings `accountBalance` unit:** documented as the live BankOne balance with a fallback to summed principal. Is it decimal Naira or Kobo, and is the unit the same in both cases?
 - [ ] **Limit units:** the unit of the limit initiate inputs (`singleTransferLimit`, `singleBillPaymentLimit`, `dailyTransferLimit`) is not documented.

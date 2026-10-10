@@ -7,14 +7,11 @@ import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
-import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
-import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/boctrust_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widgets.dart';
-import 'package:boctrust_savings_loan/module/core_banking/screens/interbank_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:dio/dio.dart';
@@ -49,7 +46,6 @@ class _Accounts extends CustomerBankAccountsNotifier {
 
 class _Transfers extends CoreTransferService {
   _Transfers() : super(ApiService(Dio()));
-  final pins = <String>[];
   final lookups = <String>[];
   NotifierState<NameEnquiryResult> lookupResult = const NotifierState.done(
     NameEnquiryResult('ADA OBI'),
@@ -72,18 +68,6 @@ class _Transfers extends CoreTransferService {
         CommercialBank(code: '044', name: 'Access Bank'),
         CommercialBank(code: '058', name: 'GTBank'),
       ]);
-
-  @override
-  Future<ServiceResponse<CoreTransferAck>> transferToBoctrust(
-    BoctrustTransferDraft draft, {
-    required String transactionPin,
-  }) async {
-    pins.add(transactionPin);
-    return const ServiceResponse.success(
-      CoreTransferAck(responseCode: '00', retrievalReference: 'a1b2c3d4e5f6'),
-      statusCode: 200,
-    );
-  }
 }
 
 /// Lets the PIN field's blinking cursor run without `pumpAndSettle`.
@@ -265,84 +249,5 @@ void main() {
     expect(find.text('Continue'), findsNothing);
     expect(find.text('Account lookup failed. Try again.'), findsOneWidget);
     expect(find.text('Check account'), findsOneWidget);
-  });
-
-  testWidgets('a transfer is sent once with its PIN, resumes from another '
-      'entry, and can be set aside', (tester) async {
-    tester.view.physicalSize = const Size(800, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final transfers = _Transfers();
-    var showInterbank = false;
-    late StateSetter switchFlow;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          ...await flowTestOverrides(),
-          authSessionProvider.overrideWith(SavingsSession.new),
-          customerBankAccountsProvider.overrideWith(_Accounts.new),
-          coreTransferServiceProvider.overrideWithValue(transfers),
-          transferAuthorizationReadyProvider.overrideWithValue(true),
-        ],
-        child: MaterialApp(
-          theme: CheetahTheme.lightTheme,
-          home: StatefulBuilder(
-            builder: (context, setState) {
-              switchFlow = setState;
-              return showInterbank
-                  ? InterbankTransferFlow(
-                      onExit: () {},
-                      onSectionSelected: (_) {},
-                    )
-                  : BoctrustTransferFlow(
-                      onExit: () {},
-                      onSectionSelected: (_) {},
-                    );
-            },
-          ),
-        ),
-      ),
-    );
-    await _settle(tester);
-
-    // BOCTRUST recipients must be resolved before the amount step.
-    await tester.enterText(find.byType(EditableText).at(0), '1100037777');
-    await tester.pump();
-    await tester.tap(find.text('Check account'));
-    await _settle(tester);
-    expect(transfers.lookups, ['1100037777']);
-    expect(find.text('ADA OBI'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await _settle(tester);
-
-    await tester.enterText(find.byType(EditableText).at(0), '10');
-    await tester.pump();
-    await tester.tap(find.text('Review'));
-    await _settle(tester);
-    await tester.tap(find.textContaining('Send ₦'));
-    await _settle(tester);
-
-    await tester.enterText(find.byType(EditableText).last, '0007');
-    await tester.pump();
-    await tester.tap(find.text('Confirm transfer'));
-    await _settle(tester);
-
-    expect(transfers.pins, ['0007']);
-    expect(find.text('Transfer processing'), findsOneWidget);
-
-    // Another transfer entry shows the same unresolved transfer.
-    switchFlow(() => showInterbank = true);
-    await _settle(tester);
-    expect(find.text('Transfer processing'), findsOneWidget);
-    expect(find.text('Who are you sending to?'), findsNothing);
-
-    await tester.tap(find.text('Start a different transfer'));
-    await _settle(tester);
-    await tester.tap(find.text('Start anyway'));
-    await _settle(tester);
-    expect(find.text('Who are you sending to?'), findsOneWidget);
-    expect(find.text('Earlier transfer not confirmed'), findsOneWidget);
-    expect(transfers.pins, ['0007']);
   });
 }

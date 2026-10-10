@@ -63,8 +63,6 @@ enum FeatureCapability {
   bills,
   scanToPay,
   // Core mobile banking slices, unavailable until each is registered.
-  ownAccountTransfers,
-  savingsWithdrawals,
   boctrustTransfers,
   interbankTransfers,
   coreAccountActivity,
@@ -266,108 +264,10 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // The runtime provider still decides whether this device has a usable
   // enrolled biometric.
   FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
-  // Core mobile banking, verified on staging before release. Transfers send
-  // only after `transferAuthorizationReadyProvider` and a transaction PIN;
-  // bill payments still pass `transactionAuthorizerProvider` first.
-  FeatureCapability.ownAccountTransfers: CapabilityRequirement(
-    stagingOnly: true,
-    operations: {
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.bankAccounts,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.ownAccountTransfer,
-      ),
-      // A read despite POST: live status of a transfer already sent.
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
-      ),
-    },
-  ),
-  FeatureCapability.savingsWithdrawals: CapabilityRequirement(
-    stagingOnly: true,
-    operations: {
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.bankAccounts,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.intrabankWithdrawals,
-      ),
-      // A read despite POST: live status of a transfer already sent.
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
-      ),
-    },
-  ),
-  FeatureCapability.boctrustTransfers: CapabilityRequirement(
-    stagingOnly: true,
-    operations: {
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.bankAccounts,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.accountEnquiryTemplate,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.intrabankTransfers,
-      ),
-      // A read despite POST: live status of a transfer already sent.
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
-      ),
-    },
-  ),
-  FeatureCapability.interbankTransfers: CapabilityRequirement(
-    stagingOnly: true,
-    operations: {
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.interbankBanks,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.interbankNameEnquiry,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.interbankTransfers,
-      ),
-      (
-        backend: ApiBackend.core,
-        method: 'GET',
-        path: CoreApiEndpoints.interbankTransferStatusTemplate,
-      ),
-      // A read despite POST: live status of a transfer already sent.
-      (
-        backend: ApiBackend.core,
-        method: 'POST',
-        path: CoreApiEndpoints.interbankTransferRequeryTemplate,
-      ),
-    },
-  ),
+  // Core mobile banking, verified on staging before release. Transfers have
+  // no registered contract: their single-step submit routes left the Core
+  // docs, and staged transfers are not built yet. Bill payments still pass
+  // `transactionAuthorizerProvider` first.
   // Live summary of one account.
   FeatureCapability.coreAccountActivity: CapabilityRequirement(
     stagingOnly: true,
