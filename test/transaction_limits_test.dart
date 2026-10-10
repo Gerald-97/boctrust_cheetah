@@ -1,10 +1,15 @@
+import 'package:flutter/widgets.dart';
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/transaction_limit_models.dart';
+import 'package:boctrust_savings_loan/module/account/model/transaction_limit_update_models.dart';
 import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/account/service/core_transaction_limit_service.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_check_progress.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,12 +19,61 @@ import 'support/responsive_fixtures.dart';
 import 'support/savings_fixtures.dart';
 
 class _Limits extends CoreTransactionLimitService {
-  const _Limits(this.reply) : super(null);
+  _Limits(this.reply) : super(null);
   final NotifierState<TransactionLimits> reply;
+  final drafts = <TransactionLimitDraft>[];
+  var finalized = 0;
 
   @override
   Future<NotifierState<TransactionLimits>> getLimits() async => reply;
+
+  @override
+  Future<NotifierState<CoreTransferInitiation>> initiateLimitUpdate(
+    TransactionLimitDraft draft,
+  ) async {
+    drafts.add(draft);
+    return NotifierState.done(
+      CoreTransferInitiation(
+        reference: 'a1b2c3d4e5f6',
+        checks: const {CoreTransferCheck.pin, CoreTransferCheck.otp},
+        expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+      ),
+    );
+  }
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> verifyLimitPin(
+    String reference,
+    String pin,
+  ) async => const NotifierState.done(
+    CoreCheckProgress(pending: {CoreTransferCheck.otp}, otpSent: true),
+  );
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> verifyLimitOtp(
+    String reference,
+    String otp,
+  ) async => const NotifierState.done(CoreCheckProgress());
+
+  @override
+  Future<NotifierState<bool>> finalizeLimitUpdate(String reference) async {
+    finalized++;
+    return const NotifierState.done(true);
+  }
 }
+
+/// Tier 1: ₦50,000 single transfer, ₦200,000 a day, ₦10,000 per bill.
+final _tier1 = NotifierState.done(
+  TransactionLimits.fromJson({
+    'tier': 1,
+    'businessSingleTransferLimit': '5000000',
+    'businessSingleBillPaymentLimit': '1000000',
+    'businessDailyTransferLimit': '20000000',
+    'effectiveSingleTransferLimit': '5000000',
+    'effectiveSingleBillPaymentLimit': '1000000',
+    'effectiveDailyTransferLimit': '20000000',
+  }),
+);
 
 /// The User Service's tier 0: BVN and liveness not yet verified.
 class _Tier0 extends LayoutTiers {
@@ -48,6 +102,8 @@ Future<void> _open(
   NotifierState<TransactionLimits> reply, {
   String route = AppRoutes.transactionLimits,
   UserTierNotifier Function() tiers = LayoutTiers.new,
+  _Limits? limits,
+  bool editable = false,
 }) async {
   await pumpFlow(
     tester,
@@ -57,10 +113,19 @@ Future<void> _open(
       userProfileProvider.overrideWith(LayoutProfile.new),
       userTierProvider.overrideWith(tiers),
       kycStatusProvider.overrideWith(LayoutKyc.new),
-      coreTransactionLimitServiceProvider.overrideWithValue(_Limits(reply)),
+      coreTransactionLimitServiceProvider.overrideWithValue(
+        limits ?? _Limits(reply),
+      ),
       featureAvailabilityProvider(
         FeatureCapability.transactionLimitsView,
       ).overrideWithValue(FeatureAvailability.available),
+      featureAvailabilityProvider(
+        FeatureCapability.transactionLimitsEdit,
+      ).overrideWithValue(
+        editable
+            ? FeatureAvailability.available
+            : FeatureAvailability.unavailable,
+      ),
     ],
   );
   await tester.pump(const Duration(milliseconds: 300));
@@ -142,5 +207,85 @@ void main() {
     }
 
     expect(find.text(_coreRefusal.message!), findsOneWidget);
+  });
+
+  group('changing limits', () {
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    Future<void> edit(WidgetTester tester, String field, String text) async {
+      await tester.enterText(find.widgetWithText(AppTextField, field), text);
+      await tester.pump();
+    }
+
+    testWidgets('needs its own capability', (tester) async {
+      await _open(tester, _tier1);
+
+      expect(find.text('₦200,000.00'), findsOneWidget);
+      expect(find.text('Change limits'), findsNothing);
+    });
+
+    testWidgets('a changed limit is verified by PIN and OTP, then shown', (
+      tester,
+    ) async {
+      final limits = _Limits(_tier1);
+      await _open(tester, _tier1, limits: limits, editable: true);
+
+      await tester.tap(find.text('Change limits'));
+      await settle(tester);
+      await edit(tester, 'Daily transfers (₦)', '1,000');
+      await tester.tap(find.text('Review changes'));
+      await settle(tester);
+      expect(find.text('₦1,000.00'), findsOneWidget);
+
+      await tester.tap(find.text('Confirm changes'));
+      await settle(tester);
+      await tester.enterText(find.byType(EditableText).last, '0007');
+      await tester.pump();
+      await tester.tap(find.text('Verify PIN'));
+      await settle(tester);
+      await tester.enterText(find.byType(EditableText).last, '123456');
+      await tester.pump();
+      await tester.tap(find.text('Verify code'));
+      await settle(tester);
+
+      // Only the changed limit, in Kobo.
+      expect(limits.drafts, [
+        const TransactionLimitDraft(dailyTransferLimit: '100000'),
+      ]);
+      expect(limits.finalized, 1);
+      expect(find.text('Your limits were updated.'), findsOneWidget);
+    });
+
+    testWidgets('a limit above the tier maximum is never sent', (tester) async {
+      final limits = _Limits(_tier1);
+      await _open(tester, _tier1, limits: limits, editable: true);
+
+      await tester.tap(find.text('Change limits'));
+      await settle(tester);
+      await edit(tester, 'Daily transfers (₦)', '300,000');
+      await tester.tap(find.text('Review changes'), warnIfMissed: false);
+      await settle(tester);
+
+      expect(find.textContaining('above your tier maximum'), findsOneWidget);
+      expect(find.text('Confirm changes'), findsNothing);
+      expect(limits.drafts, isEmpty);
+    });
+
+    testWidgets('an unchanged form sends nothing', (tester) async {
+      final limits = _Limits(_tier1);
+      await _open(tester, _tier1, limits: limits, editable: true);
+
+      await tester.tap(find.text('Change limits'));
+      await settle(tester);
+      await tester.tap(find.text('Review changes'), warnIfMissed: false);
+      await settle(tester);
+
+      expect(find.text('Confirm changes'), findsNothing);
+      expect(limits.drafts, isEmpty);
+    });
   });
 }
