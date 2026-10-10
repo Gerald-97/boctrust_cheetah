@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../module/account/provider/account_deletion_provider.dart';
 import '../module/account/provider/account_preferences_provider.dart';
+import '../module/account/provider/transaction_limit_update_provider.dart';
 import '../module/account/provider/user_providers.dart';
 import '../module/account/provider/withdrawal_bank_providers.dart';
 import '../module/core_banking/provider/core_account_providers.dart';
@@ -44,4 +45,5 @@ void clearPrivateUserState(Ref ref) {
   ref.read(bankCatalogueProvider.notifier).clear();
   ref.read(withdrawalBankAccountsProvider.notifier).clear();
   ref.read(withdrawalBankDraftProvider.notifier).clear();
+  ref.read(transactionLimitUpdateProvider.notifier).reset();
 }
