@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:boctrust_savings_loan/app/interceptors.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_summary.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
@@ -95,5 +96,19 @@ void main() {
       'toDate': '07-10-2026',
       'numberOfItems': 50,
     });
+  });
+
+  // The logger then hides the account number in the path and every row.
+  test('transactions are logged by path template only', () async {
+    final core = _Core({'accountNumber': '1100919408', 'transactions': []});
+
+    await _service(
+      core,
+    ).getAccountTransactions('1100919408', CoreHistoryRange.last7Days);
+
+    expect(
+      core.requests.single.extra[LoggingInterceptor.privacySensitivePathKey],
+      '/me/bank-accounts/{accountNumber}/transactions',
+    );
   });
 }
