@@ -204,9 +204,22 @@ void main() {
       containsAll([
         CoreApiEndpoints.interbankNameEnquiry,
         CoreApiEndpoints.intrabankTransferInitiate,
+        CoreApiEndpoints.intrabankTransferPinVerifyTemplate,
+        CoreApiEndpoints.intrabankTransferOtpResendTemplate,
+        CoreApiEndpoints.intrabankTransferOtpVerifyTemplate,
         CoreApiEndpoints.intrabankTransferFinalizeTemplate,
       ]),
     );
+    // The PIN-verify → OTP-verify → bodyless-finalize contract replaced the
+    // OTP request; liveness is out of scope.
+    for (final capability in [boctrust, interbank]) {
+      expect(
+        paths(
+          capability,
+        ).where((p) => p.contains('/otp/request') || p.contains('/liveness/')),
+        isEmpty,
+      );
+    }
     expect(
       paths(boctrust),
       isNot(contains(CoreApiEndpoints.interbankTransferInitiate)),
@@ -215,6 +228,9 @@ void main() {
       paths(interbank),
       containsAll([
         CoreApiEndpoints.interbankTransferInitiate,
+        CoreApiEndpoints.interbankTransferPinVerifyTemplate,
+        CoreApiEndpoints.interbankTransferOtpResendTemplate,
+        CoreApiEndpoints.interbankTransferOtpVerifyTemplate,
         CoreApiEndpoints.interbankTransferFinalizeTemplate,
       ]),
     );
@@ -223,5 +239,55 @@ void main() {
       CoreApiEndpoints.intrabankTransferFinalizeTemplate,
       CoreApiEndpoints.interbankTransferFinalizeTemplate,
     });
+  });
+
+  // Viewing limits needs only the GET; editing is its own staged capability
+  // and moves no money.
+  test('limit editing is separate from viewing', () {
+    const view = FeatureCapability.transactionLimitsView;
+    const edit = FeatureCapability.transactionLimitsEdit;
+
+    expect(capabilityRequirements[view]!.operations, {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.transactionLimits,
+      ),
+    });
+    expect(capabilityRequirements[edit]!.stagingOnly, isTrue);
+    expect(
+      {for (final o in capabilityRequirements[edit]!.operations) o.path},
+      {
+        CoreApiEndpoints.transactionLimits,
+        CoreApiEndpoints.transactionLimitsInitiate,
+        CoreApiEndpoints.transactionLimitPinVerifyTemplate,
+        CoreApiEndpoints.transactionLimitOtpResendTemplate,
+        CoreApiEndpoints.transactionLimitOtpVerifyTemplate,
+        CoreApiEndpoints.transactionLimitFinalizeTemplate,
+      },
+    );
+    expect(
+      CoreApiEndpoints.moneyMoving,
+      isNot(contains(CoreApiEndpoints.transactionLimitFinalizeTemplate)),
+    );
+  });
+
+  test('staged check paths encode the reference', () {
+    expect(
+      CoreApiEndpoints.intrabankTransferPinVerify('a/b'),
+      '/me/intrabank/transfers/a%2Fb/pin/verify',
+    );
+    expect(
+      CoreApiEndpoints.interbankTransferOtpVerify('a/b'),
+      '/me/interbank/transfers/a%2Fb/otp/verify',
+    );
+    expect(
+      CoreApiEndpoints.interbankTransferOtpResend('a/b'),
+      '/me/interbank/transfers/a%2Fb/otp/resend',
+    );
+    expect(
+      CoreApiEndpoints.transactionLimitFinalize('a/b'),
+      '/me/transaction-limits/a%2Fb/finalize',
+    );
   });
 }

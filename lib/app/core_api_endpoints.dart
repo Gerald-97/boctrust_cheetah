@@ -28,10 +28,25 @@ abstract final class CoreApiEndpoints {
 
   /// BocFlex → another BOCTRUST customer: records a pending transfer.
   static const intrabankTransferInitiate = '$intrabankTransfers/initiate';
+  // The retired OTP request; removed once the service migrates.
   static String intrabankTransferOtp(String reference) =>
       '$intrabankTransfers/${Uri.encodeComponent(reference)}/otp/request';
   static const intrabankTransferOtpTemplate =
       '$intrabankTransfers/{reference}/otp/request';
+
+  /// Verifies the PIN and has Core send the OTP when one is required.
+  static String intrabankTransferPinVerify(String reference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(reference)}/pin/verify';
+  static const intrabankTransferPinVerifyTemplate =
+      '$intrabankTransfers/{reference}/pin/verify';
+  static String intrabankTransferOtpResend(String reference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(reference)}/otp/resend';
+  static const intrabankTransferOtpResendTemplate =
+      '$intrabankTransfers/{reference}/otp/resend';
+  static String intrabankTransferOtpVerify(String reference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(reference)}/otp/verify';
+  static const intrabankTransferOtpVerifyTemplate =
+      '$intrabankTransfers/{reference}/otp/verify';
 
   /// Moves the money of a pending intrabank transfer.
   static String intrabankTransferFinalize(String reference) =>
@@ -48,10 +63,25 @@ abstract final class CoreApiEndpoints {
 
   /// BocFlex → another bank: records a pending transfer.
   static const interbankTransferInitiate = '$interbankTransfers/initiate';
+  // The retired OTP request; removed once the service migrates.
   static String interbankTransferOtp(String reference) =>
       '$interbankTransfers/${Uri.encodeComponent(reference)}/otp/request';
   static const interbankTransferOtpTemplate =
       '$interbankTransfers/{reference}/otp/request';
+
+  /// Verifies the PIN and has Core send the OTP when one is required.
+  static String interbankTransferPinVerify(String reference) =>
+      '$interbankTransfers/${Uri.encodeComponent(reference)}/pin/verify';
+  static const interbankTransferPinVerifyTemplate =
+      '$interbankTransfers/{reference}/pin/verify';
+  static String interbankTransferOtpResend(String reference) =>
+      '$interbankTransfers/${Uri.encodeComponent(reference)}/otp/resend';
+  static const interbankTransferOtpResendTemplate =
+      '$interbankTransfers/{reference}/otp/resend';
+  static String interbankTransferOtpVerify(String reference) =>
+      '$interbankTransfers/${Uri.encodeComponent(reference)}/otp/verify';
+  static const interbankTransferOtpVerifyTemplate =
+      '$interbankTransfers/{reference}/otp/verify';
 
   /// Moves the money of a pending interbank transfer.
   static String interbankTransferFinalize(String reference) =>
@@ -88,6 +118,25 @@ abstract final class CoreApiEndpoints {
 
   /// The caller's transfer and bill-payment limits.
   static const transactionLimits = '/me/transaction-limits';
+
+  /// Starts a limit change; PIN and OTP verify, then a bodyless finalize.
+  static const transactionLimitsInitiate = '$transactionLimits/initiate';
+  static String transactionLimitPinVerify(String reference) =>
+      '$transactionLimits/${Uri.encodeComponent(reference)}/pin/verify';
+  static const transactionLimitPinVerifyTemplate =
+      '$transactionLimits/{reference}/pin/verify';
+  static String transactionLimitOtpResend(String reference) =>
+      '$transactionLimits/${Uri.encodeComponent(reference)}/otp/resend';
+  static const transactionLimitOtpResendTemplate =
+      '$transactionLimits/{reference}/otp/resend';
+  static String transactionLimitOtpVerify(String reference) =>
+      '$transactionLimits/${Uri.encodeComponent(reference)}/otp/verify';
+  static const transactionLimitOtpVerifyTemplate =
+      '$transactionLimits/{reference}/otp/verify';
+  static String transactionLimitFinalize(String reference) =>
+      '$transactionLimits/${Uri.encodeComponent(reference)}/finalize';
+  static const transactionLimitFinalizeTemplate =
+      '$transactionLimits/{reference}/finalize';
 
   /// The caller's savings plans, grouped by product.
   static const savingsPlans = '/me/savings-plans';

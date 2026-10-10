@@ -48,7 +48,7 @@ enum FeatureCapability {
   freezeAccount,
   biometricLogin,
   biometricTransfers,
-  limitIncrease,
+  transactionLimitsEdit,
   transactionLimitsView,
   changeMobile,
   walletFunding,
@@ -296,7 +296,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       (
         backend: ApiBackend.core,
         method: 'POST',
-        path: CoreApiEndpoints.intrabankTransferOtpTemplate,
+        path: CoreApiEndpoints.intrabankTransferPinVerifyTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferOtpResendTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferOtpVerifyTemplate,
       ),
       (
         backend: ApiBackend.core,
@@ -337,7 +347,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       (
         backend: ApiBackend.core,
         method: 'POST',
-        path: CoreApiEndpoints.interbankTransferOtpTemplate,
+        path: CoreApiEndpoints.interbankTransferPinVerifyTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferOtpResendTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferOtpVerifyTemplate,
       ),
       (
         backend: ApiBackend.core,
@@ -393,6 +413,44 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'GET',
         path: CoreApiEndpoints.transactionLimits,
+      ),
+    },
+  ),
+  // Changing the customer's own limits: initiate, PIN verify, OTP verify,
+  // then a bodyless finalize. Moves no money, so the transfer gate does not
+  // apply. Viewing needs only the GET above.
+  FeatureCapability.transactionLimitsEdit: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.transactionLimits,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.transactionLimitsInitiate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.transactionLimitPinVerifyTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.transactionLimitOtpResendTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.transactionLimitOtpVerifyTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.transactionLimitFinalizeTemplate,
       ),
     },
   ),
