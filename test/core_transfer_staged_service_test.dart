@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:boctrust_savings_loan/app/interceptors.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_check_progress.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
@@ -56,7 +57,7 @@ CoreTransferService _service(_Core core) => CoreTransferService(
 const _pending = {
   'reference': 'a1b2c3d4e5f6',
   'requiredChecks': ['pin'],
-  'expiresAt': '2026-10-10T12:05:00Z',
+  'expiresAt': '2099-01-01T00:00:00Z',
 };
 
 CoreTransferInitiation _initiation(List<String> checks) =>
@@ -142,72 +143,118 @@ void main() {
     expect(core.requests, isEmpty);
   });
 
-  test('OTP request and finalize use the encoded reference', () async {
-    final core = _Core({
-      '/me/interbank/transfers/a1b2c3d4e5f6/finalize': {
-        'transactionReference': 'TX9',
-        'status': 'pending',
-      },
-    });
-    final service = _service(core);
-    final initiation = _initiation(['pin', 'otp']);
+  const progress = {
+    'reference': 'a1b2c3d4e5f6',
+    'requiredChecks': ['pin', 'otp'],
+    'completedChecks': ['pin'],
+    'pendingChecks': ['otp'],
+    'otpSent': true,
+    'otpExpiresAt': '2099-01-01T00:05:00Z',
+    'otpCode': '123456',
+  };
 
-    await service.requestTransferOtp(CoreTransferKind.interbank, initiation);
-    final ack = await service.finalizeTransfer(
-      CoreTransferKind.interbank,
-      initiation,
-      pin: '0007',
-      otp: '123456',
-    );
+  // Swagger: PIN and OTP go to their own verify routes; resend and finalize
+  // have no body.
+  test(
+    'each check sends only its own credential; finalize sends none',
+    () async {
+      final core = _Core({
+        '/me/interbank/transfers/a1b2c3d4e5f6/pin/verify': progress,
+        '/me/interbank/transfers/a1b2c3d4e5f6/otp/resend': progress,
+        '/me/interbank/transfers/a1b2c3d4e5f6/otp/verify': {
+          ...progress,
+          'completedChecks': ['pin', 'otp'],
+          'pendingChecks': <String>[],
+        },
+        '/me/interbank/transfers/a1b2c3d4e5f6/finalize': {
+          'transactionReference': 'TX9',
+          'status': 'pending',
+        },
+      });
+      final service = _service(core);
+      final initiation = _initiation(['pin', 'otp']);
+      const kind = CoreTransferKind.interbank;
 
-    final [otp, finalize] = core.requests;
-    expect(otp.method, 'POST');
-    expect(otp.path, '/me/interbank/transfers/a1b2c3d4e5f6/otp/request');
-    expect(otp.data, isNull);
-    expect(finalize.data, {'transactionPin': '0007', 'otpCode': '123456'});
-    expect(_logged(otp), isNull);
-    // Finalize carries the PIN and OTP, so its bodies stay redacted.
-    expect(_logged(finalize), '/me/interbank/transfers/{reference}/finalize');
-    expect(ack.data?.transactionReference, 'TX9');
+      final pin = await service.verifyTransferPin(kind, initiation, '0007');
+      await service.resendTransferOtp(kind, initiation);
+      final otp = await service.verifyTransferOtp(kind, initiation, '654321');
+      final ack = await service.finalizeTransfer(kind, initiation);
+
+      final [pinRequest, resend, otpRequest, finalize] = core.requests;
+      expect(
+        pinRequest.path,
+        '/me/interbank/transfers/a1b2c3d4e5f6/pin/verify',
+      );
+      expect(pinRequest.data, {'transactionPin': '0007'});
+      expect(resend.path, '/me/interbank/transfers/a1b2c3d4e5f6/otp/resend');
+      expect(resend.data, isNull);
+      expect(otpRequest.data, {'otpCode': '654321'});
+      expect(finalize.path, '/me/interbank/transfers/a1b2c3d4e5f6/finalize');
+      expect(finalize.data, isNull);
+      expect(pin.data?.pending, {CoreTransferCheck.otp});
+      expect(pin.data?.otpSent, isTrue);
+      expect(otp.data?.pending, isEmpty);
+      expect(ack.data?.transactionReference, 'TX9');
+      // Full staging logs by product decision.
+      expect(core.requests.map(_logged), everyElement(isNull));
+    },
+  );
+
+  test('the staging OTP in a reply is never kept', () async {
+    final parsed = CoreCheckProgress.fromJson(progress);
+
+    expect('${parsed.props}', isNot(contains('123456')));
+    expect('$parsed', isNot(contains('123456')));
   });
 
-  test('finalize sends only the checks the initiation asked for', () async {
+  test('an unknown check in progress is refused', () {
+    expect(
+      () => CoreCheckProgress.fromJson({
+        ...progress,
+        'pendingChecks': ['selfie'],
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('a liveness or expired initiation is never sent', () async {
     final core = _Core({});
     final service = _service(core);
+    final expired = CoreTransferInitiation(
+      reference: 'a1b2c3d4e5f6',
+      checks: const {CoreTransferCheck.pin},
+      expiresAt: DateTime.utc(2020),
+    );
 
-    await service.finalizeTransfer(
-      CoreTransferKind.intrabank,
-      _initiation(['pin']),
-      pin: '0007',
-      otp: '123456',
-    );
-    final missingOtp = await service.finalizeTransfer(
-      CoreTransferKind.intrabank,
-      _initiation(['pin', 'otp']),
-      pin: '0007',
-    );
-    final liveness = await service.finalizeTransfer(
+    final liveness = await service.verifyTransferPin(
       CoreTransferKind.intrabank,
       _initiation(['pin', 'liveness']),
-      pin: '0007',
+      '0007',
+    );
+    final late = await service.finalizeTransfer(
+      CoreTransferKind.intrabank,
+      expired,
     );
 
-    expect(core.requests.single.data, {'transactionPin': '0007'});
-    expect(missingOtp.status, ServiceStatus.blocked);
     expect(liveness.status, ServiceStatus.blocked);
+    expect(late.status, ServiceStatus.blocked);
+    expect(core.requests, isEmpty);
   });
 
-  test('a failed finalize is never retried', () async {
-    for (final status in [400, 401, 403, 404, 409, 500, 503]) {
+  test('a failed check or finalize is never retried', () async {
+    for (final status in [400, 401, 403, 404, 409, 422, 500, 503]) {
       final core = _Core({}, status: status);
+      final service = _service(core);
+      final initiation = _initiation(['pin']);
 
-      await _service(core).finalizeTransfer(
+      await service.verifyTransferPin(
         CoreTransferKind.intrabank,
-        _initiation(['pin']),
-        pin: '0007',
+        initiation,
+        '0007',
       );
+      await service.finalizeTransfer(CoreTransferKind.intrabank, initiation);
 
-      expect(core.requests, hasLength(1), reason: '$status');
+      expect(core.requests, hasLength(2), reason: '$status');
     }
   });
 

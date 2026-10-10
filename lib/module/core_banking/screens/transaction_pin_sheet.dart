@@ -12,14 +12,21 @@ import '../service/transaction_authorizer.dart';
 /// customer cancels or dismisses the sheet. The caller owns the string only
 /// for the one submission it authorizes and must not store it. [errorMessage]
 /// is safe copy from a previous attempt, such as a rejected PIN.
+///
+/// [confirmLabel] names what the PIN does: "Confirm transfer" when it is the
+/// last check, "Verify PIN" when an OTP follows.
 Future<String?> collectCoreTransactionPin(
   BuildContext context,
   TransactionSummary summary, {
   String? errorMessage,
+  String confirmLabel = 'Confirm transfer',
 }) => AppActionSheet.show<String>(
   context: context,
-  builder: (_) =>
-      TransactionPinSheet(summary: summary, errorMessage: errorMessage),
+  builder: (_) => TransactionPinSheet(
+    summary: summary,
+    errorMessage: errorMessage,
+    confirmLabel: confirmLabel,
+  ),
 );
 
 const _pinLength = 4;
@@ -28,11 +35,13 @@ class TransactionPinSheet extends StatefulWidget {
   const TransactionPinSheet({
     required this.summary,
     this.errorMessage,
+    this.confirmLabel = 'Confirm transfer',
     super.key,
   });
 
   final TransactionSummary summary;
   final String? errorMessage;
+  final String confirmLabel;
 
   @override
   State<TransactionPinSheet> createState() => _TransactionPinSheetState();
@@ -93,7 +102,7 @@ class _TransactionPinSheetState extends State<TransactionPinSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PrimaryButton(
-            label: 'Confirm transfer',
+            label: widget.confirmLabel,
             onPressed: _complete && !_closing ? _confirm : null,
           ),
           const SizedBox(height: BocSpace.xs),

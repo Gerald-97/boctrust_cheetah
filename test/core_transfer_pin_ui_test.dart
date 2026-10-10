@@ -12,6 +12,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_check_progress.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
@@ -68,8 +69,10 @@ class _Transfers extends CoreTransferService {
       expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
     ),
   );
-  final otpRequests = <String>[];
-  final finalized = <({String pin, String? otp})>[];
+  final pins = <String>[];
+  final otps = <String>[];
+  var resends = 0;
+  var finalized = 0;
 
   /// When set, initiate waits on it instead of answering at once.
   Completer<void>? initiateGate;
@@ -82,23 +85,59 @@ class _Transfers extends CoreTransferService {
     return initiation;
   }
 
+  CoreCheckProgress _after(CoreTransferInitiation initiation) =>
+      CoreCheckProgress(
+        reference: initiation.reference,
+        otpSent: initiation.needsOtp,
+      );
+
   @override
-  Future<NotifierState<bool>> requestTransferOtp(
+  Future<NotifierState<CoreCheckProgress>> verifyTransferPin(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String pin,
+  ) async {
+    pins.add(pin);
+    return NotifierState.done(
+      initiation.needsOtp
+          ? CoreCheckProgress(
+              reference: initiation.reference,
+              pending: const {CoreTransferCheck.otp},
+              otpSent: true,
+            )
+          : _after(initiation),
+    );
+  }
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> resendTransferOtp(
     CoreTransferKind kind,
     CoreTransferInitiation initiation,
   ) async {
-    otpRequests.add(initiation.reference);
-    return const NotifierState.done(true);
+    resends++;
+    return NotifierState.done(_after(initiation));
+  }
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> verifyTransferOtp(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String otp,
+  ) async {
+    otps.add(otp);
+    return otp == '000000'
+        ? const NotifierState.error('Incorrect.', statusCode: 401)
+        : NotifierState.done(
+            CoreCheckProgress(reference: initiation.reference),
+          );
   }
 
   @override
   Future<ServiceResponse<CoreTransferAck>> finalizeTransfer(
     CoreTransferKind kind,
-    CoreTransferInitiation initiation, {
-    required String pin,
-    String? otp,
-  }) async {
-    finalized.add((pin: pin, otp: otp));
+    CoreTransferInitiation initiation,
+  ) async {
+    finalized++;
     return const ServiceResponse.success(
       CoreTransferAck(responseCode: '00', retrievalReference: 'a1b2c3d4e5f6'),
       statusCode: 200,
@@ -292,12 +331,14 @@ void main() {
       await _sendTen(tester);
       await _enterCode(tester, '0007', 'Confirm transfer');
 
-      expect(transfers.otpRequests, isEmpty);
-      expect(transfers.finalized, [(pin: '0007', otp: null)]);
+      expect(transfers.pins, ['0007']);
+      expect(transfers.otps, isEmpty);
+      expect(find.byKey(const Key('transfer-otp-sheet')), findsNothing);
+      expect(transfers.finalized, 1);
       expect(find.text('Transfer processing'), findsOneWidget);
     });
 
-    testWidgets('PIN, then OTP: the code is requested on its page', (
+    testWidgets('PIN, then OTP: finalized only after the code is verified', (
       tester,
     ) async {
       final transfers = _Transfers()
@@ -311,12 +352,24 @@ void main() {
       await _pumpBoctrust(tester, transfers);
 
       await _sendTen(tester);
-      await _enterCode(tester, '0007', 'Confirm transfer');
-      expect(transfers.otpRequests, ['a1b2c3d4e5f6']);
-      expect(transfers.finalized, isEmpty);
-      await _enterCode(tester, '123456', 'Verify code');
+      await _enterCode(tester, '0007', 'Verify PIN');
+      // Core sent the code when the PIN passed; the sheet does not request
+      // one on open.
+      expect(find.byKey(const Key('transfer-otp-sheet')), findsOneWidget);
+      expect(transfers.finalized, 0);
 
-      expect(transfers.finalized, [(pin: '0007', otp: '123456')]);
+      await _enterCode(tester, '000000', 'Verify code');
+      expect(find.text('That code is incorrect or has expired.'), findsOne);
+      expect(transfers.finalized, 0);
+
+      await tester.tap(find.text('Resend code'));
+      await _settle(tester);
+      expect(transfers.resends, 1);
+
+      await _enterCode(tester, '123456', 'Verify code');
+      expect(transfers.otps, ['000000', '123456']);
+      expect(transfers.finalized, 1);
+      expect(find.byKey(const Key('transfer-otp-sheet')), findsNothing);
     });
 
     testWidgets('leaving while it starts releases the transfer', (
@@ -385,7 +438,7 @@ void main() {
 
       expect(find.byKey(const Key('transaction-pin-sheet')), findsNothing);
       expect(find.text('Transfer declined'), findsOneWidget);
-      expect(transfers.finalized, isEmpty);
+      expect(transfers.finalized, 0);
     });
   });
 

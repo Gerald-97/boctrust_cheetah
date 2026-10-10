@@ -19,12 +19,13 @@ import 'core_flow_widgets.dart';
 import 'transaction_pin_sheet.dart';
 import 'transfer_otp_sheet.dart';
 
-/// Starts the reviewed [draft]: initiate, then the PIN sheet, then (only
-/// when Core asks) the OTP page, then one finalize.
+/// Starts the reviewed [draft]: initiate, then the PIN sheet (PIN verify),
+/// then — only when Core sends an OTP — the OTP sheet (OTP verify), then one
+/// bodyless finalize.
 ///
-/// Closing either sheet sends nothing and releases the attempt. A rejected
-/// PIN or OTP reopens the PIN sheet on the same initiation. The PIN and OTP
-/// live only in this call's local variables.
+/// Closing a sheet sends nothing more and releases the attempt. A wrong PIN
+/// reopens the PIN sheet on the same initiation; a wrong OTP stays on the OTP
+/// sheet. The PIN and OTP live only in local variables and sheet fields.
 Future<void> authorizeStagedTransfer(
   BuildContext context,
   WidgetRef ref, {
@@ -45,50 +46,53 @@ Future<void> authorizeStagedTransfer(
     return;
   }
   await notifier.initiate(id);
+  bool at(CoreTransferPhase phase) =>
+      notifier.current?.id == id && notifier.current?.phase == phase;
+
   String? error;
-  while (true) {
-    final attempt = notifier.current;
-    final initiation = attempt?.initiation;
-    if (attempt?.id != id ||
-        attempt?.phase != CoreTransferPhase.awaitingChecks ||
-        initiation == null) {
-      return;
-    }
+  while (at(CoreTransferPhase.awaitingPin)) {
     // The customer left while it started: release it so it can't block the
     // next transfer. Nothing was finalized, so no money moved.
     if (!context.mounted) return notifier.cancelReview(id);
+    final needsOtp = notifier.current?.initiation?.needsOtp ?? false;
     final pin = await collectCoreTransactionPin(
       context,
       summary,
       errorMessage: error,
+      confirmLabel: needsOtp ? 'Verify PIN' : 'Confirm transfer',
     );
-    if (pin == null || !context.mounted) {
-      notifier.cancelReview(id);
-      return;
-    }
-    String? otp;
-    if (initiation.needsOtp) {
-      otp = await collectTransferOtp(
-        context,
-        requestCode: () => notifier.requestOtp(id),
-      );
-      if (otp == null || !context.mounted) {
-        notifier.cancelReview(id);
-        return;
-      }
-    }
-    await notifier.finalize(id, pin: pin, otp: otp);
-    if (!context.mounted || !notifier.retryPin(id)) break;
-    error = CoreRejection.wrongPin.message;
+    if (pin == null || !context.mounted) return notifier.cancelReview(id);
+    final step = await notifier.verifyPin(id, pin);
+    error = step is CheckRetry ? step.message : null;
   }
+
+  if (at(CoreTransferPhase.awaitingOtp)) {
+    if (!context.mounted) return notifier.cancelReview(id);
+    final verified = await collectTransferOtp(
+      context,
+      verifyCode: (code) => notifier.verifyOtp(id, code),
+      resendCode: () => notifier.resendOtp(id),
+    );
+    if (!verified && at(CoreTransferPhase.awaitingOtp)) {
+      return notifier.cancelReview(id);
+    }
+  }
+
+  if (at(CoreTransferPhase.readyToFinalize)) await notifier.finalize(id);
   // Balances come from Core only; never subtract locally.
   unawaited(accounts.load());
 }
 
 /// Every transfer screen shows the session's current attempt in place of its
-/// own steps, so re-entering any transfer flow resumes it.
-bool showsAttempt(CoreTransferAttempt? attempt) =>
-    attempt != null && attempt.phase != CoreTransferPhase.awaitingChecks;
+/// own steps, so re-entering any transfer flow resumes it. While the PIN or
+/// OTP sheet is open, the review stays underneath.
+bool showsAttempt(CoreTransferAttempt? attempt) => switch (attempt?.phase) {
+  CoreTransferPhase.initiating ||
+  CoreTransferPhase.readyToFinalize ||
+  CoreTransferPhase.finalizing ||
+  CoreTransferPhase.settled => true,
+  _ => false,
+};
 
 /// The result of a sent transfer, whichever flow sent it.
 class CoreTransferAttemptView extends ConsumerWidget {
@@ -114,10 +118,12 @@ class CoreTransferAttemptView extends ConsumerWidget {
     switch (attempt.phase) {
       case CoreTransferPhase.initiating:
         return const ApiLoadingSection(label: 'Starting your transfer');
-      case CoreTransferPhase.finalizing:
+      case CoreTransferPhase.readyToFinalize || CoreTransferPhase.finalizing:
         return const ApiLoadingSection(label: 'Sending your transfer');
-      case CoreTransferPhase.awaitingChecks || CoreTransferPhase.settled:
+      case CoreTransferPhase.settled:
         break;
+      case _:
+        return const ApiLoadingSection(label: 'Checking your details');
     }
     final notifier = ref.read(coreTransferAttemptProvider.notifier);
     final (:amount, :details) = _describe(ref, attempt.draft);

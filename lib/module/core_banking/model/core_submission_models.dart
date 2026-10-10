@@ -121,6 +121,12 @@ enum CoreRejection {
     'again.',
   ),
   initiationFailed("We couldn't start this transfer."),
+  checkRefused(
+    "This transfer can't continue: it may have expired, or your account may "
+    'be locked.',
+  ),
+  checksInconsistent("We couldn't confirm this transfer's security checks."),
+  checkInterrupted("We couldn't complete the security check."),
   initiationExpired('This transfer timed out before it was confirmed.'),
   checksUnsupported(
     "This transfer needs a check the app can't do yet. Try a smaller amount.",

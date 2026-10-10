@@ -28,12 +28,6 @@ abstract final class CoreApiEndpoints {
 
   /// BocFlex → another BOCTRUST customer: records a pending transfer.
   static const intrabankTransferInitiate = '$intrabankTransfers/initiate';
-  // The retired OTP request; removed once the service migrates.
-  static String intrabankTransferOtp(String reference) =>
-      '$intrabankTransfers/${Uri.encodeComponent(reference)}/otp/request';
-  static const intrabankTransferOtpTemplate =
-      '$intrabankTransfers/{reference}/otp/request';
-
   /// Verifies the PIN and has Core send the OTP when one is required.
   static String intrabankTransferPinVerify(String reference) =>
       '$intrabankTransfers/${Uri.encodeComponent(reference)}/pin/verify';
@@ -63,12 +57,6 @@ abstract final class CoreApiEndpoints {
 
   /// BocFlex → another bank: records a pending transfer.
   static const interbankTransferInitiate = '$interbankTransfers/initiate';
-  // The retired OTP request; removed once the service migrates.
-  static String interbankTransferOtp(String reference) =>
-      '$interbankTransfers/${Uri.encodeComponent(reference)}/otp/request';
-  static const interbankTransferOtpTemplate =
-      '$interbankTransfers/{reference}/otp/request';
-
   /// Verifies the PIN and has Core send the OTP when one is required.
   static String interbankTransferPinVerify(String reference) =>
       '$interbankTransfers/${Uri.encodeComponent(reference)}/pin/verify';

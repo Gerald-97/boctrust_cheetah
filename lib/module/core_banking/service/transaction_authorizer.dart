@@ -16,8 +16,12 @@ class TransactionSummary {
   final List<(String, String)> lines;
 }
 
-/// The step every money-moving POST must pass first. A PIN or token it
-/// collects never goes into a Core request body.
+/// The step bill payments must pass first. A PIN or token it collects never
+/// goes into a Core request body.
+///
+/// Transfers use their own staged checks instead: the PIN and OTP go only to
+/// Core's `pin/verify` and `otp/verify` routes, and finalize carries none
+/// (gated by `transferAuthorizationReadyProvider`).
 abstract interface class TransactionAuthorizer {
   /// True only when the customer authorized this transaction.
   Future<bool> authorize(BuildContext context, TransactionSummary summary);

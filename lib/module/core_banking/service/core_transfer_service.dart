@@ -6,6 +6,7 @@ import '../../../app/core_network.dart';
 import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
+import '../model/core_check_progress.dart';
 import '../model/core_submission_models.dart';
 import '../model/core_transfer_initiation.dart';
 import '../model/core_transfer_requery_models.dart';
@@ -22,10 +23,10 @@ const kMaxTransferKobo = '2500000000';
 /// Core customer transfers: recipient lookups, the staged initiate → OTP →
 /// finalize flow, and live status of a transfer already sent.
 ///
-/// Every POST is sent once and never retried. Only finalize moves money; the
-/// PIN and OTP pass straight into its body and are never kept. Requests are
-/// logged by path template only, so recipients, references and credentials
-/// never reach the log.
+/// Every POST is sent once and never retried. Only finalize moves money and
+/// it carries no body; the PIN and OTP go to their own verify routes and are
+/// never kept. Requests are logged in full on staging (product decision);
+/// only the name enquiry is redacted, as Core can return a BVN.
 class CoreTransferService {
   const CoreTransferService(this._api);
   final ApiService? _api;
@@ -79,59 +80,102 @@ class CoreTransferService {
     );
   }
 
-  /// Sends the OTP finalize will need. Call only when [initiation] needs one.
-  Future<NotifierState<bool>> requestTransferOtp(
+  /// Whether a check or finalize for [initiation] may be sent at all: a
+  /// liveness check or an expired initiation is refused locally.
+  static bool _sendable(CoreTransferInitiation initiation) =>
+      initiation.supported && !initiation.isExpiredAt(DateTime.now());
+
+  Future<NotifierState<CoreCheckProgress>> _check(
+    String path, {
+    Object? body,
+  }) async => NotifierState.fromResponse(
+    await _api!.postData<CoreCheckProgress>(
+      path,
+      data: body,
+      parser: CoreCheckProgress.fromJson,
+    ),
+  );
+
+  /// Verifies the transaction PIN; Core sends the OTP when one is required.
+  /// The PIN goes only in this request's body and is never kept.
+  Future<NotifierState<CoreCheckProgress>> verifyTransferPin(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String pin,
+  ) async {
+    if (_api == null || !_sendable(initiation)) {
+      return const NotifierState.blocked(_readUnavailable);
+    }
+    return _check(
+      switch (kind) {
+        CoreTransferKind.intrabank =>
+          CoreApiEndpoints.intrabankTransferPinVerify(initiation.reference),
+        CoreTransferKind.interbank =>
+          CoreApiEndpoints.interbankTransferPinVerify(initiation.reference),
+      },
+      body: {'transactionPin': pin},
+    );
+  }
+
+  /// Asks Core to send the OTP again. Only after the PIN was verified, and
+  /// only on the customer's request.
+  Future<NotifierState<CoreCheckProgress>> resendTransferOtp(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+  ) async {
+    if (_api == null || !_sendable(initiation)) {
+      return const NotifierState.blocked(_readUnavailable);
+    }
+    return _check(switch (kind) {
+      CoreTransferKind.intrabank => CoreApiEndpoints.intrabankTransferOtpResend(
+        initiation.reference,
+      ),
+      CoreTransferKind.interbank => CoreApiEndpoints.interbankTransferOtpResend(
+        initiation.reference,
+      ),
+    });
+  }
+
+  /// Verifies the OTP the customer typed. It goes only in this request's
+  /// body and is never kept.
+  Future<NotifierState<CoreCheckProgress>> verifyTransferOtp(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String otp,
+  ) async {
+    if (_api == null || !_sendable(initiation)) {
+      return const NotifierState.blocked(_readUnavailable);
+    }
+    return _check(
+      switch (kind) {
+        CoreTransferKind.intrabank =>
+          CoreApiEndpoints.intrabankTransferOtpVerify(initiation.reference),
+        CoreTransferKind.interbank =>
+          CoreApiEndpoints.interbankTransferOtpVerify(initiation.reference),
+      },
+      body: {'otpCode': otp},
+    );
+  }
+
+  /// Moves the money once every required check passed. No body: credentials
+  /// went to the verify routes. Sent once; classify the reply with
+  /// `mapCoreTransferSubmission`.
+  Future<ServiceResponse<CoreTransferAck>> finalizeTransfer(
     CoreTransferKind kind,
     CoreTransferInitiation initiation,
   ) async {
     final api = _api;
-    if (api == null) return const NotifierState.blocked(_readUnavailable);
-    final (path, template) = switch (kind) {
-      CoreTransferKind.intrabank => (
-        CoreApiEndpoints.intrabankTransferOtp(initiation.reference),
-        CoreApiEndpoints.intrabankTransferOtpTemplate,
-      ),
-      CoreTransferKind.interbank => (
-        CoreApiEndpoints.interbankTransferOtp(initiation.reference),
-        CoreApiEndpoints.interbankTransferOtpTemplate,
-      ),
-    };
-    return NotifierState.fromResponse(
-      await api.postData<bool>(path, parser: (_) => true),
-    );
-  }
-
-  /// Moves the money: sends exactly the checks [initiation] asked for, once.
-  /// A missing OTP, or a check this app cannot satisfy, is refused before
-  /// any request. Classify the reply with `mapCoreTransferSubmission`.
-  Future<ServiceResponse<CoreTransferAck>> finalizeTransfer(
-    CoreTransferKind kind,
-    CoreTransferInitiation initiation, {
-    required String pin,
-    String? otp,
-  }) async {
-    final api = _api;
-    if (api == null ||
-        !initiation.supported ||
-        (initiation.needsOtp && (otp == null || otp.isEmpty))) {
+    if (api == null || !_sendable(initiation)) {
       return const ServiceResponse.blocked(_readUnavailable);
     }
-    final (path, template) = switch (kind) {
-      CoreTransferKind.intrabank => (
-        CoreApiEndpoints.intrabankTransferFinalize(initiation.reference),
-        CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+    return api.postData<CoreTransferAck>(switch (kind) {
+      CoreTransferKind.intrabank => CoreApiEndpoints.intrabankTransferFinalize(
+        initiation.reference,
       ),
-      CoreTransferKind.interbank => (
-        CoreApiEndpoints.interbankTransferFinalize(initiation.reference),
-        CoreApiEndpoints.interbankTransferFinalizeTemplate,
+      CoreTransferKind.interbank => CoreApiEndpoints.interbankTransferFinalize(
+        initiation.reference,
       ),
-    };
-    return api.postData<CoreTransferAck>(
-      path,
-      data: {'transactionPin': pin, if (initiation.needsOtp) 'otpCode': otp},
-      parser: CoreTransferAck.fromJson,
-      requestExtra: _logAs(template),
-    );
+    }, parser: CoreTransferAck.fromJson);
   }
 
   Future<NotifierState<List<CommercialBank>>> getBanks() async {

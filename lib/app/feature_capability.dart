@@ -550,10 +550,10 @@ extension FeatureAvailabilityX on FeatureAvailability {
 }
 
 /// Whether transfers may be sent with a transaction PIN. On since
-/// 7 October 2026 (Kenechukwu): the Core docs, the source of truth, require
-/// the transaction PIN in the transfer body and define 401 as an incorrect
-/// PIN. Since 10 October that body is the staged finalize, which also takes
-/// the OTP when initiate asks for one. [transferAuthorizationReady] still
+/// 7 October 2026 (Kenechukwu), revised 10 October to the Swagger, the source
+/// of truth: the transaction PIN goes to `{reference}/pin/verify` and the OTP
+/// to `{reference}/otp/verify`, each answering 401 when wrong; finalize has
+/// no body and carries no credential. [transferAuthorizationReady] still
 /// keeps it to staging.
 const kTransferAuthorizationEvidenceReady = true;
 

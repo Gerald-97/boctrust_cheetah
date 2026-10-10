@@ -2,7 +2,9 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/feature_capability.dart';
+import '../../../app/services.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
+import '../model/core_check_progress.dart';
 import '../model/core_submission_models.dart';
 import '../model/core_transfer_initiation.dart';
 import '../model/core_transfer_requery_models.dart';
@@ -15,13 +17,47 @@ enum CoreTransferPhase {
   /// Reviewed and reserved; initiate is being sent. No money moves.
   initiating,
 
-  /// Core recorded a pending transfer; the PIN and any OTP are being
-  /// collected. No money has moved.
-  awaitingChecks,
+  /// Core recorded a pending transfer; the PIN sheet is open.
+  awaitingPin,
+  verifyingPin,
+
+  /// The PIN passed and Core sent an OTP; the OTP sheet is open.
+  awaitingOtp,
+  verifyingOtp,
+
+  /// Every required check passed; finalize may be sent once.
+  readyToFinalize,
 
   /// Finalize was sent: money may be moving.
   finalizing,
   settled,
+}
+
+/// What a PIN or OTP step did. No step moves money.
+sealed class CheckStep extends Equatable {
+  const CheckStep();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// The step passed; the attempt moved to its next phase.
+final class CheckPassed extends CheckStep {
+  const CheckPassed();
+}
+
+/// The step can be tried again on the same initiation, e.g. a wrong PIN.
+final class CheckRetry extends CheckStep {
+  const CheckRetry(this.message);
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
+
+/// The attempt stopped; its outcome says why.
+final class CheckStopped extends CheckStep {
+  const CheckStopped();
 }
 
 /// One reviewed transfer and what happened to it. Holds no credential.
@@ -70,13 +106,13 @@ class CoreTransferAttempt extends Equatable {
   /// Whether money may still be moving: in flight, accepted without a final
   /// status, or with no reliable answer at all.
   bool get unresolved => switch (phase) {
-    CoreTransferPhase.initiating || CoreTransferPhase.awaitingChecks => false,
     CoreTransferPhase.finalizing => true,
     CoreTransferPhase.settled => switch (outcome) {
       AcceptedSubmission() => !_isFinal(live?.state),
       UnknownSubmission() => true,
       RejectedSubmission() || null => false,
     },
+    _ => false,
   };
 
   CoreTransferAttempt _with({
@@ -155,12 +191,12 @@ final coreTransferAttemptProvider =
     );
 
 /// Owns every BOCTRUST and interbank transfer for the signed-in customer:
-/// initiate, collect the PIN and any OTP, finalize once, then track.
+/// initiate, verify the PIN, verify the OTP when Core sends one, finalize
+/// once, then track.
 ///
-/// Core offers no idempotency key, so finalize is sent at most once per
-/// credential entry: only a documented wrong-PIN rejection on a still-valid
-/// initiation lets it be sent again. The PIN and OTP pass straight through
-/// [finalize] and are never kept.
+/// Core offers no idempotency key, so finalize is sent at most once. The PIN
+/// and OTP pass straight through [verifyPin] and [verifyOtp] and are never
+/// kept; finalize carries no credential.
 class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
   int _nextId = 0;
 
@@ -206,8 +242,8 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
   void cancelReview(int id) {
     final current = state.current;
     if (current?.id == id &&
-        (current?.phase == CoreTransferPhase.initiating ||
-            current?.phase == CoreTransferPhase.awaitingChecks)) {
+        current?.phase != CoreTransferPhase.finalizing &&
+        current?.phase != CoreTransferPhase.settled) {
       _set();
     }
   }
@@ -261,33 +297,144 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     }
     _set(
       current: current._with(
-        phase: CoreTransferPhase.awaitingChecks,
+        phase: CoreTransferPhase.awaitingPin,
         initiation: initiation,
       ),
     );
   }
 
-  /// Sends the OTP finalize needs. Returns why it could not be sent, or null.
-  Future<String?> requestOtp(int id) async {
-    final current = _open(id, CoreTransferPhase.awaitingChecks);
+  /// Verifies the PIN. When the initiation needs an OTP, Core sends it and
+  /// the attempt waits for it; otherwise it is ready to finalize. The PIN
+  /// passes straight through and is never kept.
+  Future<CheckStep> verifyPin(int id, String pin) => _verify(
+    id,
+    CoreTransferCheck.pin,
+    (service, attempt, initiation) =>
+        service.verifyTransferPin(attempt.kind, initiation, pin),
+  );
+
+  /// Verifies the OTP the customer typed; never kept.
+  Future<CheckStep> verifyOtp(int id, String otp) => _verify(
+    id,
+    CoreTransferCheck.otp,
+    (service, attempt, initiation) =>
+        service.verifyTransferOtp(attempt.kind, initiation, otp),
+  );
+
+  Future<CheckStep> _verify(
+    int id,
+    CoreTransferCheck step,
+    Future<NotifierState<CoreCheckProgress>> Function(
+      CoreTransferService service,
+      CoreTransferAttempt attempt,
+      CoreTransferInitiation initiation,
+    )
+    send,
+  ) async {
+    final (waiting, verifying) = step == CoreTransferCheck.pin
+        ? (CoreTransferPhase.awaitingPin, CoreTransferPhase.verifyingPin)
+        : (CoreTransferPhase.awaitingOtp, CoreTransferPhase.verifyingOtp);
+    final current = _open(id, waiting);
     final initiation = current?.initiation;
-    if (current == null || initiation == null || !initiation.needsOtp) {
-      return "This transfer doesn't need a code.";
+    if (current == null || initiation == null) return const CheckStopped();
+    if (!initiation.supported) {
+      _settle(current, CoreRejection.checksUnsupported);
+      return const CheckStopped();
     }
     if (initiation.isExpiredAt(DateTime.now())) {
       _settle(current, CoreRejection.initiationExpired);
-      return CoreRejection.initiationExpired.message;
+      return const CheckStopped();
     }
-    final result = await ref
-        .read(coreTransferServiceProvider)
-        .requestTransferOtp(current.kind, initiation);
-    return result.isDone ? null : "We couldn't send your code. Try again.";
+    final generation = _generation;
+    _set(current: current._with(phase: verifying));
+    final result = await send(
+      ref.read(coreTransferServiceProvider),
+      current,
+      initiation,
+    );
+    if (!ref.mounted ||
+        generation != _generation ||
+        _open(id, verifying) == null) {
+      return const CheckStopped();
+    }
+    // Swagger: a 409 on a verify step means it was already completed.
+    if (result.isDone || result.statusCode == 409) {
+      final pending = result.data?.pending ?? const <CoreTransferCheck>{};
+      final contradicts =
+          pending.contains(CoreTransferCheck.liveness) ||
+          pending.contains(step) ||
+          (step == CoreTransferCheck.otp &&
+              pending.contains(CoreTransferCheck.pin)) ||
+          (step == CoreTransferCheck.pin &&
+              !initiation.needsOtp &&
+              pending.contains(CoreTransferCheck.otp));
+      if (contradicts) {
+        _settle(current, CoreRejection.checksInconsistent);
+        return const CheckStopped();
+      }
+      _set(
+        current: current._with(
+          phase: step == CoreTransferCheck.pin && initiation.needsOtp
+              ? CoreTransferPhase.awaitingOtp
+              : CoreTransferPhase.readyToFinalize,
+        ),
+      );
+      return const CheckPassed();
+    }
+    if (result.statusCode == 401) {
+      _set(current: current._with(phase: waiting));
+      return CheckRetry(
+        step == CoreTransferCheck.pin
+            ? CoreRejection.wrongPin.message
+            : 'That code is incorrect or has expired.',
+      );
+    }
+    // Finalize was never sent, so no money moved.
+    _settle(current, switch (result.statusCode) {
+      400 => CoreRejection.validation,
+      403 => CoreRejection.checkRefused,
+      404 => CoreRejection.initiationFailed,
+      _ => CoreRejection.checkInterrupted,
+    });
+    return const CheckStopped();
   }
 
-  /// Moves the money: one finalize with the checks the initiation asked
-  /// for. Repeated calls while one is in flight send nothing.
-  Future<void> finalize(int id, {required String pin, String? otp}) async {
-    final current = _open(id, CoreTransferPhase.awaitingChecks);
+  bool _resending = false;
+
+  /// Asks Core to send the OTP again, on the customer's request. Only once
+  /// the PIN is verified and an OTP is awaited; one request at a time.
+  Future<CheckStep> resendOtp(int id) async {
+    final current = _open(id, CoreTransferPhase.awaitingOtp);
+    final initiation = current?.initiation;
+    if (current == null || initiation == null) {
+      return const CheckRetry('Verify your PIN first.');
+    }
+    if (_resending) return const CheckRetry('A new code is on its way.');
+    _resending = true;
+    final generation = _generation;
+    try {
+      final result = await ref
+          .read(coreTransferServiceProvider)
+          .resendTransferOtp(current.kind, initiation);
+      if (!ref.mounted || generation != _generation) {
+        return const CheckStopped();
+      }
+      if (result.isDone) return const CheckPassed();
+      if (result.statusCode == 403) {
+        final still = _open(id, CoreTransferPhase.awaitingOtp);
+        if (still != null) _settle(still, CoreRejection.checkRefused);
+        return const CheckStopped();
+      }
+      return const CheckRetry("We couldn't send a new code. Try again.");
+    } finally {
+      _resending = false;
+    }
+  }
+
+  /// Moves the money: one bodyless finalize once every required check has
+  /// passed. Repeated calls while one is in flight send nothing.
+  Future<void> finalize(int id) async {
+    final current = _open(id, CoreTransferPhase.readyToFinalize);
     final initiation = current?.initiation;
     if (current == null ||
         initiation == null ||
@@ -304,7 +451,7 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
       outcome = mapCoreTransferSubmission(
         await ref
             .read(coreTransferServiceProvider)
-            .finalizeTransfer(current.kind, initiation, pin: pin, otp: otp),
+            .finalizeTransfer(current.kind, initiation),
         interbank: current.kind == CoreTransferKind.interbank,
       );
     } catch (_) {
@@ -321,21 +468,6 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
         outcome: outcome,
       ),
     );
-  }
-
-  /// Reopens credential entry after a rejected PIN or OTP, on the same
-  /// initiation while it is still valid.
-  bool retryPin(int id) {
-    final current = _open(id, CoreTransferPhase.settled);
-    final initiation = current?.initiation;
-    if (current == null ||
-        initiation == null ||
-        current.outcome != const RejectedSubmission(CoreRejection.wrongPin) ||
-        initiation.isExpiredAt(DateTime.now())) {
-      return false;
-    }
-    _set(current: current._with(phase: CoreTransferPhase.awaitingChecks));
-    return true;
   }
 
   /// Clears a resolved attempt (rejected or final) so a new one can start.

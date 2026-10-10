@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_check_progress.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
@@ -42,15 +43,31 @@ const _accepted = ServiceResponse<CoreTransferAck>.success(
 ServiceResponse<CoreTransferAck> _error(int status) =>
     ServiceResponse.error('x', statusCode: status);
 
-/// Answers initiate from [initiation] and finalize from [reply], recording
+NotifierState<CoreCheckProgress> _progress({
+  List<String> pending = const [],
+  int? status,
+}) => status != null
+    ? NotifierState.error('x', statusCode: status)
+    : NotifierState.done(
+        CoreCheckProgress(
+          reference: 'a1b2c3d4e5f6',
+          pending: {for (final c in pending) CoreTransferCheck.parse(c)!},
+        ),
+      );
+
+/// Answers initiate, each check and finalize from canned replies, recording
 /// what was sent.
 class _Transfers extends CoreTransferService {
   _Transfers() : super(ApiService(Dio()));
 
   NotifierState<CoreTransferInitiation> initiation = _initiated(['pin']);
+  final pinReplies = <NotifierState<CoreCheckProgress>>[];
+  final otpReplies = <NotifierState<CoreCheckProgress>>[];
   Completer<ServiceResponse<CoreTransferAck>> reply = Completer();
-  final finalized = <({String pin, String? otp})>[];
-  var otpRequests = 0;
+  final pins = <String>[];
+  final otps = <String>[];
+  var resends = 0;
+  var finalized = 0;
   final live = <NotifierState<CoreLiveTransferStatus>>[];
 
   @override
@@ -59,22 +76,40 @@ class _Transfers extends CoreTransferService {
   ) async => initiation;
 
   @override
-  Future<NotifierState<bool>> requestTransferOtp(
+  Future<NotifierState<CoreCheckProgress>> verifyTransferPin(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String pin,
+  ) async {
+    pins.add(pin);
+    return pinReplies.isEmpty ? _progress() : pinReplies.removeAt(0);
+  }
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> resendTransferOtp(
     CoreTransferKind kind,
     CoreTransferInitiation initiation,
   ) async {
-    otpRequests++;
-    return const NotifierState.done(true);
+    resends++;
+    return _progress(pending: ['otp']);
+  }
+
+  @override
+  Future<NotifierState<CoreCheckProgress>> verifyTransferOtp(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+    String otp,
+  ) async {
+    otps.add(otp);
+    return otpReplies.isEmpty ? _progress() : otpReplies.removeAt(0);
   }
 
   @override
   Future<ServiceResponse<CoreTransferAck>> finalizeTransfer(
     CoreTransferKind kind,
-    CoreTransferInitiation initiation, {
-    required String pin,
-    String? otp,
-  }) {
-    finalized.add((pin: pin, otp: otp));
+    CoreTransferInitiation initiation,
+  ) {
+    finalized++;
     return reply.future;
   }
 
@@ -111,6 +146,9 @@ class _Accounts extends CustomerBankAccountsNotifier {
 CoreTransferAttempt? _current(ProviderContainer container) =>
     container.read(coreTransferAttemptProvider).current;
 
+CoreTransferPhase? _phase(ProviderContainer container) =>
+    _current(container)?.phase;
+
 /// Reserves and initiates [_draft]; returns the attempt ID.
 Future<int> _initiate(ProviderContainer container) async {
   final notifier = container.read(coreTransferAttemptProvider.notifier);
@@ -120,58 +158,135 @@ Future<int> _initiate(ProviderContainer container) async {
 }
 
 void main() {
-  test('PIN only: initiate, then one finalize with the PIN', () async {
+  test('PIN only: verify the PIN, then one bodyless finalize', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);
 
     final id = await _initiate(container);
-    expect(_current(container)?.phase, CoreTransferPhase.awaitingChecks);
+    expect(_phase(container), CoreTransferPhase.awaitingPin);
+    expect(await notifier.verifyPin(id, '0007'), const CheckPassed());
+    expect(_phase(container), CoreTransferPhase.readyToFinalize);
 
     transfers.reply.complete(_accepted);
-    await Future.wait([
-      notifier.finalize(id, pin: '0007'),
-      notifier.finalize(id, pin: '0007'),
-    ]);
+    await Future.wait([notifier.finalize(id), notifier.finalize(id)]);
 
-    expect(transfers.finalized, [(pin: '0007', otp: null)]);
-    expect(transfers.otpRequests, 0);
-    expect(_current(container)?.phase, CoreTransferPhase.settled);
+    expect(transfers.pins, ['0007']);
+    expect(transfers.finalized, 1);
+    expect(_phase(container), CoreTransferPhase.settled);
     expect(_current(container)?.outcome, isA<AcceptedSubmission>());
     expect('${_current(container)?.props}', isNot(contains('0007')));
   });
 
-  test('PIN and OTP: the OTP is requested, then sent with the PIN', () async {
+  test('PIN then OTP: finalize only after the OTP is verified', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);
     transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.add(_progress(pending: ['otp']));
 
     final id = await _initiate(container);
-    expect(await notifier.requestOtp(id), isNull);
-    transfers.reply.complete(_accepted);
-    await notifier.finalize(id, pin: '0007', otp: '123456');
+    await notifier.verifyPin(id, '0007');
+    expect(_phase(container), CoreTransferPhase.awaitingOtp);
+    await notifier.finalize(id);
+    expect(transfers.finalized, 0);
 
-    expect(transfers.otpRequests, 1);
-    expect(transfers.finalized, [(pin: '0007', otp: '123456')]);
+    expect(await notifier.verifyOtp(id, '123456'), const CheckPassed());
+    transfers.reply.complete(_accepted);
+    await notifier.finalize(id);
+
+    expect(transfers.otps, ['123456']);
+    expect(transfers.finalized, 1);
   });
 
-  test('another transfer cannot start while one is open', () async {
-    final (:container, transfers: _) = _setUp();
+  test('a resend is only sent after the PIN is verified', () async {
+    final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.add(_progress(pending: ['otp']));
 
-    await _initiate(container);
+    final id = await _initiate(container);
+    expect(await notifier.resendOtp(id), isA<CheckRetry>());
+    expect(transfers.resends, 0);
+    await notifier.verifyPin(id, '0007');
+    expect(await notifier.resendOtp(id), const CheckPassed());
 
+    expect(transfers.resends, 1);
+  });
+
+  test('a wrong PIN or OTP stays on its own step', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.addAll([
+      _progress(status: 401),
+      _progress(pending: ['otp']),
+    ]);
+    transfers.otpReplies.add(_progress(status: 401));
+
+    final id = await _initiate(container);
+    expect(await notifier.verifyPin(id, '0000'), isA<CheckRetry>());
+    expect(_phase(container), CoreTransferPhase.awaitingPin);
+    await notifier.verifyPin(id, '0007');
+    expect(await notifier.verifyOtp(id, '000000'), isA<CheckRetry>());
+
+    expect(_phase(container), CoreTransferPhase.awaitingOtp);
     expect(notifier.beginReview(_draft), isNull);
   });
 
-  test('a liveness check stops the transfer before finalize', () async {
+  // Swagger: a 409 on a verify step means it was already completed.
+  test('an already-completed PIN step goes on to finalize once', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.pinReplies.add(_progress(status: 409));
+
+    final id = await _initiate(container);
+    expect(await notifier.verifyPin(id, '0007'), const CheckPassed());
+    transfers.reply.complete(_accepted);
+    await notifier.finalize(id);
+
+    expect(transfers.finalized, 1);
+  });
+
+  test('an already-completed OTP step goes on to finalize once', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.add(_progress(pending: ['otp']));
+    transfers.otpReplies.add(_progress(status: 409));
+
+    final id = await _initiate(container);
+    await notifier.verifyPin(id, '0007');
+    expect(await notifier.verifyOtp(id, '123456'), const CheckPassed());
+    transfers.reply.complete(_accepted);
+    await notifier.finalize(id);
+
+    expect(transfers.finalized, 1);
+  });
+
+  test('a reply still pending a done step stops the transfer', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.add(_progress(pending: ['otp']));
+    transfers.otpReplies.add(_progress(pending: ['otp']));
+
+    final id = await _initiate(container);
+    await notifier.verifyPin(id, '0007');
+    expect(await notifier.verifyOtp(id, '123456'), const CheckStopped());
+    await notifier.finalize(id);
+
+    expect(transfers.finalized, 0);
+    expect(_current(container)?.outcome, isA<RejectedSubmission>());
+  });
+
+  test('a liveness check stops before any check is sent', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);
     transfers.initiation = _initiated(['pin', 'liveness']);
 
     final id = await _initiate(container);
-    await notifier.finalize(id, pin: '0007');
+    await notifier.verifyPin(id, '0007');
 
-    expect(transfers.finalized, isEmpty);
+    expect(transfers.pins, isEmpty);
     expect(
       _current(container)?.outcome,
       const RejectedSubmission(CoreRejection.checksUnsupported),
@@ -186,45 +301,15 @@ void main() {
     ], expiresIn: const Duration(seconds: -1));
 
     final id = await _initiate(container);
-    await notifier.finalize(id, pin: '0007');
+    await notifier.verifyPin(id, '0007');
+    await notifier.finalize(id);
 
-    expect(transfers.finalized, isEmpty);
+    expect(transfers.pins, isEmpty);
+    expect(transfers.finalized, 0);
     expect(
       _current(container)?.outcome,
       const RejectedSubmission(CoreRejection.initiationExpired),
     );
-  });
-
-  test('a wrong PIN can be corrected on the same initiation', () async {
-    final (:container, :transfers) = _setUp();
-    final notifier = container.read(coreTransferAttemptProvider.notifier);
-
-    final id = await _initiate(container);
-    transfers.reply.complete(_error(401));
-    await notifier.finalize(id, pin: '0000');
-
-    expect(notifier.retryPin(id), isTrue);
-    expect(_current(container)?.phase, CoreTransferPhase.awaitingChecks);
-    transfers.reply = Completer()..complete(_accepted);
-    await notifier.finalize(id, pin: '0007');
-    expect(transfers.finalized.map((f) => f.pin), ['0000', '0007']);
-  });
-
-  test('an unknown outcome stays open until set aside', () async {
-    final (:container, :transfers) = _setUp();
-    final notifier = container.read(coreTransferAttemptProvider.notifier);
-
-    final id = await _initiate(container);
-    transfers.reply.complete(_error(503));
-    await notifier.finalize(id, pin: '0007');
-
-    expect(_current(container)?.outcome, const UnknownSubmission());
-    expect(_current(container)?.unresolved, isTrue);
-    notifier.startNewTransfer();
-    expect(notifier.beginReview(_draft), isNull);
-    notifier.acknowledgeUnresolved(id);
-    expect(notifier.beginReview(_draft), isNotNull);
-    expect(transfers.finalized, hasLength(1));
   });
 
   test('signing out drops the attempt and ignores a late reply', () async {
@@ -232,39 +317,13 @@ void main() {
     final notifier = container.read(coreTransferAttemptProvider.notifier);
 
     final id = await _initiate(container);
-    final pending = notifier.finalize(id, pin: '0007');
+    await notifier.verifyPin(id, '0007');
+    final pending = notifier.finalize(id);
     await container.read(authSessionProvider.notifier).clear();
     transfers.reply.complete(_accepted);
     await pending;
 
     expect(_current(container), isNull);
-  });
-
-  test('a confirmed result is kept when a later check fails', () async {
-    final (:container, :transfers) = _setUp();
-    final notifier = container.read(coreTransferAttemptProvider.notifier);
-    const tracking = CoreTrackingReference(
-      CoreTransferKind.intrabank,
-      'a1b2c3d4e5f6',
-    );
-    transfers.live.addAll([
-      const NotifierState.done(
-        CoreLiveTransferStatus(
-          state: CoreLiveState.completed,
-          trackingReference: tracking,
-        ),
-      ),
-      const NotifierState.error('down', statusCode: 503),
-    ]);
-
-    final id = await _initiate(container);
-    transfers.reply.complete(_accepted);
-    await notifier.finalize(id, pin: '0007');
-    await notifier.check(id);
-    await notifier.check(id);
-
-    expect(_current(container)?.live?.state, CoreLiveState.completed);
-    expect(_current(container)?.unresolved, isFalse);
   });
 
   test('cancel before finalize frees the reservation', () async {
@@ -285,6 +344,33 @@ void main() {
     );
   });
 
+  test('a confirmed result is kept when a later check fails', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    const tracking = CoreTrackingReference(
+      CoreTransferKind.intrabank,
+      'a1b2c3d4e5f6',
+    );
+    transfers.live.addAll([
+      const NotifierState.done(
+        CoreLiveTransferStatus(
+          state: CoreLiveState.completed,
+          trackingReference: tracking,
+        ),
+      ),
+      const NotifierState.error('down', statusCode: 503),
+    ]);
+
+    final id = await _initiate(container);
+    await notifier.verifyPin(id, '0007');
+    transfers.reply.complete(_accepted);
+    await notifier.finalize(id);
+    await notifier.check(id);
+    await notifier.check(id);
+
+    expect(_current(container)?.live?.state, CoreLiveState.completed);
+    expect(_current(container)?.unresolved, isFalse);
+  });
   test('the documented transfer errors map per the Core docs', () {
     CoreSubmissionOutcome map(
       ServiceResponse<CoreTransferAck> r, {
