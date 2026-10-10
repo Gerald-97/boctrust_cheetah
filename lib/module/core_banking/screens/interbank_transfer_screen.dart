@@ -11,6 +11,7 @@ import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/core_money.dart';
 import '../model/interbank_models.dart';
+import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
@@ -23,10 +24,13 @@ enum _Step { recipient, amount, review }
 
 final _tenDigits = RegExp(r'^\d{10}$');
 
-/// Sends money from BocFlex to an account at another bank.
+/// Sends money from BocFlex to an account at another bank or, with
+/// [InterbankTransferFlow.boctrust], to another BOCTRUST customer.
 ///
 /// The receiving account must be confirmed by name enquiry first; changing
-/// the bank or any digit discards that confirmation.
+/// the bank or any digit discards that confirmation. BOCTRUST uses the same
+/// screen and name enquiry with Boctrust MFB preselected, but the money moves
+/// through the intrabank routes.
 class InterbankTransferFlow extends ConsumerStatefulWidget {
   const InterbankTransferFlow({
     required this.onExit,
@@ -34,7 +38,18 @@ class InterbankTransferFlow extends ConsumerStatefulWidget {
     this.initialAccountNumber,
     this.initialBankCode,
     super.key,
-  });
+  }) : boctrust = false;
+
+  const InterbankTransferFlow.boctrust({
+    required this.onExit,
+    required this.onSectionSelected,
+    this.initialAccountNumber,
+    super.key,
+  }) : boctrust = true,
+       initialBankCode = null;
+
+  /// Boctrust MFB is fixed as the bank and the transfer is intrabank.
+  final bool boctrust;
 
   final VoidCallback onExit;
   final ValueChanged<AppSection> onSectionSelected;
@@ -65,7 +80,9 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
   String? _resolveError;
   int _lookup = 0;
   CancelToken? _lookupToken;
-  InterbankTransferDraft? _draft;
+
+  /// A [BoctrustTransferDraft] or an [InterbankTransferDraft], as reviewed.
+  Object? _draft;
 
   bool get _beneficiaries => ref
       .watch(featureAvailabilityProvider(FeatureCapability.beneficiaries))
@@ -87,6 +104,13 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
       }
       await banksLoad;
       if (!mounted) return;
+      if (widget.boctrust) {
+        final boctrust = CommercialBank.boctrustIn(
+          ref.read(interbankBanksProvider).data ?? const [],
+        );
+        if (boctrust != null) _changeRecipient(() => _bank = boctrust);
+        return;
+      }
       final initialBankCode = widget.initialBankCode;
       if (initialBankCode != null && _bank == null) {
         final initialBank = ref
@@ -129,6 +153,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     final bank = _bank;
     final number = _account.text.trim();
     if (bank == null || !_tenDigits.hasMatch(number) || _resolving) return;
+    if (widget.boctrust && _ownNumbers.contains(number)) return;
     final lookup = ++_lookup;
     final token = _lookupToken = CancelToken();
     setState(() {
@@ -168,13 +193,19 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     );
   }
 
+  Set<String> get _ownNumbers => {
+    for (final account
+        in ref.read(customerBankAccountsProvider).data?.accounts ?? const [])
+      account.accountNumber,
+  };
+
   /// An empty form, after an unresolved transfer is set aside.
   void _startDifferent() {
     for (final controller in [_account, _amount, _narration]) {
       controller.clear();
     }
     _changeRecipient(() {
-      _bank = null;
+      if (!widget.boctrust) _bank = null;
       _step = _Step.recipient;
     });
   }
@@ -183,7 +214,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
   Widget build(BuildContext context) {
     final attempt = ref.watch(coreTransferAttemptProvider).current;
     return AppScaffold(
-      title: 'To another bank',
+      title: widget.boctrust ? 'To a BOCTRUST account' : 'To another bank',
       activeSection: AppSection.send,
       onBack: switch (showsAttempt(attempt) ? null : _step) {
         _Step.amount => () => setState(() => _step = _Step.recipient),
@@ -221,8 +252,12 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
 
   List<Widget> _recipientStep() {
     final banksState = ref.watch(interbankBanksProvider);
-    final banks = banksState.data ?? const <CommercialBank>[];
-    final saved = _beneficiaries
+    // BOCTRUST recipients are paid through the intrabank flow, never here.
+    final banks = [
+      for (final bank in banksState.data ?? const <CommercialBank>[])
+        if (!bank.isBoctrust) bank,
+    ];
+    final saved = _beneficiaries && !widget.boctrust
         ? [
             for (final b
                 in ref.watch(beneficiariesProvider).data ??
@@ -232,6 +267,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         : const <Beneficiary>[];
     final number = _account.text.trim();
     final recipient = _recipient;
+    final ownNumber = widget.boctrust && _ownNumbers.contains(number);
     return [
       const FlowHeading('Who are you sending to?'),
       if (saved.isNotEmpty) ...[
@@ -250,7 +286,18 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           ],
         ),
       ],
-      if (banksState.isError && banks.isEmpty)
+      if (widget.boctrust)
+        if (_bank == null && (banksState.isDone || banksState.isError))
+          const ApiStateCard(
+            title: 'BOCTRUST transfers unavailable',
+            message:
+                "We couldn't find BOCTRUST in the bank list. Try again "
+                'later.',
+            tone: ApiStateTone.error,
+          )
+        else
+          const SizedBox.shrink()
+      else if (banksState.isError && banks.isEmpty)
         ApiStateCard(
           title: 'Banks unavailable',
           message: banksState.message ?? 'We could not load banks.',
@@ -281,6 +328,8 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
               )
             : null,
       ),
+      if (ownNumber)
+        const FieldError('Use "Between my accounts" for your own accounts.'),
       const SizedBox(height: BocSpace.sm),
       if (recipient != null)
         ApiStateCard(
@@ -295,7 +344,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         PrimaryButton(
           label: 'Check account',
           isLoading: _resolving,
-          onPressed: _bank != null && _tenDigits.hasMatch(number)
+          onPressed: _bank != null && _tenDigits.hasMatch(number) && !ownNumber
               ? _resolve
               : null,
         )
@@ -330,14 +379,20 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         label: 'Review',
         onPressed: amount is ValidMoney && narrationFits(_narration.text)
             ? () => setState(() {
-                _draft = InterbankTransferDraft(
-                  bankCode: recipient.bankCode,
-                  bankName: recipient.bankName,
-                  accountNumber: recipient.accountNumber,
-                  accountName: recipient.name,
-                  amountKobo: amount.minorUnits,
-                  narration: _narration.text,
-                );
+                _draft = widget.boctrust
+                    ? BoctrustTransferDraft(
+                        toAccountNumber: recipient.accountNumber,
+                        amountKobo: amount.minorUnits,
+                        narration: _narration.text,
+                      )
+                    : InterbankTransferDraft(
+                        bankCode: recipient.bankCode,
+                        bankName: recipient.bankName,
+                        accountNumber: recipient.accountNumber,
+                        accountName: recipient.name,
+                        amountKobo: amount.minorUnits,
+                        narration: _narration.text,
+                      );
                 _step = _Step.review;
               })
             : null,
@@ -347,42 +402,56 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
 
   List<Widget> _review() {
     final draft = _draft;
-    if (draft == null) return const [];
-    final amount = nairaFromKobo(draft.amountKobo);
-    final narration = draft.narration?.trim() ?? '';
+    final recipient = _recipient;
+    if (draft == null || recipient == null) return const [];
+    final (amountKobo, narration) = switch (draft) {
+      BoctrustTransferDraft(:final amountKobo, :final narration) => (
+        amountKobo,
+        narration,
+      ),
+      InterbankTransferDraft(:final amountKobo, :final narration) => (
+        amountKobo,
+        narration,
+      ),
+      _ => throw ArgumentError.value(draft, 'draft'),
+    };
+    final amount = nairaFromKobo(amountKobo);
+    final note = narration?.trim() ?? '';
     return [
       CoreReviewCard(
         caption: "You're sending",
         amount: amount,
         rows: [
-          (label: 'To', value: draft.accountName),
-          (label: 'Bank', value: draft.bankName),
-          (label: 'Account number', value: draft.accountNumber),
-          if (narration.isNotEmpty) (label: 'Narration', value: narration),
+          (label: 'To', value: recipient.name),
+          (label: 'Bank', value: recipient.bankName),
+          (label: 'Account number', value: recipient.accountNumber),
+          if (note.isNotEmpty) (label: 'Narration', value: note),
         ],
       ),
-      const SizedBox(height: BocSpace.sm),
-      Text(
-        'Any fee is applied by the bank when the transfer is processed.',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+      if (!widget.boctrust) ...[
+        const SizedBox(height: BocSpace.sm),
+        Text(
+          'Any fee is applied by the bank when the transfer is processed.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
       const SizedBox(height: BocSpace.lg),
       PrimaryButton(
         label: 'Send $amount',
-        onPressed: () => _confirm(draft, amount),
+        onPressed: () => authorizeStagedTransfer(
+          context,
+          ref,
+          draft: draft,
+          summary: TransactionSummary(
+            title: 'Send to ${recipient.name}',
+            amountDisplay: amount,
+            lines: [
+              ('Bank', recipient.bankName),
+              ('Account', recipient.accountNumber),
+            ],
+          ),
+        ),
       ),
     ];
   }
-
-  Future<void> _confirm(InterbankTransferDraft draft, String amount) =>
-      authorizeStagedTransfer(
-        context,
-        ref,
-        draft: draft,
-        summary: TransactionSummary(
-          title: 'Send to ${draft.accountName}',
-          amountDisplay: amount,
-          lines: [('Bank', draft.bankName), ('Account', draft.accountNumber)],
-        ),
-      );
 }

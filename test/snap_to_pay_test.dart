@@ -22,15 +22,6 @@ class _Transfers extends CoreTransferService {
   final calls = <String>[];
 
   @override
-  Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber, {
-    CancelToken? cancelToken,
-  }) async {
-    calls.add('BOCTRUST $accountNumber');
-    return const NotifierState.done(NameEnquiryResult('ADA OBI'));
-  }
-
-  @override
   Future<NotifierState<NameEnquiryResult>> nameEnquiry({
     required String bankCode,
     required String accountNumber,
@@ -53,6 +44,7 @@ class _Recognizer implements ScanTextRecognizer {
 const _box = ScanTextBox(left: 0, top: 0, width: 1, height: 0.1);
 const _access = CommercialBank(code: '044', name: 'Access Bank');
 const _gtb = CommercialBank(code: '058', name: 'GTBank');
+const _boc = CommercialBank(code: '090117', name: 'Boctrust MFB');
 
 void main() {
   group('reading a photo from the account field', () {
@@ -146,7 +138,7 @@ void main() {
             body: ScannedAccountResult(
               numbers: numbers,
               bankMatch: match,
-              banks: const [boctrustBank, _access, _gtb],
+              banks: const [_boc, _access, _gtb],
               loading: false,
               onCheck: (bank, number) {
                 checks.add((code: bank.code, number: number));
@@ -287,10 +279,11 @@ void main() {
       ),
     );
 
-    await checkScannedAccount(ref, boctrustBank, '0123456789');
+    await checkScannedAccount(ref, _boc, '0123456789');
     await checkScannedAccount(ref, _gtb, '9876543210');
 
-    expect(transfers.calls, ['BOCTRUST 0123456789', '058 9876543210']);
+    // BOCTRUST is looked up by its bank code, like any other bank.
+    expect(transfers.calls, ['090117 0123456789', '058 9876543210']);
   });
 
   test('the scan bank list offers BOCTRUST once, ahead of fetched banks', () {
@@ -303,7 +296,7 @@ void main() {
 
     expect(
       scanToPayBanks(canBoctrust: true, canInterbank: true, fetched: fetched),
-      [boctrustBank, access],
+      [listedBoctrust, access],
     );
     expect(
       scanToPayBanks(canBoctrust: false, canInterbank: true, fetched: fetched),

@@ -268,9 +268,49 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // transfers initiate, collect the PIN and any OTP, then finalize; only
   // finalize moves money and it waits on `transferAuthorizationReadyProvider`.
   // Bill payments still pass `transactionAuthorizerProvider` first.
-  // BOCTRUST transfers stay unregistered, even in staging: their recipient
-  // lookup is the back-office `/accounts/{n}/enquiry`, and a customer's
-  // access to it is unproven (staged-transfers plan, activation gate 1).
+  // BOCTRUST uses the customer name enquiry with Boctrust MFB's code, but
+  // moves money through the intrabank routes.
+  FeatureCapability.boctrustTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.interbankBanks,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankNameEnquiry,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferInitiate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferOtpTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
+      ),
+    },
+  ),
   FeatureCapability.interbankTransfers: CapabilityRequirement(
     stagingOnly: true,
     operations: {

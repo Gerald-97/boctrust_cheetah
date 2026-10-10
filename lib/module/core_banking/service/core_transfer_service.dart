@@ -139,27 +139,6 @@ class CoreTransferService {
     );
   }
 
-  /// The account name for a BOCTRUST recipient. Sensitive fields returned by
-  /// the full Core enquiry are discarded by [NameEnquiryResult].
-  Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber, {
-    CancelToken? cancelToken,
-  }) async {
-    final api = _api;
-    if (api == null) return const NotifierState.blocked(_readUnavailable);
-    if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
-      return const NotifierState.error('Enter a 10-digit account number.');
-    }
-    return NotifierState.fromResponse(
-      await api.getData<NameEnquiryResult>(
-        CoreApiEndpoints.accountEnquiry(accountNumber),
-        parser: NameEnquiryResult.fromJson,
-        requestExtra: _logAs(CoreApiEndpoints.accountEnquiryTemplate),
-        cancelToken: cancelToken,
-      ),
-    );
-  }
-
   Future<NotifierState<List<CommercialBank>>> getBanks() async {
     final api = _api;
     if (api == null) return const NotifierState.blocked(_readUnavailable);

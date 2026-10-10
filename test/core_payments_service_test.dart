@@ -54,11 +54,6 @@ void main() {
     'recipient reads and transfer status use the documented endpoints',
     () async {
       final core = _Core({
-        '/accounts/1100037777/enquiry': {
-          'name': 'ADA OBI',
-          'number': '1100037777',
-          'bvn': '22222222222',
-        },
         '/me/interbank/banks': [
           {'code': '000014', 'name': 'Zenith'},
         ],
@@ -67,10 +62,6 @@ void main() {
       });
       final service = CoreTransferService(_api(core));
 
-      expect(
-        (await service.boctrustNameEnquiry('1100037777')).data,
-        const NameEnquiryResult('ADA OBI'),
-      );
       expect((await service.getBanks()).data?.single.code, '000014');
       expect(
         (await service.nameEnquiry(
@@ -83,12 +74,11 @@ void main() {
 
       expect(status.data?.state, InterbankTransferState.completed);
       expect(core.requests.map((r) => '${r.method} ${r.path}'), [
-        'GET /accounts/1100037777/enquiry',
         'GET /me/interbank/banks',
         'POST /me/interbank/name-enquiry',
         'GET /me/interbank/transfers/r%2F2/status',
       ]);
-      expect(core.requests[2].data, {
+      expect(core.requests[1].data, {
         'accountNumber': '0123456789',
         'bankCode': '000014',
       });
@@ -166,7 +156,7 @@ void main() {
     expect(
       (await const CoreTransferService(
         null,
-      ).boctrustNameEnquiry('1100037777')).status,
+      ).nameEnquiry(bankCode: '090117', accountNumber: '1100037777')).status,
       ServiceStatus.blocked,
     );
     expect(
@@ -179,12 +169,12 @@ void main() {
     );
   });
 
-  test('a malformed BOCTRUST enquiry number never reaches the path', () async {
+  test('a malformed enquiry number is never sent', () async {
     final core = _Core({});
 
     final result = await CoreTransferService(
       _api(core),
-    ).boctrustNameEnquiry('11/../me');
+    ).nameEnquiry(bankCode: '090117', accountNumber: '11/../me');
 
     expect(result.status, ServiceStatus.error);
     expect(core.requests, isEmpty);

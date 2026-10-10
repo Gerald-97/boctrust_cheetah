@@ -59,11 +59,6 @@ abstract final class CoreApiEndpoints {
   static const interbankTransferFinalizeTemplate =
       '$interbankTransfers/{reference}/finalize';
 
-  /// Full Core enquiry used only to resolve a BOCTRUST recipient name.
-  static String accountEnquiry(String accountNumber) =>
-      '/accounts/${Uri.encodeComponent(accountNumber)}/enquiry';
-  static const accountEnquiryTemplate = '/accounts/{accountNumber}/enquiry';
-
   /// Status of an interbank transfer; [reference] is one path segment.
   static String interbankTransferStatus(String reference) =>
       '$interbankTransfers/${Uri.encodeComponent(reference)}/status';

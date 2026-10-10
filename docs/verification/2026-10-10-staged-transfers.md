@@ -5,7 +5,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
 ## What shipped (staging only)
 
 - **Other bank** (`interbankTransfers`): registered, staging-only. Production stays unavailable.
-- **BOCTRUST** (`boctrustTransfers`): built and tested but **not registered, even in staging**. Its recipient lookup is the back-office `/accounts/{n}/enquiry`, and a customer's access to it is unproven (plan activation gate 1).
+- **BOCTRUST** (`boctrustTransfers`): registered, staging-only. It reuses the other-bank screen with Boctrust MFB preselected (matched by name in `/me/interbank/banks`) and the customer `/me/interbank/name-enquiry`, but moves money through `/me/intrabank/transfers/initiate` → finalize. The back-office `/accounts/{n}/enquiry` is no longer called; scan-to-pay uses the same lookup. Boctrust is removed from the other-bank list.
 - **Flow:** review → `POST …/initiate` (no PIN) → PIN sheet → OTP page only when `requiredChecks` includes `otp` (it calls `…/{reference}/otp/request`) → one `POST …/{reference}/finalize` → result, with live requery by the final `retrievalReference` / `transactionReference`.
 - **Safety rules:**
   - A `liveness` check, an unknown check, or an expired initiation is refused before finalize. `livenessVerified` is never sent.
@@ -18,7 +18,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
 ## Commands
 
 - `flutter analyze`: no issues.
-- `flutter test --no-pub`: 1534 passed, 1 failed (`platform_branding_config_test`, from uncommitted iOS project changes outside this branch; failing at baseline).
+- `flutter test --no-pub`: 1536 passed, 1 failed (`platform_branding_config_test`, from uncommitted iOS project changes outside this branch; failing at baseline).
 
 ## Staging checks before relying on either flow
 
@@ -26,7 +26,8 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
 - [ ] **Checks:** a PIN-only amount and an OTP-required amount, with the OTP delivered and accepted; an expired initiation is refused.
 - [ ] **Errors:** wrong PIN then the correct PIN on the same initiation; 403 restriction (including Core's tier lag), 404, both 409 meanings, and the interbank 500 body.
 - [ ] **Uncertain finalize:** lose the finalize response (airplane mode after sending) and confirm requery or status recovers it; check whether interbank status accepts the initiation reference.
-- [ ] **BOCTRUST lookup authorization:** confirm a customer cannot read arbitrary accounts through `/accounts/{n}/enquiry`, or obtain a customer-scoped route. Only then register `boctrustTransfers` for staging.
+- [ ] **BOCTRUST:** confirm `/me/interbank/name-enquiry` resolves Boctrust accounts with Boctrust MFB's code, and that the bank list has exactly one entry whose name contains "Boctrust".
+- [ ] **First staging attempt (10 October):** sending ₦1,000 to a Boctrust account through the other-bank route returned 400 on initiate. Core's reason is hidden by log redaction. Either that route refuses Boctrust or it rejects the naira amount; retry through the BOCTRUST flow to tell which.
 - [ ] **Recovery after restart:** an unknown outcome lives only in memory. After an app restart nothing stops the customer sending the same transfer again (Core's 409 covers only 60 seconds). Record the backend recovery path before relying on either flow.
 - [ ] **Status semantics:** when `responseCode` `00`, `status` and requery mean completed versus pending.
 - [ ] **Logs:** confirm no recipient, reference, PIN or OTP appears in staging logs.

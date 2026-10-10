@@ -1,12 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import 'core_money.dart';
-
 import 'core_json.dart';
-
-/// UI-only bank entry used to route scanned BOCTRUST account numbers through
-/// the internal transfer flow. It is never sent to Core as a bank code.
-const boctrustBank = CommercialBank(code: 'BOCTRUST', name: 'BOCTRUST');
+import 'core_money.dart';
 
 /// A destination bank from `GET /me/interbank/banks`.
 class CommercialBank extends Equatable {
@@ -15,7 +10,15 @@ class CommercialBank extends Equatable {
   final String code;
   final String name;
 
-  bool get isBoctrust => code == boctrustBank.code;
+  /// Whether this is BOCTRUST itself, matched by name. A BOCTRUST recipient
+  /// is looked up with this code but paid through the intrabank routes.
+  bool get isBoctrust => name.toLowerCase().contains('boctrust');
+
+  /// The one BOCTRUST entry in [banks], or null when none or several match.
+  static CommercialBank? boctrustIn(Iterable<CommercialBank> banks) {
+    final matches = banks.where((bank) => bank.isBoctrust).toList();
+    return matches.length == 1 ? matches.single : null;
+  }
 
   /// Banks sorted by name; a row without a code or name is dropped, and a
   /// repeated code keeps its first row.

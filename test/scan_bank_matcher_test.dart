@@ -67,9 +67,10 @@ void main() {
   });
 
   test('BOCTRUST resolves when its transfers are available', () {
-    final match = _match(['Boctrust MFB'], [boctrustBank, _access]);
+    const boctrust = CommercialBank(code: '090117', name: 'Boctrust MFB');
+    final match = _match(['Boctrust MFB'], [boctrust, _access]);
     expect(match.status, BankMatchStatus.unique);
-    expect(match.candidates, [boctrustBank]);
+    expect(match.candidates, [boctrust]);
   });
 
   test('an unavailable bank or no text gives none', () {

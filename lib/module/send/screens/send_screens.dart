@@ -10,7 +10,6 @@ import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
-import '../../core_banking/screens/boctrust_transfer_screen.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/snap_to_pay_page.dart';
 import '../model/transaction_models.dart';
@@ -58,7 +57,7 @@ class _SendScreenState extends FlowPageState<SendScreen> {
     _SendPage.ownAccount => _sendOwnScreen(),
     _SendPage.beneficiary =>
       _available(FeatureCapability.boctrustTransfers)
-          ? BoctrustTransferFlow(
+          ? InterbankTransferFlow.boctrust(
               onExit: back,
               onSectionSelected: goSection,
               initialAccountNumber: routeArguments.entityId,
@@ -222,8 +221,7 @@ extension SendScreens on FlowPageState {
     title: 'Scan to pay',
     section: AppSection.send,
     heading: 'Scan to pay is unavailable',
-    message:
-        'Reading an account from a photo is not available right now.',
+    message: 'Reading an account from a photo is not available right now.',
   );
 
   /// Checking a PIN is not a transaction contract: without a server-bound

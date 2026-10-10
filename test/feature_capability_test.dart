@@ -178,29 +178,44 @@ void main() {
     });
   });
   // Staged initiate → OTP → finalize; only finalize moves money.
-  // Staged initiate → OTP → finalize; only finalize moves money. BOCTRUST's
-  // recipient lookup is a back-office route whose customer authorization is
-  // unproven, so BOCTRUST stays off even in staging.
-  test('staged transfers: other bank in staging, BOCTRUST gated', () {
+  // Staged initiate → OTP → finalize; only finalize moves money. BOCTRUST
+  // reuses the customer name enquiry and pays through the intrabank routes.
+  test('staged transfers are staging-only, on customer routes', () {
+    const boctrust = FeatureCapability.boctrustTransfers;
     const interbank = FeatureCapability.interbankTransfers;
+    Set<String> paths(FeatureCapability c) => {
+      for (final o in capabilityRequirements[c]!.operations) o.path,
+    };
 
-    expect(capabilityRequirements[FeatureCapability.boctrustTransfers], isNull);
-    expect(availabilityOf(interbank), FeatureAvailability.unavailable);
+    for (final capability in [boctrust, interbank]) {
+      expect(availabilityOf(capability), FeatureAvailability.unavailable);
+      expect(
+        availabilityFor(
+          capabilityRequirements[capability],
+          configuredBackends: ApiBackend.values.toSet(),
+          staging: true,
+        ),
+        FeatureAvailability.available,
+      );
+      expect(paths(capability).every((p) => p.startsWith('/me/')), isTrue);
+    }
     expect(
-      availabilityFor(
-        capabilityRequirements[interbank],
-        configuredBackends: ApiBackend.values.toSet(),
-        staging: true,
-      ),
-      FeatureAvailability.available,
+      paths(boctrust),
+      containsAll([
+        CoreApiEndpoints.interbankNameEnquiry,
+        CoreApiEndpoints.intrabankTransferInitiate,
+        CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+      ]),
     );
     expect(
-      {for (final o in capabilityRequirements[interbank]!.operations) o.path},
+      paths(boctrust),
+      isNot(contains(CoreApiEndpoints.interbankTransferInitiate)),
+    );
+    expect(
+      paths(interbank),
       containsAll([
         CoreApiEndpoints.interbankTransferInitiate,
-        CoreApiEndpoints.interbankTransferOtpTemplate,
         CoreApiEndpoints.interbankTransferFinalizeTemplate,
-        CoreApiEndpoints.interbankTransferRequeryTemplate,
       ]),
     );
     expect(CoreApiEndpoints.moneyMoving, {

@@ -15,7 +15,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_in
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
-import 'package:boctrust_savings_loan/module/core_banking/screens/boctrust_transfer_screen.dart';
+import 'package:boctrust_savings_loan/module/core_banking/screens/interbank_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widgets.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
@@ -104,28 +104,20 @@ class _Transfers extends CoreTransferService {
   }
 
   @override
-  Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber, {
-    CancelToken? cancelToken,
-  }) async {
-    lookups.add(accountNumber);
-    return pending?.future ?? lookupResult;
-  }
-
-  @override
   Future<NotifierState<NameEnquiryResult>> nameEnquiry({
     required String bankCode,
     required String accountNumber,
     CancelToken? cancelToken,
   }) async {
     lookups.add('$bankCode $accountNumber');
-    return lookupResult;
+    return pending?.future ?? lookupResult;
   }
 
   @override
   Future<NotifierState<List<CommercialBank>>> getBanks() async =>
       const NotifierState.done([
         CommercialBank(code: '044', name: 'Access Bank'),
+        CommercialBank(code: '090117', name: 'Boctrust MFB'),
         CommercialBank(code: '058', name: 'GTBank'),
       ]);
 }
@@ -157,7 +149,7 @@ Future<void> _pumpBoctrust(
       ],
       child: MaterialApp(
         theme: CheetahTheme.lightTheme,
-        home: BoctrustTransferFlow(
+        home: InterbankTransferFlow.boctrust(
           onExit: () {},
           onSectionSelected: (_) {},
           initialAccountNumber: initialAccountNumber,
@@ -247,7 +239,7 @@ void main() {
       await tester.tap(find.byType(PrimaryButton), warnIfMissed: false);
       await _settle(tester);
 
-      expect(transfers.lookups, ['1100037777']);
+      expect(transfers.lookups, ['090117 1100037777']);
     });
 
     testWidgets('a scanned number is looked up before review', (tester) async {
@@ -258,7 +250,7 @@ void main() {
         initialAccountNumber: '1100037777',
       );
 
-      expect(transfers.lookups, ['1100037777']);
+      expect(transfers.lookups, ['090117 1100037777']);
       expect(find.text('ADA OBI'), findsOneWidget);
       expect(find.text('Review'), findsNothing);
     });
@@ -324,7 +316,7 @@ void main() {
               builder: (context, setState) {
                 setOpen = setState;
                 return open
-                    ? BoctrustTransferFlow(
+                    ? InterbankTransferFlow.boctrust(
                         onExit: () {},
                         onSectionSelected: (_) {},
                       )
@@ -424,7 +416,10 @@ void main() {
         ],
         child: MaterialApp(
           theme: CheetahTheme.lightTheme,
-          home: BoctrustTransferFlow(onExit: () {}, onSectionSelected: (_) {}),
+          home: InterbankTransferFlow.boctrust(
+            onExit: () {},
+            onSectionSelected: (_) {},
+          ),
         ),
       ),
     );

@@ -16,7 +16,6 @@ import '../../app_flow/app_ui.dart';
 import '../model/interbank_models.dart';
 import '../model/scan_text_models.dart';
 import '../provider/core_payments_providers.dart';
-import '../service/core_transfer_service.dart';
 import '../service/scan_bank_matcher.dart';
 import '../service/scan_candidate_extractor.dart';
 import '../service/scan_image_file.dart';
@@ -578,33 +577,28 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
 const kNoScanBanks =
     'Transfers to a scanned account are unavailable right now.';
 
-/// The banks a scanned number can be sent to: BOCTRUST first, then the
-/// fetched banks. Any fetched BOCTRUST entry is dropped so a BOCTRUST number
-/// always goes through the internal flow and its account enquiry.
+/// The banks a scanned number can be sent to: BOCTRUST first (its fetched
+/// entry, so the lookup uses its real code), then the other fetched banks.
 List<CommercialBank> scanToPayBanks({
   required bool canBoctrust,
   required bool canInterbank,
   required List<CommercialBank> fetched,
 }) => [
-  if (canBoctrust) boctrustBank,
+  if (canBoctrust) ?CommercialBank.boctrustIn(fetched),
   if (canInterbank)
     for (final bank in fetched)
-      if (!bank.name.toLowerCase().contains('boctrust')) bank,
+      if (!bank.isBoctrust) bank,
 ];
 
 final _tenDigits = RegExp(r'^\d{10}$');
 
-/// Checks a scanned recipient with the enquiry its flow uses: BOCTRUST
-/// through the internal enquiry, any other bank by its code.
+/// Checks a scanned recipient by its bank code. BOCTRUST uses the same
+/// customer name enquiry; only its transfer goes through the intrabank flow.
 Future<({String? name, String? error})> checkScannedAccount(
   WidgetRef ref,
   CommercialBank bank,
   String number,
-) async => bank.isBoctrust
-    ? accountNameLookupOutcome(
-        await ref.read(coreTransferServiceProvider).boctrustNameEnquiry(number),
-      )
-    : lookUpAccountName(ref, bankCode: bank.code, accountNumber: number);
+) => lookUpAccountName(ref, bankCode: bank.code, accountNumber: number);
 
 /// The review of what a scan read. The number is prefilled only when one was
 /// found, and the bank only when [bankMatch] is unique; the customer confirms
