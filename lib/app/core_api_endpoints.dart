@@ -66,6 +66,14 @@ abstract final class CoreApiEndpoints {
   static const paymentItems = '/me/bills/payment-items';
   static const billPayments = '/me/bills/payments';
 
+  /// The caller's savings plans, grouped by product.
+  static const savingsPlans = '/me/savings-plans';
+
+  /// One of the caller's savings plans; [planId] is one path segment.
+  static String savingsPlan(String planId) =>
+      '$savingsPlans/${Uri.encodeComponent(planId)}';
+  static const savingsPlanTemplate = '$savingsPlans/{planId}';
+
   static const beneficiaries = '/me/beneficiaries';
 
   /// One saved beneficiary; [id] is one path segment.

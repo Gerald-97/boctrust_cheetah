@@ -1,24 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
+import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/savings_plan_models.dart';
+import '../service/core_savings_plan_service.dart';
 
-const _plansUnavailable = 'Savings plans are not available yet.';
+/// The customer's plans of one product. Re-read when the session changes,
+/// so plans never outlive the customer they belong to, and dropped when no
+/// screen shows them.
+final savingsPlansProvider = FutureProvider.autoDispose
+    .family<NotifierState<List<SavingsProductGroup>>, SavingsProductType>((
+      ref,
+      product,
+    ) {
+      ref.watch(authSessionProvider);
+      return ref.read(coreSavingsPlanServiceProvider).getPlans(product);
+    });
 
-/// The customer's SmartSave, Fixed Deposit and Padi plans. No plans contract
-/// exists yet, so loading reports unavailability and no plan is ever shown
-/// that the server did not return.
-final savingsPlansProvider =
-    NotifierProvider<SavingsPlansNotifier, NotifierState<List<SavingsPlan>>>(
-      SavingsPlansNotifier.new,
-    );
-
-class SavingsPlansNotifier extends Notifier<NotifierState<List<SavingsPlan>>> {
-  @override
-  NotifierState<List<SavingsPlan>> build() => const NotifierState.idle();
-
-  Future<void> load() async =>
-      state = const NotifierState.error(_plansUnavailable);
-
-  void clear() => state = const NotifierState.idle();
-}
+/// One plan with its history, keyed by its server `planId`.
+final savingsPlanDetailProvider = FutureProvider.autoDispose
+    .family<NotifierState<SavingsPlanDetail>, String>((ref, planId) {
+      ref.watch(authSessionProvider);
+      return ref.read(coreSavingsPlanServiceProvider).getPlan(planId);
+    });

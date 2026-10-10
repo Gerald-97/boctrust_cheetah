@@ -378,6 +378,23 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // The customer's SmartSave and Fixed Deposit plans, read only. Amounts are
+  // read as Kobo, as every amount input on these routes is documented.
+  FeatureCapability.savingsPlansView: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.savingsPlans,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.savingsPlanTemplate,
+      ),
+    },
+  ),
   // Live history of one account. Rows stay unshown until their item schema
   // is confirmed; only whether the period has activity is displayed.
   FeatureCapability.coreAccountHistory: CapabilityRequirement(

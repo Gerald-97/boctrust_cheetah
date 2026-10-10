@@ -1,7 +1,7 @@
 part of 'savings_screens.dart';
 
-/// Plan detail and management. Everything shown comes from the plans
-/// provider; with no server plan the screen explains the gap. Deposit, edit
+/// Plan lists, detail and management. Everything shown comes from Core;
+/// with no server plan the screen explains the gap. Deposit, edit
 /// and withdraw are each gated by their own capability.
 extension SavingsPlanScreens on FlowPageState {
   Color _productAccent(SavingsProductType type) {
@@ -14,13 +14,129 @@ extension SavingsPlanScreens on FlowPageState {
     };
   }
 
+  String _planMoney(String? naira) => ref.watch(homeBalanceHiddenProvider)
+      ? '₦ ••••••'
+      : formatApiAmount(naira, currency: 'NGN') ?? 'Unavailable';
+
+  /// One product's plans, as Core groups them, with the product balance.
+  Widget _savingsPlansScreen(SavingsProductType type, String title) {
+    final state = ref.watch(savingsPlansProvider(type));
+    final theme = Theme.of(context);
+    return AppScaffold(
+      title: title,
+      activeSection: AppSection.save,
+      onBack: back,
+      onSectionSelected: goSection,
+      body: RefreshIndicator(
+        onRefresh: () => ref.refresh(savingsPlansProvider(type).future),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            BocSpace.gutter,
+            BocSpace.xxs,
+            BocSpace.gutter,
+            BocSpace.lg,
+          ).clearOfNav(context),
+          children: switch (state) {
+            AsyncData(:final value)
+                when value.data != null ||
+                    value.status == ServiceStatus.empty =>
+              switch (value.data
+                  ?.where((group) => group.type == type)
+                  .firstOrNull) {
+                final group? when group.plans.isNotEmpty => [
+                  SurfaceCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.productName,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: BocSpace.xxs),
+                        BocMoneyText(
+                          _planMoney(group.balance),
+                          semanticsLabel: 'Product balance',
+                        ),
+                        if (group.rate case final rate?)
+                          Text('$rate% p.a.', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  for (final plan in group.plans) ...[
+                    const SizedBox(height: BocSpace.sm),
+                    _planTile(plan),
+                  ],
+                ],
+                _ => [
+                  SavingsEmptyState(
+                    icon: IconsaxPlusLinear.save_2,
+                    title: 'No ${type.displayName} plans yet',
+                    message: 'Plans you create will appear here.',
+                    actionLabel: _canCreatePlan(type) ? 'Create a plan' : null,
+                    onAction: _canCreatePlan(type)
+                        ? () => _startPlanCreation(type)
+                        : null,
+                  ),
+                ],
+              },
+            AsyncData(:final value) => [
+              ApiStateCard(
+                title: 'Plans unavailable',
+                message: value.message ?? "We couldn't load your plans.",
+                tone: ApiStateTone.error,
+                actionLabel: 'Retry',
+                onAction: () => ref.invalidate(savingsPlansProvider(type)),
+              ),
+            ],
+            _ => const [ApiLoadingSection(label: 'Loading your plans')],
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _planTile(SavingsPlan plan) {
+    final theme = Theme.of(context);
+    final maturity = plan.maturityDate;
+    return SurfaceCard(
+      onTap: () => go(
+        AppRoutes.savingsPlanDetail,
+        arguments: AppRouteArguments(entityId: plan.id),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(plan.name, style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(
+                  _planMoney(plan.principal),
+                  style: theme.textTheme.bodyMedium,
+                ),
+                if (maturity != null)
+                  Text(
+                    'Matures ${DateFormat('d MMM yyyy').format(maturity)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+              ],
+            ),
+          ),
+          Text(plan.status.label, style: theme.textTheme.labelMedium),
+        ],
+      ),
+    );
+  }
+
   Widget _savingsPlanDetailScreen() {
     final planId = routeArguments.entityId;
-    final plans = ref.watch(savingsPlansProvider);
-    final plan = plans.data
-        ?.where((candidate) => candidate.id == planId)
-        .firstOrNull;
-    if (plan == null) {
+    final state = planId == null
+        ? null
+        : ref.watch(savingsPlanDetailProvider(planId));
+    final detail = state?.value?.data;
+    if (detail == null) {
       return AppScaffold(
         title: 'Savings plan',
         activeSection: AppSection.save,
@@ -29,22 +145,41 @@ extension SavingsPlanScreens on FlowPageState {
         body: ListView(
           padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
           children: [
-            ApiStateCard(
-              title: 'Savings plans are not available yet',
-              message:
-                  plans.message ??
-                  'Your SmartSave, Fixed Deposit and Padi plans will '
-                      'appear here.',
-              tone: ApiStateTone.blocked,
-            ),
+            switch (state) {
+              AsyncData(:final value) when value.statusCode == 404 =>
+                ApiStateCard(
+                  title: 'Plan unavailable',
+                  message: 'This plan is no longer available.',
+                  tone: ApiStateTone.info,
+                  actionLabel: 'Back to plans',
+                  onAction: () {
+                    ref.invalidate(savingsPlansProvider);
+                    back();
+                  },
+                ),
+              AsyncData(:final value) => ApiStateCard(
+                title: 'Plan unavailable',
+                message: value.message ?? "We couldn't load this plan.",
+                tone: ApiStateTone.error,
+                actionLabel: 'Retry',
+                onAction: () =>
+                    ref.invalidate(savingsPlanDetailProvider(planId!)),
+              ),
+              null => const ApiStateCard(
+                title: 'Plan unavailable',
+                message: 'This plan is no longer available.',
+                tone: ApiStateTone.info,
+              ),
+              _ => const ApiLoadingSection(label: 'Loading your plan'),
+            },
           ],
         ),
       );
     }
+    final plan = detail.plan;
     final theme = Theme.of(context);
     final rate = plan.rate;
-    final progress = plan.progress;
-    final target = plan.target;
+    String date(DateTime value) => DateFormat('d MMM yyyy').format(value);
     return AppScaffold(
       title: plan.name,
       activeSection: AppSection.save,
@@ -66,42 +201,63 @@ extension SavingsPlanScreens on FlowPageState {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(BocSpace.gutter),
-              children: [
-                BocMoneyText(plan.balance, semanticsLabel: 'Plan balance'),
-                if (rate != null) ...[
-                  const SizedBox(height: BocSpace.xxs),
-                  Text(
-                    '$rate per annum',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: context.bocColors.blueStrong,
-                    ),
+            child: RefreshIndicator(
+              onRefresh: () =>
+                  ref.refresh(savingsPlanDetailProvider(plan.id).future),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(BocSpace.gutter),
+                children: [
+                  BocMoneyText(
+                    _planMoney(plan.principal),
+                    semanticsLabel: 'Plan balance',
                   ),
-                ],
-                if (progress != null && target != null) ...[
+                  if (rate != null) ...[
+                    const SizedBox(height: BocSpace.xxs),
+                    Text(
+                      '$rate% per annum',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.bocColors.blueStrong,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: BocSpace.lg),
-                  Container(
-                    padding: const EdgeInsets.all(BocSpace.md),
-                    decoration: BoxDecoration(
-                      color: context.bocColors.surface,
-                      borderRadius: BorderRadius.circular(BocRadius.md),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Target', style: theme.textTheme.titleMedium),
-                        const SizedBox(height: BocSpace.sm),
-                        BocProgressArc(
-                          progress: progress,
-                          targetLabel: target,
-                          color: _productAccent(plan.type),
-                        ),
-                      ],
-                    ),
+                  BocSummaryGrid(
+                    items: [
+                      (label: 'Status', value: plan.status.label),
+                      if (plan.target case final target?)
+                        (label: 'Target', value: _planMoney(target)),
+                      if (plan.interestEarned case final interest?)
+                        (label: 'Interest earned', value: _planMoney(interest)),
+                      if (plan.tenorDays case final days?)
+                        (label: 'Tenor', value: '$days days'),
+                      if (plan.maturityDate case final maturity?)
+                        (label: 'Matures', value: date(maturity)),
+                    ],
                   ),
+                  if (detail.events.isNotEmpty) ...[
+                    const SizedBox(height: BocSpace.lg),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Activity',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    for (final event in detail.events)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(event.type.label),
+                        subtitle: event.createdAt == null
+                            ? null
+                            : Text(date(event.createdAt!.toLocal())),
+                        trailing: event.amount == null
+                            ? null
+                            : Text(_planMoney(event.amount)),
+                      ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           Padding(
@@ -141,14 +297,14 @@ extension SavingsPlanScreens on FlowPageState {
       await BocUnavailableSheet.show(context);
       return;
     }
-    final penalty = plan.earlyWithdrawalPenalty;
     final matured = plan.status == SavingsPlanStatus.matured;
     await AppConfirmSheet.show(
       context,
       title: 'Withdraw?',
-      message: matured || penalty == null
-          ? 'Your money will move to your BOCTRUST wallet.'
-          : 'Withdrawing before your target date means $penalty',
+      message: matured
+          ? 'Your money will move to Boc Flex Savings.'
+          : 'Withdrawing early returns your full principal to Boc Flex '
+                'Savings without interest.',
       confirmLabel: matured ? 'Withdraw' : 'Withdraw and forfeit interest',
       cancelLabel: 'Keep saving',
       destructive: !matured,

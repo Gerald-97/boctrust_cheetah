@@ -104,13 +104,21 @@ class _AddMoneyScreenState extends _HomeDataPageState<AddMoneyScreen> {
   Widget buildPage(BuildContext context) => _addMoneyScreen();
 }
 
-/// Target, Fixed Deposit and Group savings, none of which are built yet.
+/// Target and Fixed Deposit plans from Core; Group savings has no plan
+/// routes yet.
 class SavingsProductScreen extends ConsumerStatefulWidget {
-  const SavingsProductScreen.target({super.key}) : title = 'Target Savings';
-  const SavingsProductScreen.lock({super.key}) : title = 'Fixed Deposit';
-  const SavingsProductScreen.group({super.key}) : title = 'Group Savings';
+  const SavingsProductScreen.target({super.key})
+    : title = 'Target Savings',
+      type = SavingsProductType.smartSave;
+  const SavingsProductScreen.lock({super.key})
+    : title = 'Fixed Deposit',
+      type = SavingsProductType.fixed;
+  const SavingsProductScreen.group({super.key})
+    : title = 'Group Savings',
+      type = SavingsProductType.padi;
 
   final String title;
+  final SavingsProductType type;
 
   @override
   ConsumerState<SavingsProductScreen> createState() =>
@@ -120,11 +128,19 @@ class SavingsProductScreen extends ConsumerStatefulWidget {
 class _SavingsProductScreenState
     extends _SavingsPageState<SavingsProductScreen> {
   @override
-  Widget buildPage(BuildContext context) => _savingsUnavailableScreen(
-    capability: FeatureCapability.savingsPlansView,
-    title: widget.title,
-    message: '${widget.title} is unavailable in this release.',
-  );
+  Widget buildPage(BuildContext context) =>
+      widget.type.coreCode != null &&
+          ref
+              .watch(
+                featureAvailabilityProvider(FeatureCapability.savingsPlansView),
+              )
+              .isAvailable
+      ? _savingsPlansScreen(widget.type, widget.title)
+      : _savingsUnavailableScreen(
+          capability: FeatureCapability.savingsPlansView,
+          title: widget.title,
+          message: '${widget.title} is unavailable in this release.',
+        );
 }
 
 class SavingsPlanDetailScreen extends ConsumerStatefulWidget {
@@ -238,16 +254,23 @@ extension SavingsScreens on FlowPageState {
   };
 
   /// One owned Core account other than Flex: name, balance and server status.
+  /// A plan product's account opens its plans; any other its account detail.
   Widget _coreAccountTile(CustomerBankAccount account, {required bool hidden}) {
     final theme = Theme.of(context);
     final balance = formatApiAmount(account.availableBalance, currency: 'NGN');
-    final canOpen = ref
-        .watch(
-          featureAvailabilityProvider(FeatureCapability.coreAccountActivity),
-        )
-        .isAvailable;
+    bool available(FeatureCapability capability) =>
+        ref.watch(featureAvailabilityProvider(capability)).isAvailable;
+    final plansRoute = available(FeatureCapability.savingsPlansView)
+        ? switch (SavingsProductType.fromCoreCode(account.productCode)) {
+            SavingsProductType.smartSave => AppRoutes.targetSave,
+            SavingsProductType.fixed => AppRoutes.lockSave,
+            _ => null,
+          }
+        : null;
     return SurfaceCard(
-      onTap: canOpen
+      onTap: plansRoute != null
+          ? () => go(plansRoute)
+          : available(FeatureCapability.coreAccountActivity)
           ? () => go(
               AppRoutes.bankAccountDetail,
               arguments: AppRouteArguments(entityId: account.accountNumber),
