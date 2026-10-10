@@ -14,6 +14,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_re
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/boctrust_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widgets.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
@@ -68,10 +69,16 @@ class _Transfers extends CoreTransferService {
   final otpRequests = <String>[];
   final finalized = <({String pin, String? otp})>[];
 
+  /// When set, initiate waits on it instead of answering at once.
+  Completer<void>? initiateGate;
+
   @override
   Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
     BoctrustTransferDraft draft,
-  ) async => initiation;
+  ) async {
+    await initiateGate?.future;
+    return initiation;
+  }
 
   @override
   Future<NotifierState<bool>> requestTransferOtp(
@@ -290,6 +297,55 @@ void main() {
       await _enterCode(tester, '123456', 'Verify code');
 
       expect(transfers.finalized, [(pin: '0007', otp: '123456')]);
+    });
+
+    testWidgets('leaving while it starts releases the transfer', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final transfers = _Transfers()..initiateGate = Completer();
+      var open = true;
+      late StateSetter setOpen;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...await flowTestOverrides(),
+            authSessionProvider.overrideWith(SavingsSession.new),
+            customerBankAccountsProvider.overrideWith(_Accounts.new),
+            coreTransferServiceProvider.overrideWithValue(transfers),
+            transferAuthorizationReadyProvider.overrideWithValue(true),
+          ],
+          child: MaterialApp(
+            theme: CheetahTheme.lightTheme,
+            home: StatefulBuilder(
+              builder: (context, setState) {
+                setOpen = setState;
+                return open
+                    ? BoctrustTransferFlow(
+                        onExit: () {},
+                        onSectionSelected: (_) {},
+                      )
+                    : const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+
+      await _sendTen(tester);
+      setOpen(() => open = false);
+      await _settle(tester);
+      transfers.initiateGate!.complete();
+      await _settle(tester);
+
+      expect(container.read(coreTransferAttemptProvider).current, isNull);
     });
 
     testWidgets('a liveness check is refused without finalizing', (

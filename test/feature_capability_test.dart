@@ -178,43 +178,24 @@ void main() {
     });
   });
   // Staged initiate → OTP → finalize; only finalize moves money.
-  test('staged transfers are staging-only and independent', () {
-    const boctrust = FeatureCapability.boctrustTransfers;
+  // Staged initiate → OTP → finalize; only finalize moves money. BOCTRUST's
+  // recipient lookup is a back-office route whose customer authorization is
+  // unproven, so BOCTRUST stays off even in staging.
+  test('staged transfers: other bank in staging, BOCTRUST gated', () {
     const interbank = FeatureCapability.interbankTransfers;
-    Set<String> paths(FeatureCapability c) => {
-      for (final o in capabilityRequirements[c]!.operations) o.path,
-    };
 
-    for (final capability in [boctrust, interbank]) {
-      expect(availabilityOf(capability), FeatureAvailability.unavailable);
-      expect(
-        availabilityFor(
-          capabilityRequirements[capability],
-          configuredBackends: ApiBackend.values.toSet(),
-          staging: true,
-        ),
-        FeatureAvailability.available,
-      );
-      expect(
-        availabilityFor(
-          capabilityRequirements[capability],
-          configuredBackends: {ApiBackend.user},
-          staging: true,
-        ),
-        FeatureAvailability.unavailable,
-      );
-    }
+    expect(capabilityRequirements[FeatureCapability.boctrustTransfers], isNull);
+    expect(availabilityOf(interbank), FeatureAvailability.unavailable);
     expect(
-      paths(boctrust),
-      containsAll([
-        CoreApiEndpoints.intrabankTransferInitiate,
-        CoreApiEndpoints.intrabankTransferOtpTemplate,
-        CoreApiEndpoints.intrabankTransferFinalizeTemplate,
-        CoreApiEndpoints.intrabankTransferRequeryTemplate,
-      ]),
+      availabilityFor(
+        capabilityRequirements[interbank],
+        configuredBackends: ApiBackend.values.toSet(),
+        staging: true,
+      ),
+      FeatureAvailability.available,
     );
     expect(
-      paths(interbank),
+      {for (final o in capabilityRequirements[interbank]!.operations) o.path},
       containsAll([
         CoreApiEndpoints.interbankTransferInitiate,
         CoreApiEndpoints.interbankTransferOtpTemplate,
@@ -222,9 +203,6 @@ void main() {
         CoreApiEndpoints.interbankTransferRequeryTemplate,
       ]),
     );
-    expect(paths(boctrust).intersection(paths(interbank)), {
-      CoreApiEndpoints.bankAccounts,
-    });
     expect(CoreApiEndpoints.moneyMoving, {
       CoreApiEndpoints.billPayments,
       CoreApiEndpoints.intrabankTransferFinalizeTemplate,

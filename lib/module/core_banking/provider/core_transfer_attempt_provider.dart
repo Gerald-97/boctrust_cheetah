@@ -185,6 +185,9 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     acknowledged: acknowledged ?? state.acknowledged,
   );
 
+  /// The attempt in progress, for callers that outlive their widget.
+  CoreTransferAttempt? get current => state.current;
+
   /// Reserves a new attempt for [draft] before initiating. Null when
   /// transfers are not authorized yet or another attempt is open.
   int? beginReview(Object draft) {

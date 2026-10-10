@@ -31,7 +31,10 @@ Future<void> authorizeStagedTransfer(
   required Object draft,
   required TransactionSummary summary,
 }) async {
+  // Held directly: the screen, and its `ref`, may be gone by the time a
+  // reply arrives.
   final notifier = ref.read(coreTransferAttemptProvider.notifier);
+  final accounts = ref.read(customerBankAccountsProvider.notifier);
   final id = notifier.beginReview(draft);
   if (id == null) {
     if (!ref.read(transferAuthorizationReadyProvider)) {
@@ -44,14 +47,16 @@ Future<void> authorizeStagedTransfer(
   await notifier.initiate(id);
   String? error;
   while (true) {
-    final attempt = ref.read(coreTransferAttemptProvider).current;
+    final attempt = notifier.current;
     final initiation = attempt?.initiation;
     if (attempt?.id != id ||
         attempt?.phase != CoreTransferPhase.awaitingChecks ||
-        initiation == null ||
-        !context.mounted) {
+        initiation == null) {
       return;
     }
+    // The customer left while it started: release it so it can't block the
+    // next transfer. Nothing was finalized, so no money moved.
+    if (!context.mounted) return notifier.cancelReview(id);
     final pin = await collectCoreTransactionPin(
       context,
       summary,
@@ -77,7 +82,7 @@ Future<void> authorizeStagedTransfer(
     error = CoreRejection.wrongPin.message;
   }
   // Balances come from Core only; never subtract locally.
-  unawaited(ref.read(customerBankAccountsProvider.notifier).load());
+  unawaited(accounts.load());
 }
 
 /// Every transfer screen shows the session's current attempt in place of its
