@@ -193,6 +193,10 @@ void main() {
         isNot(FeatureAvailability.available),
       );
     }
-    expect(CoreApiEndpoints.moneyMoving, {CoreApiEndpoints.billPayments});
+    expect(CoreApiEndpoints.moneyMoving, {
+      CoreApiEndpoints.billPayments,
+      CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+      CoreApiEndpoints.interbankTransferFinalizeTemplate,
+    });
   });
 }

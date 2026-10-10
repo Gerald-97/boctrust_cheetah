@@ -22,16 +22,42 @@ abstract final class CoreApiEndpoints {
   static const bankAccountTransactionsTemplate =
       '$bankAccounts/{accountNumber}/transactions';
 
-  /// Prefix of the intrabank requery route. The bare path is no longer a
-  /// documented submit route; staged transfers replace it.
+  /// Prefix of the staged intrabank routes. The bare path is no longer a
+  /// documented submit route.
   static const intrabankTransfers = '/me/intrabank/transfers';
+
+  /// BocFlex → another BOCTRUST customer: records a pending transfer.
+  static const intrabankTransferInitiate = '$intrabankTransfers/initiate';
+  static String intrabankTransferOtp(String reference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(reference)}/otp/request';
+  static const intrabankTransferOtpTemplate =
+      '$intrabankTransfers/{reference}/otp/request';
+
+  /// Moves the money of a pending intrabank transfer.
+  static String intrabankTransferFinalize(String reference) =>
+      '$intrabankTransfers/${Uri.encodeComponent(reference)}/finalize';
+  static const intrabankTransferFinalizeTemplate =
+      '$intrabankTransfers/{reference}/finalize';
 
   static const interbankBanks = '/me/interbank/banks';
   static const interbankNameEnquiry = '/me/interbank/name-enquiry';
 
-  /// Prefix of the interbank status and requery routes. The bare path is no
-  /// longer a documented submit route; staged transfers replace it.
+  /// Prefix of the staged interbank routes. The bare path is no longer a
+  /// documented submit route.
   static const interbankTransfers = '/me/interbank/transfers';
+
+  /// BocFlex → another bank: records a pending transfer.
+  static const interbankTransferInitiate = '$interbankTransfers/initiate';
+  static String interbankTransferOtp(String reference) =>
+      '$interbankTransfers/${Uri.encodeComponent(reference)}/otp/request';
+  static const interbankTransferOtpTemplate =
+      '$interbankTransfers/{reference}/otp/request';
+
+  /// Moves the money of a pending interbank transfer.
+  static String interbankTransferFinalize(String reference) =>
+      '$interbankTransfers/${Uri.encodeComponent(reference)}/finalize';
+  static const interbankTransferFinalizeTemplate =
+      '$interbankTransfers/{reference}/finalize';
 
   /// Full Core enquiry used only to resolve a BOCTRUST recipient name.
   static String accountEnquiry(String accountNumber) =>
@@ -85,5 +111,9 @@ abstract final class CoreApiEndpoints {
 
   /// Every Core POST that moves money. Re-query POSTs are reads and are
   /// deliberately absent.
-  static const moneyMoving = {billPayments};
+  static const moneyMoving = {
+    billPayments,
+    intrabankTransferFinalizeTemplate,
+    interbankTransferFinalizeTemplate,
+  };
 }

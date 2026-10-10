@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'core_money.dart';
+
 import 'core_json.dart';
 
 /// UI-only bank entry used to route scanned BOCTRUST account numbers through
@@ -93,12 +95,14 @@ class InterbankTransferDraft extends Equatable {
   final String amountKobo;
   final String? narration;
 
+  /// The staged initiate body. Transfer amounts are plain naira (10 October
+  /// product decision), converted exactly from [amountKobo].
   Map<String, Object?> toJson() {
     final note = narration?.trim() ?? '';
     return {
       'receiverBankCode': bankCode,
       'receiverAccountNumber': accountNumber,
-      'amount': amountKobo,
+      'amount': koboToNaira(amountKobo),
       if (note.isNotEmpty) 'narration': note,
     };
   }
