@@ -188,6 +188,9 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   // Account and verification.
   AppRoutes.account: AppRouteDefinition.page(SectionShell.account),
   AppRoutes.tierOverview: AppRouteDefinition.page(KycTiersScreen.new),
+  AppRoutes.transactionLimits: AppRouteDefinition.page(
+    TransactionLimitsScreen.new,
+  ),
   // Compatibility routes: both open the identity screen, preselecting the
   // identity type rather than standing for a whole tier.
   AppRoutes.tier1Bvn: AppRouteDefinition.page(KycIdentityScreen.new),

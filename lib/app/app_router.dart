@@ -61,6 +61,7 @@ class AppRoutes {
   static const billPay = '/payments/bill-pay';
   static const account = '/account';
   static const tierOverview = '/account/tier';
+  static const transactionLimits = '/account/limits';
   static const tier1Bvn = '/account/tier/bvn';
   static const tier2Nin = '/account/tier/nin';
   static const governmentIdVerification = '/account/tier/government-id';

@@ -66,6 +66,9 @@ abstract final class CoreApiEndpoints {
   static const paymentItems = '/me/bills/payment-items';
   static const billPayments = '/me/bills/payments';
 
+  /// The caller's transfer and bill-payment limits.
+  static const transactionLimits = '/me/transaction-limits';
+
   /// The caller's savings plans, grouped by product.
   static const savingsPlans = '/me/savings-plans';
 

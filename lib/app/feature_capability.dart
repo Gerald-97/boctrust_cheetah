@@ -49,6 +49,7 @@ enum FeatureCapability {
   biometricLogin,
   biometricTransfers,
   limitIncrease,
+  transactionLimitsView,
   changeMobile,
   walletFunding,
   cardFunding,
@@ -392,6 +393,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'GET',
         path: CoreApiEndpoints.savingsPlanTemplate,
+      ),
+    },
+  ),
+  // The customer's effective transfer and bill-payment limits, read only.
+  FeatureCapability.transactionLimitsView: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.transactionLimits,
       ),
     },
   ),

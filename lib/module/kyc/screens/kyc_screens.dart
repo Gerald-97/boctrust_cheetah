@@ -8,6 +8,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/api_logger.dart';
 import '../../../app/app_router.dart';
+import '../../../app/feature_capability.dart';
 import '../../../app/response_handler.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
@@ -497,6 +498,22 @@ extension KycScreens on KycScreenState {
               ],
             ),
           ),
+          if (ref
+              .watch(
+                featureAvailabilityProvider(
+                  FeatureCapability.transactionLimitsView,
+                ),
+              )
+              .isAvailable)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamed(AppRoutes.transactionLimits),
+                child: const Text('View transaction limits'),
+              ),
+            ),
           const SizedBox(height: 16),
           for (var index = 0; index < data.tiers.length; index++) ...[
             if (index > 0) const SizedBox(height: 12),

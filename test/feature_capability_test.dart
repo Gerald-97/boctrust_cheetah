@@ -102,6 +102,7 @@ void main() {
       FeatureCapability.beneficiaries,
       FeatureCapability.coreAccountHistory,
       FeatureCapability.savingsPlansView,
+      FeatureCapability.transactionLimitsView,
     ];
     for (final capability in slices) {
       expect(availabilityOf(capability), FeatureAvailability.unavailable);
