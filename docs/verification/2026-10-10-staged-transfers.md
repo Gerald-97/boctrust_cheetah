@@ -11,7 +11,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
   - A `liveness` check, an unknown check, or an expired initiation is refused before finalize. `livenessVerified` is never sent.
   - Finalize is sent once per credential entry. A 401 lets the customer re-enter the PIN on the same unexpired initiation.
   - An unknown outcome (timeout or an undocumented 5xx) stays open until the customer sets it aside. The documented interbank 500 is a definite failure.
-  - The PIN and OTP never enter provider state, model fields or logs. Every transfer request is logged by path template only.
+  - The PIN and OTP never enter provider state, model fields or logs. Every transfer request is logged by path template only. Exception: the app's staging-only parse-error log prints the real request path, so an unreadable reply can expose a reference or account number there.
 - **Amount:** sent as a plain naira string (for example `1000.50`), converted exactly from Kobo, per the 10 October product decision. **The Swagger still says Kobo.** Amounts over ₦25,000,000 are refused before sending.
 - **Recipient lookup:** runs automatically at 10 digits (and once a bank is chosen). Any edit cancels the lookup in flight and clears the name. "Check account" remains as a retry.
 
