@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 import 'core_json.dart';
-import 'core_money.dart';
 
 /// A destination bank from `GET /me/interbank/banks`.
 class CommercialBank extends Equatable {
@@ -98,14 +97,14 @@ class InterbankTransferDraft extends Equatable {
   final String amountKobo;
   final String? narration;
 
-  /// The staged initiate body. Transfer amounts are plain naira (10 October
-  /// product decision), converted exactly from [amountKobo].
+  /// The staged interbank initiate body; Core requires [amountKobo] as a
+  /// digit-only Kobo string.
   Map<String, Object?> toJson() {
     final note = narration?.trim() ?? '';
     return {
       'receiverBankCode': bankCode,
       'receiverAccountNumber': accountNumber,
-      'amount': koboToNaira(amountKobo),
+      'amount': amountKobo,
       if (note.isNotEmpty) 'narration': note,
     };
   }

@@ -56,7 +56,7 @@ void main() {
       expect(draft.toJson(), {
         'receiverBankCode': '000014',
         'receiverAccountNumber': '0123456789',
-        'amount': '50.00',
+        'amount': '5000',
       });
       final status = InterbankTransferStatus.fromJson({
         'reference': 'R1',
@@ -90,7 +90,7 @@ void main() {
         amountKobo: '1000',
         narration: 'Rent',
       ).toJson(),
-      {'toAccountNumber': '1100037777', 'amount': '10.00', 'narration': 'Rent'},
+      {'toAccountNumber': '1100037777', 'amount': '1000', 'narration': 'Rent'},
     );
   });
 

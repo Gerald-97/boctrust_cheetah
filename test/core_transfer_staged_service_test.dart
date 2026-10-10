@@ -66,9 +66,10 @@ String? _logged(RequestOptions request) =>
     request.extra[LoggingInterceptor.privacySensitivePathKey] as String?;
 
 void main() {
-  // 10 October product decision: transfer amounts are plain naira.
+  // Core requires a digit-only Kobo amount on both initiate routes (staging,
+  // 10 October: "1650.00 fails to match the required pattern /^\d+$/").
   test(
-    'initiate sends the reviewed fields, a naira amount and no PIN',
+    'initiate sends the reviewed fields, a Kobo amount and no PIN',
     () async {
       final core = _Core({
         '/me/intrabank/transfers/initiate': _pending,
@@ -79,7 +80,7 @@ void main() {
       final boctrust = await service.initiateBoctrust(
         const BoctrustTransferDraft(
           toAccountNumber: '1100037777',
-          amountKobo: '100050',
+          amountKobo: '165000',
           narration: ' rent ',
         ),
       );
@@ -97,33 +98,33 @@ void main() {
       final [intra, inter] = core.requests;
       expect(intra.data, {
         'toAccountNumber': '1100037777',
-        'amount': '1000.50',
+        'amount': '165000',
         'narration': 'rent',
       });
       expect(inter.data, {
         'receiverBankCode': '000014',
         'receiverAccountNumber': '0123456789',
-        'amount': '0.01',
+        'amount': '1',
       });
       expect(_logged(intra), isNull);
       expect(_logged(inter), isNull);
     },
   );
 
-  test('naira conversion is exact up to the documented ceiling', () {
+  test('intrabank amount stays in Kobo up to the documented ceiling', () {
     expect(
       const BoctrustTransferDraft(
         toAccountNumber: '1100037777',
         amountKobo: '2500000000',
       ).toJson()['amount'],
-      '25000000.00',
+      '2500000000',
     );
     expect(
       const BoctrustTransferDraft(
         toAccountNumber: '1100037777',
         amountKobo: '100',
       ).toJson()['amount'],
-      '1.00',
+      '100',
     );
   });
 

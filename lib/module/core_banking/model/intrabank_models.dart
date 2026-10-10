@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import 'core_money.dart';
-
 /// Maximum narration length Core accepts.
 const kNarrationMaxLength = 100;
 
@@ -20,13 +18,12 @@ class BoctrustTransferDraft extends Equatable {
   final String amountKobo;
   final String? narration;
 
-  /// The staged initiate body. Transfer amounts are plain naira (10 October
-  /// product decision), converted exactly from [amountKobo].
+  /// The staged intrabank initiate body sends [amountKobo] in Kobo.
   Map<String, Object?> toJson() {
     final note = narration?.trim() ?? '';
     return {
       'toAccountNumber': toAccountNumber,
-      'amount': koboToNaira(amountKobo),
+      'amount': amountKobo,
       if (note.isNotEmpty) 'narration': note,
     };
   }

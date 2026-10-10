@@ -12,7 +12,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
   - Finalize is sent once per credential entry. A 401 lets the customer re-enter the PIN on the same unexpired initiation.
   - An unknown outcome (timeout or an undocumented 5xx) stays open until the customer sets it aside. The documented interbank 500 is a definite failure.
   - The PIN and OTP never enter provider state, model fields or logs. Every transfer request is logged by path template only. Exception: the app's staging-only parse-error log prints the real request path, so an unreadable reply can expose a reference or account number there.
-- **Amount:** sent as a plain naira string (for example `1000.50`), converted exactly from Kobo, per the 10 October product decision. **The Swagger still says Kobo.** Amounts over ₦25,000,000 are refused before sending.
+- **Amount (updated 10 October):** both initiate routes send integer Kobo as a digit-only string (₦1,650.00 → `165000`), as the Swagger documents. Staging rejected the earlier naira `1650.00`: "amount with value 1650.00 fails to match the required pattern: /^\d+$/". Amounts over ₦25,000,000 are refused before sending.
 - **Recipient lookup:** runs automatically at 10 digits (and once a bank is chosen). Any edit cancels the lookup in flight and clears the name. "Check account" remains as a retry.
 
 ## Commands
@@ -22,7 +22,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
 
 ## Staging checks before relying on either flow
 
-- [ ] **Amount unit:** send ₦10.00 and confirm BocFlex is debited exactly ₦10.00, not ₦0.10 or ₦1,000. Update the Swagger or the app to match.
+- [ ] **Amount unit:** send ₦10.00 through each flow and confirm BocFlex is debited exactly ₦10.00, not ₦0.10 or ₦1,000. Both payloads now match Swagger's integer-Kobo format.
 - [ ] **Checks:** a PIN-only amount and an OTP-required amount, with the OTP delivered and accepted; an expired initiation is refused.
 - [ ] **Errors:** wrong PIN then the correct PIN on the same initiation; 403 restriction (including Core's tier lag), 404, both 409 meanings, and the interbank 500 body.
 - [ ] **Uncertain finalize:** lose the finalize response (airplane mode after sending) and confirm requery or status recovers it; check whether interbank status accepts the initiation reference.
