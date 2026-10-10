@@ -1,7 +1,7 @@
 part of '../app_flow/app_ui.dart';
 
 /// The approved Cheetah app icon. Decorative by default: give it a
-/// [semanticLabel] only where no adjacent BOCTRUST text names it.
+/// [semanticLabel] only where no adjacent Cheetah text names it.
 class BocBrandMark extends StatelessWidget {
   const BocBrandMark({required this.size, this.semanticLabel, super.key});
 
@@ -24,18 +24,20 @@ class BocBrandMark extends StatelessWidget {
 /// The app's name, Cheetah, with its "by BocTrust" tagline beside the brand
 /// mark: stacked on the startup screen, in one row in the home header.
 class CheetahBrand extends StatelessWidget {
-  /// Stacked and large, for the startup screen.
-  const CheetahBrand.launch({super.key}) : _compact = false;
+  /// Stacked, for the startup, onboarding and sign-in screens; the words
+  /// scale with [markSize].
+  const CheetahBrand.launch({this.markSize = 72, super.key}) : _compact = false;
 
   /// One row, sized for an app bar title.
-  const CheetahBrand.header({super.key}) : _compact = true;
+  const CheetahBrand.header({super.key}) : markSize = 30, _compact = true;
 
+  final double markSize;
   final bool _compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final markSize = _compact ? 30.0 : 72.0;
+    final ratio = markSize / 72;
     // Like the BOCTRUST wordmark, the lockup ignores text scaling and only
     // shrinks when the space is too narrow.
     // The tagline sits under the name, aligned to its right edge.
@@ -47,7 +49,7 @@ class CheetahBrand extends StatelessWidget {
           'Cheetah',
           textScaler: TextScaler.noScaling,
           style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: _compact ? 18 : 34,
+            fontSize: _compact ? 18 : 34 * ratio,
             height: 1.1,
             fontWeight: FontWeight.w800,
           ),
@@ -56,7 +58,7 @@ class CheetahBrand extends StatelessWidget {
           'by BocTrust',
           textScaler: TextScaler.noScaling,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: _compact ? 11 : 15,
+            fontSize: _compact ? 11 : 15 * ratio,
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
@@ -80,46 +82,10 @@ class CheetahBrand extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   BocBrandMark(size: markSize),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16 * ratio),
                   words,
                 ],
               ),
-      ),
-    );
-  }
-}
-
-class BocLogo extends StatelessWidget {
-  const BocLogo({required this.height, super.key});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          BocBrandMark(size: height),
-          SizedBox(width: height * .22),
-          // The wordmark is part of the logo: it keeps its size regardless of
-          // text scaling and shrinks only if the space is too narrow.
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                'BOCTRUST',
-                textScaler: TextScaler.noScaling,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: height * .45,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

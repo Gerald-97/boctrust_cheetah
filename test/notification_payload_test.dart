@@ -101,7 +101,7 @@ void main() {
     });
 
     test('visible copy is always generic', () {
-      expect(NotificationPayload.title, 'BOCTRUST');
+      expect(NotificationPayload.title, 'Cheetah');
       expect(NotificationPayload.body, 'You have a new notification.');
     });
   });

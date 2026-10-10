@@ -145,7 +145,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         child: const Text('Skip'),
                       ),
                     ),
-                    const BocLogo(height: 42),
+                    const CheetahBrand.launch(markSize: 52),
                     const Spacer(),
                     OnboardingIllustration(icon: slide.icon),
                     const SizedBox(height: 30),

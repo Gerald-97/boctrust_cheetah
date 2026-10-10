@@ -116,7 +116,7 @@ void main() {
       await messages.close();
       await pumpEventQueue();
       expect(plugin.shown, hasLength(2));
-      expect(plugin.shown.map((s) => s.title).toSet(), {'BOCTRUST'});
+      expect(plugin.shown.map((s) => s.title).toSet(), {'Cheetah'});
     });
   });
 

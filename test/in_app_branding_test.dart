@@ -39,12 +39,9 @@ String _assetOf(WidgetTester tester, Finder svg) {
   return (loader as SvgAssetLoader).assetName;
 }
 
-/// [finder] inside the app's logo: the BOCTRUST lockup, or the Cheetah
-/// lockup on the startup screen and home header.
-Finder _inLogo(Finder finder) => find.descendant(
-  of: find.byWidgetPredicate((w) => w is BocLogo || w is CheetahBrand),
-  matching: finder,
-);
+/// [finder] inside the app's Cheetah lockup.
+Finder _inLogo(Finder finder) =>
+    find.descendant(of: find.byType(CheetahBrand), matching: finder);
 
 void main() {
   group('BocBrandMark', () {
@@ -78,11 +75,15 @@ void main() {
     });
   });
 
-  group('BocLogo', () {
+  group('CheetahBrand', () {
     for (final MapEntry(key: name, value: theme) in _themes.entries) {
-      for (final height in [26.0, 36.0, 42.0, 52.0]) {
+      for (final (layout, brand) in [
+        ('launch', const CheetahBrand.launch()),
+        ('small launch', const CheetahBrand.launch(markSize: 44)),
+        ('header', const CheetahBrand.header()),
+      ]) {
         for (final scale in [1.0, 2.0]) {
-          testWidgets('$name at $height text $scale', (tester) async {
+          testWidgets('$name $layout at text $scale', (tester) async {
             final handle = tester.ensureSemantics();
             await tester.pumpWidget(
               MaterialApp(
@@ -94,9 +95,7 @@ void main() {
                   child: child!,
                 ),
                 home: Scaffold(
-                  body: Center(
-                    child: SizedBox(width: 220, child: BocLogo(height: height)),
-                  ),
+                  body: Center(child: SizedBox(width: 220, child: brand)),
                 ),
               ),
             );
@@ -104,10 +103,12 @@ void main() {
             final svg = _inLogo(find.byType(SvgPicture));
             expect(svg, findsOneWidget);
             expect(_assetOf(tester, svg), _markAsset);
-            expect(tester.getSize(svg).height, height);
-            expect(_inLogo(find.byIcon(Icons.savings_rounded)), findsNothing);
-            expect(_inLogo(find.text('BOCTRUST')), findsOneWidget);
-            expect(find.bySemanticsLabel('BOCTRUST'), findsOneWidget);
+            expect(_inLogo(find.text('Cheetah')), findsOneWidget);
+            expect(_inLogo(find.text('by BocTrust')), findsOneWidget);
+            expect(
+              find.bySemanticsLabel('Cheetah by BocTrust'),
+              findsOneWidget,
+            );
             handle.dispose();
           });
         }
@@ -123,7 +124,6 @@ void main() {
     expect(find.byType(CheetahBrand), findsOneWidget);
     expect(find.text('Cheetah'), findsOneWidget);
     expect(find.text('by BocTrust'), findsOneWidget);
-    expect(find.byType(BocLogo), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
   });
@@ -134,7 +134,6 @@ void main() {
     expect(find.byType(CheetahBrand), findsOneWidget);
     expect(find.text('Cheetah'), findsOneWidget);
     expect(find.text('by BocTrust'), findsOneWidget);
-    expect(find.byType(BocLogo), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
   });
@@ -146,7 +145,7 @@ void main() {
       (AppRoutes.login, false),
       (AppRoutes.home, true),
     ]) {
-      testWidgets('$screen shows the shared brand mark', (tester) async {
+      testWidgets('$screen shows the Cheetah lockup', (tester) async {
         await _pumpScreen(tester, screen, populated: populated);
         expect(tester.takeException(), isNull);
         final svg = _inLogo(find.byType(SvgPicture));

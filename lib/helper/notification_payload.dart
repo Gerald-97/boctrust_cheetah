@@ -35,7 +35,7 @@ class NotificationPayload {
     );
   }
 
-  static const title = 'BOCTRUST';
+  static const title = 'Cheetah';
   static const body = 'You have a new notification.';
   static const maxFieldLength = 128;
   static const maxSerializedLength = 512;

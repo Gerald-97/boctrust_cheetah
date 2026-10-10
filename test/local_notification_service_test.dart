@@ -47,7 +47,7 @@ void main() {
       expect(plugin.initializations, hasLength(1));
       final channel = plugin.android.channels.single;
       expect(channel.id, 'boctrust_general');
-      expect(channel.name, 'BOCTRUST notifications');
+      expect(channel.name, 'Cheetah notifications');
       expect(channel.importance, Importance.high);
     });
 
@@ -63,7 +63,7 @@ void main() {
     test('shows generic copy with the normalized id and payload', () async {
       await service.showRemoteMessage(_secretMessage);
       final shown = plugin.shown.single;
-      expect(shown.title, 'BOCTRUST');
+      expect(shown.title, 'Cheetah');
       expect(shown.body, 'You have a new notification.');
       expect(shown.id, inInclusiveRange(1, 0x7fffffff));
       expect(jsonDecode(shown.payload!), {
@@ -72,7 +72,7 @@ void main() {
       });
       final android = shown.details!.android!;
       expect(android.channelId, 'boctrust_general');
-      expect(android.channelName, 'BOCTRUST notifications');
+      expect(android.channelName, 'Cheetah notifications');
       expect(android.importance, Importance.high);
       expect(android.priority, Priority.high);
       expect(android.icon, LocalNotificationService.androidSmallIcon);

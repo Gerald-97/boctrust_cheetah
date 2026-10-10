@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>BOCTRUST</string>
+	<string>Cheetah</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>BOCTRUST</string>
+	<string>Cheetah</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,13 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>BOCTRUST uses the camera to capture your selfie and identity document for account verification, and to read the account number and bank name from a photo when you send money. The photo stays on your device.</string>
+	<string>Cheetah uses the camera to capture your selfie and identity document for account verification, and to read the account number and bank name from a photo when you send money. The photo stays on your device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>BOCTRUST reads the account number and bank name from a photo you choose when you send money. The photo stays on your device.</string>
+	<string>Cheetah reads the account number and bank name from a photo you choose when you send money. The photo stays on your device.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>BOCTRUST uses Face ID to sign you in to your account.</string>
+	<string>Cheetah uses Face ID to sign you in to your account.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>BOCTRUST uses the microphone while recording the liveness video required for identity verification.</string>
+	<string>Cheetah uses the microphone while recording the liveness video required for identity verification.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

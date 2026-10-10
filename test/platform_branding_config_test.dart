@@ -99,6 +99,24 @@ void main() {
     });
   });
 
+  // The bank is BOCTRUST; the app it publishes is Cheetah.
+  test('the installed app is named Cheetah on both platforms', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('android:label="Cheetah"'));
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    for (final key in ['CFBundleDisplayName', 'CFBundleName']) {
+      expect(
+        RegExp('<key>$key</key>\\s*<string>Cheetah</string>').hasMatch(plist),
+        isTrue,
+        reason: key,
+      );
+    }
+    // Permission prompts name the app, not the bank.
+    expect(plist, isNot(contains('BOCTRUST')));
+  });
+
   group('generated Android resources', () {
     test('legacy launcher icons show the Cheetah at every density', () {
       for (final density in _densities) {

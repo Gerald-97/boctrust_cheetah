@@ -129,14 +129,14 @@ class _AccountPageState extends FlowPageState<AccountScreen> {
       title: 'Loans',
       icon: IconsaxPlusLinear.percentage_circle,
       message:
-          "Loans aren't part of the BOCTRUST app yet — this release is focused on Savings.",
+          "Loans aren't part of the Cheetah app yet — this release is focused on Savings.",
     ),
     _AccountPage.cards => _comingSoonScreen(
       capability: FeatureCapability.cards,
       title: 'Cards',
       icon: IconsaxPlusLinear.card,
       message:
-          "Virtual and physical debit cards aren't part of the BOCTRUST app yet. This release is focused on Savings.",
+          "Virtual and physical debit cards aren't part of the Cheetah app yet. This release is focused on Savings.",
     ),
   });
 }

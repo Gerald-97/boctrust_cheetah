@@ -32,7 +32,8 @@ class LocalNotificationService {
   /// Android small icon: the white Cheetah silhouette drawable.
   static const androidSmallIcon = 'ic_stat_boctrust';
   static const channelId = 'boctrust_general';
-  static const channelName = 'BOCTRUST notifications';
+  // The id stays so existing notification settings carry over.
+  static const channelName = 'Cheetah notifications';
 
   final FlutterLocalNotificationsPlugin _plugin;
   final void Function(String message) _log;

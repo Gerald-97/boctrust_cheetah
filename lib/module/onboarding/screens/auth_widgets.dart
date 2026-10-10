@@ -138,7 +138,7 @@ class AuthPage extends StatelessWidget {
     final onBack = this.onBack;
     final footer = this.footer;
     final fields = <Widget>[
-      const BocLogo(height: 36),
+      const CheetahBrand.launch(markSize: 44),
       const SizedBox(height: 28),
       Text(
         title,

@@ -74,7 +74,7 @@ class _CheetahMaterialApp extends ConsumerWidget {
     final themeMode = ref.watch(themeControllerProvider).themeMode;
     final accessibility = ref.watch(accessibilityPreferencesProvider);
     return MaterialApp(
-      title: 'BOCTRUST',
+      title: 'Cheetah',
       debugShowCheckedModeBanner: false,
       navigatorKey: rootNavigatorKey,
       theme: CheetahTheme.theme(
