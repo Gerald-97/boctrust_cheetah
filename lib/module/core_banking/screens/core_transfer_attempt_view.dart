@@ -19,7 +19,9 @@ import 'core_flow_widgets.dart';
 /// Every transfer screen shows the session's current attempt in place of its
 /// own steps, so re-entering any transfer flow resumes it.
 bool showsAttempt(CoreTransferAttempt? attempt) =>
-    attempt != null && attempt.phase != CoreTransferPhase.authorizing;
+    attempt != null &&
+    (attempt.phase == CoreTransferPhase.finalizing ||
+        attempt.phase == CoreTransferPhase.settled);
 
 /// The result of a sent transfer, whichever flow sent it.
 class CoreTransferAttemptView extends ConsumerWidget {
@@ -42,7 +44,7 @@ class CoreTransferAttemptView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (attempt.phase == CoreTransferPhase.submitting) {
+    if (attempt.phase == CoreTransferPhase.finalizing) {
       return const ApiLoadingSection(label: 'Sending your transfer');
     }
     final notifier = ref.read(coreTransferAttemptProvider.notifier);

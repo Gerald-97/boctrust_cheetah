@@ -120,6 +120,11 @@ enum CoreRejection {
     "We couldn't verify the receiving account. Check the details and try "
     'again.',
   ),
+  initiationFailed("We couldn't start this transfer."),
+  initiationExpired('This transfer timed out before it was confirmed.'),
+  checksUnsupported(
+    "This transfer needs a check the app can't do yet. Try a smaller amount.",
+  ),
   other('This request was declined.');
 
   const CoreRejection(this.message);
