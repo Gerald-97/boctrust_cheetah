@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
+
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
@@ -21,8 +23,9 @@ class _Transfers extends CoreTransferService {
 
   @override
   Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber,
-  ) async {
+    String accountNumber, {
+    CancelToken? cancelToken,
+  }) async {
     calls.add('BOCTRUST $accountNumber');
     return const NotifierState.done(NameEnquiryResult('ADA OBI'));
   }
@@ -31,6 +34,7 @@ class _Transfers extends CoreTransferService {
   Future<NotifierState<NameEnquiryResult>> nameEnquiry({
     required String bankCode,
     required String accountNumber,
+    CancelToken? cancelToken,
   }) async {
     calls.add('$bankCode $accountNumber');
     return const NotifierState.done(NameEnquiryResult('ADA OBI'));

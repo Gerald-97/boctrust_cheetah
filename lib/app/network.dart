@@ -45,16 +45,20 @@ class ApiService {
 
   final Dio _dio;
 
+  /// [cancelToken] abandons a request whose answer is no longer wanted,
+  /// such as a recipient lookup for a number the customer has since changed.
   Future<ServiceResponse<T>> getData<T>(
     String path, {
     required ApiDataParser<T> parser,
     Map<String, dynamic>? queryParameters,
     Map<String, Object?>? requestExtra,
+    CancelToken? cancelToken,
   }) => _request(
     () => _dio.get<Object?>(
       path,
       queryParameters: queryParameters,
       options: Options(extra: requestExtra),
+      cancelToken: cancelToken,
     ),
     parser,
   );
@@ -64,11 +68,13 @@ class ApiService {
     Object? data,
     required ApiDataParser<T> parser,
     Map<String, Object?>? requestExtra,
+    CancelToken? cancelToken,
   }) => _request(
     () => _dio.post<Object?>(
       path,
       data: data,
       options: Options(extra: requestExtra),
+      cancelToken: cancelToken,
     ),
     parser,
   );

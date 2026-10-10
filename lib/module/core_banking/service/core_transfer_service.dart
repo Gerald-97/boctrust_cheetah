@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
@@ -141,8 +142,9 @@ class CoreTransferService {
   /// The account name for a BOCTRUST recipient. Sensitive fields returned by
   /// the full Core enquiry are discarded by [NameEnquiryResult].
   Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber,
-  ) async {
+    String accountNumber, {
+    CancelToken? cancelToken,
+  }) async {
     final api = _api;
     if (api == null) return const NotifierState.blocked(_readUnavailable);
     if (!RegExp(r'^\d{10}$').hasMatch(accountNumber)) {
@@ -152,10 +154,8 @@ class CoreTransferService {
       await api.getData<NameEnquiryResult>(
         CoreApiEndpoints.accountEnquiry(accountNumber),
         parser: NameEnquiryResult.fromJson,
-        requestExtra: const {
-          LoggingInterceptor.privacySensitivePathKey:
-              CoreApiEndpoints.accountEnquiryTemplate,
-        },
+        requestExtra: _logAs(CoreApiEndpoints.accountEnquiryTemplate),
+        cancelToken: cancelToken,
       ),
     );
   }
@@ -175,6 +175,7 @@ class CoreTransferService {
   Future<NotifierState<NameEnquiryResult>> nameEnquiry({
     required String bankCode,
     required String accountNumber,
+    CancelToken? cancelToken,
   }) async {
     final api = _api;
     if (api == null) return const NotifierState.blocked(_readUnavailable);
@@ -187,6 +188,7 @@ class CoreTransferService {
         data: {'accountNumber': accountNumber, 'bankCode': bankCode},
         parser: NameEnquiryResult.fromJson,
         requestExtra: _logAs(CoreApiEndpoints.interbankNameEnquiry),
+        cancelToken: cancelToken,
       ),
     );
   }

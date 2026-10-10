@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +12,7 @@ import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/core_transfer_service.dart';
+import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
@@ -57,6 +59,7 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
   bool _resolving = false;
   String? _resolveError;
   int _lookup = 0;
+  CancelToken? _lookupToken;
   BoctrustTransferDraft? _draft;
 
   @override
@@ -65,39 +68,54 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(ref.read(customerBankAccountsProvider.notifier).ensureLoaded());
+      unawaited(_resolve());
     });
   }
 
   @override
   void dispose() {
+    _lookupToken?.cancel();
     for (final controller in [_account, _amount, _narration]) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  void _changeRecipient(VoidCallback change) => setState(() {
-    change();
-    _lookup++;
-    _recipientName = null;
-    _resolving = false;
-    _resolveError = null;
-    _draft = null;
-    _step = _Step.recipient;
-  });
+  /// Any recipient change cancels a lookup in flight, discards the
+  /// confirmed name, and looks the number up again once it is complete.
+  void _changeRecipient(VoidCallback change) {
+    _lookupToken?.cancel();
+    _lookupToken = null;
+    setState(() {
+      change();
+      _lookup++;
+      _recipientName = null;
+      _resolving = false;
+      _resolveError = null;
+      _draft = null;
+      _step = _Step.recipient;
+    });
+    unawaited(_resolve());
+  }
 
   Future<void> _resolve() async {
     final number = _account.text.trim();
     if (!_tenDigits.hasMatch(number) || _resolving) return;
+    final own = ref.read(customerBankAccountsProvider).data?.accounts;
+    if (own?.any((a) => a.accountNumber == number) ?? false) return;
     final lookup = ++_lookup;
+    final token = _lookupToken = CancelToken();
     setState(() {
       _resolving = true;
       _resolveError = null;
     });
     final result = accountNameLookupOutcome(
-      await ref.read(coreTransferServiceProvider).boctrustNameEnquiry(number),
+      await ref
+          .read(coreTransferServiceProvider)
+          .boctrustNameEnquiry(number, cancelToken: token),
     );
     if (!mounted || lookup != _lookup) return;
+    _lookupToken = null;
     setState(() {
       _resolving = false;
       _recipientName = result.name;
@@ -110,6 +128,8 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     for (final controller in [_account, _amount, _narration]) {
       controller.clear();
     }
+    _lookupToken?.cancel();
+    _lookupToken = null;
     _lookup++;
     _recipientName = null;
     _resolving = false;
@@ -282,14 +302,18 @@ class _BoctrustTransferFlowState extends ConsumerState<BoctrustTransferFlow> {
     ];
   }
 
-  /// The single-step submit route left the Core docs; staged transfers
-  /// (initiate, OTP, finalize) are not built yet, so nothing is sent.
   Future<void> _confirm(
     BoctrustTransferDraft draft,
     String amount,
     String name,
-  ) => BocUnavailableSheet.show(
+  ) => authorizeStagedTransfer(
     context,
-    title: 'Transfers are not available yet',
+    ref,
+    draft: draft,
+    summary: TransactionSummary(
+      title: 'Send to BOCTRUST account',
+      amountDisplay: amount,
+      lines: [('To', name), ('Account', maskNumber(draft.toAccountNumber))],
+    ),
   );
 }

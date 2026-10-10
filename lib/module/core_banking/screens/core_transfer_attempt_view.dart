@@ -14,14 +14,76 @@ import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
+import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'transaction_pin_sheet.dart';
+import 'transfer_otp_sheet.dart';
+
+/// Starts the reviewed [draft]: initiate, then the PIN sheet, then (only
+/// when Core asks) the OTP page, then one finalize.
+///
+/// Closing either sheet sends nothing and releases the attempt. A rejected
+/// PIN or OTP reopens the PIN sheet on the same initiation. The PIN and OTP
+/// live only in this call's local variables.
+Future<void> authorizeStagedTransfer(
+  BuildContext context,
+  WidgetRef ref, {
+  required Object draft,
+  required TransactionSummary summary,
+}) async {
+  final notifier = ref.read(coreTransferAttemptProvider.notifier);
+  final id = notifier.beginReview(draft);
+  if (id == null) {
+    if (!ref.read(transferAuthorizationReadyProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transfers are not available yet.')),
+      );
+    }
+    return;
+  }
+  await notifier.initiate(id);
+  String? error;
+  while (true) {
+    final attempt = ref.read(coreTransferAttemptProvider).current;
+    final initiation = attempt?.initiation;
+    if (attempt?.id != id ||
+        attempt?.phase != CoreTransferPhase.awaitingChecks ||
+        initiation == null ||
+        !context.mounted) {
+      return;
+    }
+    final pin = await collectCoreTransactionPin(
+      context,
+      summary,
+      errorMessage: error,
+    );
+    if (pin == null || !context.mounted) {
+      notifier.cancelReview(id);
+      return;
+    }
+    String? otp;
+    if (initiation.needsOtp) {
+      otp = await collectTransferOtp(
+        context,
+        requestCode: () => notifier.requestOtp(id),
+      );
+      if (otp == null || !context.mounted) {
+        notifier.cancelReview(id);
+        return;
+      }
+    }
+    await notifier.finalize(id, pin: pin, otp: otp);
+    if (!context.mounted || !notifier.retryPin(id)) break;
+    error = CoreRejection.wrongPin.message;
+  }
+  // Balances come from Core only; never subtract locally.
+  unawaited(ref.read(customerBankAccountsProvider.notifier).load());
+}
 
 /// Every transfer screen shows the session's current attempt in place of its
 /// own steps, so re-entering any transfer flow resumes it.
 bool showsAttempt(CoreTransferAttempt? attempt) =>
-    attempt != null &&
-    (attempt.phase == CoreTransferPhase.finalizing ||
-        attempt.phase == CoreTransferPhase.settled);
+    attempt != null && attempt.phase != CoreTransferPhase.awaitingChecks;
 
 /// The result of a sent transfer, whichever flow sent it.
 class CoreTransferAttemptView extends ConsumerWidget {
@@ -44,8 +106,13 @@ class CoreTransferAttemptView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (attempt.phase == CoreTransferPhase.finalizing) {
-      return const ApiLoadingSection(label: 'Sending your transfer');
+    switch (attempt.phase) {
+      case CoreTransferPhase.initiating:
+        return const ApiLoadingSection(label: 'Starting your transfer');
+      case CoreTransferPhase.finalizing:
+        return const ApiLoadingSection(label: 'Sending your transfer');
+      case CoreTransferPhase.awaitingChecks || CoreTransferPhase.settled:
+        break;
     }
     final notifier = ref.read(coreTransferAttemptProvider.notifier);
     final (:amount, :details) = _describe(ref, attempt.draft);

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
@@ -57,10 +58,15 @@ Future<({String? name, String? error})> lookUpAccountName(
   WidgetRef ref, {
   required String bankCode,
   required String accountNumber,
+  CancelToken? cancelToken,
 }) async => accountNameLookupOutcome(
   await ref
       .read(coreTransferServiceProvider)
-      .nameEnquiry(bankCode: bankCode, accountNumber: accountNumber),
+      .nameEnquiry(
+        bankCode: bankCode,
+        accountNumber: accountNumber,
+        cancelToken: cancelToken,
+      ),
 );
 
 /// [text] checked against an available [balance] (a decimal Naira string).

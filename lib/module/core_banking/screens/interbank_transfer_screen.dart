@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
@@ -13,6 +14,7 @@ import '../model/interbank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
+import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
 import 'snap_number_button.dart';
 import 'core_transfer_attempt_view.dart';
@@ -62,6 +64,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
   bool _resolving = false;
   String? _resolveError;
   int _lookup = 0;
+  CancelToken? _lookupToken;
   InterbankTransferDraft? _draft;
 
   bool get _beneficiaries => ref
@@ -91,34 +94,43 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
             .data
             ?.where((bank) => bank.code == initialBankCode)
             .firstOrNull;
-        if (initialBank != null) setState(() => _bank = initialBank);
+        if (initialBank != null) _changeRecipient(() => _bank = initialBank);
       }
     });
   }
 
   @override
   void dispose() {
+    _lookupToken?.cancel();
     for (final controller in [_account, _amount, _narration]) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  /// Any recipient change discards the confirmed name and a late lookup.
-  void _changeRecipient(VoidCallback change) => setState(() {
-    change();
-    _lookup++;
-    _recipient = null;
-    _resolving = false;
-    _resolveError = null;
-    _draft = null;
-  });
+  /// Any recipient change cancels a lookup in flight, discards the
+  /// confirmed name, and looks the account up again once the bank is chosen
+  /// and the number is complete.
+  void _changeRecipient(VoidCallback change) {
+    _lookupToken?.cancel();
+    _lookupToken = null;
+    setState(() {
+      change();
+      _lookup++;
+      _recipient = null;
+      _resolving = false;
+      _resolveError = null;
+      _draft = null;
+    });
+    unawaited(_resolve());
+  }
 
   Future<void> _resolve() async {
     final bank = _bank;
     final number = _account.text.trim();
     if (bank == null || !_tenDigits.hasMatch(number) || _resolving) return;
     final lookup = ++_lookup;
+    final token = _lookupToken = CancelToken();
     setState(() {
       _resolving = true;
       _resolveError = null;
@@ -127,8 +139,10 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
       ref,
       bankCode: bank.code,
       accountNumber: number,
+      cancelToken: token,
     );
     if (!mounted || lookup != _lookup) return;
+    _lookupToken = null;
     setState(() {
       _resolving = false;
       _recipient = result.name == null
@@ -152,7 +166,6 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
           banks.where((bank) => bank.code == code).firstOrNull ??
           CommercialBank(code: code, name: saved.bankName ?? code),
     );
-    unawaited(_resolve());
   }
 
   /// An empty form, after an unresolved transfer is set aside.
@@ -361,11 +374,15 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
     ];
   }
 
-  /// The single-step submit route left the Core docs; staged transfers
-  /// (initiate, OTP, finalize) are not built yet, so nothing is sent.
   Future<void> _confirm(InterbankTransferDraft draft, String amount) =>
-      BocUnavailableSheet.show(
+      authorizeStagedTransfer(
         context,
-        title: 'Transfers are not available yet',
+        ref,
+        draft: draft,
+        summary: TransactionSummary(
+          title: 'Send to ${draft.accountName}',
+          amountDisplay: amount,
+          lines: [('Bank', draft.bankName), ('Account', draft.accountNumber)],
+        ),
       );
 }

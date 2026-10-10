@@ -9,6 +9,10 @@ import 'package:boctrust_savings_loan/app/theme.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/boctrust_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widgets.dart';
@@ -54,12 +58,61 @@ class _Transfers extends CoreTransferService {
   /// When set, lookups wait on it instead of answering at once.
   Completer<NotifierState<NameEnquiryResult>>? pending;
 
+  NotifierState<CoreTransferInitiation> initiation = NotifierState.done(
+    CoreTransferInitiation(
+      reference: 'a1b2c3d4e5f6',
+      checks: const {CoreTransferCheck.pin},
+      expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+    ),
+  );
+  final otpRequests = <String>[];
+  final finalized = <({String pin, String? otp})>[];
+
+  @override
+  Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
+    BoctrustTransferDraft draft,
+  ) async => initiation;
+
+  @override
+  Future<NotifierState<bool>> requestTransferOtp(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation,
+  ) async {
+    otpRequests.add(initiation.reference);
+    return const NotifierState.done(true);
+  }
+
+  @override
+  Future<ServiceResponse<CoreTransferAck>> finalizeTransfer(
+    CoreTransferKind kind,
+    CoreTransferInitiation initiation, {
+    required String pin,
+    String? otp,
+  }) async {
+    finalized.add((pin: pin, otp: otp));
+    return const ServiceResponse.success(
+      CoreTransferAck(responseCode: '00', retrievalReference: 'a1b2c3d4e5f6'),
+      statusCode: 200,
+    );
+  }
+
   @override
   Future<NotifierState<NameEnquiryResult>> boctrustNameEnquiry(
-    String accountNumber,
-  ) async {
+    String accountNumber, {
+    CancelToken? cancelToken,
+  }) async {
     lookups.add(accountNumber);
     return pending?.future ?? lookupResult;
+  }
+
+  @override
+  Future<NotifierState<NameEnquiryResult>> nameEnquiry({
+    required String bankCode,
+    required String accountNumber,
+    CancelToken? cancelToken,
+  }) async {
+    lookups.add('$bankCode $accountNumber');
+    return lookupResult;
   }
 
   @override
@@ -93,6 +146,7 @@ Future<void> _pumpBoctrust(
         authSessionProvider.overrideWith(SavingsSession.new),
         customerBankAccountsProvider.overrideWith(_Accounts.new),
         coreTransferServiceProvider.overrideWithValue(transfers),
+        transferAuthorizationReadyProvider.overrideWithValue(true),
       ],
       child: MaterialApp(
         theme: CheetahTheme.lightTheme,
@@ -107,10 +161,29 @@ Future<void> _pumpBoctrust(
   await _settle(tester);
 }
 
+/// A complete number is looked up as soon as it is typed.
 Future<void> _checkAccount(WidgetTester tester, String number) async {
   await tester.enterText(find.byType(EditableText).first, number);
+  await _settle(tester);
+}
+
+/// Resolves the recipient, enters ₦10 and opens the PIN sheet.
+Future<void> _sendTen(WidgetTester tester) async {
+  await _checkAccount(tester, '1100037777');
+  await tester.tap(find.text('Continue'));
+  await _settle(tester);
+  await tester.enterText(find.byType(EditableText).first, '10');
   await tester.pump();
-  await tester.tap(find.text('Check account'));
+  await tester.tap(find.text('Review'));
+  await _settle(tester);
+  await tester.tap(find.textContaining('Send ₦'));
+  await _settle(tester);
+}
+
+Future<void> _enterCode(WidgetTester tester, String code, String button) async {
+  await tester.enterText(find.byType(EditableText).last, code);
+  await tester.pump();
+  await tester.tap(find.text(button));
   await _settle(tester);
 }
 
@@ -121,7 +194,7 @@ void main() {
       await _pumpBoctrust(tester, transfers);
 
       await _checkAccount(tester, '1100037777');
-      await tester.enterText(find.byType(EditableText).first, '1100038888');
+      await tester.enterText(find.byType(EditableText).first, '110003888');
       await tester.pump();
       transfers.pending!.complete(
         const NotifierState.done(NameEnquiryResult('ADA OBI')),
@@ -137,7 +210,7 @@ void main() {
 
       await _checkAccount(tester, '1100037777');
       expect(find.text('ADA OBI'), findsOneWidget);
-      await tester.enterText(find.byType(EditableText).first, '1100037778');
+      await tester.enterText(find.byType(EditableText).first, '110003777');
       await tester.pump();
 
       expect(find.text('ADA OBI'), findsNothing);
@@ -157,10 +230,12 @@ void main() {
       expect(find.text(kAccountNotFound), findsOneWidget);
     });
 
-    testWidgets('repeated taps send one lookup', (tester) async {
+    testWidgets('only a complete number is looked up, once', (tester) async {
       final transfers = _Transfers()..pending = Completer();
       await _pumpBoctrust(tester, transfers);
 
+      await _checkAccount(tester, '110003777');
+      expect(transfers.lookups, isEmpty);
       await _checkAccount(tester, '1100037777');
       await tester.tap(find.byType(PrimaryButton), warnIfMissed: false);
       await _settle(tester);
@@ -168,7 +243,7 @@ void main() {
       expect(transfers.lookups, ['1100037777']);
     });
 
-    testWidgets('a scanned number still needs a lookup', (tester) async {
+    testWidgets('a scanned number is looked up before review', (tester) async {
       final transfers = _Transfers();
       await _pumpBoctrust(
         tester,
@@ -176,15 +251,72 @@ void main() {
         initialAccountNumber: '1100037777',
       );
 
-      expect(transfers.lookups, isEmpty);
-      expect(find.text('Check account'), findsOneWidget);
+      expect(transfers.lookups, ['1100037777']);
+      expect(find.text('ADA OBI'), findsOneWidget);
       expect(find.text('Review'), findsNothing);
+    });
+  });
+
+  group('staged BOCTRUST transfer', () {
+    testWidgets('PIN only: finalized once with the PIN', (tester) async {
+      final transfers = _Transfers();
+      await _pumpBoctrust(tester, transfers);
+
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+
+      expect(transfers.otpRequests, isEmpty);
+      expect(transfers.finalized, [(pin: '0007', otp: null)]);
+      expect(find.text('Transfer processing'), findsOneWidget);
+    });
+
+    testWidgets('PIN, then OTP: the code is requested on its page', (
+      tester,
+    ) async {
+      final transfers = _Transfers()
+        ..initiation = NotifierState.done(
+          CoreTransferInitiation(
+            reference: 'a1b2c3d4e5f6',
+            checks: const {CoreTransferCheck.pin, CoreTransferCheck.otp},
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+          ),
+        );
+      await _pumpBoctrust(tester, transfers);
+
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+      expect(transfers.otpRequests, ['a1b2c3d4e5f6']);
+      expect(transfers.finalized, isEmpty);
+      await _enterCode(tester, '123456', 'Verify code');
+
+      expect(transfers.finalized, [(pin: '0007', otp: '123456')]);
+    });
+
+    testWidgets('a liveness check is refused without finalizing', (
+      tester,
+    ) async {
+      final transfers = _Transfers()
+        ..initiation = NotifierState.done(
+          CoreTransferInitiation(
+            reference: 'a1b2c3d4e5f6',
+            checks: const {CoreTransferCheck.pin, CoreTransferCheck.liveness},
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+          ),
+        );
+      await _pumpBoctrust(tester, transfers);
+
+      await _sendTen(tester);
+
+      expect(find.byKey(const Key('transaction-pin-sheet')), findsNothing);
+      expect(find.text('Transfer declined'), findsOneWidget);
+      expect(transfers.finalized, isEmpty);
     });
   });
 
   testWidgets('a scanned bank code preselects that bank for another bank', (
     tester,
   ) async {
+    final transfers = _Transfers();
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -202,13 +334,15 @@ void main() {
         ).overrideWithValue(FeatureAvailability.available),
         authSessionProvider.overrideWith(SavingsSession.new),
         customerBankAccountsProvider.overrideWith(_Accounts.new),
-        coreTransferServiceProvider.overrideWithValue(_Transfers()),
+        coreTransferServiceProvider.overrideWithValue(transfers),
       ],
     );
     await _settle(tester);
 
     expect(find.text('GTBank'), findsOneWidget);
     expect(find.text('0123456789'), findsOneWidget);
+    expect(transfers.lookups, ['058 0123456789']);
+    expect(find.text('ADA OBI'), findsOneWidget);
   });
 
   testWidgets('a failed BOCTRUST lookup cannot unlock the amount step', (
@@ -241,8 +375,6 @@ void main() {
     await _settle(tester);
 
     await tester.enterText(find.byType(EditableText).first, '1100037777');
-    await tester.pump();
-    await tester.tap(find.text('Check account'));
     await _settle(tester);
 
     expect(find.text('ADA OBI'), findsNothing);
