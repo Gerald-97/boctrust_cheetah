@@ -2,6 +2,7 @@ import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/model/transaction_limit_models.dart';
+import 'package:boctrust_savings_loan/module/account/model/user_tier_model.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/account/service/core_transaction_limit_service.dart';
 import 'package:boctrust_savings_loan/module/kyc/provider/kyc_status_provider.dart';
@@ -20,10 +21,33 @@ class _Limits extends CoreTransactionLimitService {
   Future<NotifierState<TransactionLimits>> getLimits() async => reply;
 }
 
+/// The User Service's tier 0: BVN and liveness not yet verified.
+class _Tier0 extends LayoutTiers {
+  @override
+  NotifierState<UserTierInfoData> build() {
+    final tiers = super.build().data!;
+    return NotifierState.done(
+      UserTierInfoData(
+        userId: tiers.userId,
+        currentTier: 0,
+        currentTierSummary: tiers.currentTierSummary,
+        tiers: tiers.tiers,
+      ),
+    );
+  }
+}
+
+const _coreRefusal = NotifierState<TransactionLimits>.error(
+  'You need to complete at least Tier 1 verification (BVN and a liveness '
+  'selfie) before you can transact.',
+  statusCode: 403,
+);
+
 Future<void> _open(
   WidgetTester tester,
   NotifierState<TransactionLimits> reply, {
   String route = AppRoutes.transactionLimits,
+  UserTierNotifier Function() tiers = LayoutTiers.new,
 }) async {
   await pumpFlow(
     tester,
@@ -31,7 +55,7 @@ Future<void> _open(
     overrides: [
       authSessionProvider.overrideWith(SavingsSession.new),
       userProfileProvider.overrideWith(LayoutProfile.new),
-      userTierProvider.overrideWith(LayoutTiers.new),
+      userTierProvider.overrideWith(tiers),
       kycStatusProvider.overrideWith(LayoutKyc.new),
       coreTransactionLimitServiceProvider.overrideWithValue(_Limits(reply)),
       featureAvailabilityProvider(
@@ -89,21 +113,27 @@ void main() {
   testWidgets('tier 0 is sent to verification, not shown zero limits', (
     tester,
   ) async {
-    await _open(
-      tester,
-      const NotifierState.error('Forbidden.', statusCode: 403),
-    );
+    await _open(tester, _coreRefusal, tiers: _Tier0.new);
 
     expect(find.text('Verify your identity'), findsOneWidget);
+    expect(find.text('Verify now'), findsOneWidget);
+    expect(find.textContaining('₦'), findsNothing);
+  });
+
+  // Staging, 10 October: Core refused a customer the User Service reports
+  // as Tier 1 with BVN and liveness verified.
+  testWidgets('a verified customer refused by Core sees its reason', (
+    tester,
+  ) async {
+    await _open(tester, _coreRefusal);
+
+    expect(find.text(_coreRefusal.message!), findsOneWidget);
+    expect(find.text('Verify now'), findsNothing);
     expect(find.textContaining('₦'), findsNothing);
   });
 
   testWidgets('the tier overview links to the limits', (tester) async {
-    await _open(
-      tester,
-      const NotifierState.error('Forbidden.', statusCode: 403),
-      route: AppRoutes.tierOverview,
-    );
+    await _open(tester, _coreRefusal, route: AppRoutes.tierOverview);
 
     await tester.scrollUntilVisible(find.text('View transaction limits'), 200);
     await tester.tap(find.text('View transaction limits'));
@@ -111,6 +141,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    expect(find.text('Verify your identity'), findsOneWidget);
+    expect(find.text(_coreRefusal.message!), findsOneWidget);
   });
 }

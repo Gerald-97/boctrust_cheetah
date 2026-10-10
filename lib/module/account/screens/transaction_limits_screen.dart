@@ -8,6 +8,7 @@ import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../model/transaction_limit_models.dart';
+import '../provider/user_providers.dart';
 import '../provider/transaction_limit_provider.dart';
 
 /// The customer's effective transfer and bill-payment limits, read only.
@@ -63,8 +64,12 @@ class _TransactionLimitsScreenState
                 AsyncData(:final value) when value.data != null => _limits(
                   value.data!,
                 ),
-                // Tier 0 has no limits to show until BVN and liveness.
-                AsyncData(:final value) when value.statusCode == 403 =>
+                // Tier 0 has no limits to show until BVN and liveness. Core's
+                // tier can lag the User Service's, so a customer the User
+                // Service already verified sees Core's own reason instead.
+                AsyncData(:final value)
+                    when value.statusCode == 403 &&
+                        ref.watch(userTierProvider).data?.currentTier == 0 =>
                   ApiStateCard(
                     title: 'Verify your identity',
                     message:
