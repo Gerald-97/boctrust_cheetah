@@ -211,8 +211,9 @@ void main() {
     }
   });
 
-  // Staging support needs these replies; none carries a PIN or OTP.
-  test('lookups and status checks are logged in full', () async {
+  // Staging support needs these replies. The name enquiry stays redacted:
+  // Core can return the recipient's BVN.
+  test('status checks are logged in full, name enquiries are not', () async {
     final core = _Core({});
     final service = _service(core);
 
@@ -225,6 +226,11 @@ void main() {
       const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
     );
 
-    expect(core.requests.map(_logged), everyElement(isNull));
+    expect(core.requests.map(_logged), [
+      '/me/interbank/name-enquiry',
+      null,
+      null,
+      null,
+    ]);
   });
 }

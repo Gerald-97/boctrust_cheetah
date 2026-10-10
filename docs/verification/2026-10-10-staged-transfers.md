@@ -11,14 +11,14 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [staged custome
   - A `liveness` check, an unknown check, or an expired initiation is refused before finalize. `livenessVerified` is never sent.
   - Finalize is sent once per credential entry. A 401 lets the customer re-enter the PIN on the same unexpired initiation.
   - An unknown outcome (timeout or an undocumented 5xx) stays open until the customer sets it aside. The documented interbank 500 is a definite failure.
-  - The PIN and OTP never enter provider state, model fields or logs. Every transfer request is logged by path template only. Exception: the app's staging-only parse-error log prints the real request path, so an unreadable reply can expose a reference or account number there.
+  - The PIN and OTP never enter provider state, model fields or logs. Initiate, OTP request, status and requery are logged in full on staging for support. Finalize (PIN and OTP) and the name enquiry (Core can return the recipient's BVN) stay redacted to their path template. The staging-only parse-error log still prints the real request path.
 - **Amount (updated 10 October):** both initiate routes send integer Kobo as a digit-only string (₦1,650.00 → `165000`), as the Swagger documents. Staging rejected the earlier naira `1650.00`: "amount with value 1650.00 fails to match the required pattern: /^\d+$/". Amounts over ₦25,000,000 are refused before sending.
 - **Recipient lookup:** runs automatically at 10 digits (and once a bank is chosen). Any edit cancels the lookup in flight and clears the name. "Check account" remains as a retry.
 
 ## Commands
 
 - `flutter analyze`: no issues.
-- `flutter test --no-pub`: 1536 passed, 1 failed (`platform_branding_config_test`, from uncommitted iOS project changes outside this branch; failing at baseline).
+- `flutter test --no-pub`: 1537 passed, 1 failed (`platform_branding_config_test`, from uncommitted iOS project changes outside this branch; failing at baseline).
 
 ## Staging checks before relying on either flow
 

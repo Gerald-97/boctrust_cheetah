@@ -161,6 +161,8 @@ class CoreTransferService {
         CoreApiEndpoints.interbankNameEnquiry,
         data: {'accountNumber': accountNumber, 'bankCode': bankCode},
         parser: NameEnquiryResult.fromJson,
+        // Core can return the recipient's BVN; keep the bodies out of logs.
+        requestExtra: _logAs(CoreApiEndpoints.interbankNameEnquiry),
         cancelToken: cancelToken,
       ),
     );

@@ -116,7 +116,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         final initialBank = ref
             .read(interbankBanksProvider)
             .data
-            ?.where((bank) => bank.code == initialBankCode)
+            ?.where((bank) => bank.code == initialBankCode && !bank.isBoctrust)
             .firstOrNull;
         if (initialBank != null) _changeRecipient(() => _bank = initialBank);
       }
@@ -252,22 +252,34 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
 
   List<Widget> _recipientStep() {
     final banksState = ref.watch(interbankBanksProvider);
-    // BOCTRUST recipients are paid through the intrabank flow, never here.
+    final allBanks = banksState.data ?? const <CommercialBank>[];
+    // BOCTRUST recipients are paid through the intrabank flow, never here:
+    // neither its bank nor a beneficiary saved at it is offered.
     final banks = [
-      for (final bank in banksState.data ?? const <CommercialBank>[])
+      for (final bank in allBanks)
         if (!bank.isBoctrust) bank,
     ];
+    final boctrustCode = CommercialBank.boctrustIn(allBanks)?.code;
     final saved = _beneficiaries && !widget.boctrust
         ? [
             for (final b
                 in ref.watch(beneficiariesProvider).data ??
                     const <Beneficiary>[])
-              if (b.type == BeneficiaryType.bankAccount) b,
+              if (b.type == BeneficiaryType.bankAccount &&
+                  b.bankCode != boctrustCode &&
+                  !CommercialBank(
+                    code: b.bankCode ?? '',
+                    name: b.bankName ?? '',
+                  ).isBoctrust)
+                b,
           ]
         : const <Beneficiary>[];
     final number = _account.text.trim();
     final recipient = _recipient;
-    final ownNumber = widget.boctrust && _ownNumbers.contains(number);
+    final ownNumber =
+        widget.boctrust &&
+        (ref.watch(customerBankAccountsProvider).data?.accounts ?? const [])
+            .any((account) => account.accountNumber == number);
     return [
       const FlowHeading('Who are you sending to?'),
       if (saved.isNotEmpty) ...[

@@ -17,6 +17,8 @@ import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/interbank_transfer_screen.dart';
 import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widgets.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/beneficiary_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/service/core_beneficiary_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:dio/dio.dart';
@@ -119,6 +121,32 @@ class _Transfers extends CoreTransferService {
         CommercialBank(code: '044', name: 'Access Bank'),
         CommercialBank(code: '090117', name: 'Boctrust MFB'),
         CommercialBank(code: '058', name: 'GTBank'),
+      ]);
+}
+
+/// One saved account at Access and one at Boctrust.
+class _Saved extends CoreBeneficiaryService {
+  const _Saved() : super(null);
+
+  @override
+  Future<NotifierState<List<Beneficiary>>> list() async =>
+      const NotifierState.done([
+        Beneficiary(
+          id: 'a',
+          type: BeneficiaryType.bankAccount,
+          number: '0123456789',
+          name: 'SAVED ACCESS',
+          bankCode: '044',
+          bankName: 'Access Bank',
+        ),
+        Beneficiary(
+          id: 'b',
+          type: BeneficiaryType.bankAccount,
+          number: '1100037777',
+          name: 'SAVED BOC',
+          bankCode: '090117',
+          bankName: 'Boctrust MFB',
+        ),
       ]);
 }
 
@@ -359,6 +387,41 @@ void main() {
       expect(find.text('Transfer declined'), findsOneWidget);
       expect(transfers.finalized, isEmpty);
     });
+  });
+
+  // BOCTRUST recipients are paid through the intrabank flow, so the
+  // other-bank screen never preselects Boctrust from a link or beneficiary.
+  testWidgets('another bank never preselects BOCTRUST', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final transfers = _Transfers();
+    await pumpFlow(
+      tester,
+      route: AppRoutes.sendOtherBank,
+      arguments: const AppRouteArguments(
+        entityId: '1100037777',
+        bankCode: '090117',
+      ),
+      overrides: [
+        featureAvailabilityProvider(
+          FeatureCapability.interbankTransfers,
+        ).overrideWithValue(FeatureAvailability.available),
+        featureAvailabilityProvider(
+          FeatureCapability.beneficiaries,
+        ).overrideWithValue(FeatureAvailability.available),
+        authSessionProvider.overrideWith(SavingsSession.new),
+        customerBankAccountsProvider.overrideWith(_Accounts.new),
+        coreTransferServiceProvider.overrideWithValue(transfers),
+        coreBeneficiaryServiceProvider.overrideWithValue(const _Saved()),
+      ],
+    );
+    await _settle(tester);
+
+    expect(transfers.lookups, isEmpty);
+    expect(find.text('SAVED ACCESS'), findsOneWidget);
+    expect(find.text('SAVED BOC'), findsNothing);
   });
 
   testWidgets('a scanned bank code preselects that bank for another bank', (
