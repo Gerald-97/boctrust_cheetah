@@ -67,6 +67,7 @@ enum FeatureCapability {
   boctrustTransfers,
   interbankTransfers,
   coreAccountActivity,
+  coreAccountHistory,
   // Products that have not launched.
   loans,
   cards,
@@ -366,8 +367,7 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
-  // Live summary of one account. Transactions are added once their item
-  // schema is published.
+  // Live summary of one account.
   FeatureCapability.coreAccountActivity: CapabilityRequirement(
     stagingOnly: true,
     operations: {
@@ -375,6 +375,18 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'GET',
         path: CoreApiEndpoints.bankAccountSummaryTemplate,
+      ),
+    },
+  ),
+  // Live history of one account. Rows stay unshown until their item schema
+  // is confirmed; only whether the period has activity is displayed.
+  FeatureCapability.coreAccountHistory: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccountTransactionsTemplate,
       ),
     },
   ),

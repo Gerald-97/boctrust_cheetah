@@ -74,6 +74,11 @@ class _BankAccountDetailScreenState
     final summary = accountNumber == null
         ? null
         : ref.watch(coreAccountSummaryProvider(accountNumber));
+    final historyAvailable = ref
+        .watch(
+          featureAvailabilityProvider(FeatureCapability.coreAccountHistory),
+        )
+        .isAvailable;
     return popScope(
       AppScaffold(
         title: 'Account',
@@ -83,7 +88,13 @@ class _BankAccountDetailScreenState
         body: RefreshIndicator(
           onRefresh: () => accountNumber == null
               ? Future<void>.value()
-              : ref.refresh(coreAccountSummaryProvider(accountNumber).future),
+              : Future.wait([
+                  ref.refresh(coreAccountSummaryProvider(accountNumber).future),
+                  if (historyAvailable)
+                    ref.refresh(
+                      coreAccountHistoryProvider(accountNumber).future,
+                    ),
+                ]),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
@@ -116,17 +127,43 @@ class _BankAccountDetailScreenState
                 _ => const ApiLoadingSection(label: 'Loading your account'),
               },
               const SizedBox(height: BocSpace.md),
-              const ApiStateCard(
-                title: 'Transactions',
-                message: "Transaction history isn't available yet.",
-                tone: ApiStateTone.info,
-              ),
+              if (historyAvailable && accountNumber != null)
+                _history(accountNumber)
+              else
+                const ApiStateCard(
+                  title: 'Transactions',
+                  message: "Transaction history isn't available yet.",
+                  tone: ApiStateTone.info,
+                ),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Whether the last 30 days have activity. Rows are never shown: their
+  /// fields are unconfirmed, so any amount or direction could be wrong.
+  Widget _history(String accountNumber) =>
+      switch (ref.watch(coreAccountHistoryProvider(accountNumber))) {
+        AsyncData(:final value) when value.data != null => ApiStateCard(
+          title: 'Transactions, last 30 days',
+          message: value.data!.isEmpty
+              ? 'No transactions in this period.'
+              : "You have activity in this period. Details aren't available "
+                    'in the app yet.',
+          tone: ApiStateTone.info,
+        ),
+        AsyncData(:final value) => ApiStateCard(
+          title: 'Transactions unavailable',
+          message: value.message ?? "We couldn't load your transactions.",
+          tone: ApiStateTone.error,
+          actionLabel: 'Retry',
+          onAction: () =>
+              ref.invalidate(coreAccountHistoryProvider(accountNumber)),
+        ),
+        _ => const ApiLoadingSection(label: 'Loading your transactions'),
+      };
 
   Widget _summaryCard(CoreAccountSummary summary) {
     final hidden = ref.watch(homeBalanceHiddenProvider);

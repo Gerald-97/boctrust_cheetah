@@ -100,6 +100,7 @@ void main() {
       FeatureCapability.data,
       FeatureCapability.bills,
       FeatureCapability.beneficiaries,
+      FeatureCapability.coreAccountHistory,
     ];
     for (final capability in slices) {
       expect(availabilityOf(capability), FeatureAvailability.unavailable);
