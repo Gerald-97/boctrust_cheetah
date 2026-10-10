@@ -34,7 +34,7 @@ class _Plans extends CoreSavingsPlanService {
     SavingsProductGroup(
       type: SavingsProductType.smartSave,
       productName: 'Boc SmartSave',
-      balance: '12500.00',
+      accountNumber: '0000000002',
       plans: [_plan],
     ),
   ]);
@@ -110,7 +110,8 @@ void main() {
   testWidgets('SmartSave lists server plans and opens one', (tester) async {
     await _open(tester, AppRoutes.targetSave, const _Plans());
 
-    expect(find.text('₦12,500.00'), findsOneWidget);
+    // The product balance is the account's, as the account list reports it.
+    expect(find.text('₦125.00'), findsOneWidget);
     expect(find.text('Rent'), findsOneWidget);
 
     await tester.tap(find.text('Rent'));

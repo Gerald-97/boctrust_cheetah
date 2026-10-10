@@ -55,7 +55,16 @@ extension SavingsPlanScreens on FlowPageState {
                         ),
                         const SizedBox(height: BocSpace.xxs),
                         BocMoneyText(
-                          _planMoney(group.balance),
+                          _planMoney(
+                            _watchCoreAccounts().data?.accounts
+                                .where(
+                                  (account) =>
+                                      account.accountNumber ==
+                                      group.accountNumber,
+                                )
+                                .firstOrNull
+                                ?.availableBalance,
+                          ),
                           semanticsLabel: 'Product balance',
                         ),
                         if (group.rate case final rate?)

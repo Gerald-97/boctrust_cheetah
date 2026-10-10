@@ -55,8 +55,8 @@ Map<String, Object?> _plan({String status = 'active'}) => {
 };
 
 void main() {
-  // Every amount input on this resource is documented in Kobo, and the
-  // product balance falls back to summed principal, so all are Kobo.
+  // Every amount input on this resource is documented in Kobo, so plan
+  // amounts are read as Kobo.
   test('reads grouped plans with Kobo amounts as Naira', () {
     final groups = SavingsProductGroup.listFromJson([
       {
@@ -66,18 +66,25 @@ void main() {
         'productInterestRatePercent': '8.5',
         'defaultTenorDays': 90,
         'accountBalance': '1250000',
-        'plans': [_plan(), _plan(status: 'paused_by_bank')],
+        'plans': [
+          _plan(),
+          _plan(status: 'paused_by_bank'),
+          {..._plan(), 'principalAmount': '5000.00'},
+        ],
       },
       {'productCode': 'bocPadi', 'productName': 'Padi', 'plans': []},
     ]);
 
     final group = groups.single;
     expect(group.type, SavingsProductType.smartSave);
-    expect(group.balance, '12500.00');
+    expect(group.accountNumber, '1100919408');
     expect(group.plans.first.principal, '5000.00');
     expect(group.plans.first.target, '100000.00');
     expect(group.plans.first.status, SavingsPlanStatus.active);
-    expect(group.plans.last.status, SavingsPlanStatus.unknown);
+    expect(group.plans[1].status, SavingsPlanStatus.unknown);
+    // A plan whose amount cannot be read is kept, not hidden.
+    expect(group.plans, hasLength(3));
+    expect(group.plans.last.principal, isNull);
   });
 
   test('plan detail keeps events without their references', () {

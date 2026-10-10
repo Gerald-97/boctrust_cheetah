@@ -8,7 +8,8 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [history, state
   - Target Savings and Fixed Deposit list the customer's plans from `GET /me/savings-plans?productCode=…`, with the product balance and rate.
   - A plan opens its detail and history from `GET /me/savings-plans/{planId}`. A 404 says the plan is no longer available.
   - An owned SmartSave or Fixed Deposit account on the Save hub opens its plans.
-  - Every amount is read as Kobo, because every amount input on these routes is documented in Kobo and the product balance falls back to summed principal.
+  - Plan, target, interest and event amounts are read as Kobo, because every amount input on these routes is documented in Kobo. A plan whose amount cannot be read is still listed, with its amount shown as unavailable.
+  - The product balance comes from the account list (`GET /me/bank-accounts`), whose decimal Naira unit is verified, not from the reply's `accountBalance`, whose unit is unclear.
   - Statuses and event types are mapped as documented. An unknown value shows as unavailable.
   - Event references are not kept. Both reads are logged by path template only.
 - **Transaction limits** (`transactionLimitsView`):
@@ -24,7 +25,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [history, state
 
 ## Staging checks before release
 
-- [ ] Plan amounts, product balance and event amounts display correctly in Naira (confirms the Kobo reading).
+- [ ] Plan and event amounts display correctly in Naira (confirms the Kobo reading), including whether withdrawal-type event amounts are signed.
 - [ ] Limits display correctly for a Tier 1–3 customer, and a Tier 0 customer gets the verification prompt.
 - [ ] Plan dates (`maturityDate`, event `createdAt`) show the right day.
 
@@ -32,6 +33,7 @@ Date: 10 October 2026. Branch `feat/core-account-history`. Plan: [history, state
 
 - [ ] **Old routes:** the four direct customer transfer routes are no longer documented (`/me/intrabank/transfers/own`, `/me/intrabank/withdrawals`, `/me/intrabank/transfers`, `/me/interbank/transfers`). Are they still callable, when do they sunset, and what replaces own-account transfers and product withdrawals?
 - [ ] **Rate bands:** no customer route exposes each savings product's tenors, rates or minimum debit (`min_amount`). Plan creation stays blocked until one exists.
+- [ ] **Savings `accountBalance` unit:** documented as the live BankOne balance with a fallback to summed principal. Is it decimal Naira or Kobo, and is the unit the same in both cases?
 - [ ] **Limit units:** the unit of the limit initiate inputs (`singleTransferLimit`, `singleBillPaymentLimit`, `dailyTransferLimit`) is not documented.
 - [ ] **Liveness:** `livenessVerified` is client-asserted and never re-verified by the server, so it gives no server-side protection. Transfers that require liveness stay gated until the server verifies it.
 - [ ] **BOCTRUST name enquiry:** the recipient preview uses `/accounts/{n}/enquiry`, an unauthenticated back-office route. A customer-scoped intrabank name enquiry is needed.

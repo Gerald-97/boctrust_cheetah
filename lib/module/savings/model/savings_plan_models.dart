@@ -89,8 +89,8 @@ class SavingsPlan extends Equatable {
     required this.id,
     required this.type,
     required this.name,
-    required this.principal,
     required this.status,
+    this.principal,
     this.target,
     this.interestEarned,
     this.rate,
@@ -101,7 +101,9 @@ class SavingsPlan extends Equatable {
   final String id;
   final SavingsProductType type;
   final String name;
-  final String principal;
+
+  /// Null when Core's amount cannot be read; the plan is still shown.
+  final String? principal;
   final SavingsPlanStatus status;
   final String? target;
   final String? interestEarned;
@@ -116,13 +118,12 @@ class SavingsPlan extends Equatable {
     if (json is! Map) return null;
     final id = coreText(json['planId']);
     final type = SavingsProductType.fromCoreCode(json['productCode']);
-    final principal = _naira(json['principalAmount']);
-    if (id == null || type == null || principal == null) return null;
+    if (id == null || type == null) return null;
     return SavingsPlan(
       id: id,
       type: type,
       name: coreText(json['planName']) ?? type.displayName,
-      principal: principal,
+      principal: _naira(json['principalAmount']),
       status: SavingsPlanStatus.parse(json['status']),
       target: _naira(json['targetAmount']),
       interestEarned: _naira(json['interestEarned']),
@@ -155,7 +156,6 @@ class SavingsProductGroup extends Equatable {
     required this.productName,
     required this.plans,
     this.accountNumber,
-    this.balance,
     this.rate,
     this.defaultTenorDays,
   });
@@ -163,11 +163,10 @@ class SavingsProductGroup extends Equatable {
   final SavingsProductType type;
   final String productName;
   final List<SavingsPlan> plans;
-  final String? accountNumber;
 
-  /// The product account's balance. Core falls back to summed plan
-  /// principal when the live balance fails, without saying so.
-  final String? balance;
+  /// The product's account. Its balance is read from the account list,
+  /// whose unit is verified, not from this reply's `accountBalance`.
+  final String? accountNumber;
   final String? rate;
   final int? defaultTenorDays;
 
@@ -185,7 +184,6 @@ class SavingsProductGroup extends Equatable {
             .whereType<SavingsPlan>(),
       ),
       accountNumber: coreText(json['accountNumber']),
-      balance: _naira(json['accountBalance']),
       rate: coreText(json['productInterestRatePercent']),
       defaultTenorDays: _days(json['defaultTenorDays']),
     );
@@ -205,7 +203,6 @@ class SavingsProductGroup extends Equatable {
     productName,
     plans,
     accountNumber,
-    balance,
     rate,
     defaultTenorDays,
   ];
