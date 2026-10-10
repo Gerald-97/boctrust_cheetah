@@ -371,26 +371,32 @@ void main() {
     expect(_current(container)?.live?.state, CoreLiveState.completed);
     expect(_current(container)?.unresolved, isFalse);
   });
-  test('the documented transfer errors map per the Core docs', () {
-    CoreSubmissionOutcome map(
-      ServiceResponse<CoreTransferAck> r, {
-      bool interbank = false,
-    }) => mapCoreTransferSubmission(r, interbank: interbank);
+  // Swagger finalize: 403 restricted/expired, 422 declined by the bank,
+  // 409 similar or already processing, 500 BankOne unreachable.
+  test('finalize errors map per the Swagger', () {
+    CoreSubmissionOutcome map(ServiceResponse<CoreTransferAck> r) =>
+        mapCoreTransferSubmission(r);
 
-    expect(map(_error(401)), const RejectedSubmission(CoreRejection.wrongPin));
     expect(
       map(_error(403)),
       const RejectedSubmission(CoreRejection.transferRestricted),
     );
     expect(
-      map(_error(409)),
-      const RejectedSubmission(CoreRejection.possibleDuplicate),
+      map(
+        const ServiceResponse.error(
+          'Beneficiary account is dormant',
+          statusCode: 422,
+        ),
+      ),
+      const RejectedSubmission(
+        CoreRejection.bankDeclined,
+        detail: 'Beneficiary account is dormant',
+      ),
     );
-    expect(
-      map(_error(500), interbank: true),
-      const RejectedSubmission(CoreRejection.recipientUnresolved),
-    );
-    expect(map(_error(503)), const UnknownSubmission());
+    // Neither may claim that nothing moved, nor invite a retry.
+    for (final status in [409, 500, 503]) {
+      expect(map(_error(status)), const UnknownSubmission(), reason: '$status');
+    }
     expect(
       map(
         const ServiceResponse.error(

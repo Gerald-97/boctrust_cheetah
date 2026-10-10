@@ -452,7 +452,6 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
         await ref
             .read(coreTransferServiceProvider)
             .finalizeTransfer(current.kind, initiation),
-        interbank: current.kind == CoreTransferKind.interbank,
       );
     } catch (_) {
       outcome = const UnknownSubmission();

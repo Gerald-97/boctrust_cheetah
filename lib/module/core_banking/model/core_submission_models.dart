@@ -111,15 +111,8 @@ enum CoreRejection {
     'Transfers are restricted on this account, or it was locked after too '
     'many incorrect PIN attempts. Please contact support.',
   ),
-  possibleDuplicate(
-    'A similar transfer was sent moments ago, so this one was not sent. '
-    'Check your balance before sending again.',
-  ),
   sessionExpired('Your session has expired. Please sign in again.'),
-  recipientUnresolved(
-    "We couldn't verify the receiving account. Check the details and try "
-    'again.',
-  ),
+  bankDeclined('The bank declined this transfer.'),
   initiationFailed("We couldn't start this transfer."),
   checkRefused(
     "This transfer can't continue: it may have expired, or your account may "
@@ -156,12 +149,16 @@ final class AcceptedSubmission extends CoreSubmissionOutcome {
 
 /// Core declined the request; no money moved.
 final class RejectedSubmission extends CoreSubmissionOutcome {
-  const RejectedSubmission(this.reason);
+  const RejectedSubmission(this.reason, {this.detail});
   final CoreRejection reason;
-  String get message => reason.message;
+
+  /// Core's own reason, shown when the Swagger documents it as the
+  /// customer-facing explanation (a bank decline).
+  final String? detail;
+  String get message => detail ?? reason.message;
 
   @override
-  List<Object?> get props => [reason];
+  List<Object?> get props => [reason, detail];
 }
 
 /// No reliable answer. The money may or may not have moved, so this is never
@@ -177,13 +174,9 @@ final class UnknownSubmission extends CoreSubmissionOutcome {
 }
 
 /// Classifies a money-moving response.
-///
-/// [interbank]: Core documents a `500` on interbank transfers as a failed
-/// name enquiry or a rejected transfer, so nothing moved.
 CoreSubmissionOutcome mapCoreSubmission(
-  ServiceResponse<CoreTransferAck> response, {
-  bool interbank = false,
-}) {
+  ServiceResponse<CoreTransferAck> response,
+) {
   final ack = response.data;
   if (response.status == ServiceStatus.success && ack != null) {
     return AcceptedSubmission(ack);
@@ -202,9 +195,6 @@ CoreSubmissionOutcome mapCoreSubmission(
     403 => const RejectedSubmission(CoreRejection.accountRestricted),
     404 => const RejectedSubmission(CoreRejection.accountMissing),
     409 => const RejectedSubmission(CoreRejection.referenceCollision),
-    500 when interbank => const RejectedSubmission(
-      CoreRejection.recipientUnresolved,
-    ),
     final int c when c >= 400 && c < 500 => const RejectedSubmission(
       CoreRejection.other,
     ),
@@ -213,26 +203,28 @@ CoreSubmissionOutcome mapCoreSubmission(
   };
 }
 
-/// Classifies a transfer or withdrawal response by the Core docs, which say
-/// of these POSTs: 401 is an incorrect transaction PIN, 403 a restricted or
-/// PIN-locked account, and 409 a reference collision or a similar transfer
-/// within 60 seconds; none of them moved money. A 401 the client produced
-/// itself for an expired session was never sent.
+/// Classifies a transfer finalize reply by the Swagger: 403 is a restricted,
+/// locked or expired initiation and 422 a bank decline (its message is the
+/// reason) — neither moved money. A 409 may mean the transfer is already
+/// being processed, and a 500 that BankOne could not be reached, so both are
+/// unknown: never "nothing moved", never retried. A 401 the client produced
+/// for an expired session was never sent.
 CoreSubmissionOutcome mapCoreTransferSubmission(
-  ServiceResponse<CoreTransferAck> response, {
-  bool interbank = false,
-}) {
+  ServiceResponse<CoreTransferAck> response,
+) {
   if (response.status == ServiceStatus.success) {
-    return mapCoreSubmission(response, interbank: interbank);
+    return mapCoreSubmission(response);
   }
   return switch (response.statusCode) {
-    401 => RejectedSubmission(
-      response.errorCode == kLocalSessionExpiredCode
-          ? CoreRejection.sessionExpired
-          : CoreRejection.wrongPin,
-    ),
+    401 => const RejectedSubmission(CoreRejection.sessionExpired),
     403 => const RejectedSubmission(CoreRejection.transferRestricted),
-    409 => const RejectedSubmission(CoreRejection.possibleDuplicate),
-    _ => mapCoreSubmission(response, interbank: interbank),
+    409 => const UnknownSubmission(),
+    422 => RejectedSubmission(
+      CoreRejection.bankDeclined,
+      detail: response.message?.trim().isNotEmpty ?? false
+          ? response.message!.trim()
+          : null,
+    ),
+    _ => mapCoreSubmission(response),
   };
 }

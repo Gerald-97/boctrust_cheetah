@@ -69,17 +69,14 @@ void main() {
       );
     });
 
-    test('a 500 on an interbank transfer means the recipient was not '
-        'resolved', () {
+    // Swagger: an interbank finalize 500 means BankOne could not be reached
+    // or timed out — requery before retrying.
+    test('a 500 on an interbank transfer is unknown, not a failure', () {
       const response = ServiceResponse<CoreTransferAck>(
         status: ServiceStatus.error,
         statusCode: 500,
       );
-      expect(
-        mapCoreSubmission(response, interbank: true),
-        const RejectedSubmission(CoreRejection.recipientUnresolved),
-      );
-      expect(mapCoreSubmission(response), const UnknownSubmission());
+      expect(mapCoreTransferSubmission(response), const UnknownSubmission());
     });
   });
 
