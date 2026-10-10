@@ -177,22 +177,54 @@ void main() {
       );
     });
   });
-  // Their single-step submit routes left the Core docs; staged transfers
-  // are not built yet.
-  test('transfers have no contract, even in staging', () {
-    for (final capability in [
-      FeatureCapability.boctrustTransfers,
-      FeatureCapability.interbankTransfers,
-    ]) {
+  // Staged initiate → OTP → finalize; only finalize moves money.
+  test('staged transfers are staging-only and independent', () {
+    const boctrust = FeatureCapability.boctrustTransfers;
+    const interbank = FeatureCapability.interbankTransfers;
+    Set<String> paths(FeatureCapability c) => {
+      for (final o in capabilityRequirements[c]!.operations) o.path,
+    };
+
+    for (final capability in [boctrust, interbank]) {
+      expect(availabilityOf(capability), FeatureAvailability.unavailable);
       expect(
         availabilityFor(
           capabilityRequirements[capability],
           configuredBackends: ApiBackend.values.toSet(),
           staging: true,
         ),
-        isNot(FeatureAvailability.available),
+        FeatureAvailability.available,
+      );
+      expect(
+        availabilityFor(
+          capabilityRequirements[capability],
+          configuredBackends: {ApiBackend.user},
+          staging: true,
+        ),
+        FeatureAvailability.unavailable,
       );
     }
+    expect(
+      paths(boctrust),
+      containsAll([
+        CoreApiEndpoints.intrabankTransferInitiate,
+        CoreApiEndpoints.intrabankTransferOtpTemplate,
+        CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+        CoreApiEndpoints.intrabankTransferRequeryTemplate,
+      ]),
+    );
+    expect(
+      paths(interbank),
+      containsAll([
+        CoreApiEndpoints.interbankTransferInitiate,
+        CoreApiEndpoints.interbankTransferOtpTemplate,
+        CoreApiEndpoints.interbankTransferFinalizeTemplate,
+        CoreApiEndpoints.interbankTransferRequeryTemplate,
+      ]),
+    );
+    expect(paths(boctrust).intersection(paths(interbank)), {
+      CoreApiEndpoints.bankAccounts,
+    });
     expect(CoreApiEndpoints.moneyMoving, {
       CoreApiEndpoints.billPayments,
       CoreApiEndpoints.intrabankTransferFinalizeTemplate,

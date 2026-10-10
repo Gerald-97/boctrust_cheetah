@@ -264,10 +264,92 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // The runtime provider still decides whether this device has a usable
   // enrolled biometric.
   FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
-  // Core mobile banking, verified on staging before release. Transfers have
-  // no registered contract: their single-step submit routes left the Core
-  // docs, and staged transfers are not built yet. Bill payments still pass
-  // `transactionAuthorizerProvider` first.
+  // Core mobile banking, verified on staging before release. Staged
+  // transfers initiate, collect the PIN and any OTP, then finalize; only
+  // finalize moves money and it waits on `transferAuthorizationReadyProvider`.
+  // Bill payments still pass `transactionAuthorizerProvider` first.
+  FeatureCapability.boctrustTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.accountEnquiryTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferInitiate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferOtpTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferFinalizeTemplate,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.intrabankTransferRequeryTemplate,
+      ),
+    },
+  ),
+  FeatureCapability.interbankTransfers: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.interbankBanks,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankNameEnquiry,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferInitiate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferOtpTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferFinalizeTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.interbankTransferStatusTemplate,
+      ),
+      // A read despite POST: live status of a transfer already sent.
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.interbankTransferRequeryTemplate,
+      ),
+    },
+  ),
   // Live summary of one account.
   FeatureCapability.coreAccountActivity: CapabilityRequirement(
     stagingOnly: true,
@@ -404,8 +486,10 @@ extension FeatureAvailabilityX on FeatureAvailability {
 
 /// Whether transfers may be sent with a transaction PIN. On since
 /// 7 October 2026 (Kenechukwu): the Core docs, the source of truth, require
-/// `transactionPin` on all four transfer bodies and define 401 as an
-/// incorrect PIN. [transferAuthorizationReady] still keeps it to staging.
+/// the transaction PIN in the transfer body and define 401 as an incorrect
+/// PIN. Since 10 October that body is the staged finalize, which also takes
+/// the OTP when initiate asks for one. [transferAuthorizationReady] still
+/// keeps it to staging.
 const kTransferAuthorizationEvidenceReady = true;
 
 /// Transfer PIN authorization is never ready outside staging; production
