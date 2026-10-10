@@ -35,7 +35,7 @@ class BootstrapScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const BocLogo(height: 52),
+                      const CheetahBrand.launch(),
                       const SizedBox(height: 28),
                       if (!hasError) ...[
                         const CircularProgressIndicator(),

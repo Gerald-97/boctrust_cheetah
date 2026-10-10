@@ -82,7 +82,7 @@ extension HomeScreenParts on FlowPageState {
     final theme = Theme.of(context);
 
     return AppScaffold(
-      titleWidget: const BocLogo(height: 26),
+      titleWidget: const CheetahBrand.header(),
       activeSection: AppSection.home,
       onSectionSelected: goSection,
       actions: [

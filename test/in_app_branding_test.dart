@@ -39,8 +39,12 @@ String _assetOf(WidgetTester tester, Finder svg) {
   return (loader as SvgAssetLoader).assetName;
 }
 
-Finder _inLogo(Finder finder) =>
-    find.descendant(of: find.byType(BocLogo), matching: finder);
+/// [finder] inside the app's logo: the BOCTRUST lockup, or the Cheetah
+/// lockup on the startup screen and home header.
+Finder _inLogo(Finder finder) => find.descendant(
+  of: find.byWidgetPredicate((w) => w is BocLogo || w is CheetahBrand),
+  matching: finder,
+);
 
 void main() {
   group('BocBrandMark', () {
@@ -109,6 +113,30 @@ void main() {
         }
       }
     }
+  });
+
+  testWidgets('the startup screen introduces Cheetah by BocTrust', (
+    tester,
+  ) async {
+    await _pumpScreen(tester, AppRoutes.bootstrap, populated: false);
+
+    expect(find.byType(CheetahBrand), findsOneWidget);
+    expect(find.text('Cheetah'), findsOneWidget);
+    expect(find.text('by BocTrust'), findsOneWidget);
+    expect(find.byType(BocLogo), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('the home header shows Cheetah by BocTrust', (tester) async {
+    await _pumpScreen(tester, AppRoutes.home, populated: true);
+
+    expect(find.byType(CheetahBrand), findsOneWidget);
+    expect(find.text('Cheetah'), findsOneWidget);
+    expect(find.text('by BocTrust'), findsOneWidget);
+    expect(find.byType(BocLogo), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
   });
 
   group('app identity surfaces', () {

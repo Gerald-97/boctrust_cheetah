@@ -21,6 +21,74 @@ class BocBrandMark extends StatelessWidget {
   }
 }
 
+/// The app's name, Cheetah, with its "by BocTrust" tagline beside the brand
+/// mark: stacked on the startup screen, in one row in the home header.
+class CheetahBrand extends StatelessWidget {
+  /// Stacked and large, for the startup screen.
+  const CheetahBrand.launch({super.key}) : _compact = false;
+
+  /// One row, sized for an app bar title.
+  const CheetahBrand.header({super.key}) : _compact = true;
+
+  final bool _compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final markSize = _compact ? 30.0 : 72.0;
+    // Like the BOCTRUST wordmark, the lockup ignores text scaling and only
+    // shrinks when the space is too narrow.
+    // The tagline sits under the name, aligned to its right edge.
+    final words = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'Cheetah',
+          textScaler: TextScaler.noScaling,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: _compact ? 18 : 34,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          'by BocTrust',
+          textScaler: TextScaler.noScaling,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: _compact ? 11 : 15,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    return Semantics(
+      label: 'Cheetah by BocTrust',
+      excludeSemantics: true,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: _compact
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BocBrandMark(size: markSize),
+                  const SizedBox(width: 8),
+                  words,
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BocBrandMark(size: markSize),
+                  const SizedBox(height: 16),
+                  words,
+                ],
+              ),
+      ),
+    );
+  }
+}
+
 class BocLogo extends StatelessWidget {
   const BocLogo({required this.height, super.key});
 

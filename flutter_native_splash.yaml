@@ -1,4 +1,5 @@
 # Regenerate with: dart run flutter_native_splash:create --path flutter_native_splash.yaml
+# (after flutter test tool/branding/render_splash_branding.dart for the text).
 flutter_native_splash:
   # The app's dark background (BocColors.darkPaper) in both light and dark
   # modes: one dark splash for everyone.
@@ -6,6 +7,11 @@ flutter_native_splash:
   color_dark: "#101E30"
   image: assets/branding/generated/cheetah_splash.png
   image_dark: assets/branding/generated/cheetah_splash.png
+  # "Cheetah / by BocTrust", rendered by
+  # tool/branding/render_splash_branding.dart, at the bottom of the splash.
+  branding: assets/branding/generated/cheetah_splash_branding.png
+  branding_dark: assets/branding/generated/cheetah_splash_branding.png
+  branding_bottom_padding: 48
   android: true
   ios: true
   web: false
@@ -15,5 +21,7 @@ flutter_native_splash:
   android_12:
     image: assets/branding/generated/cheetah_splash_android12.png
     image_dark: assets/branding/generated/cheetah_splash_android12.png
+    branding: assets/branding/generated/cheetah_splash_branding.png
+    branding_dark: assets/branding/generated/cheetah_splash_branding.png
     color: "#101E30"
     color_dark: "#101E30"

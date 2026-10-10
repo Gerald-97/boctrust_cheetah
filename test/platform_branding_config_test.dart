@@ -71,7 +71,7 @@ void main() {
           config = _yaml('flutter_native_splash.yaml', 'flutter_native_splash'),
     );
 
-    test('is an icon-only splash on the dark background in both modes', () {
+    test('shows the icon and the Cheetah branding on the dark background', () {
       expect(config['color'], '#101E30');
       expect(config['color_dark'], '#101E30');
       expect(config['image'], 'assets/branding/generated/cheetah_splash.png');
@@ -79,7 +79,10 @@ void main() {
         config['image_dark'],
         'assets/branding/generated/cheetah_splash.png',
       );
-      expect(config.containsKey('branding'), isFalse);
+      const branding = 'assets/branding/generated/cheetah_splash_branding.png';
+      expect(config['branding'], branding);
+      expect(config['branding_dark'], branding);
+      expect((config['android_12'] as YamlMap)['branding'], branding);
       expect(config['android'], isTrue);
       expect(config['ios'], isTrue);
     });
