@@ -361,16 +361,6 @@ extension _AccountScreens on _AccountPageState {
                       Navigator.of(context).pushNamed(AppRoutes.tierOverview),
                 ),
                 SettingsTile(
-                  icon: IconsaxPlusLinear.trend_up,
-                  title: 'Request limit increase',
-                  subtitle: 'Raise your daily transfer limit',
-                  trailing: const SmallPill(text: 'Not available yet'),
-                  onTap: () => BocUnavailableSheet.show(
-                    context,
-                    title: 'Limit increases are not available yet',
-                  ),
-                ),
-                SettingsTile(
                   icon: IconsaxPlusLinear.document_text,
                   title: 'Account statement',
                   subtitle: 'Request a statement by email',
@@ -394,12 +384,6 @@ extension _AccountScreens on _AccountPageState {
                   ).pushNamed(AppRoutes.manageBeneficiaries),
                 ),
                 SettingsTile(
-                  icon: IconsaxPlusLinear.bank,
-                  title: 'Linked banks',
-                  subtitle: 'Accounts you withdraw to',
-                  onTap: () => go(AppRoutes.linkedBanks),
-                ),
-                SettingsTile(
                   icon: IconsaxPlusLinear.shield,
                   title: 'Security Center',
                   subtitle: 'Password, PIN, devices and protection',
@@ -410,25 +394,6 @@ extension _AccountScreens on _AccountPageState {
                   title: 'Preferences',
                   subtitle: 'Notifications, accessibility and theme',
                   onTap: () => go(AppRoutes.preferences),
-                ),
-              ],
-            ),
-            SettingsGroup(
-              caption: 'More services',
-              children: [
-                SettingsTile(
-                  icon: IconsaxPlusLinear.percentage_circle,
-                  title: 'Loans',
-                  subtitle: "Borrowing isn't available yet",
-                  trailing: const SmallPill(text: 'Coming soon'),
-                  onTap: () => go(AppRoutes.loansComingSoon),
-                ),
-                SettingsTile(
-                  icon: IconsaxPlusLinear.card,
-                  title: 'Cards',
-                  subtitle: "Virtual & physical cards aren't available yet",
-                  trailing: const SmallPill(text: 'Coming soon'),
-                  onTap: () => go(AppRoutes.cardsComingSoon),
                 ),
               ],
             ),
