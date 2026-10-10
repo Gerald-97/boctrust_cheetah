@@ -278,6 +278,20 @@ void main() {
     expect(_current(container)?.outcome, isA<RejectedSubmission>());
   });
 
+  test('a PIN reply without the expected OTP stops the transfer', () async {
+    final (:container, :transfers) = _setUp();
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    transfers.initiation = _initiated(['pin', 'otp']);
+    transfers.pinReplies.add(_progress());
+
+    final id = await _initiate(container);
+
+    expect(await notifier.verifyPin(id, '0007'), const CheckStopped());
+    expect(_phase(container), CoreTransferPhase.settled);
+    await notifier.finalize(id);
+    expect(transfers.finalized, 0);
+  });
+
   test('a liveness check stops before any check is sent', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);

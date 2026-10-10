@@ -367,7 +367,13 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
               pending.contains(CoreTransferCheck.pin)) ||
           (step == CoreTransferCheck.pin &&
               !initiation.needsOtp &&
-              pending.contains(CoreTransferCheck.otp));
+              pending.contains(CoreTransferCheck.otp)) ||
+          // Initiate asked for an OTP but the PIN reply no longer awaits one:
+          // never open the OTP sheet for a code that was not sent.
+          (step == CoreTransferCheck.pin &&
+              initiation.needsOtp &&
+              result.data != null &&
+              !pending.contains(CoreTransferCheck.otp));
       if (contradicts) {
         _settle(current, CoreRejection.checksInconsistent);
         return const CheckStopped();

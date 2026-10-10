@@ -140,7 +140,9 @@ class _TransactionLimitsScreenState
         verifyCode: notifier.verifyOtp,
         resendCode: notifier.resendOtp,
       );
-      if (!verified && phase() == LimitUpdatePhase.awaitingOtp) {
+      // Closed without a verified code, possibly mid-verify: drop the change
+      // (a late reply is ignored) so it can't block the next one.
+      if (!verified && phase() != LimitUpdatePhase.failed) {
         return notifier.reset();
       }
     }

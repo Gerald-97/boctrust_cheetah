@@ -73,7 +73,10 @@ Future<void> authorizeStagedTransfer(
       verifyCode: (code) => notifier.verifyOtp(id, code),
       resendCode: () => notifier.resendOtp(id),
     );
-    if (!verified && at(CoreTransferPhase.awaitingOtp)) {
+    // Closed without a verified code — possibly while a verify is still in
+    // flight: release the attempt so it can't block the next transfer. A
+    // late reply is dropped; finalize was never sent.
+    if (!verified && !at(CoreTransferPhase.settled)) {
       return notifier.cancelReview(id);
     }
   }

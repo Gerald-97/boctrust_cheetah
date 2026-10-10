@@ -118,6 +118,9 @@ class _Transfers extends CoreTransferService {
     return NotifierState.done(_after(initiation));
   }
 
+  /// When set, OTP verify waits on it instead of answering at once.
+  Completer<void>? otpGate;
+
   @override
   Future<NotifierState<CoreCheckProgress>> verifyTransferOtp(
     CoreTransferKind kind,
@@ -125,6 +128,7 @@ class _Transfers extends CoreTransferService {
     String otp,
   ) async {
     otps.add(otp);
+    await otpGate?.future;
     return otp == '000000'
         ? const NotifierState.error('Incorrect.', statusCode: 401)
         : NotifierState.done(
@@ -370,6 +374,35 @@ void main() {
       expect(transfers.otps, ['000000', '123456']);
       expect(transfers.finalized, 1);
       expect(find.byKey(const Key('transfer-otp-sheet')), findsNothing);
+    });
+
+    testWidgets('closing the OTP sheet mid-verify releases the transfer', (
+      tester,
+    ) async {
+      final transfers = _Transfers()
+        ..otpGate = Completer()
+        ..initiation = NotifierState.done(
+          CoreTransferInitiation(
+            reference: 'a1b2c3d4e5f6',
+            checks: const {CoreTransferCheck.pin, CoreTransferCheck.otp},
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+          ),
+        );
+      await _pumpBoctrust(tester, transfers);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(InterbankTransferFlow)),
+      );
+
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Verify PIN');
+      await _enterCode(tester, '123456', 'Verify code');
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      transfers.otpGate!.complete();
+      await _settle(tester);
+
+      expect(container.read(coreTransferAttemptProvider).current, isNull);
+      expect(transfers.finalized, 0);
     });
 
     testWidgets('leaving while it starts releases the transfer', (

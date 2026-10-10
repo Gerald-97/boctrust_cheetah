@@ -14,7 +14,7 @@ Date: 10 October 2026. Branch `feat/core-staged-verification`. Plan: [staged ver
 ## Commands
 
 - `flutter analyze`: no issues.
-- `flutter test --no-pub`: 1554 passed, 1 failed — `platform_branding_config_test` "signs the Runner target with the push entitlement": the Debug configuration signs with the empty `RunnerDebug.entitlements` (commit `f5582fd`); decision pending.
+- `flutter test --no-pub`: 1557 passed, 1 failed — `platform_branding_config_test` "signs the Runner target with the push entitlement": the Debug configuration signs with the empty `RunnerDebug.entitlements` (commit `f5582fd`); decision pending.
 
 ## Staging checks before release
 

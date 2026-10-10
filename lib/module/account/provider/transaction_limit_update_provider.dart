@@ -168,7 +168,12 @@ class TransactionLimitUpdateNotifier extends Notifier<LimitUpdateState> {
       if (pending.contains(step) ||
           pending.contains(CoreTransferCheck.liveness) ||
           (step == CoreTransferCheck.otp &&
-              pending.contains(CoreTransferCheck.pin))) {
+              pending.contains(CoreTransferCheck.pin)) ||
+          // Initiate asked for an OTP but the PIN reply no longer awaits one.
+          (step == CoreTransferCheck.pin &&
+              initiation.needsOtp &&
+              result.data != null &&
+              !pending.contains(CoreTransferCheck.otp))) {
         _fail("We couldn't confirm this change's security checks.");
         return const CheckStopped();
       }

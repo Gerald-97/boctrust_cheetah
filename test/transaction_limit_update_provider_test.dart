@@ -107,6 +107,17 @@ void main() {
     );
   });
 
+  test('a PIN reply without the expected OTP stops the change', () async {
+    final (:container, :limits) = _setUp();
+    final notifier = container.read(transactionLimitUpdateProvider.notifier);
+    limits.pinReplies.add(_ok());
+
+    await notifier.start(_draft);
+
+    expect(await notifier.verifyPin('0007'), const CheckStopped());
+    expect(_phase(container), LimitUpdatePhase.failed);
+  });
+
   test('a wrong PIN stays on the PIN step', () async {
     final (:container, :limits) = _setUp();
     final notifier = container.read(transactionLimitUpdateProvider.notifier);
