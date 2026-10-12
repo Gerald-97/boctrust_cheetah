@@ -24,6 +24,8 @@ import '../../home/provider/home_provider.dart';
 import '../../home/screens/home_screen.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/savings_plan_models.dart';
+import '../model/flex_interest_models.dart';
+import '../provider/flex_interest_provider.dart';
 import '../provider/savings_plan_provider.dart';
 
 part 'savings_plan_screens.dart';
@@ -726,6 +728,7 @@ extension SavingsScreens on FlowPageState {
                     ? SecondaryButton(label: 'Withdraw', onPressed: () {})
                     : null,
               ),
+            if (flex != null) ..._flexInterestSection(hidden),
             // Only an active Flex account is shown, so no status row is needed.
             if (flex != null && ledger != null) ...[
               const SizedBox(height: BocSpace.sm),
@@ -744,6 +747,38 @@ extension SavingsScreens on FlowPageState {
     );
   }
 
+  /// The interest card under the balance. No Flex account (404) shows
+  /// nothing; other failures show a compact retry card.
+  List<Widget> _flexInterestSection(bool hidden) {
+    if (!ref
+        .watch(featureAvailabilityProvider(FeatureCapability.flexInterestView))
+        .isAvailable) {
+      return const [];
+    }
+    final state = ref.watch(flexInterestProvider);
+    final FlexInterest? interest = state.value?.data;
+    final widgets = switch (state) {
+      _ when interest != null => [
+        FlexInterestCard(interest: interest, hidden: hidden),
+      ],
+      AsyncData(:final value) when value.statusCode == 404 => <Widget>[],
+      AsyncData(:final value) => [
+        ApiStateCard(
+          title: 'Interest unavailable',
+          message: value.message ?? "We couldn't load your interest.",
+          tone: ApiStateTone.error,
+          actionLabel: 'Retry',
+          onAction: () => ref.invalidate(flexInterestProvider),
+        ),
+      ],
+      _ => <Widget>[],
+    };
+    return [
+      if (widgets.isNotEmpty) const SizedBox(height: BocSpace.sm),
+      ...widgets,
+    ];
+  }
+
   Widget _savingsUnavailableScreen({
     required FeatureCapability capability,
     required String title,
@@ -757,4 +792,51 @@ extension SavingsScreens on FlowPageState {
       capability: capability,
     ),
   );
+}
+
+/// Interest earned on the Flex account: this month's accrual (paid on the 1st
+/// of next month) and the total paid so far.
+class FlexInterestCard extends StatelessWidget {
+  const FlexInterestCard({
+    required this.interest,
+    required this.hidden,
+    super.key,
+  });
+
+  final FlexInterest interest;
+  final bool hidden;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    String? money(String? amount) {
+      final text = formatApiAmount(amount, currency: 'NGN');
+      return text == null ? null : (hidden ? '₦ ••••••' : text);
+    }
+
+    final rate = interest.ratePercent;
+    final month = money(interest.currentMonthAccruedInterest);
+    final total = money(interest.totalInterestEarned);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('Interest', style: theme.textTheme.titleSmall),
+            ),
+            if (rate != null)
+              Text('$rate% p.a.', style: theme.textTheme.bodySmall),
+          ],
+        ),
+        const SizedBox(height: BocSpace.xs),
+        GridViewInfo(
+          items: [
+            if (month != null) (label: 'This month so far', value: month),
+            if (total != null) (label: 'Total interest earned', value: total),
+          ],
+        ),
+      ],
+    );
+  }
 }

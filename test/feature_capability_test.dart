@@ -98,6 +98,7 @@ void main() {
       FeatureCapability.beneficiaries,
       FeatureCapability.coreAccountHistory,
       FeatureCapability.savingsPlansView,
+      FeatureCapability.flexInterestView,
       FeatureCapability.transactionLimitsView,
     ];
     for (final capability in slices) {

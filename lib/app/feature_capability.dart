@@ -39,6 +39,7 @@ enum FeatureCapability {
   padiCreate,
   padiJoin,
   savingsPlansView,
+  flexInterestView,
   savingsPlanDeposit,
   savingsPlanEdit,
   savingsPlanWithdraw,
@@ -402,6 +403,22 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         backend: ApiBackend.core,
         method: 'GET',
         path: CoreApiEndpoints.savingsPlanTemplate,
+      ),
+    },
+  ),
+  // The customer's BocFlex interest summary and accrual history, read only.
+  FeatureCapability.flexInterestView: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.flexInterest,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.flexInterestAccruals,
       ),
     },
   ),
