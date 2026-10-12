@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -6,6 +7,12 @@ import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/module/savings/model/savings_plan_models.dart';
 import 'package:boctrust_savings_loan/module/savings/service/core_savings_plan_service.dart';
 import 'package:dio/dio.dart';
+import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_action_provider.dart';
+import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Answers every request with [data] in the Core envelope, recording it.
@@ -53,6 +60,33 @@ Map<String, Object?> _plan({String status = 'active'}) => {
   'status': status,
   'currentInterestRatePercent': '8.5',
 };
+
+class _SlowFund extends CoreSavingsPlanService {
+  _SlowFund(this.reply) : super(null);
+  final Completer<NotifierState<SavingsPlanActionResult>> reply;
+  var reads = 0;
+
+  @override
+  Future<NotifierState<SavingsPlanActionResult>> fundPlan(String _, String _) =>
+      reply.future;
+
+  @override
+  Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async {
+    reads++;
+    return const NotifierState.blocked('x');
+  }
+}
+
+class _Accounts extends CustomerBankAccountsNotifier {
+  static var loads = 0;
+  @override
+  NotifierState<CustomerBankAccountsData> build() => const NotifierState.idle();
+  @override
+  Future<NotifierState<CustomerBankAccountsData>> load() async {
+    loads++;
+    return state;
+  }
+}
 
 void main() {
   // Plan amounts arrive as Naira decimal strings.
@@ -153,4 +187,43 @@ void main() {
     expect(request.data, {'amount': '2500.00'});
     expect(result.data!.principalAmount, '7500.00');
   });
+
+  test(
+    'a top-up still refreshes when its listener leaves while sending',
+    () async {
+      final reply = Completer<NotifierState<SavingsPlanActionResult>>();
+      final service = _SlowFund(reply);
+      _Accounts.loads = 0;
+      final container = ProviderContainer(
+        overrides: [
+          coreSavingsPlanServiceProvider.overrideWithValue(service),
+          customerBankAccountsProvider.overrideWith(_Accounts.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(savingsPlanDetailProvider('p1'), (_, _) {});
+      await container.read(savingsPlanDetailProvider('p1').future);
+      final sub = container.listen(savingsPlanActionProvider, (_, _) {});
+      final sending = container
+          .read(savingsPlanActionProvider.notifier)
+          .fund('p1', '5.00');
+      sub.close();
+      // Let the provider dispose, as it would once the sheet is gone.
+      await Future<void>.delayed(Duration.zero);
+
+      reply.complete(
+        const NotifierState.done(
+          SavingsPlanActionResult(
+            planId: 'p1',
+            status: SavingsPlanStatus.active,
+          ),
+        ),
+      );
+      await sending;
+      await container.read(savingsPlanDetailProvider('p1').future);
+
+      expect(service.reads, 2);
+      expect(_Accounts.loads, 1);
+    },
+  );
 }

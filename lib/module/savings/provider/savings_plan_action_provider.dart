@@ -56,6 +56,20 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     Future<NotifierState<SavingsPlanActionResult>> Function() call,
   ) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
+    // The sheet can close mid-request; stay alive so the reply still
+    // refreshes the plan and the balance.
+    final link = ref.keepAlive();
+    try {
+      await _send(planId, call);
+    } finally {
+      link.close();
+    }
+  }
+
+  Future<void> _send(
+    String planId,
+    Future<NotifierState<SavingsPlanActionResult>> Function() call,
+  ) async {
     state = const SavingsPlanActionState(phase: SavingsPlanActionPhase.sending);
     final reply = await call();
     if (!ref.mounted) return;
