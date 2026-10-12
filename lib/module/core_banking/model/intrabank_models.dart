@@ -20,7 +20,8 @@ class BoctrustTransferDraft extends Equatable {
   final String amountKobo;
   final String? narration;
 
-  /// The staged intrabank initiate body sends [amountKobo] in Kobo.
+  /// The staged intrabank initiate body; Core takes the amount as a Naira
+  /// decimal string, converted once here from [amountKobo].
   Map<String, Object?> toJson() {
     final note = narration?.trim() ?? '';
     return {

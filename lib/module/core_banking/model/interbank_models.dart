@@ -98,8 +98,8 @@ class InterbankTransferDraft extends Equatable {
   final String amountKobo;
   final String? narration;
 
-  /// The staged interbank initiate body; Core requires [amountKobo] as a
-  /// digit-only Kobo string.
+  /// The staged interbank initiate body; Core takes the amount as a Naira
+  /// decimal string, converted once here from [amountKobo].
   Map<String, Object?> toJson() {
     final note = narration?.trim() ?? '';
     return {
