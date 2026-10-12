@@ -199,11 +199,26 @@ extension SavingsPlanScreens on FlowPageState {
           tooltip: 'More options',
           onSelected: (action) => switch (action) {
             'edit' => _gatedPlanAction(FeatureCapability.savingsPlanEdit),
+            'interest' => go(
+              AppRoutes.interestHistory,
+              arguments: AppRouteArguments(entityId: plan.id),
+            ),
             _ => _withdrawFromPlan(plan),
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'edit', child: Text('Edit plan')),
-            PopupMenuItem(value: 'withdraw', child: Text('Withdraw')),
+          itemBuilder: (_) => [
+            if (ref
+                .read(
+                  featureAvailabilityProvider(
+                    FeatureCapability.savingsPlansView,
+                  ),
+                )
+                .isAvailable)
+              const PopupMenuItem(
+                value: 'interest',
+                child: Text('Interest history'),
+              ),
+            const PopupMenuItem(value: 'edit', child: Text('Edit plan')),
+            const PopupMenuItem(value: 'withdraw', child: Text('Withdraw')),
           ],
         ),
       ],

@@ -404,6 +404,11 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
         method: 'GET',
         path: CoreApiEndpoints.savingsPlanTemplate,
       ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.savingsPlanAccrualsTemplate,
+      ),
     },
   ),
   // The customer's BocFlex interest summary and accrual history, read only.

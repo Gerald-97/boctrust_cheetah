@@ -759,7 +759,11 @@ extension SavingsScreens on FlowPageState {
     final FlexInterest? interest = state.value?.data;
     final widgets = switch (state) {
       _ when interest != null => [
-        FlexInterestCard(interest: interest, hidden: hidden),
+        FlexInterestCard(
+          interest: interest,
+          hidden: hidden,
+          onHistory: () => go(AppRoutes.interestHistory),
+        ),
       ],
       AsyncData(:final value) when value.statusCode == 404 => <Widget>[],
       AsyncData(:final value) => [
@@ -800,11 +804,15 @@ class FlexInterestCard extends StatelessWidget {
   const FlexInterestCard({
     required this.interest,
     required this.hidden,
+    this.onHistory,
     super.key,
   });
 
   final FlexInterest interest;
   final bool hidden;
+
+  /// Opens the daily history; null hides the action.
+  final VoidCallback? onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -836,6 +844,14 @@ class FlexInterestCard extends StatelessWidget {
             if (total != null) (label: 'Total interest earned', value: total),
           ],
         ),
+        if (onHistory != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onHistory,
+              child: const Text('Interest history'),
+            ),
+          ),
       ],
     );
   }

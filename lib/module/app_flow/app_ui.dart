@@ -28,6 +28,7 @@ import 'flow_page.dart';
 import '../payments/screens/payments_screens.dart';
 import '../send/screens/send_screens.dart';
 import '../savings/screens/savings_screens.dart';
+import '../savings/screens/interest_history_screen.dart';
 import '../onboarding/screens/login_screens.dart';
 import '../onboarding/screens/recovery_screens.dart';
 import '../onboarding/screens/signup_screens.dart';

@@ -5,6 +5,7 @@ import '../../../app/core_network.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/flex_interest_models.dart';
+import '../model/interest_accrual_models.dart';
 
 final coreFlexInterestServiceProvider = Provider<CoreFlexInterestService>(
   (ref) => CoreFlexInterestService(ref.watch(coreApiServiceProvider)),
@@ -30,6 +31,27 @@ class CoreFlexInterestService {
       await api.getData<FlexInterest>(
         CoreApiEndpoints.flexInterest,
         parser: FlexInterest.fromJson,
+      ),
+    );
+  }
+
+  /// One page of the Flex account's daily interest, newest first.
+  Future<NotifierState<InterestAccrualPage>> getAccruals({
+    int page = 1,
+    int pageSize = 30,
+  }) async {
+    final api = _api;
+    if (api == null) {
+      return const NotifierState.blocked(
+        'Flex interest is not available right now.',
+      );
+    }
+    return NotifierState.fromResponse(
+      await api.getData<InterestAccrualPage>(
+        CoreApiEndpoints.flexInterestAccruals,
+        queryParameters: {'page': page, 'pageSize': pageSize},
+        parser: (json) =>
+            InterestAccrualPage.fromJson(json, baseKey: 'balance'),
       ),
     );
   }

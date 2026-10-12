@@ -5,6 +5,7 @@ import '../../../app/core_network.dart';
 import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
+import '../model/interest_accrual_models.dart';
 import '../model/savings_plan_models.dart';
 
 const _plansUnavailable = 'Savings plans are not available right now.';
@@ -56,6 +57,25 @@ class CoreSavingsPlanService {
           LoggingInterceptor.privacySensitivePathKey:
               CoreApiEndpoints.savingsPlanTemplate,
         },
+      ),
+    );
+  }
+
+  /// One page of a plan's daily interest, newest first; 404 when the plan is
+  /// not the caller's.
+  Future<NotifierState<InterestAccrualPage>> getPlanAccruals(
+    String planId, {
+    int page = 1,
+    int pageSize = 30,
+  }) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_plansUnavailable);
+    return NotifierState.fromResponse(
+      await api.getData<InterestAccrualPage>(
+        CoreApiEndpoints.savingsPlanAccruals(planId),
+        queryParameters: {'page': page, 'pageSize': pageSize},
+        parser: (json) =>
+            InterestAccrualPage.fromJson(json, baseKey: 'principalAmount'),
       ),
     );
   }

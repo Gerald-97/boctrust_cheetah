@@ -136,6 +136,11 @@ abstract final class CoreApiEndpoints {
       '$savingsPlans/${Uri.encodeComponent(planId)}';
   static const savingsPlanTemplate = '$savingsPlans/{planId}';
 
+  /// One plan's daily interest, newest first; [planId] is one path segment.
+  static String savingsPlanAccruals(String planId) =>
+      '${savingsPlan(planId)}/accruals';
+  static const savingsPlanAccrualsTemplate = '$savingsPlanTemplate/accruals';
+
   /// The caller's BocFlex interest summary and its accrual history.
   static const flexInterest = '/me/bocflex/interest';
   static const flexInterestAccruals = '/me/bocflex/interest/accruals';

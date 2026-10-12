@@ -137,6 +137,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.savingsPlanDetail: AppRouteDefinition.page(
     SavingsPlanDetailScreen.new,
   ),
+  AppRoutes.interestHistory: AppRouteDefinition.page(InterestHistoryScreen.new),
 
   // Funding.
   AppRoutes.addMoney: AppRouteDefinition.page(AddMoneyScreen.new),
