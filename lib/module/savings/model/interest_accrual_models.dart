@@ -16,19 +16,19 @@ class InterestAccrual extends Equatable {
     this.cumulativeInterest,
   });
 
-  /// Null when [json] is not a day's accrual.
+  /// Null when [json] is not a day's accrual. A day whose figures cannot be
+  /// read is kept, so it shows as unavailable rather than vanishing.
   static InterestAccrual? tryParse(Object? json, {required String baseKey}) {
     if (json is! Map) return null;
-    final interest = coreNaira(json['interest']);
-    if (interest == null) return null;
     final date = coreText(json['date']);
-    return InterestAccrual(
+    final accrual = InterestAccrual(
       date: date == null ? null : DateTime.tryParse(date),
       base: coreNaira(json[baseKey]),
       ratePercent: coreText(json['ratePercent']),
-      interest: interest,
+      interest: coreNaira(json['interest']),
       cumulativeInterest: coreNaira(json['cumulativeInterest']),
     );
+    return accrual.date == null && accrual.interest == null ? null : accrual;
   }
 
   final DateTime? date;

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
+import '../../core_banking/provider/core_paged_rows.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/interest_accrual_models.dart';
 import '../service/core_flex_interest_service.dart';
@@ -40,85 +41,46 @@ class PlanInterestSource extends InterestSource {
 final interestHistoryProvider = NotifierProvider.autoDispose
     .family<
       InterestHistoryNotifier,
-      NotifierState<List<InterestAccrual>>,
+      NotifierState<PagedRows<InterestAccrual>>,
       InterestSource
     >(InterestHistoryNotifier.new);
 
-class InterestHistoryNotifier
-    extends Notifier<NotifierState<List<InterestAccrual>>> {
+class InterestHistoryNotifier extends PagedRowsNotifier<InterestAccrual> {
   InterestHistoryNotifier(this.source);
 
   final InterestSource source;
-  int _generation = 0;
-  int _page = 1;
-  bool hasMore = false;
-  bool loadingMore = false;
 
   @override
-  NotifierState<List<InterestAccrual>> build() {
-    ref.watch(authSessionProvider);
-    _generation++;
-    hasMore = false;
-    loadingMore = false;
-    Future.microtask(reload);
-    return const NotifierState.loading();
-  }
+  int get pageSize => 30;
 
-  Future<NotifierState<InterestAccrualPage>> _read(int page) =>
-      switch (source) {
-        FlexInterestSource() =>
-          ref.read(coreFlexInterestServiceProvider).getAccruals(page: page),
-        PlanInterestSource(:final planId) =>
-          ref
-              .read(coreSavingsPlanServiceProvider)
-              .getPlanAccruals(planId, page: page),
-      };
+  @override
+  String get loadFailure => "We couldn't load your interest history.";
 
-  /// Reads the first page again, dropping any later pages.
-  Future<void> reload() async {
-    final generation = ++_generation;
-    final result = await _read(1);
-    if (!ref.mounted || generation != _generation) return;
-    final page = result.data;
-    if (page == null) {
-      state = NotifierState.error(
-        result.message ?? "We couldn't load your interest history.",
-        statusCode: result.statusCode,
-      );
-      return;
-    }
-    _page = 1;
-    hasMore = page.page?.hasMore ?? false;
-    loadingMore = false;
-    state = NotifierState.done(page.accruals);
-  }
+  @override
+  void watchScope() => ref.watch(authSessionProvider);
 
-  /// Adds the next page, keeping the days already shown. A failure leaves
-  /// them as they are.
-  Future<void> loadMore() async {
-    final current = state.data;
-    if (current == null || !hasMore || loadingMore) return;
-    final generation = _generation;
-    loadingMore = true;
-    final result = await _read(_page + 1);
-    if (!ref.mounted || generation != _generation) return;
-    loadingMore = false;
-    final page = result.data;
-    if (page == null) {
-      state = NotifierState.done(current);
-      return;
-    }
-    _page++;
-    hasMore = page.page?.hasMore ?? false;
-    // One row per day and no id: a day already shown is not added again.
-    final known = {
-      for (final row in current)
-        if (row.date != null) row.date,
+  /// One row per day and no id: a day already shown is not added again.
+  @override
+  Object? rowKey(InterestAccrual row) => row.date;
+
+  @override
+  Future<NotifierState<PagedRead<InterestAccrual>>> readPage(int page) async {
+    final result = await switch (source) {
+      FlexInterestSource() =>
+        ref
+            .read(coreFlexInterestServiceProvider)
+            .getAccruals(page: page, pageSize: pageSize),
+      PlanInterestSource(:final planId) =>
+        ref
+            .read(coreSavingsPlanServiceProvider)
+            .getPlanAccruals(planId, page: page, pageSize: pageSize),
     };
-    state = NotifierState.done([
-      ...current,
-      for (final row in page.accruals)
-        if (row.date == null || known.add(row.date)) row,
-    ]);
+    final read = result.data;
+    return read == null
+        ? NotifierState.error(
+            result.message ?? loadFailure,
+            statusCode: result.statusCode,
+          )
+        : NotifierState.done((rows: read.accruals, page: read.page));
   }
 }

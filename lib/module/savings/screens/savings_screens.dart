@@ -23,8 +23,8 @@ import '../../home/model/user_home_model.dart';
 import '../../home/provider/home_provider.dart';
 import '../../home/screens/home_screen.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
-import '../model/savings_plan_models.dart';
 import '../model/flex_interest_models.dart';
+import '../model/savings_plan_models.dart';
 import '../provider/flex_interest_provider.dart';
 import '../provider/savings_plan_provider.dart';
 
@@ -770,6 +770,15 @@ extension SavingsScreens on FlowPageState {
         ApiStateCard(
           title: 'Interest unavailable',
           message: value.message ?? "We couldn't load your interest.",
+          tone: ApiStateTone.error,
+          actionLabel: 'Retry',
+          onAction: () => ref.invalidate(flexInterestProvider),
+        ),
+      ],
+      AsyncError() => [
+        ApiStateCard(
+          title: 'Interest unavailable',
+          message: "We couldn't load your interest.",
           tone: ApiStateTone.error,
           actionLabel: 'Retry',
           onAction: () => ref.invalidate(flexInterestProvider),

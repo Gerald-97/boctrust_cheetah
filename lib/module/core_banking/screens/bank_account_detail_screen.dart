@@ -14,6 +14,7 @@ import '../model/customer_bank_account_models.dart';
 import '../provider/core_account_activity_providers.dart';
 import '../provider/core_account_providers.dart';
 import 'core_flow_widgets.dart';
+import 'paged_rows_footer.dart';
 
 /// One Core account's live summary. Opened with the account number as the
 /// route's `entityId`, or for the Flex account.
@@ -186,37 +187,37 @@ class _BankAccountDetailScreenState
           )
         else ...[
           for (final row in history.rows) _historyRow(row),
-          if (history.loadingMore)
-            const ApiLoadingSection(label: 'Loading more')
-          else if (history.hasMore)
-            Center(
-              child: TextButton(
-                onPressed: () => ref
-                    .read(coreAccountHistoryProvider(key).notifier)
-                    .loadMore(),
-                child: const Text('Show more'),
-              ),
-            ),
+          PagedRowsFooter(
+            rows: history,
+            onShowMore: () =>
+                ref.read(coreAccountHistoryProvider(key).notifier).loadMore(),
+          ),
         ],
       ],
     );
   }
 
   Widget _historyRow(CoreAccountTransaction row) {
-    final credit = row.type == CoreTransactionType.credit;
-    final amount =
-        formatApiAmount(row.amount, currency: 'NGN') ?? 'Unavailable';
+    final sign = row.type == CoreTransactionType.credit ? '+' : '-';
+    final amount = formatApiAmount(row.amount, currency: 'NGN');
+    final hidden = ref.watch(homeBalanceHiddenProvider);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(row.narration ?? 'Transaction'),
       subtitle: Text(
         [
           if (row.date case final date?)
-            DateFormat('d MMM, h:mm a').format(date.toLocal()),
+            DateFormat('d MMM, h:mm a').format(date.toLocal())
+          else
+            'Date unavailable',
           if (row.reversed) 'Reversed',
         ].join(' · '),
       ),
-      trailing: Text('${credit ? '+' : '-'}$amount'),
+      trailing: Text(switch (amount) {
+        _ when hidden => '₦ ••••••',
+        null => 'Unavailable',
+        final amount => '$sign$amount',
+      }),
     );
   }
 

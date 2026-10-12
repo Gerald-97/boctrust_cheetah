@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
+import '../../core_banking/screens/paged_rows_footer.dart';
+import '../../home/provider/home_provider.dart';
 import '../model/interest_accrual_models.dart';
 import '../provider/interest_history_provider.dart';
 
@@ -26,14 +29,31 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
     final source = planId == null
         ? const InterestSource.flex()
         : InterestSource.plan(planId);
+    final title = planId == null
+        ? 'Flex interest history'
+        : 'Plan interest history';
+    final capability = planId == null
+        ? FeatureCapability.flexInterestView
+        : FeatureCapability.savingsPlansView;
+    if (!ref.watch(featureAvailabilityProvider(capability)).isAvailable) {
+      return popScope(
+        unavailablePage(
+          UnavailableDestination(
+            title: title,
+            heading: 'Unavailable',
+            message: 'Interest history is not available yet.',
+            section: AppSection.save,
+            capability: capability,
+          ),
+        ),
+      );
+    }
     final state = ref.watch(interestHistoryProvider(source));
     final notifier = ref.read(interestHistoryProvider(source).notifier);
-    final rows = state.data;
+    final history = state.data;
     return popScope(
       AppScaffold(
-        title: planId == null
-            ? 'Flex interest history'
-            : 'Plan interest history',
+        title: title,
         activeSection: AppSection.save,
         onBack: back,
         onSectionSelected: goSection,
@@ -48,7 +68,7 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
               BocSpace.lg,
             ).clearOfNav(context),
             children: [
-              if (rows == null && state.isError)
+              if (history == null && state.isError)
                 state.statusCode == 404 && planId != null
                     ? const ApiStateCard(
                         title: 'Plan unavailable',
@@ -65,23 +85,17 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
                         onAction: () =>
                             ref.invalidate(interestHistoryProvider(source)),
                       )
-              else if (rows == null)
+              else if (history == null)
                 const ApiLoadingSection(label: 'Loading your interest')
-              else if (rows.isEmpty)
+              else if (history.rows.isEmpty)
                 const ApiStateCard(
                   title: 'Interest history',
                   message: 'No interest has been earned yet.',
                   tone: ApiStateTone.info,
                 )
               else ...[
-                for (final row in rows) _row(row),
-                if (notifier.hasMore)
-                  Center(
-                    child: TextButton(
-                      onPressed: notifier.loadMore,
-                      child: const Text('Show more'),
-                    ),
-                  ),
+                for (final row in history.rows) _row(row),
+                PagedRowsFooter(rows: history, onShowMore: notifier.loadMore),
               ],
             ],
           ),
@@ -91,8 +105,11 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
   }
 
   Widget _row(InterestAccrual row) {
-    final interest = formatApiAmount(row.interest, currency: 'NGN');
-    final total = formatApiAmount(row.cumulativeInterest, currency: 'NGN');
+    final hidden = ref.watch(homeBalanceHiddenProvider);
+    String? money(String? value) =>
+        hidden ? '₦ ••••••' : formatApiAmount(value, currency: 'NGN');
+    final interest = money(row.interest);
+    final total = money(row.cumulativeInterest);
     final date = row.date;
     final rate = row.ratePercent;
     return ListTile(

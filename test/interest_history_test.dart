@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
@@ -115,6 +116,9 @@ void main() {
       route: AppRoutes.interestHistory,
       overrides: [
         authSessionProvider.overrideWith(SavingsSession.new),
+        featureAvailabilityProvider(
+          FeatureCapability.flexInterestView,
+        ).overrideWithValue(FeatureAvailability.available),
         coreFlexInterestServiceProvider.overrideWithValue(
           _Flex([
             [_accrual('2026-10-11', '34.25')],
@@ -145,6 +149,9 @@ void main() {
       arguments: const AppRouteArguments(entityId: 'p1'),
       overrides: [
         authSessionProvider.overrideWith(SavingsSession.new),
+        featureAvailabilityProvider(
+          FeatureCapability.savingsPlansView,
+        ).overrideWithValue(FeatureAvailability.available),
         coreSavingsPlanServiceProvider.overrideWithValue(const _Plans()),
       ],
     );
