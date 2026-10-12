@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
-import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/interest_accrual_models.dart';
@@ -14,8 +13,8 @@ final coreSavingsPlanServiceProvider = Provider<CoreSavingsPlanService>(
   (ref) => CoreSavingsPlanService(ref.watch(coreApiServiceProvider)),
 );
 
-/// Reads the customer's Core savings plans. Replies carry account numbers
-/// and plan history, so they are logged by path template only.
+/// Reads the customer's Core savings plans. Requests and replies are logged in
+/// full on staging; the logger's key rules still apply.
 ///
 /// A null [_api] means `CORE_BASE_URL` is not configured; every read then
 /// reports blocked.
@@ -37,10 +36,6 @@ class CoreSavingsPlanService {
         CoreApiEndpoints.savingsPlans,
         queryParameters: {'productCode': code},
         parser: SavingsProductGroup.listFromJson,
-        requestExtra: const {
-          LoggingInterceptor.privacySensitivePathKey:
-              CoreApiEndpoints.savingsPlans,
-        },
       ),
     );
   }
@@ -53,10 +48,6 @@ class CoreSavingsPlanService {
       await api.getData<SavingsPlanDetail>(
         CoreApiEndpoints.savingsPlan(planId),
         parser: SavingsPlanDetail.fromJson,
-        requestExtra: const {
-          LoggingInterceptor.privacySensitivePathKey:
-              CoreApiEndpoints.savingsPlanTemplate,
-        },
       ),
     );
   }

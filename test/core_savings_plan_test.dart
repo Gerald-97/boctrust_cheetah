@@ -117,7 +117,7 @@ void main() {
     expect(event.props, isNot(contains('REF-1')));
   });
 
-  test('plans are filtered by product and logged by template', () async {
+  test('plans are filtered by product and logged in full', () async {
     final core = _Core(<Object?>[]);
     final service = _service(core);
 
@@ -128,13 +128,13 @@ void main() {
     expect(list.path, '/me/savings-plans');
     expect(list.queryParameters, {'productCode': 'boctrustFixedDeposit'});
     expect(
-      list.extra[LoggingInterceptor.privacySensitivePathKey],
-      '/me/savings-plans',
+      list.extra,
+      isNot(contains(LoggingInterceptor.privacySensitivePathKey)),
     );
     expect(detail.path, '/me/savings-plans/p%2F1');
     expect(
-      detail.extra[LoggingInterceptor.privacySensitivePathKey],
-      '/me/savings-plans/{planId}',
+      detail.extra,
+      isNot(contains(LoggingInterceptor.privacySensitivePathKey)),
     );
   });
 }
