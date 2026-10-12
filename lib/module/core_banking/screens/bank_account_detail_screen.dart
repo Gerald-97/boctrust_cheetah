@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
@@ -8,6 +9,7 @@ import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../home/provider/home_provider.dart';
 import '../model/core_account_summary.dart';
+import '../model/core_account_transactions.dart';
 import '../model/customer_bank_account_models.dart';
 import '../provider/core_account_activity_providers.dart';
 import '../provider/core_account_providers.dart';
@@ -30,6 +32,8 @@ class BankAccountDetailScreen extends ConsumerStatefulWidget {
 
 class _BankAccountDetailScreenState
     extends FlowPageState<BankAccountDetailScreen> {
+  CoreHistoryRange _range = CoreHistoryRange.last30Days;
+
   @override
   void initState() {
     super.initState();
@@ -91,9 +95,14 @@ class _BankAccountDetailScreenState
               : Future.wait([
                   ref.refresh(coreAccountSummaryProvider(accountNumber).future),
                   if (historyAvailable)
-                    ref.refresh(
-                      coreAccountHistoryProvider(accountNumber).future,
-                    ),
+                    ref
+                        .read(
+                          coreAccountHistoryProvider((
+                            accountNumber: accountNumber,
+                            range: _range,
+                          )).notifier,
+                        )
+                        .reload(),
                 ]),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -142,28 +151,74 @@ class _BankAccountDetailScreenState
     );
   }
 
-  /// Whether the last 30 days have activity. Rows are never shown: their
-  /// fields are unconfirmed, so any amount or direction could be wrong.
-  Widget _history(String accountNumber) =>
-      switch (ref.watch(coreAccountHistoryProvider(accountNumber))) {
-        AsyncData(:final value) when value.data != null => ApiStateCard(
-          title: 'Transactions, last 30 days',
-          message: value.data!.rows.isEmpty
-              ? 'No transactions in this period.'
-              : "You have activity in this period. Details aren't available "
-                    'in the app yet.',
-          tone: ApiStateTone.info,
+  Widget _history(String accountNumber) {
+    final key = (accountNumber: accountNumber, range: _range);
+    final state = ref.watch(coreAccountHistoryProvider(key));
+    final history = state.data;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        BocChoiceChips<CoreHistoryRange>(
+          options: const [
+            (value: CoreHistoryRange.last7Days, label: '7 days'),
+            (value: CoreHistoryRange.last30Days, label: '30 days'),
+            (value: CoreHistoryRange.last60Days, label: '60 days'),
+          ],
+          selected: {_range},
+          onChanged: (next) => setState(() => _range = next.first),
         ),
-        AsyncData(:final value) => ApiStateCard(
-          title: 'Transactions unavailable',
-          message: value.message ?? "We couldn't load your transactions.",
-          tone: ApiStateTone.error,
-          actionLabel: 'Retry',
-          onAction: () =>
-              ref.invalidate(coreAccountHistoryProvider(accountNumber)),
-        ),
-        _ => const ApiLoadingSection(label: 'Loading your transactions'),
-      };
+        const SizedBox(height: BocSpace.sm),
+        if (history == null && state.isError)
+          ApiStateCard(
+            title: 'Transactions unavailable',
+            message: state.message ?? "We couldn't load your transactions.",
+            tone: ApiStateTone.error,
+            actionLabel: 'Retry',
+            onAction: () => ref.invalidate(coreAccountHistoryProvider(key)),
+          )
+        else if (history == null)
+          const ApiLoadingSection(label: 'Loading your transactions')
+        else if (history.rows.isEmpty)
+          const ApiStateCard(
+            title: 'Transactions',
+            message: 'No transactions in this period.',
+            tone: ApiStateTone.info,
+          )
+        else ...[
+          for (final row in history.rows) _historyRow(row),
+          if (history.loadingMore)
+            const ApiLoadingSection(label: 'Loading more')
+          else if (history.hasMore)
+            Center(
+              child: TextButton(
+                onPressed: () => ref
+                    .read(coreAccountHistoryProvider(key).notifier)
+                    .loadMore(),
+                child: const Text('Show more'),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _historyRow(CoreAccountTransaction row) {
+    final credit = row.type == CoreTransactionType.credit;
+    final amount =
+        formatApiAmount(row.amount, currency: 'NGN') ?? 'Unavailable';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(row.narration ?? 'Transaction'),
+      subtitle: Text(
+        [
+          if (row.date case final date?)
+            DateFormat('d MMM, h:mm a').format(date.toLocal()),
+          if (row.reversed) 'Reversed',
+        ].join(' · '),
+      ),
+      trailing: Text('${credit ? '+' : '-'}$amount'),
+    );
+  }
 
   Widget _summaryCard(CoreAccountSummary summary) {
     final hidden = ref.watch(homeBalanceHiddenProvider);

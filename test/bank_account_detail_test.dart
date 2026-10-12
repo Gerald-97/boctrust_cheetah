@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart' show ListView;
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_summary.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_page.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
@@ -13,8 +15,11 @@ import 'support/flow_harness.dart';
 import 'support/savings_fixtures.dart';
 
 class _Accounts extends CoreAccountService {
-  const _Accounts([this.rows = const []]) : super(null);
-  final List<CoreAccountTransaction> rows;
+  _Accounts([this.pages = const [[]]]) : super(null);
+
+  /// The rows of each page, first page first.
+  final List<List<CoreAccountTransaction>> pages;
+  final ranges = <CoreHistoryRange>[];
 
   @override
   Future<NotifierState<CoreAccountSummary>> getAccountSummary(
@@ -36,8 +41,35 @@ class _Accounts extends CoreAccountService {
     int page = 1,
     int pageSize = 20,
     DateTime? today,
-  }) async => NotifierState.done(CoreTransactionPage(rows: rows));
+  }) async {
+    ranges.add(range);
+    return NotifierState.done(
+      CoreTransactionPage(
+        rows: pages[page - 1],
+        page: CorePage(
+          page: page,
+          pageSize: pageSize,
+          total: pages.length * pageSize,
+          totalPages: pages.length,
+        ),
+      ),
+    );
+  }
 }
+
+CoreAccountTransaction _row(
+  String id, {
+  CoreTransactionType type = CoreTransactionType.debit,
+  String amount = '1.00',
+  String? narration,
+  bool reversed = false,
+}) => CoreAccountTransaction(
+  id: id,
+  type: type,
+  amount: amount,
+  narration: narration,
+  reversed: reversed,
+);
 
 Future<void> _pumpDetail(WidgetTester tester, _Accounts accounts) async {
   await pumpFlow(
@@ -60,41 +92,80 @@ Future<void> _pumpDetail(WidgetTester tester, _Accounts accounts) async {
 
 void main() {
   testWidgets('account detail shows the live summary', (tester) async {
-    await _pumpDetail(tester, const _Accounts());
+    await _pumpDetail(tester, _Accounts());
 
     expect(find.text('Boc Flex'), findsWidgets);
     expect(find.text('₦7,654.30'), findsOneWidget);
     expect(find.text('ADA OBI'), findsOneWidget);
   });
 
-  // Rows have no confirmed schema, so none of their values are shown.
-  testWidgets('unmapped history says activity exists without rows', (
-    tester,
-  ) async {
+  testWidgets('history shows each row with its direction', (tester) async {
     await _pumpDetail(
       tester,
-      const _Accounts([
-        CoreAccountTransaction(
-          id: '1',
-          type: CoreTransactionType.debit,
-          amount: '40.38',
-          narration: 'GUESSED ROW',
-        ),
+      _Accounts([
+        [
+          _row(
+            '1',
+            type: CoreTransactionType.credit,
+            amount: '5000.00',
+            narration: 'SALARY',
+          ),
+          _row('2', amount: '40.38', narration: 'POS'),
+        ],
       ]),
     );
 
-    expect(
-      find.text(
-        "You have activity in this period. Details aren't available in the "
-        'app yet.',
-      ),
-      findsOneWidget,
+    expect(find.text('+₦5,000.00'), findsOneWidget);
+    expect(find.text('-₦40.38'), findsOneWidget);
+    expect(find.text('SALARY'), findsOneWidget);
+    expect(find.text('POS'), findsOneWidget);
+  });
+
+  testWidgets('choosing a range re-reads that range', (tester) async {
+    final accounts = _Accounts();
+    await _pumpDetail(tester, accounts);
+
+    await tester.tap(find.text('7 days'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(accounts.ranges.last, CoreHistoryRange.last7Days);
+  });
+
+  testWidgets('a reversed row says so', (tester) async {
+    await _pumpDetail(
+      tester,
+      _Accounts([
+        [_row('1', reversed: true)],
+      ]),
     );
-    expect(find.textContaining('GUESSED ROW'), findsNothing);
+
+    expect(find.text('Reversed'), findsOneWidget);
+  });
+
+  testWidgets('a later page never repeats a row', (tester) async {
+    await _pumpDetail(
+      tester,
+      _Accounts([
+        [_row('a', narration: 'ROW A'), _row('b', narration: 'ROW B')],
+        [_row('b', narration: 'ROW B'), _row('c', narration: 'ROW C')],
+      ]),
+    );
+
+    await tester.ensureVisible(find.text('Show more'));
+    // Clear the bottom navigation.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -150));
+    await tester.pump();
+    await tester.tap(find.text('Show more'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('ROW A'), findsOneWidget);
+    expect(find.text('ROW B'), findsOneWidget);
+    expect(find.text('ROW C'), findsOneWidget);
+    expect(find.text('Show more'), findsNothing);
   });
 
   testWidgets('empty history is not shown as activity', (tester) async {
-    await _pumpDetail(tester, const _Accounts());
+    await _pumpDetail(tester, _Accounts());
 
     expect(find.text('No transactions in this period.'), findsOneWidget);
   });
