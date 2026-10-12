@@ -38,3 +38,16 @@ List<Object?> coreRows(Object? json, List<String> keys) {
   }
   throw const FormatException('Missing list.');
 }
+
+final _nairaText = RegExp(r'^\d+(\.\d+)?$');
+
+/// A Naira amount as Core documents it: a non-negative decimal string
+/// (`'1500.50'`) or a finite non-negative JSON number, as a decimal string.
+/// Anything else is null.
+String? coreNaira(Object? value) {
+  if (value is num) {
+    return value.isFinite && value >= 0 ? '$value' : null;
+  }
+  final text = coreText(value);
+  return text != null && _nairaText.hasMatch(text) ? text : null;
+}

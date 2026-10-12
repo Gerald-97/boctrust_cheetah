@@ -70,19 +70,10 @@ enum SavingsPlanStatus {
   }
 }
 
-/// A whole Kobo amount sent as digits, as a Naira decimal string, else null.
-/// Every amount on the savings-plan routes is Kobo.
-String? _naira(Object? kobo) {
-  final text = coreText(kobo);
-  return text != null && RegExp(r'^\d+$').hasMatch(text)
-      ? koboToNaira(text)
-      : null;
-}
-
 int? _days(Object? value) => value is int && value > 0 ? value : null;
 
 /// A customer's savings plan as Core reports it. Amounts are Naira decimal
-/// strings converted from Kobo; the client never computes balances or
+/// strings; the client never computes balances or
 /// interest.
 class SavingsPlan extends Equatable {
   const SavingsPlan({
@@ -123,10 +114,10 @@ class SavingsPlan extends Equatable {
       id: id,
       type: type,
       name: coreText(json['planName']) ?? type.displayName,
-      principal: _naira(json['principalAmount']),
+      principal: coreNaira(json['principalAmount']),
       status: SavingsPlanStatus.parse(json['status']),
-      target: _naira(json['targetAmount']),
-      interestEarned: _naira(json['interestEarned']),
+      target: coreNaira(json['targetAmount']),
+      interestEarned: coreNaira(json['interestEarned']),
       rate: coreText(json['currentInterestRatePercent']),
       tenorDays: _days(json['tenorDays']),
       maturityDate: DateTime.tryParse(coreText(json['maturityDate']) ?? ''),
@@ -241,7 +232,7 @@ class SavingsPlanEvent extends Equatable {
     if (json is! Map) return null;
     return SavingsPlanEvent(
       type: SavingsPlanEventType.parse(json['eventType']),
-      amount: _naira(json['amount']),
+      amount: coreNaira(json['amount']),
       createdAt: DateTime.tryParse(coreText(json['createdAt']) ?? ''),
     );
   }

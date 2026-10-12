@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'core_json.dart';
+import 'core_money.dart';
 
 /// A destination bank from `GET /me/interbank/banks`.
 class CommercialBank extends Equatable {
@@ -104,7 +105,7 @@ class InterbankTransferDraft extends Equatable {
     return {
       'receiverBankCode': bankCode,
       'receiverAccountNumber': accountNumber,
-      'amount': amountKobo,
+      'amount': koboToNaira(amountKobo),
       if (note.isNotEmpty) 'narration': note,
     };
   }

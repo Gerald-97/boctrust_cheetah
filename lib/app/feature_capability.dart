@@ -389,7 +389,7 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
     },
   ),
   // The customer's SmartSave and Fixed Deposit plans, read only. Amounts are
-  // read as Kobo, as every amount input on these routes is documented.
+  // Naira decimal strings, as Core documents them.
   FeatureCapability.savingsPlansView: CapabilityRequirement(
     stagingOnly: true,
     operations: {

@@ -66,12 +66,12 @@ class _Limits extends CoreTransactionLimitService {
 final _tier1 = NotifierState.done(
   TransactionLimits.fromJson({
     'tier': 1,
-    'businessSingleTransferLimit': '5000000',
-    'businessSingleBillPaymentLimit': '1000000',
-    'businessDailyTransferLimit': '20000000',
-    'effectiveSingleTransferLimit': '5000000',
-    'effectiveSingleBillPaymentLimit': '1000000',
-    'effectiveDailyTransferLimit': '20000000',
+    'businessSingleTransferLimit': '50000.00',
+    'businessSingleBillPaymentLimit': '10000.00',
+    'businessDailyTransferLimit': '200000.00',
+    'effectiveSingleTransferLimit': '50000.00',
+    'effectiveSingleBillPaymentLimit': '10000.00',
+    'effectiveDailyTransferLimit': '200000.00',
   }),
 );
 
@@ -132,19 +132,17 @@ Future<void> _open(
 }
 
 void main() {
-  // The ceilings are documented in Kobo; custom and effective values are
-  // compared with them, so they share the unit.
-  test('reads Kobo limits as Naira, with no custom value unset', () {
+  test('reads Naira limits, with no custom value unset', () {
     final limits = TransactionLimits.fromJson({
       'tier': 2,
-      'businessSingleTransferLimit': '50000000',
-      'businessSingleBillPaymentLimit': '10000000',
-      'businessDailyTransferLimit': '200000000',
-      'customSingleTransferLimit': '2000000',
+      'businessSingleTransferLimit': '500000.00',
+      'businessSingleBillPaymentLimit': '100000.00',
+      'businessDailyTransferLimit': '2000000',
+      'customSingleTransferLimit': '20000.00',
       'customSingleBillPaymentLimit': null,
-      'effectiveSingleTransferLimit': '2000000',
-      'effectiveSingleBillPaymentLimit': '10000000',
-      'effectiveDailyTransferLimit': '200000000',
+      'effectiveSingleTransferLimit': '20000.00',
+      'effectiveSingleBillPaymentLimit': '100000.00',
+      'effectiveDailyTransferLimit': '2000000',
     });
 
     expect(limits.tier, 2);
@@ -152,7 +150,7 @@ void main() {
     expect(limits.singleTransfer.business, '500000.00');
     expect(limits.singleTransfer.custom, '20000.00');
     expect(limits.singleBillPayment.custom, isNull);
-    expect(limits.dailyTransfer.effective, '2000000.00');
+    expect(limits.dailyTransfer.effective, '2000000');
   });
 
   testWidgets('shows the effective limits', (tester) async {
@@ -161,12 +159,12 @@ void main() {
       NotifierState.done(
         TransactionLimits.fromJson({
           'tier': 1,
-          'businessSingleTransferLimit': '5000000',
-          'businessSingleBillPaymentLimit': '1000000',
-          'businessDailyTransferLimit': '20000000',
-          'effectiveSingleTransferLimit': '5000000',
-          'effectiveSingleBillPaymentLimit': '1000000',
-          'effectiveDailyTransferLimit': '20000000',
+          'businessSingleTransferLimit': '50000.00',
+          'businessSingleBillPaymentLimit': '10000.00',
+          'businessDailyTransferLimit': '200000.00',
+          'effectiveSingleTransferLimit': '50000.00',
+          'effectiveSingleBillPaymentLimit': '10000.00',
+          'effectiveDailyTransferLimit': '200000.00',
         }),
       ),
     );
@@ -252,9 +250,9 @@ void main() {
       await tester.tap(find.text('Verify code'));
       await settle(tester);
 
-      // Only the changed limit, in Kobo.
+      // Only the changed limit, in Naira.
       expect(limits.drafts, [
-        const TransactionLimitDraft(dailyTransferLimit: '100000'),
+        const TransactionLimitDraft(dailyTransferLimit: '1000.00'),
       ]);
       expect(limits.finalized, 1);
       expect(find.text('Your limits were updated.'), findsOneWidget);

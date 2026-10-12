@@ -45,8 +45,8 @@ Map<String, Object?> _plan({String status = 'active'}) => {
   'planId': 'p1',
   'productCode': 'bocSmartSave',
   'planName': 'Rent',
-  'targetAmount': '10000000',
-  'principalAmount': '500000',
+  'targetAmount': '100000',
+  'principalAmount': '5000.00',
   'interestEarned': '0',
   'tenorDays': 90,
   'maturityDate': '2027-01-08',
@@ -55,9 +55,8 @@ Map<String, Object?> _plan({String status = 'active'}) => {
 };
 
 void main() {
-  // Every amount input on this resource is documented in Kobo, so plan
-  // amounts are read as Kobo.
-  test('reads grouped plans with Kobo amounts as Naira', () {
+  // Plan amounts arrive as Naira decimal strings.
+  test('amounts read as Naira', () {
     final groups = SavingsProductGroup.listFromJson([
       {
         'accountNumber': '1100919408',
@@ -69,7 +68,7 @@ void main() {
         'plans': [
           _plan(),
           _plan(status: 'paused_by_bank'),
-          {..._plan(), 'principalAmount': '5000.00'},
+          {..._plan(), 'principalAmount': 'abc'},
         ],
       },
       {'productCode': 'bocPadi', 'productName': 'Padi', 'plans': []},
@@ -79,7 +78,7 @@ void main() {
     expect(group.type, SavingsProductType.smartSave);
     expect(group.accountNumber, '1100919408');
     expect(group.plans.first.principal, '5000.00');
-    expect(group.plans.first.target, '100000.00');
+    expect(group.plans.first.target, '100000');
     expect(group.plans.first.status, SavingsPlanStatus.active);
     expect(group.plans[1].status, SavingsPlanStatus.unknown);
     // A plan whose amount cannot be read is kept, not hidden.
@@ -94,7 +93,7 @@ void main() {
       'events': [
         {
           'eventType': 'top_up',
-          'amount': '250000',
+          'amount': '2500.00',
           'reference': 'REF-1',
           'createdAt': '2026-10-09T10:00:00Z',
         },

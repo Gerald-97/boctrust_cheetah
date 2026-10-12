@@ -36,8 +36,12 @@ enum _LimitField {
   };
 }
 
-/// One field's checked entry: the changed value in Kobo, or why it can't be
-/// sent. Unchanged and empty fields have neither.
+/// An entry's Kobo as the Naira decimal Core takes.
+String? _naira(String? kobo) => kobo == null ? null : koboToNaira(kobo);
+
+/// One field's checked entry: the changed value in Kobo (converted to Naira
+/// when sent), or why it can't be sent. Unchanged and empty fields have
+/// neither.
 typedef _Entry = ({String? kobo, String? error});
 
 /// The customer's effective transfer and bill-payment limits. Viewing needs
@@ -67,8 +71,8 @@ class _TransactionLimitsScreenState
   }
 
   /// [field]'s entry against the current limits. The Swagger states no unit
-  /// for limit inputs; they are sent in Kobo, like the documented tier
-  /// ceilings, and editing stays staging-only until staging confirms it.
+  /// for limit inputs; they are sent in Naira, and editing
+  /// stays staging-only until staging confirms it.
   _Entry _entry(_LimitField field, TransactionLimits limits) {
     final text = _fields[field]!.text.trim();
     if (text.isEmpty) return (kobo: null, error: null);
@@ -314,9 +318,9 @@ class _TransactionLimitsScreenState
       for (final (field, kobo) in changed) (field.label, nairaFromKobo(kobo)),
     ];
     final draft = TransactionLimitDraft(
-      singleTransferLimit: entries[_LimitField.single]!.kobo,
-      dailyTransferLimit: entries[_LimitField.daily]!.kobo,
-      singleBillPaymentLimit: entries[_LimitField.bill]!.kobo,
+      singleTransferLimit: _naira(entries[_LimitField.single]!.kobo),
+      dailyTransferLimit: _naira(entries[_LimitField.daily]!.kobo),
+      singleBillPaymentLimit: _naira(entries[_LimitField.bill]!.kobo),
     );
     final busy =
         ref.watch(transactionLimitUpdateProvider).phase !=

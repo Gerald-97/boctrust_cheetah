@@ -1,15 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 import '../../core_banking/model/core_json.dart';
-import '../../core_banking/model/core_money.dart';
-
-/// A whole Kobo amount sent as digits, as a Naira decimal string, else null.
-String? _naira(Object? kobo) {
-  final text = coreText(kobo);
-  return text != null && RegExp(r'^\d+$').hasMatch(text)
-      ? koboToNaira(text)
-      : null;
-}
 
 /// One limit: the tier's ceiling, the customer's own tighter cap if set, and
 /// the value actually enforced. Naira decimal strings.
@@ -25,8 +16,7 @@ class TransactionLimit extends Equatable {
 }
 
 /// The caller's limits from `GET /me/transaction-limits`. The tier ceilings
-/// are documented in Kobo; custom and effective values are compared with
-/// them, so all are read as Kobo.
+/// are Naira decimal strings, as are the custom and effective values.
 class TransactionLimits extends Equatable {
   const TransactionLimits({
     required this.tier,
@@ -40,9 +30,9 @@ class TransactionLimits extends Equatable {
     final tier = json['tier'];
     if (tier is! int) throw const FormatException('Missing tier.');
     TransactionLimit limit(String name) => TransactionLimit(
-      business: _naira(json['business$name']),
-      custom: _naira(json['custom$name']),
-      effective: _naira(json['effective$name']),
+      business: coreNaira(json['business$name']),
+      custom: coreNaira(json['custom$name']),
+      effective: coreNaira(json['effective$name']),
     );
     return TransactionLimits(
       tier: tier,
