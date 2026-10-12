@@ -1,4 +1,5 @@
 import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_json.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -132,5 +133,11 @@ void main() {
     expect(products.last.interestRate, isNull);
     expect(products.last.tenureDays, isNull);
     expect(() => products.add(products.first), throwsUnsupportedError);
+  });
+
+  test('Naira sent as a JSON number reads as a plain decimal', () {
+    expect(coreNaira(1200), '1200');
+    expect(coreNaira(5000.5), '5000.50');
+    expect(coreNaira(0.0000001), '0.00');
   });
 }

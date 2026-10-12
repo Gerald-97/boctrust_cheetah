@@ -9,6 +9,7 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/model/savings_plan_models.dart';
 import 'package:boctrust_savings_loan/module/savings/service/core_savings_plan_service.dart';
+import 'package:flutter/material.dart' show PopupMenuButton;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/flow_harness.dart';
@@ -86,6 +87,7 @@ Future<void> _open(
   String route,
   _Plans plans, {
   AppRouteArguments arguments = const AppRouteArguments(),
+  bool withdraw = false,
 }) async {
   await pumpFlow(
     tester,
@@ -98,6 +100,10 @@ Future<void> _open(
       featureAvailabilityProvider(
         FeatureCapability.savingsPlansView,
       ).overrideWithValue(FeatureAvailability.available),
+      if (withdraw)
+        featureAvailabilityProvider(
+          FeatureCapability.savingsPlanWithdraw,
+        ).overrideWithValue(FeatureAvailability.available),
       userHomeProvider.overrideWith(LayoutHome.new),
       customerBankAccountsProvider.overrideWith(_SmartSaveAccounts.new),
       coreBankProductsProvider.overrideWith(LayoutCoreProducts.new),
@@ -147,6 +153,43 @@ void main() {
 
     expect(find.text('Interest so far'), findsOneWidget);
     expect(find.text('₦120.40'), findsOneWidget);
+  });
+
+  testWidgets('early withdrawal names the fee on the interest', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(
+        detail: NotifierState.done(
+          SavingsPlanDetail(
+            plan: SavingsPlan(
+              id: 'p1',
+              type: SavingsProductType.smartSave,
+              name: 'Rent',
+              principal: '5000.00',
+              status: SavingsPlanStatus.active,
+              earlyWithdrawalFeePercent: '2.5',
+            ),
+            events: [],
+          ),
+        ),
+      ),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      withdraw: true,
+    );
+
+    // The menu's own overlay is not hit-testable in the harness, so choose
+    // the item the way the menu does.
+    tester
+        .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
+        .onSelected!('withdraw');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.textContaining('minus a 2.5% early withdrawal fee'),
+      findsOneWidget,
+    );
+    expect(find.text('Withdraw early'), findsOneWidget);
   });
 
   testWidgets('a plan the customer no longer has says so', (tester) async {

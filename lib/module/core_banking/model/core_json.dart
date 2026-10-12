@@ -45,8 +45,10 @@ final _nairaText = RegExp(r'^\d+(\.\d+)?$');
 /// (`'1500.50'`) or a finite non-negative JSON number, as a decimal string.
 /// Anything else is null.
 String? coreNaira(Object? value) {
-  if (value is num) {
-    return value.isFinite && value >= 0 ? '$value' : null;
+  if (value is int) return value >= 0 ? '$value' : null;
+  if (value is double) {
+    // Fixed to Kobo, so a double never reads in exponent form.
+    return value.isFinite && value >= 0 ? value.toStringAsFixed(2) : null;
   }
   final text = coreText(value);
   return text != null && _nairaText.hasMatch(text) ? text : null;

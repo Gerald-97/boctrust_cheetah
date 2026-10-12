@@ -101,7 +101,7 @@ class BocTextButton extends StatelessWidget {
 }
 
 /// A destructive action. Its label must name the consequence ("Delete
-/// account", "Withdraw and forfeit interest"), never "Yes"; it is styled
+/// account", "Withdraw early"), never "Yes"; it is styled
 /// quieter than [PrimaryButton] so it is never the default-looking choice.
 class DestructiveButton extends StatelessWidget {
   const DestructiveButton({

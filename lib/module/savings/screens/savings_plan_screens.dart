@@ -631,11 +631,13 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
           const SizedBox(height: BocSpace.md),
           Text(
             widget.type == SavingsProductType.fixed
-                ? 'Withdrawing before the end of the term may forfeit '
-                      'interest. Your rate and maturity date are confirmed '
-                      'before you create the deposit.'
-                : 'Withdrawing before your target date may forfeit part of '
-                      'the interest you have earned.',
+                ? 'Withdrawing before the end of the term pays your deposit '
+                      'and the interest earned so far, minus an early '
+                      'withdrawal fee. Your rate and maturity date are '
+                      'confirmed before you create the deposit.'
+                : 'Withdrawing before your target date pays your savings '
+                      'and the interest earned so far, minus an early '
+                      'withdrawal fee.',
             style: theme.textTheme.bodySmall,
           ),
         ];

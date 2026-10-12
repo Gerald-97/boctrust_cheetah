@@ -111,6 +111,7 @@ void main() {
           'amount': '40.38',
           'balance': '1009900.62',
           'narration': 'POS',
+          'reference': 'TRF-1',
           'coreBankingReference': 'CB1',
           'reversed': false,
         },
@@ -127,6 +128,7 @@ void main() {
     expect(row.amount, '40.38');
     expect(row.type, CoreTransactionType.debit);
     expect(row.date, DateTime(2026, 10, 10, 20, 17, 35));
+    expect(row.reference, 'TRF-1');
     expect(page.page!.hasMore, isTrue);
   });
 
