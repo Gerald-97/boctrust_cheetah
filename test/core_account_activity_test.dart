@@ -79,23 +79,71 @@ void main() {
     });
   });
 
-  test('transactions request the documented window and item count', () async {
+  test('transactions request YYYY-MM-DD dates and a page', () async {
     final core = _Core({'accountNumber': '1100919408', 'transactions': []});
     final service = _service(core);
 
     await service.getAccountTransactions(
       '1100919408',
       CoreHistoryRange.last30Days,
+      page: 2,
       today: DateTime(2026, 10, 7),
     );
 
     final request = core.requests.single;
     expect(request.path, '/me/bank-accounts/1100919408/transactions');
     expect(request.queryParameters, {
-      'fromDate': '07-09-2026',
-      'toDate': '07-10-2026',
-      'numberOfItems': 50,
+      'fromDate': '2026-09-07',
+      'toDate': '2026-10-07',
+      'page': 2,
+      'pageSize': 20,
     });
+  });
+
+  test('rows parse with their documented fields', () async {
+    final core = _Core({
+      'accountNumber': '1100919408',
+      'transactions': [
+        {
+          'id': '922223',
+          'date': '2026-10-10T20:17:35',
+          'type': 'debit',
+          'amount': '40.38',
+          'balance': '1009900.62',
+          'narration': 'POS',
+          'coreBankingReference': 'CB1',
+          'reversed': false,
+        },
+      ],
+      'pagination': {'page': 1, 'pageSize': 20, 'total': 45, 'totalPages': 3},
+    });
+
+    final result = await _service(
+      core,
+    ).getAccountTransactions('1100919408', CoreHistoryRange.last7Days);
+
+    final page = result.data!;
+    final row = page.rows.single;
+    expect(row.amount, '40.38');
+    expect(row.type, CoreTransactionType.debit);
+    expect(row.date, DateTime(2026, 10, 10, 20, 17, 35));
+    expect(page.page!.hasMore, isTrue);
+  });
+
+  test('direction comes from type, not the amount text', () async {
+    final core = _Core({
+      'accountNumber': '1100919408',
+      'transactions': [
+        {'id': '1', 'type': 'credit', 'amount': '-40.38'},
+        {'id': '2', 'type': 'refund', 'amount': '40.38'},
+      ],
+    });
+
+    final result = await _service(
+      core,
+    ).getAccountTransactions('1100919408', CoreHistoryRange.last7Days);
+
+    expect(result.data!.rows, isEmpty);
   });
 
   // The logger then hides the account number in the path and every row.

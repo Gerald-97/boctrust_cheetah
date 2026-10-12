@@ -148,7 +148,7 @@ class _BankAccountDetailScreenState
       switch (ref.watch(coreAccountHistoryProvider(accountNumber))) {
         AsyncData(:final value) when value.data != null => ApiStateCard(
           title: 'Transactions, last 30 days',
-          message: value.data!.isEmpty
+          message: value.data!.rows.isEmpty
               ? 'No transactions in this period.'
               : "You have activity in this period. Details aren't available "
                     'in the app yet.',

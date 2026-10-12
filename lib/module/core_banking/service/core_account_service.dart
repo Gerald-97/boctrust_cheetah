@@ -75,12 +75,13 @@ class CoreAccountService {
     );
   }
 
-  /// Live transaction rows for one of the caller's accounts over [range].
-  /// Rows stay untyped until the item schema is published.
-  Future<NotifierState<List<Object?>>> getAccountTransactions(
+  /// One page of live transaction rows for one of the caller's accounts over
+  /// [range].
+  Future<NotifierState<CoreTransactionPage>> getAccountTransactions(
     String accountNumber,
     CoreHistoryRange range, {
-    int numberOfItems = 50,
+    int page = 1,
+    int pageSize = 20,
     DateTime? today,
   }) async {
     final api = _api;
@@ -90,14 +91,15 @@ class CoreAccountService {
     }
     final (:fromDate, :toDate) = range.window(today ?? DateTime.now());
     return NotifierState.fromResponse(
-      await api.getData<List<Object?>>(
+      await api.getData<CoreTransactionPage>(
         CoreApiEndpoints.bankAccountTransactions(accountNumber),
         queryParameters: {
           'fromDate': fromDate,
           'toDate': toDate,
-          'numberOfItems': numberOfItems,
+          'page': page,
+          'pageSize': pageSize,
         },
-        parser: coreTransactionRows,
+        parser: CoreTransactionPage.fromJson,
         requestExtra: const {
           LoggingInterceptor.privacySensitivePathKey:
               CoreApiEndpoints.bankAccountTransactionsTemplate,

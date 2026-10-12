@@ -17,11 +17,11 @@ final coreAccountSummaryProvider = FutureProvider.autoDispose
           .getAccountSummary(accountNumber);
     });
 
-/// The live transaction rows of one account over the last 30 days, untyped.
+/// The live transaction rows of one account over the last 30 days (first page).
 /// Keyed by account and re-read when the session changes, so one account's
 /// or customer's history never shows for another.
 final coreAccountHistoryProvider = FutureProvider.autoDispose
-    .family<NotifierState<List<Object?>>, String>((ref, accountNumber) {
+    .family<NotifierState<CoreTransactionPage>, String>((ref, accountNumber) {
       ref.watch(authSessionProvider);
       return ref
           .read(coreAccountServiceProvider)

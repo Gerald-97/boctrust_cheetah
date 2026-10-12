@@ -14,7 +14,7 @@ import 'support/savings_fixtures.dart';
 
 class _Accounts extends CoreAccountService {
   const _Accounts([this.rows = const []]) : super(null);
-  final List<Object?> rows;
+  final List<CoreAccountTransaction> rows;
 
   @override
   Future<NotifierState<CoreAccountSummary>> getAccountSummary(
@@ -30,12 +30,13 @@ class _Accounts extends CoreAccountService {
   );
 
   @override
-  Future<NotifierState<List<Object?>>> getAccountTransactions(
+  Future<NotifierState<CoreTransactionPage>> getAccountTransactions(
     String accountNumber,
     CoreHistoryRange range, {
-    int numberOfItems = 50,
+    int page = 1,
+    int pageSize = 20,
     DateTime? today,
-  }) async => NotifierState.done(rows);
+  }) async => NotifierState.done(CoreTransactionPage(rows: rows));
 }
 
 Future<void> _pumpDetail(WidgetTester tester, _Accounts accounts) async {
@@ -73,7 +74,12 @@ void main() {
     await _pumpDetail(
       tester,
       const _Accounts([
-        {'Narration': 'GUESSED ROW'},
+        CoreAccountTransaction(
+          id: '1',
+          type: CoreTransactionType.debit,
+          amount: '40.38',
+          narration: 'GUESSED ROW',
+        ),
       ]),
     );
 
