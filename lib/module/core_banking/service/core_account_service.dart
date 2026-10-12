@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
-import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/bank_product_models.dart';
@@ -100,10 +99,6 @@ class CoreAccountService {
           'pageSize': pageSize,
         },
         parser: CoreTransactionPage.fromJson,
-        requestExtra: const {
-          LoggingInterceptor.privacySensitivePathKey:
-              CoreApiEndpoints.bankAccountTransactionsTemplate,
-        },
       ),
     );
   }

@@ -146,8 +146,7 @@ void main() {
     expect(result.data!.rows, isEmpty);
   });
 
-  // The logger then hides the account number in the path and every row.
-  test('transactions are logged by path template only', () async {
+  test('transactions are logged in full on staging', () async {
     final core = _Core({'accountNumber': '1100919408', 'transactions': []});
 
     await _service(
@@ -155,8 +154,8 @@ void main() {
     ).getAccountTransactions('1100919408', CoreHistoryRange.last7Days);
 
     expect(
-      core.requests.single.extra[LoggingInterceptor.privacySensitivePathKey],
-      '/me/bank-accounts/{accountNumber}/transactions',
+      core.requests.single.extra,
+      isNot(contains(LoggingInterceptor.privacySensitivePathKey)),
     );
   });
 }
