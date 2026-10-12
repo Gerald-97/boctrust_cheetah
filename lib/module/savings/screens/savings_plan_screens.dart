@@ -339,7 +339,7 @@ extension SavingsPlanScreens on FlowPageState {
     final matured = plan.status == SavingsPlanStatus.matured;
     final percent = plan.earlyWithdrawalFeePercent;
     final fee = percent == null ? 'the' : 'a $percent%';
-    await AppConfirmSheet.show(
+    final confirmed = await AppConfirmSheet.show(
       context,
       title: 'Withdraw?',
       message: matured
@@ -351,6 +351,12 @@ extension SavingsPlanScreens on FlowPageState {
       cancelLabel: 'Keep saving',
       destructive: !matured,
     );
+    if (!confirmed || !mounted) return;
+    final withdrawn = await AppActionSheet.show<bool>(
+      context: context,
+      builder: (_) => SavingsPlanWithdrawSheet(planId: plan.id),
+    );
+    if (withdrawn == true && mounted) back();
   }
 }
 

@@ -145,6 +145,11 @@ abstract final class CoreApiEndpoints {
   static String savingsPlanFund(String planId) => '${savingsPlan(planId)}/fund';
   static const savingsPlanFundTemplate = '$savingsPlanTemplate/fund';
 
+  /// Withdraws one plan early into Boc Flex; [planId] is one path segment.
+  static String savingsPlanLiquidate(String planId) =>
+      '${savingsPlan(planId)}/liquidate';
+  static const savingsPlanLiquidateTemplate = '$savingsPlanTemplate/liquidate';
+
   /// The caller's BocFlex interest summary and its accrual history.
   static const flexInterest = '/me/bocflex/interest';
   static const flexInterestAccruals = '/me/bocflex/interest/accruals';
@@ -163,5 +168,6 @@ abstract final class CoreApiEndpoints {
     intrabankTransferFinalizeTemplate,
     interbankTransferFinalizeTemplate,
     savingsPlanFundTemplate,
+    savingsPlanLiquidateTemplate,
   };
 }

@@ -58,6 +58,20 @@ class _Plans extends CoreSavingsPlanService {
   }
 
   @override
+  Future<NotifierState<SavingsPlanActionResult>> liquidatePlan(
+    String planId,
+  ) async => NotifierState.done(
+    SavingsPlanActionResult(
+      planId: planId,
+      status: SavingsPlanStatus.liquidated,
+      amountPaidOut: '5117.40',
+      interestAccrued: '120.40',
+      earlyWithdrawalFee: '3.01',
+      interestPending: '0.00',
+    ),
+  );
+
+  @override
   Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async =>
       detail ??
       NotifierState.done(
@@ -212,6 +226,32 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Withdraw early'), findsOneWidget);
+  });
+
+  testWidgets('withdrawing early shows what was paid', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      withdraw: true,
+    );
+
+    tester
+        .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
+        .onSelected!('withdraw');
+    // Let the confirm sheet finish sliding up before tapping it.
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Withdraw early'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(find.text('Withdrawn'), findsOneWidget);
+    expect(find.text('Paid to Boc Flex'), findsOneWidget);
+    expect(find.text('₦5,117.40'), findsOneWidget);
+    expect(find.text('Early withdrawal fee'), findsOneWidget);
+    expect(find.text('₦3.01'), findsOneWidget);
   });
 
   testWidgets('depositing into a plan sends the typed amount', (tester) async {

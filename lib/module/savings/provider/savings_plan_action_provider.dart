@@ -51,16 +51,24 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
         ref.read(coreSavingsPlanServiceProvider).fundPlan(planId, amountNaira),
   );
 
+  /// Withdraws [planId] early into Boc Flex.
+  Future<void> liquidate(String planId) => _run(
+    planId,
+    () => ref.read(coreSavingsPlanServiceProvider).liquidatePlan(planId),
+    forbidden: 'This plan can no longer be withdrawn.',
+  );
+
   Future<void> _run(
     String planId,
-    Future<NotifierState<SavingsPlanActionResult>> Function() call,
-  ) async {
+    Future<NotifierState<SavingsPlanActionResult>> Function() call, {
+    String? forbidden,
+  }) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
     // The sheet can close mid-request; stay alive so the reply still
     // refreshes the plan and the balance.
     final link = ref.keepAlive();
     try {
-      await _send(planId, call);
+      await _send(planId, call, forbidden);
     } finally {
       link.close();
     }
@@ -69,6 +77,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
   Future<void> _send(
     String planId,
     Future<NotifierState<SavingsPlanActionResult>> Function() call,
+    String? forbidden,
   ) async {
     state = const SavingsPlanActionState(phase: SavingsPlanActionPhase.sending);
     final reply = await call();
@@ -101,7 +110,9 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     }
     state = SavingsPlanActionState(
       phase: SavingsPlanActionPhase.failed,
-      message: reply.message ?? 'Request failed.',
+      message: code == 403 && forbidden != null
+          ? forbidden
+          : reply.message ?? 'Request failed.',
     );
   }
 

@@ -422,6 +422,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // Withdrawing a plan early into Boc Flex. Moves money, so staging only.
+  FeatureCapability.savingsPlanWithdraw: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.savingsPlanLiquidateTemplate,
+      ),
+    },
+  ),
   // The customer's BocFlex interest summary and accrual history, read only.
   FeatureCapability.flexInterestView: CapabilityRequirement(
     stagingOnly: true,

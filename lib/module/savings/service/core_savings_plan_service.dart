@@ -91,4 +91,22 @@ class CoreSavingsPlanService {
       ),
     );
   }
+
+  /// Withdraws a plan early into Boc Flex. Core takes no body. Never retried.
+  Future<NotifierState<SavingsPlanActionResult>> liquidatePlan(
+    String planId,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_plansUnavailable);
+    return NotifierState.fromResponse(
+      await api.postData<SavingsPlanActionResult>(
+        CoreApiEndpoints.savingsPlanLiquidate(planId),
+        parser: (json) {
+          final result = SavingsPlanActionResult.fromJson(json);
+          if (result == null) throw const FormatException('Invalid result.');
+          return result;
+        },
+      ),
+    );
+  }
 }

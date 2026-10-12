@@ -76,12 +76,9 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
           child: const SizedBox.shrink(),
         );
       case SavingsPlanActionPhase.unknown:
-        return AppActionSheet(
-          icon: IconsaxPlusLinear.info_circle,
-          title: 'Not confirmed',
-          subtitle: action.message ?? '',
-          footer: PrimaryButton(label: 'Close', onPressed: close),
-          child: const SizedBox.shrink(),
+        return SavingsPlanNotConfirmedSheet(
+          message: action.message ?? '',
+          onClose: close,
         );
       case SavingsPlanActionPhase.idle ||
           SavingsPlanActionPhase.sending ||
@@ -132,4 +129,25 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
         );
     }
   }
+}
+
+/// Shown when Core may or may not have applied a plan action.
+class SavingsPlanNotConfirmedSheet extends StatelessWidget {
+  const SavingsPlanNotConfirmedSheet({
+    required this.message,
+    required this.onClose,
+    super.key,
+  });
+
+  final String message;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => AppActionSheet(
+    icon: IconsaxPlusLinear.info_circle,
+    title: 'Not confirmed',
+    subtitle: message,
+    footer: PrimaryButton(label: 'Close', onPressed: onClose),
+    child: const SizedBox.shrink(),
+  );
 }

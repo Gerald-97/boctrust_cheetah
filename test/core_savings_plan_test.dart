@@ -188,6 +188,32 @@ void main() {
     expect(result.data!.principalAmount, '7500.00');
   });
 
+  test('liquidation sends no body and reads the payout', () async {
+    final core = _Core({
+      'planId': 'p1',
+      'status': 'liquidated',
+      'amountPaidOut': '5117.40',
+      'interestAccrued': '120.40',
+      'earlyWithdrawalFee': '3.01',
+      'interestPaid': '117.39',
+      'interestPending': '0.00',
+    });
+
+    final result = await _service(core).liquidatePlan('p1');
+
+    final request = core.requests.single;
+    expect(request.method, 'POST');
+    expect(request.path, '/me/savings-plans/p1/liquidate');
+    expect(request.data, isNull);
+    final data = result.data!;
+    expect(data.status, SavingsPlanStatus.liquidated);
+    expect(data.amountPaidOut, '5117.40');
+    expect(data.interestAccrued, '120.40');
+    expect(data.earlyWithdrawalFee, '3.01');
+    expect(data.interestPaid, '117.39');
+    expect(data.interestPending, '0.00');
+  });
+
   test(
     'a top-up still refreshes when its listener leaves while sending',
     () async {
