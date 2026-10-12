@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../core_banking/model/core_json.dart';
-import '../../core_banking/model/core_money.dart';
 
 /// The four Boc savings products. Route paths keep their legacy names
 /// (target, lock, group); these are the customer-facing names.
