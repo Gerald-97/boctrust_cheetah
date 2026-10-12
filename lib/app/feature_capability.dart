@@ -476,6 +476,22 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // The Payments history is the Flex account's own transactions.
+  FeatureCapability.transactionHistory: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccountTransactionsTemplate,
+      ),
+    },
+  ),
   // Live history of one account. Rows stay unshown until their item schema
   // is confirmed; only whether the period has activity is displayed.
   FeatureCapability.coreAccountHistory: CapabilityRequirement(

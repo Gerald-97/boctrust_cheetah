@@ -97,6 +97,7 @@ void main() {
       FeatureCapability.bills,
       FeatureCapability.beneficiaries,
       FeatureCapability.coreAccountHistory,
+      FeatureCapability.transactionHistory,
       FeatureCapability.savingsPlansView,
       FeatureCapability.flexInterestView,
       FeatureCapability.transactionLimitsView,

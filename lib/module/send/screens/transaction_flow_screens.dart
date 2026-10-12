@@ -3,78 +3,43 @@ part of 'send_screens.dart';
 /// Transaction detail. Shows only a record the server returned; a receipt
 /// card appears only when the server supplied a completed receipt.
 extension TransactionFlowScreens on FlowPageState {
-  /// History grouped by month, newest first. Only records the server
-  /// returned are listed; a failed load shows the error, never a sample.
+  /// The Flex account's transactions, as Core returns them.
   Widget _transactionHistoryScreen() {
-    final history = ref.watch(transactionHistoryProvider);
-    if (history.status == ServiceStatus.idle) {
+    final accounts = ref.watch(customerBankAccountsProvider);
+    if (accounts.status == ServiceStatus.idle) {
       Future<void>.microtask(
-        ref.read(transactionHistoryProvider.notifier).load,
+        ref.read(customerBankAccountsProvider.notifier).ensureLoaded,
       );
     }
-    final records = [...?history.data]
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    final months = <String, List<TransactionRecord>>{};
-    for (final record in records) {
-      months
-          .putIfAbsent(
-            DateFormat('MMMM y').format(record.occurredAt.toLocal()),
-            () => [],
-          )
-          .add(record);
-    }
+    final accountNumber = accounts.data?.activeFlexAccount?.accountNumber;
     return AppScaffold(
       title: 'Transaction history',
       activeSection: AppSection.payments,
       onBack: back,
       onSectionSelected: goSection,
-      body: RefreshIndicator(
-        onRefresh: ref.read(transactionHistoryProvider.notifier).load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
-          children: [
-            if (history.isLoading && records.isEmpty)
-              const ApiLoadingSection(label: 'Loading your transactions'),
-            if (history.isError)
-              ApiStateCard(
-                title: 'Transaction history unavailable',
-                message: history.message ?? 'We could not load your history.',
-                tone: ApiStateTone.error,
-                actionLabel: 'Retry',
-                onAction: ref.read(transactionHistoryProvider.notifier).load,
-              ),
-            if (history.isDone && records.isEmpty)
-              const ApiStateCard(
-                title: 'No transactions',
-                message: 'Your transactions will appear here.',
-                tone: ApiStateTone.info,
-              ),
-            for (final MapEntry(key: month, value: items)
-                in months.entries) ...[
-              SettingsGroup(
-                caption: month,
-                padding: const EdgeInsets.only(bottom: BocSpace.md),
-                children: [
-                  for (final record in items)
-                    TransactionTile(
-                      title: record.title,
-                      subtitle: DateFormat(
-                        'd MMM, h:mm a',
-                      ).format(record.occurredAt.toLocal()),
-                      amount: record.amount,
-                      direction: record.direction,
-                      pending: record.status == TransactionStatus.pending,
-                      onTap: () => Navigator.of(context).pushNamed(
-                        AppRoutes.transactionDetail,
-                        arguments: AppRouteArguments(entityId: record.id),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ],
-        ),
+      body: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(BocSpace.gutter).clearOfNav(context),
+        children: [
+          if (accountNumber != null)
+            CoreAccountHistoryList(accountNumber: accountNumber)
+          else if (accounts.isError)
+            ApiStateCard(
+              title: 'Transaction history unavailable',
+              message: accounts.message ?? 'We could not load your accounts.',
+              tone: ApiStateTone.error,
+              actionLabel: 'Retry',
+              onAction: ref.read(customerBankAccountsProvider.notifier).load,
+            )
+          else if (accounts.isDone)
+            const ApiStateCard(
+              title: 'No Flex account',
+              message: 'You have no Boc Flex account yet.',
+              tone: ApiStateTone.info,
+            )
+          else
+            const ApiLoadingSection(label: 'Loading your transactions'),
+        ],
       ),
     );
   }

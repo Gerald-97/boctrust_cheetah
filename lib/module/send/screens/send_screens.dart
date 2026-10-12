@@ -10,6 +10,8 @@ import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
+import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/screens/core_account_history_list.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/snap_to_pay_page.dart';
 import '../model/transaction_models.dart';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
@@ -9,12 +8,12 @@ import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../home/provider/home_provider.dart';
 import '../model/core_account_summary.dart';
-import '../model/core_account_transactions.dart';
+import '../model/core_account_transactions.dart' show CoreHistoryRange;
 import '../model/customer_bank_account_models.dart';
 import '../provider/core_account_activity_providers.dart';
 import '../provider/core_account_providers.dart';
+import 'core_account_history_list.dart';
 import 'core_flow_widgets.dart';
-import 'paged_rows_footer.dart';
 
 /// One Core account's live summary. Opened with the account number as the
 /// route's `entityId`, or for the Flex account.
@@ -138,7 +137,11 @@ class _BankAccountDetailScreenState
               },
               const SizedBox(height: BocSpace.md),
               if (historyAvailable && accountNumber != null)
-                _history(accountNumber)
+                CoreAccountHistoryList(
+                  key: ValueKey(accountNumber),
+                  accountNumber: accountNumber,
+                  onRangeChanged: (range) => _range = range,
+                )
               else
                 const ApiStateCard(
                   title: 'Transactions',
@@ -149,75 +152,6 @@ class _BankAccountDetailScreenState
           ),
         ),
       ),
-    );
-  }
-
-  Widget _history(String accountNumber) {
-    final key = (accountNumber: accountNumber, range: _range);
-    final state = ref.watch(coreAccountHistoryProvider(key));
-    final history = state.data;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        BocChoiceChips<CoreHistoryRange>(
-          options: const [
-            (value: CoreHistoryRange.last7Days, label: '7 days'),
-            (value: CoreHistoryRange.last30Days, label: '30 days'),
-            (value: CoreHistoryRange.last60Days, label: '60 days'),
-          ],
-          selected: {_range},
-          onChanged: (next) => setState(() => _range = next.first),
-        ),
-        const SizedBox(height: BocSpace.sm),
-        if (history == null && state.isError)
-          ApiStateCard(
-            title: 'Transactions unavailable',
-            message: state.message ?? "We couldn't load your transactions.",
-            tone: ApiStateTone.error,
-            actionLabel: 'Retry',
-            onAction: () => ref.invalidate(coreAccountHistoryProvider(key)),
-          )
-        else if (history == null)
-          const ApiLoadingSection(label: 'Loading your transactions')
-        else if (history.rows.isEmpty)
-          const ApiStateCard(
-            title: 'Transactions',
-            message: 'No transactions in this period.',
-            tone: ApiStateTone.info,
-          )
-        else ...[
-          for (final row in history.rows) _historyRow(row),
-          PagedRowsFooter(
-            rows: history,
-            onShowMore: () =>
-                ref.read(coreAccountHistoryProvider(key).notifier).loadMore(),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _historyRow(CoreAccountTransaction row) {
-    final sign = row.type == CoreTransactionType.credit ? '+' : '-';
-    final amount = formatApiAmount(row.amount, currency: 'NGN');
-    final hidden = ref.watch(homeBalanceHiddenProvider);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(row.narration ?? 'Transaction'),
-      subtitle: Text(
-        [
-          if (row.date case final date?)
-            DateFormat('d MMM, h:mm a').format(date.toLocal())
-          else
-            'Date unavailable',
-          if (row.reversed) 'Reversed',
-        ].join(' · '),
-      ),
-      trailing: Text(switch (amount) {
-        _ when hidden => '₦ ••••••',
-        null => 'Unavailable',
-        final amount => '$sign$amount',
-      }),
     );
   }
 
