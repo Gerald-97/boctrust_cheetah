@@ -238,6 +238,8 @@ extension SavingsPlanScreens on FlowPageState {
                         (label: 'Target', value: _planMoney(target)),
                       if (plan.interestEarned case final interest?)
                         (label: 'Interest earned', value: _planMoney(interest)),
+                      if (plan.accruedInterest case final accrued?)
+                        (label: 'Interest so far', value: _planMoney(accrued)),
                       if (plan.tenorDays case final days?)
                         (label: 'Tenor', value: '$days days'),
                       if (plan.maturityDate case final maturity?)
@@ -295,8 +297,8 @@ extension SavingsPlanScreens on FlowPageState {
     }
   }
 
-  /// Early withdrawal forfeits interest, so it needs an explicit, clearly
-  /// labelled confirmation; the safe choice is the prominent one.
+  /// Early withdrawal costs a fee on the interest, so it needs an explicit,
+  /// clearly labelled confirmation; the safe choice is the prominent one.
   Future<void> _withdrawFromPlan(SavingsPlan plan) async {
     if (!ref
         .read(
@@ -307,14 +309,17 @@ extension SavingsPlanScreens on FlowPageState {
       return;
     }
     final matured = plan.status == SavingsPlanStatus.matured;
+    final percent = plan.earlyWithdrawalFeePercent;
+    final fee = percent == null ? 'the' : 'a $percent%';
     await AppConfirmSheet.show(
       context,
       title: 'Withdraw?',
       message: matured
           ? 'Your money will move to Boc Flex Savings.'
-          : 'Withdrawing early returns your full principal to Boc Flex '
-                'Savings without interest.',
-      confirmLabel: matured ? 'Withdraw' : 'Withdraw and forfeit interest',
+          : 'Withdrawing early returns your principal and the interest earned '
+                'so far to Boc Flex Savings, minus '
+                '$fee early withdrawal fee on that interest.',
+      confirmLabel: matured ? 'Withdraw' : 'Withdraw early',
       cancelLabel: 'Keep saving',
       destructive: !matured,
     );

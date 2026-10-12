@@ -123,6 +123,32 @@ void main() {
     expect(find.text('₦2,500.00'), findsOneWidget);
   });
 
+  testWidgets('plan detail shows interest so far', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(
+        detail: NotifierState.done(
+          SavingsPlanDetail(
+            plan: SavingsPlan(
+              id: 'p1',
+              type: SavingsProductType.smartSave,
+              name: 'Rent',
+              principal: '5000.00',
+              status: SavingsPlanStatus.active,
+              accruedInterest: '120.40',
+            ),
+            events: [],
+          ),
+        ),
+      ),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+    );
+
+    expect(find.text('Interest so far'), findsOneWidget);
+    expect(find.text('₦120.40'), findsOneWidget);
+  });
+
   testWidgets('a plan the customer no longer has says so', (tester) async {
     await _open(
       tester,

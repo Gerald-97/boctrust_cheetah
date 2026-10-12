@@ -86,6 +86,17 @@ void main() {
     expect(group.plans.last.principal, isNull);
   });
 
+  test('reads accrued interest and the early-withdrawal fee', () {
+    final plan = SavingsPlan.tryParse({
+      ..._plan(),
+      'accruedInterest': '120.40',
+      'earlyWithdrawalFeePercent': '2.5',
+    })!;
+
+    expect(plan.accruedInterest, '120.40');
+    expect(plan.earlyWithdrawalFeePercent, '2.5');
+  });
+
   test('plan detail keeps events without their references', () {
     final detail = SavingsPlanDetail.fromJson({
       ..._plan(),

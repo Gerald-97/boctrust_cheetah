@@ -83,6 +83,8 @@ class SavingsPlan extends Equatable {
     this.principal,
     this.target,
     this.interestEarned,
+    this.accruedInterest,
+    this.earlyWithdrawalFeePercent,
     this.rate,
     this.tenorDays,
     this.maturityDate,
@@ -97,6 +99,12 @@ class SavingsPlan extends Equatable {
   final SavingsPlanStatus status;
   final String? target;
   final String? interestEarned;
+
+  /// Interest accrued so far (Naira), paid on early withdrawal less the fee.
+  final String? accruedInterest;
+
+  /// The early-withdrawal fee on that interest, a percent as published.
+  final String? earlyWithdrawalFeePercent;
 
   /// Percent, as published.
   final String? rate;
@@ -117,6 +125,8 @@ class SavingsPlan extends Equatable {
       status: SavingsPlanStatus.parse(json['status']),
       target: coreNaira(json['targetAmount']),
       interestEarned: coreNaira(json['interestEarned']),
+      accruedInterest: coreNaira(json['accruedInterest']),
+      earlyWithdrawalFeePercent: coreText(json['earlyWithdrawalFeePercent']),
       rate: coreText(json['currentInterestRatePercent']),
       tenorDays: _days(json['tenorDays']),
       maturityDate: DateTime.tryParse(coreText(json['maturityDate']) ?? ''),
@@ -132,6 +142,8 @@ class SavingsPlan extends Equatable {
     status,
     target,
     interestEarned,
+    accruedInterest,
+    earlyWithdrawalFeePercent,
     rate,
     tenorDays,
     maturityDate,
