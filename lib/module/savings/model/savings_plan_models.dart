@@ -277,6 +277,59 @@ class SavingsPlanDetail extends Equatable {
   List<Object?> get props => [plan, events];
 }
 
+/// What Core reports after a plan action (top-up, early withdrawal,
+/// creation). Amounts are Naira decimal strings; any may be absent.
+class SavingsPlanActionResult extends Equatable {
+  const SavingsPlanActionResult({
+    required this.planId,
+    required this.status,
+    this.principalAmount,
+    this.amountPaidOut,
+    this.interestAccrued,
+    this.earlyWithdrawalFee,
+    this.interestPaid,
+    this.interestPending,
+  });
+
+  final String planId;
+  final SavingsPlanStatus status;
+  final String? principalAmount;
+  final String? amountPaidOut;
+  final String? interestAccrued;
+  final String? earlyWithdrawalFee;
+  final String? interestPaid;
+  final String? interestPending;
+
+  /// Null when [json] is not an object or has no `planId`.
+  static SavingsPlanActionResult? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final planId = coreText(json['planId']);
+    if (planId == null) return null;
+    return SavingsPlanActionResult(
+      planId: planId,
+      status: SavingsPlanStatus.parse(json['status']),
+      principalAmount: coreNaira(json['principalAmount']),
+      amountPaidOut: coreNaira(json['amountPaidOut']),
+      interestAccrued: coreNaira(json['interestAccrued']),
+      earlyWithdrawalFee: coreNaira(json['earlyWithdrawalFee']),
+      interestPaid: coreNaira(json['interestPaid']),
+      interestPending: coreNaira(json['interestPending']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    planId,
+    status,
+    principalAmount,
+    amountPaidOut,
+    interestAccrued,
+    earlyWithdrawalFee,
+    interestPaid,
+    interestPending,
+  ];
+}
+
 /// Where a deposit or plan funding comes from.
 enum FundingSource {
   wallet('BOCTRUST wallet'),

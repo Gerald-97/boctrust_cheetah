@@ -297,8 +297,7 @@ extension SavingsPlanScreens on FlowPageState {
             ).clearOfNav(context),
             child: PrimaryButton(
               label: 'Deposit',
-              onPressed: () =>
-                  _gatedPlanAction(FeatureCapability.savingsPlanDeposit),
+              onPressed: () => _topUpPlan(plan),
             ),
           ),
         ],
@@ -310,6 +309,20 @@ extension SavingsPlanScreens on FlowPageState {
     if (!ref.read(featureAvailabilityProvider(capability)).isAvailable) {
       await BocUnavailableSheet.show(context);
     }
+  }
+
+  Future<void> _topUpPlan(SavingsPlan plan) async {
+    if (!ref
+        .read(featureAvailabilityProvider(FeatureCapability.savingsPlanDeposit))
+        .isAvailable) {
+      await BocUnavailableSheet.show(context);
+      return;
+    }
+    await AppActionSheet.show<void>(
+      context: context,
+      builder: (_) =>
+          SavingsPlanTopUpSheet(planId: plan.id, planName: plan.name),
+    );
   }
 
   /// Early withdrawal costs a fee on the interest, so it needs an explicit,

@@ -9,7 +9,7 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/model/savings_plan_models.dart';
 import 'package:boctrust_savings_loan/module/savings/service/core_savings_plan_service.dart';
-import 'package:flutter/material.dart' show PopupMenuButton;
+import 'package:flutter/material.dart' show PopupMenuButton, TextField;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/flow_harness.dart';
@@ -23,6 +23,8 @@ const _plan = SavingsPlan(
   principal: '5000.00',
   status: SavingsPlanStatus.active,
 );
+
+final _funded = <(String, String)>[];
 
 class _Plans extends CoreSavingsPlanService {
   const _Plans({this.detail}) : super(null);
@@ -39,6 +41,21 @@ class _Plans extends CoreSavingsPlanService {
       plans: [_plan],
     ),
   ]);
+
+  @override
+  Future<NotifierState<SavingsPlanActionResult>> fundPlan(
+    String planId,
+    String amountNaira,
+  ) async {
+    _funded.add((planId, amountNaira));
+    return NotifierState.done(
+      SavingsPlanActionResult(
+        planId: planId,
+        status: SavingsPlanStatus.active,
+        principalAmount: '7500.00',
+      ),
+    );
+  }
 
   @override
   Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async =>
@@ -88,6 +105,7 @@ Future<void> _open(
   _Plans plans, {
   AppRouteArguments arguments = const AppRouteArguments(),
   bool withdraw = false,
+  bool deposit = false,
 }) async {
   await pumpFlow(
     tester,
@@ -103,6 +121,10 @@ Future<void> _open(
       if (withdraw)
         featureAvailabilityProvider(
           FeatureCapability.savingsPlanWithdraw,
+        ).overrideWithValue(FeatureAvailability.available),
+      if (deposit)
+        featureAvailabilityProvider(
+          FeatureCapability.savingsPlanDeposit,
         ).overrideWithValue(FeatureAvailability.available),
       userHomeProvider.overrideWith(LayoutHome.new),
       customerBankAccountsProvider.overrideWith(_SmartSaveAccounts.new),
@@ -190,6 +212,31 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Withdraw early'), findsOneWidget);
+  });
+
+  testWidgets('depositing into a plan sends the typed amount', (tester) async {
+    _funded.clear();
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      deposit: true,
+    );
+
+    await tester.tap(find.text('Deposit'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    await tester.enterText(find.byType(TextField), '2,500');
+    await tester.pump();
+    await tester.tap(find.text('Add money'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(_funded, [('p1', '2500.00')]);
+    expect(find.text('Money added'), findsOneWidget);
   });
 
   testWidgets('a plan the customer no longer has says so', (tester) async {

@@ -411,6 +411,17 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // Topping up a plan from Boc Flex. Moves money, so staging only.
+  FeatureCapability.savingsPlanDeposit: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.savingsPlanFundTemplate,
+      ),
+    },
+  ),
   // The customer's BocFlex interest summary and accrual history, read only.
   FeatureCapability.flexInterestView: CapabilityRequirement(
     stagingOnly: true,

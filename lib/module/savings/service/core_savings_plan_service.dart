@@ -70,4 +70,25 @@ class CoreSavingsPlanService {
       ),
     );
   }
+
+  /// Tops up a plan from Boc Flex with [amountNaira], a Naira string. Never
+  /// retried: a POST whose outcome is unknown must not run twice.
+  Future<NotifierState<SavingsPlanActionResult>> fundPlan(
+    String planId,
+    String amountNaira,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_plansUnavailable);
+    return NotifierState.fromResponse(
+      await api.postData<SavingsPlanActionResult>(
+        CoreApiEndpoints.savingsPlanFund(planId),
+        data: {'amount': amountNaira},
+        parser: (json) {
+          final result = SavingsPlanActionResult.fromJson(json);
+          if (result == null) throw const FormatException('Invalid result.');
+          return result;
+        },
+      ),
+    );
+  }
 }

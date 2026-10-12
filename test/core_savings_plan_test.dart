@@ -137,4 +137,20 @@ void main() {
       isNot(contains(LoggingInterceptor.privacySensitivePathKey)),
     );
   });
+
+  test('funding sends Naira to the encoded plan', () async {
+    final core = _Core({
+      'planId': 'p/1',
+      'status': 'active',
+      'principalAmount': '7500.00',
+    });
+
+    final result = await _service(core).fundPlan('p/1', '2500.00');
+
+    final request = core.requests.single;
+    expect(request.method, 'POST');
+    expect(request.path, '/me/savings-plans/p%2F1/fund');
+    expect(request.data, {'amount': '2500.00'});
+    expect(result.data!.principalAmount, '7500.00');
+  });
 }

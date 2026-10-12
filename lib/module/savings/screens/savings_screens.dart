@@ -28,6 +28,8 @@ import '../model/savings_plan_models.dart';
 import '../provider/flex_interest_provider.dart';
 import '../provider/savings_plan_provider.dart';
 
+import 'savings_plan_top_up_sheet.dart';
+
 part 'savings_plan_screens.dart';
 
 /// Savings pages: Back with nothing beneath returns to the Savings hub, and
