@@ -25,10 +25,18 @@ const _plan = SavingsPlan(
 );
 
 final _funded = <(String, String)>[];
+final _opened = <String>[];
 
 class _Plans extends CoreSavingsPlanService {
-  const _Plans({this.detail}) : super(null);
+  const _Plans({this.detail, this.created = const NotifierState.done('p9')})
+    : super(null);
   final NotifierState<SavingsPlanDetail>? detail;
+  final NotifierState<String> created;
+
+  @override
+  Future<NotifierState<String>> createPlan(
+    CreateSavingsPlanRequest request,
+  ) async => created;
 
   @override
   Future<NotifierState<List<SavingsProductGroup>>> getPlans(
@@ -72,20 +80,22 @@ class _Plans extends CoreSavingsPlanService {
   );
 
   @override
-  Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async =>
-      detail ??
-      NotifierState.done(
-        SavingsPlanDetail(
-          plan: _plan,
-          events: [
-            SavingsPlanEvent(
-              type: SavingsPlanEventType.topUp,
-              amount: '2500.00',
-              createdAt: DateTime.utc(2026, 10, 9),
-            ),
-          ],
-        ),
-      );
+  Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async {
+    _opened.add(planId);
+    return detail ??
+        NotifierState.done(
+          SavingsPlanDetail(
+            plan: _plan,
+            events: [
+              SavingsPlanEvent(
+                type: SavingsPlanEventType.topUp,
+                amount: '2500.00',
+                createdAt: DateTime.utc(2026, 10, 9),
+              ),
+            ],
+          ),
+        );
+  }
 }
 
 /// Flex plus the SmartSave account Core opened with the first plan.
@@ -120,6 +130,7 @@ Future<void> _open(
   AppRouteArguments arguments = const AppRouteArguments(),
   bool withdraw = false,
   bool deposit = false,
+  bool create = false,
 }) async {
   await pumpFlow(
     tester,
@@ -139,6 +150,10 @@ Future<void> _open(
       if (deposit)
         featureAvailabilityProvider(
           FeatureCapability.savingsPlanDeposit,
+        ).overrideWithValue(FeatureAvailability.available),
+      if (create)
+        featureAvailabilityProvider(
+          FeatureCapability.smartSaveCreate,
         ).overrideWithValue(FeatureAvailability.available),
       userHomeProvider.overrideWith(LayoutHome.new),
       customerBankAccountsProvider.overrideWith(_SmartSaveAccounts.new),
@@ -277,6 +292,61 @@ void main() {
 
     expect(_funded, [('p1', '2500.00')]);
     expect(find.text('Money added'), findsOneWidget);
+  });
+
+  /// Fills the SmartSave wizard up to its confirm step.
+  Future<void> walkGoalWizard(WidgetTester tester) async {
+    await tester.enterText(find.byType(TextField).at(0), 'Rent');
+    await tester.enterText(find.byType(TextField).at(1), '200,000');
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    await tester.tap(find.text('6 months'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+  }
+
+  testWidgets('creating a goal opens the new plan', (tester) async {
+    _opened.clear();
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(),
+      create: true,
+    );
+
+    await walkGoalWizard(tester);
+    await tester.tap(find.text('Create goal'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(_opened, ['p9']);
+    expect(find.text('Create goal'), findsNothing);
+  });
+
+  testWidgets('a term Core does not offer keeps the draft', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(
+        created: NotifierState.error(
+          'No rate for this tenor.',
+          statusCode: 400,
+        ),
+      ),
+      create: true,
+    );
+
+    await walkGoalWizard(tester);
+    await tester.tap(find.text('Create goal'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(find.text('No rate for this tenor.'), findsOneWidget);
+    expect(find.text('Create goal'), findsOneWidget);
   });
 
   testWidgets('a plan the customer no longer has says so', (tester) async {

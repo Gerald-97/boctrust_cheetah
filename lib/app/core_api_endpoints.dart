@@ -128,7 +128,8 @@ abstract final class CoreApiEndpoints {
   static const transactionLimitFinalizeTemplate =
       '$transactionLimits/{reference}/finalize';
 
-  /// The caller's savings plans, grouped by product.
+  /// The caller's savings plans, grouped by product. A POST creates one,
+  /// funded from Boc Flex.
   static const savingsPlans = '/me/savings-plans';
 
   /// One of the caller's savings plans; [planId] is one path segment.
@@ -169,5 +170,6 @@ abstract final class CoreApiEndpoints {
     interbankTransferFinalizeTemplate,
     savingsPlanFundTemplate,
     savingsPlanLiquidateTemplate,
+    savingsPlans,
   };
 }

@@ -52,8 +52,8 @@ abstract class FlowPageState<W extends ConsumerStatefulWidget>
   }
 
   /// Replaces this page, so Back skips it.
-  void goReplacing(String route) =>
-      Navigator.of(context).pushReplacementNamed(route);
+  void goReplacing(String route, {AppRouteArguments? arguments}) =>
+      Navigator.of(context).pushReplacementNamed(route, arguments: arguments);
 
   /// Returns to the nearest page named [route] beneath this one, dropping
   /// the pages above it. With none beneath, [route] takes this page's place,

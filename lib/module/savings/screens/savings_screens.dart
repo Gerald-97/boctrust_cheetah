@@ -6,7 +6,6 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/app_router.dart';
-import '../../../app/boc_icons.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/route_arguments.dart';
 import '../../../app/services.dart';
@@ -26,6 +25,7 @@ import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/flex_interest_models.dart';
 import '../model/savings_plan_models.dart';
 import '../provider/flex_interest_provider.dart';
+import '../provider/savings_plan_action_provider.dart';
 import '../provider/savings_plan_provider.dart';
 
 import 'savings_plan_top_up_sheet.dart';
@@ -616,7 +616,16 @@ extension SavingsScreens on FlowPageState {
   /// can be created.
   Widget _planCreationScreen(SavingsProductType type) {
     if (_canCreatePlan(type)) {
-      return _SavingsPlanWizard(type: type, onExit: back);
+      return _SavingsPlanWizard(
+        type: type,
+        onExit: back,
+        // The finished wizard leaves the stack, so Back from the new plan
+        // skips it.
+        onCreated: (planId) => goReplacing(
+          AppRoutes.savingsPlanDetail,
+          arguments: AppRouteArguments(entityId: planId),
+        ),
+      );
     }
     return _savingsUnavailableScreen(
       capability: type.createCapability!,

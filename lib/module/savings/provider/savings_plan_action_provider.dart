@@ -49,18 +49,39 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     planId,
     () =>
         ref.read(coreSavingsPlanServiceProvider).fundPlan(planId, amountNaira),
+    _withResult,
   );
 
   /// Withdraws [planId] early into Boc Flex.
   Future<void> liquidate(String planId) => _run(
     planId,
     () => ref.read(coreSavingsPlanServiceProvider).liquidatePlan(planId),
+    _withResult,
     forbidden: 'This plan can no longer be withdrawn.',
   );
 
-  Future<void> _run(
-    String planId,
-    Future<NotifierState<SavingsPlanActionResult>> Function() call, {
+  /// Creates a plan funded from Boc Flex; [SavingsPlanActionState.planId]
+  /// is the new plan's once done.
+  Future<void> create(CreateSavingsPlanRequest request) => _run<String>(
+    null,
+    () => ref.read(coreSavingsPlanServiceProvider).createPlan(request),
+    (planId) => SavingsPlanActionState(
+      phase: SavingsPlanActionPhase.done,
+      planId: planId,
+    ),
+  );
+
+  static SavingsPlanActionState _withResult(SavingsPlanActionResult result) =>
+      SavingsPlanActionState(
+        phase: SavingsPlanActionPhase.done,
+        planId: result.planId,
+        result: result,
+      );
+
+  Future<void> _run<T>(
+    String? planId,
+    Future<NotifierState<T>> Function() call,
+    SavingsPlanActionState Function(T data) done, {
     String? forbidden,
   }) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
@@ -68,29 +89,26 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     // refreshes the plan and the balance.
     final link = ref.keepAlive();
     try {
-      await _send(planId, call, forbidden);
+      await _send(planId, call, done, forbidden);
     } finally {
       link.close();
     }
   }
 
-  Future<void> _send(
-    String planId,
-    Future<NotifierState<SavingsPlanActionResult>> Function() call,
+  Future<void> _send<T>(
+    String? planId,
+    Future<NotifierState<T>> Function() call,
+    SavingsPlanActionState Function(T data) done,
     String? forbidden,
   ) async {
     state = const SavingsPlanActionState(phase: SavingsPlanActionPhase.sending);
     final reply = await call();
     if (!ref.mounted) return;
 
-    final result = reply.data;
-    if (reply.isDone && result != null) {
-      state = SavingsPlanActionState(
-        phase: SavingsPlanActionPhase.done,
-        planId: result.planId,
-        result: result,
-      );
-      _refresh(result.planId);
+    final data = reply.data;
+    if (reply.isDone && data != null) {
+      state = done(data);
+      _refresh(state.planId);
       return;
     }
 
@@ -116,9 +134,11 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     );
   }
 
-  void _refresh(String planId) {
+  /// Reloads the plan lists, [planId]'s detail when there is one, and the
+  /// Boc Flex balance.
+  void _refresh(String? planId) {
     ref.invalidate(savingsPlansProvider);
-    ref.invalidate(savingsPlanDetailProvider(planId));
+    if (planId != null) ref.invalidate(savingsPlanDetailProvider(planId));
     ref.read(customerBankAccountsProvider.notifier).load();
   }
 }

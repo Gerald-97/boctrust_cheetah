@@ -433,6 +433,28 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // Creating a SmartSave or Fixed Deposit plan. Core funds it from Boc Flex,
+  // so staging only.
+  FeatureCapability.smartSaveCreate: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.savingsPlans,
+      ),
+    },
+  ),
+  FeatureCapability.fixedDepositCreate: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.savingsPlans,
+      ),
+    },
+  ),
   // The customer's BocFlex interest summary and accrual history, read only.
   FeatureCapability.flexInterestView: CapabilityRequirement(
     stagingOnly: true,

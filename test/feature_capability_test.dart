@@ -101,6 +101,8 @@ void main() {
       FeatureCapability.savingsPlansView,
       FeatureCapability.savingsPlanDeposit,
       FeatureCapability.savingsPlanWithdraw,
+      FeatureCapability.smartSaveCreate,
+      FeatureCapability.fixedDepositCreate,
       FeatureCapability.flexInterestView,
       FeatureCapability.transactionLimitsView,
     ];
@@ -244,6 +246,7 @@ void main() {
       CoreApiEndpoints.interbankTransferFinalizeTemplate,
       CoreApiEndpoints.savingsPlanFundTemplate,
       CoreApiEndpoints.savingsPlanLiquidateTemplate,
+      CoreApiEndpoints.savingsPlans,
     });
   });
 

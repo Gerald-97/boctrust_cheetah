@@ -188,6 +188,39 @@ void main() {
     expect(result.data!.principalAmount, '7500.00');
   });
 
+  test("a SmartSave draft becomes Core's create request", () {
+    const draft = SavingsPlanDraft(
+      type: SavingsProductType.smartSave,
+      name: 'Rent',
+      amount: '200,000',
+      durationMonths: 6,
+      autoSave: true,
+      frequency: SavingsFrequency.weekly,
+      recurringAmount: '5,000',
+    );
+
+    expect(draft.toCreateRequest()!.toJson(), {
+      'productCode': 'bocSmartSave',
+      'tenorDays': 180,
+      'planName': 'Rent',
+      'targetAmount': '200000.00',
+      'saveFrequency': 'weekly',
+      'recurringAmount': '5000.00',
+    });
+  });
+
+  test('a Fixed Deposit draft sends only its term and name', () {
+    const draft = SavingsPlanDraft(
+      type: SavingsProductType.fixed,
+      durationMonths: 3,
+    );
+
+    expect(draft.toCreateRequest()!.toJson(), {
+      'productCode': 'boctrustFixedDeposit',
+      'tenorDays': 90,
+    });
+  });
+
   test('liquidation sends no body and reads the payout', () async {
     final core = _Core({
       'planId': 'p1',

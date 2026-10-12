@@ -361,14 +361,22 @@ extension SavingsPlanScreens on FlowPageState {
 }
 
 /// One wizard for every savings product: each type contributes its steps,
-/// all steps edit one [SavingsPlanDraft], and the draft stays on the device.
-/// The final "Confirm & create" is gated by the product's create capability,
-/// so no "created" screen can appear until the server confirms a plan.
+/// all steps edit one [SavingsPlanDraft], and the draft stays on the device
+/// until Core creates the plan. Creating is gated by the product's create
+/// capability; SmartSave and Fixed Deposit are created in Core and funded
+/// from Boc Flex, and Padi has no Core plan yet.
 class _SavingsPlanWizard extends ConsumerStatefulWidget {
-  const _SavingsPlanWizard({required this.type, required this.onExit});
+  const _SavingsPlanWizard({
+    required this.type,
+    required this.onExit,
+    required this.onCreated,
+  });
 
   final SavingsProductType type;
   final VoidCallback onExit;
+
+  /// Called with the new plan's id once Core confirms it.
+  final ValueChanged<String> onCreated;
 
   @override
   ConsumerState<_SavingsPlanWizard> createState() => _SavingsPlanWizardState();
@@ -379,7 +387,6 @@ enum _WizardStep {
   amount,
   schedule,
   days,
-  funding,
   padiGroup,
   start,
   confirm,
@@ -390,11 +397,13 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   int _index = 0;
   final _name = TextEditingController();
   final _amount = TextEditingController();
+  final _recurring = TextEditingController();
 
   @override
   void dispose() {
     _name.dispose();
     _amount.dispose();
+    _recurring.dispose();
     super.dispose();
   }
 
@@ -403,15 +412,9 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       _WizardStep.goal,
       _WizardStep.schedule,
       if (_draft.autoSave) _WizardStep.days,
-      _WizardStep.funding,
       _WizardStep.confirm,
     ],
-    SavingsProductType.fixed => [
-      _WizardStep.amount,
-      _WizardStep.schedule,
-      _WizardStep.funding,
-      _WizardStep.confirm,
-    ],
+    SavingsProductType.fixed => [_WizardStep.schedule, _WizardStep.confirm],
     SavingsProductType.padi => [
       _WizardStep.padiGroup,
       _WizardStep.days,
@@ -423,20 +426,22 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
 
   _WizardStep get _step => _steps[_index];
 
-  bool get _amountValid {
-    final value = num.tryParse(_draft.amount.replaceAll(',', ''));
-    return value != null && value > 0;
-  }
+  bool get _amountValid => savingsPlanNaira(_draft.amount) != null;
+
+  /// Created in Core and funded from Boc Flex.
+  bool get _createsInCore => widget.type.coreCode != null;
 
   bool get _stepValid => switch (_step) {
     _WizardStep.goal => _draft.name.trim().isNotEmpty && _amountValid,
     _WizardStep.amount => _amountValid,
     _WizardStep.schedule => _draft.durationMonths != null,
+    _WizardStep.days when _createsInCore =>
+      _draft.frequency != null &&
+          savingsPlanNaira(_draft.recurringAmount) != null,
     _WizardStep.days =>
       _draft.frequency != null &&
           (_draft.frequency == SavingsFrequency.daily ||
               _draft.contributionDays.isNotEmpty),
-    _WizardStep.funding => _draft.fundingSource != null,
     _WizardStep.padiGroup =>
       _draft.name.trim().isNotEmpty &&
           (_draft.memberCount ?? 0) >= 2 &&
@@ -448,6 +453,11 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   void _update(SavingsPlanDraft next) => setState(() => _draft = next);
 
   void back() {
+    // A create in flight finishes on this screen.
+    if (ref.read(savingsPlanActionProvider).phase ==
+        SavingsPlanActionPhase.sending) {
+      return;
+    }
     if (_index == 0) {
       widget.onExit();
     } else {
@@ -461,12 +471,39 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       return;
     }
     final capability = widget.type.createCapability;
+    final request = _draft.toCreateRequest();
     if (capability == null ||
-        !ref.read(featureAvailabilityProvider(capability)).isAvailable) {
+        !ref.read(featureAvailabilityProvider(capability)).isAvailable ||
+        request == null) {
       await BocUnavailableSheet.show(
         context,
         title: '${widget.type.displayName} is not available yet',
       );
+      return;
+    }
+    final actions = ref.read(savingsPlanActionProvider.notifier);
+    await actions.create(request);
+    if (!mounted) return;
+    final action = ref.read(savingsPlanActionProvider);
+    switch (action.phase) {
+      case SavingsPlanActionPhase.done:
+        final planId = action.planId;
+        if (planId != null) widget.onCreated(planId);
+      case SavingsPlanActionPhase.unknown:
+        // Core may have created it; leave so the customer checks their plans
+        // instead of creating it twice.
+        await AppActionSheet.show<void>(
+          context: context,
+          builder: (sheet) => SavingsPlanNotConfirmedSheet(
+            message: action.message ?? '',
+            onClose: () => Navigator.of(sheet).pop(),
+          ),
+        );
+        if (mounted) widget.onExit();
+      case SavingsPlanActionPhase.idle ||
+          SavingsPlanActionPhase.sending ||
+          SavingsPlanActionPhase.failed:
+        break;
     }
   }
 
@@ -474,6 +511,13 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final steps = _steps;
+    final action = ref.watch(savingsPlanActionProvider);
+    final sending = action.phase == SavingsPlanActionPhase.sending;
+    final failure =
+        _step == _WizardStep.confirm &&
+            action.phase == SavingsPlanActionPhase.failed
+        ? action.message
+        : null;
     final title = switch (widget.type) {
       SavingsProductType.padi => 'Create a Padi',
       SavingsProductType.fixed => 'New Fixed Deposit',
@@ -538,14 +582,32 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                     children: [
                       PrimaryButton(
                         label: _step == _WizardStep.confirm
-                            ? 'Confirm & create'
+                            ? switch (widget.type) {
+                                SavingsProductType.smartSave => 'Create goal',
+                                SavingsProductType.fixed => 'Create deposit',
+                                _ => 'Confirm & create',
+                              }
                             : 'Continue',
-                        onPressed: _stepValid ? _next : null,
+                        isLoading: sending,
+                        onPressed: _stepValid && !sending ? _next : null,
                       ),
+                      if (failure != null) ...[
+                        const SizedBox(height: BocSpace.xs),
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            failure,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: context.bocColors.errorText,
+                            ),
+                          ),
+                        ),
+                      ],
                       if (_step == _WizardStep.confirm)
                         BocTextButton(
                           label: 'Go back and edit',
-                          onPressed: back,
+                          onPressed: sending ? null : back,
                         ),
                     ],
                   ),
@@ -652,8 +714,8 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             widget.type == SavingsProductType.fixed
                 ? 'Withdrawing before the end of the term pays your deposit '
                       'and the interest earned so far, minus an early '
-                      'withdrawal fee. Your rate and maturity date are '
-                      'confirmed before you create the deposit.'
+                      'withdrawal fee. Your rate and maturity date show on '
+                      'the deposit once it is created.'
                 : 'Withdrawing before your target date pays your savings '
                       'and the interest earned so far, minus an early '
                       'withdrawal fee.',
@@ -679,7 +741,22 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               _draft.copyWith(frequency: value.first, contributionDays: {}),
             ),
           ),
-          if (frequency == SavingsFrequency.weekly) ...[
+          if (_createsInCore) ...[
+            const SizedBox(height: BocSpace.md),
+            AppTextField(
+              label: 'Amount each time',
+              controller: _recurring,
+              hintText: '₦0.00',
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [ThousandsAmountFormatter()],
+              onChanged: (value) =>
+                  _update(_draft.copyWith(recurringAmount: value)),
+            ),
+          ],
+          // Core has no contribution days; only Padi picks them.
+          if (!_createsInCore && frequency == SavingsFrequency.weekly) ...[
             _label(theme, 'Day of the week'),
             BocChoiceChips<int>(
               multiSelect: widget.type == SavingsProductType.padi,
@@ -697,7 +774,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                   _update(_draft.copyWith(contributionDays: value)),
             ),
           ],
-          if (frequency == SavingsFrequency.monthly) ...[
+          if (!_createsInCore && frequency == SavingsFrequency.monthly) ...[
             _label(theme, 'Day of the month'),
             BocChoiceChips<int>(
               options: const [
@@ -710,25 +787,6 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                   _update(_draft.copyWith(contributionDays: value)),
             ),
           ],
-        ];
-      case _WizardStep.funding:
-        return [
-          _heading(theme, 'Where should the money come from?'),
-          for (final source in FundingSource.values)
-            Padding(
-              padding: const EdgeInsets.only(bottom: BocSpace.xs),
-              child: SelectableMethodTile(
-                icon: switch (source) {
-                  FundingSource.wallet => IconsaxPlusLinear.wallet,
-                  FundingSource.flexSavings => BocIcons.savings,
-                  FundingSource.bankTransfer => IconsaxPlusLinear.bank,
-                },
-                title: source.label,
-                subtitle: '',
-                selected: _draft.fundingSource == source,
-                onTap: () => _update(_draft.copyWith(fundingSource: source)),
-              ),
-            ),
         ];
       case _WizardStep.padiGroup:
         final members = _draft.memberCount ?? 2;
@@ -805,33 +863,52 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
           ),
         ];
       case _WizardStep.confirm:
-        final frequency = _draft.frequency;
+        final fixed = widget.type == SavingsProductType.fixed;
+        // SmartSave keeps a schedule only while auto-save is on.
+        final frequency =
+            widget.type != SavingsProductType.smartSave || _draft.autoSave
+            ? _draft.frequency
+            : null;
         return [
           _heading(
             theme,
             'Confirm your ${widget.type.displayName}',
             'Double-check the details before you create it.',
           ),
+          if (fixed) ...[
+            AppTextField(
+              label: 'Deposit name (optional)',
+              controller: _name,
+              hintText: 'e.g. School fees',
+              onChanged: (value) => _update(_draft.copyWith(name: value)),
+            ),
+            const SizedBox(height: BocSpace.md),
+          ],
           BocSummaryGrid(
             items: [
-              if (_draft.name.trim().isNotEmpty)
+              if (!fixed && _draft.name.trim().isNotEmpty)
                 (label: 'Name', value: _draft.name.trim()),
-              (
-                label: switch (widget.type) {
-                  SavingsProductType.padi => 'Contribution',
-                  SavingsProductType.fixed => 'Amount',
-                  _ => 'Target amount',
-                },
-                value: '₦${_draft.amount}',
-              ),
+              if (!fixed)
+                (
+                  label: widget.type == SavingsProductType.padi
+                      ? 'Contribution'
+                      : 'Target amount',
+                  value: '₦${_draft.amount}',
+                ),
               if (_draft.durationMonths != null)
-                (label: 'Duration', value: '${_draft.durationMonths} months'),
+                (
+                  label: fixed ? 'Term' : 'Duration',
+                  value: '${_draft.durationMonths} months',
+                ),
               if (frequency != null)
                 (label: 'Frequency', value: frequency.label),
+              if (frequency != null && _createsInCore)
+                (
+                  label: 'Amount each time',
+                  value: '₦${_draft.recurringAmount}',
+                ),
               if (_draft.memberCount != null)
                 (label: 'Members', value: '${_draft.memberCount}'),
-              if (_draft.fundingSource != null)
-                (label: 'Funded from', value: _draft.fundingSource!.label),
               if (_draft.startDate != null)
                 (
                   label: 'Starts',
@@ -839,6 +916,18 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                 ),
             ],
           ),
+          if (_createsInCore) ...[
+            const SizedBox(height: BocSpace.md),
+            Text(
+              'Funded from Boc Flex Savings',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: BocSpace.xxs),
+            Text(
+              "We'll move the minimum for this term from Boc Flex Savings now.",
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
         ];
     }
   }

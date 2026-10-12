@@ -4,6 +4,7 @@ import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
+import '../../core_banking/model/core_json.dart';
 import '../model/interest_accrual_models.dart';
 import '../model/savings_plan_models.dart';
 
@@ -67,6 +68,26 @@ class CoreSavingsPlanService {
         queryParameters: {'page': page, 'pageSize': pageSize},
         parser: (json) =>
             InterestAccrualPage.fromJson(json, baseKey: 'principalAmount'),
+      ),
+    );
+  }
+
+  /// Creates a plan that Core funds from Boc Flex with the product's minimum
+  /// for the term, and returns its `planId`. Never retried.
+  Future<NotifierState<String>> createPlan(
+    CreateSavingsPlanRequest request,
+  ) async {
+    final api = _api;
+    if (api == null) return const NotifierState.blocked(_plansUnavailable);
+    return NotifierState.fromResponse(
+      await api.postData<String>(
+        CoreApiEndpoints.savingsPlans,
+        data: request.toJson(),
+        parser: (json) {
+          final planId = json is Map ? coreText(json['planId']) : null;
+          if (planId == null) throw const FormatException('Invalid plan.');
+          return planId;
+        },
       ),
     );
   }

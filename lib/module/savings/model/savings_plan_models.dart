@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../core_banking/model/core_json.dart';
+import '../../core_banking/model/core_money.dart';
 
 /// The four Boc savings products. Route paths keep their legacy names
 /// (target, lock, group); these are the customer-facing names.
@@ -340,6 +341,60 @@ enum FundingSource {
   final String label;
 }
 
+/// Core's tenor, in days, for each term the wizard offers. Core rejects a
+/// tenor with no rate band for the product, and that message is shown.
+const tenorDaysForMonths = {3: 90, 6: 180, 9: 270, 12: 365};
+
+/// The largest amount a plan form accepts (in Kobo); Core enforces the real
+/// limits.
+const savingsPlanMaxKobo = '100000000000';
+
+/// A typed Naira amount as Core's two-decimal string, or null when invalid.
+String? savingsPlanNaira(String text) =>
+    switch (parseNairaAmount(text, maxKobo: savingsPlanMaxKobo)) {
+      ValidMoney(:final minorUnits) => minorUnits,
+      InvalidMoney() => null,
+    };
+
+/// The body of POST /me/savings-plans. Amounts are Naira strings; null
+/// fields are left out.
+class CreateSavingsPlanRequest extends Equatable {
+  const CreateSavingsPlanRequest({
+    required this.productCode,
+    required this.tenorDays,
+    this.planName,
+    this.targetAmount,
+    this.saveFrequency,
+    this.recurringAmount,
+  });
+
+  final String productCode;
+  final int tenorDays;
+  final String? planName;
+  final String? targetAmount;
+  final SavingsFrequency? saveFrequency;
+  final String? recurringAmount;
+
+  Map<String, Object> toJson() => {
+    'productCode': productCode,
+    'tenorDays': tenorDays,
+    'planName': ?planName,
+    'targetAmount': ?targetAmount,
+    'saveFrequency': ?saveFrequency?.name,
+    'recurringAmount': ?recurringAmount,
+  };
+
+  @override
+  List<Object?> get props => [
+    productCode,
+    tenorDays,
+    planName,
+    targetAmount,
+    saveFrequency,
+    recurringAmount,
+  ];
+}
+
 /// A plan being created. Every field stays client-side until the product's
 /// create capability exists and the server confirms the plan.
 class SavingsPlanDraft extends Equatable {
@@ -351,6 +406,7 @@ class SavingsPlanDraft extends Equatable {
     this.autoSave = false,
     this.frequency,
     this.contributionDays = const {},
+    this.recurringAmount = '',
     this.fundingSource,
     this.memberCount,
     this.startDate,
@@ -366,6 +422,9 @@ class SavingsPlanDraft extends Equatable {
   final bool autoSave;
   final SavingsFrequency? frequency;
   final Set<int> contributionDays;
+
+  /// SmartSave auto-save amount per save, as typed, in naira.
+  final String recurringAmount;
   final FundingSource? fundingSource;
   final int? memberCount;
   final DateTime? startDate;
@@ -377,6 +436,7 @@ class SavingsPlanDraft extends Equatable {
     bool? autoSave,
     SavingsFrequency? frequency,
     Set<int>? contributionDays,
+    String? recurringAmount,
     FundingSource? fundingSource,
     int? memberCount,
     DateTime? startDate,
@@ -388,6 +448,7 @@ class SavingsPlanDraft extends Equatable {
     autoSave: autoSave ?? this.autoSave,
     frequency: frequency ?? this.frequency,
     contributionDays: contributionDays ?? this.contributionDays,
+    recurringAmount: recurringAmount ?? this.recurringAmount,
     fundingSource: fundingSource ?? this.fundingSource,
     memberCount: memberCount ?? this.memberCount,
     startDate: startDate ?? this.startDate,
@@ -402,8 +463,50 @@ class SavingsPlanDraft extends Equatable {
     autoSave,
     frequency,
     contributionDays,
+    recurringAmount,
     fundingSource,
     memberCount,
     startDate,
   ];
+
+  /// What Core needs to create this plan. Null for Flex and Padi, without a
+  /// term, or when an amount cannot be read. Auto-save fields go only when
+  /// auto-save is on.
+  CreateSavingsPlanRequest? toCreateRequest() {
+    final code = type.coreCode;
+    final tenor = tenorDaysForMonths[durationMonths];
+    if (code == null || tenor == null) return null;
+    final planName = name.trim().isEmpty ? null : name.trim();
+    switch (type) {
+      case SavingsProductType.fixed:
+        return CreateSavingsPlanRequest(
+          productCode: code,
+          tenorDays: tenor,
+          planName: planName,
+        );
+      case SavingsProductType.smartSave:
+        final target = savingsPlanNaira(amount);
+        if (target == null) return null;
+        if (!autoSave) {
+          return CreateSavingsPlanRequest(
+            productCode: code,
+            tenorDays: tenor,
+            planName: planName,
+            targetAmount: target,
+          );
+        }
+        final recurring = savingsPlanNaira(recurringAmount);
+        if (frequency == null || recurring == null) return null;
+        return CreateSavingsPlanRequest(
+          productCode: code,
+          tenorDays: tenor,
+          planName: planName,
+          targetAmount: target,
+          saveFrequency: frequency,
+          recurringAmount: recurring,
+        );
+      case SavingsProductType.flex || SavingsProductType.padi:
+        return null;
+    }
+  }
 }
