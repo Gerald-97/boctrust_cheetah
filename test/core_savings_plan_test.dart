@@ -65,10 +65,17 @@ class _SlowFund extends CoreSavingsPlanService {
   _SlowFund(this.reply) : super(null);
   final Completer<NotifierState<SavingsPlanActionResult>> reply;
   var reads = 0;
+  var liquidations = 0;
 
   @override
   Future<NotifierState<SavingsPlanActionResult>> fundPlan(String _, String _) =>
       reply.future;
+
+  @override
+  Future<NotifierState<SavingsPlanActionResult>> liquidatePlan(String _) async {
+    liquidations++;
+    return const NotifierState.blocked('x');
+  }
 
   @override
   Future<NotifierState<SavingsPlanDetail>> getPlan(String planId) async {
@@ -285,4 +292,34 @@ void main() {
       expect(_Accounts.loads, 1);
     },
   );
+
+  test('a withdrawal started while a top-up sends sends nothing', () async {
+    final reply = Completer<NotifierState<SavingsPlanActionResult>>();
+    final service = _SlowFund(reply);
+    final container = ProviderContainer(
+      overrides: [
+        coreSavingsPlanServiceProvider.overrideWithValue(service),
+        customerBankAccountsProvider.overrideWith(_Accounts.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(savingsPlanActionProvider, (_, _) {});
+    final actions = container.read(savingsPlanActionProvider.notifier);
+    final funding = actions.fund('p1', '5.00');
+    await actions.liquidate('p1');
+    reply.complete(
+      const NotifierState.done(
+        SavingsPlanActionResult(planId: 'p1', status: SavingsPlanStatus.active),
+      ),
+    );
+    await funding;
+
+    final state = container.read(savingsPlanActionProvider);
+    expect(service.liquidations, 0);
+    expect(state.phase, SavingsPlanActionPhase.done);
+    expect(
+      state.viewFor(SavingsPlanAction.liquidate, 'p1').phase,
+      SavingsPlanActionPhase.idle,
+    );
+  });
 }

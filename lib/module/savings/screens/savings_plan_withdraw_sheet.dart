@@ -21,21 +21,47 @@ class SavingsPlanWithdrawSheet extends ConsumerStatefulWidget {
 
 class _SavingsPlanWithdrawSheetState
     extends ConsumerState<SavingsPlanWithdrawSheet> {
+  /// Another savings action was sending when the sheet opened, so nothing
+  /// was sent.
+  var _busy = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (ref
+          .read(savingsPlanActionProvider)
+          .busyFor(SavingsPlanAction.liquidate, widget.planId)) {
+        setState(() => _busy = true);
+        return;
+      }
       ref.read(savingsPlanActionProvider.notifier).liquidate(widget.planId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final action = ref.watch(savingsPlanActionProvider);
+    final action = ref
+        .watch(savingsPlanActionProvider)
+        .viewFor(SavingsPlanAction.liquidate, widget.planId);
+    final sending = action.phase == SavingsPlanActionPhase.sending;
+    return PopScope(canPop: !sending, child: _body(action));
+  }
+
+  Widget _body(SavingsPlanActionState action) {
     final done = action.phase == SavingsPlanActionPhase.done;
     void close() => Navigator.of(context).pop(done);
 
+    if (_busy) {
+      return AppActionSheet(
+        icon: IconsaxPlusLinear.info_circle,
+        title: 'Not withdrawn',
+        subtitle: savingsPlanBusyMessage,
+        footer: PrimaryButton(label: 'Close', onPressed: close),
+        child: const SizedBox.shrink(),
+      );
+    }
     switch (action.phase) {
       case SavingsPlanActionPhase.done:
         final result = action.result;

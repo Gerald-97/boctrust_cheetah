@@ -318,8 +318,12 @@ extension SavingsPlanScreens on FlowPageState {
       await BocUnavailableSheet.show(context);
       return;
     }
+    // The sheet blocks Back itself while sending; a barrier tap or drag
+    // would close it mid-request.
     await AppActionSheet.show<void>(
       context: context,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) =>
           SavingsPlanTopUpSheet(planId: plan.id, planName: plan.name),
     );
@@ -354,6 +358,8 @@ extension SavingsPlanScreens on FlowPageState {
     if (!confirmed || !mounted) return;
     final withdrawn = await AppActionSheet.show<bool>(
       context: context,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => SavingsPlanWithdrawSheet(planId: plan.id),
     );
     if (withdrawn == true && mounted) back();
@@ -382,15 +388,7 @@ class _SavingsPlanWizard extends ConsumerStatefulWidget {
   ConsumerState<_SavingsPlanWizard> createState() => _SavingsPlanWizardState();
 }
 
-enum _WizardStep {
-  goal,
-  amount,
-  schedule,
-  days,
-  padiGroup,
-  start,
-  confirm,
-}
+enum _WizardStep { goal, amount, schedule, days, padiGroup, start, confirm }
 
 class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   late SavingsPlanDraft _draft = SavingsPlanDraft(type: widget.type);
@@ -452,10 +450,14 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
 
   void _update(SavingsPlanDraft next) => setState(() => _draft = next);
 
+  /// Shown on the confirm step when another savings action is sending.
+  String? _busy;
+
   void back() {
     // A create in flight finishes on this screen.
-    if (ref.read(savingsPlanActionProvider).phase ==
-        SavingsPlanActionPhase.sending) {
+    final action = ref.read(savingsPlanActionProvider);
+    if (action.phase == SavingsPlanActionPhase.sending &&
+        action.startedBy(SavingsPlanAction.create)) {
       return;
     }
     if (_index == 0) {
@@ -481,10 +483,17 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       );
       return;
     }
+    if (ref.read(savingsPlanActionProvider).busyFor(SavingsPlanAction.create)) {
+      setState(() => _busy = savingsPlanBusyMessage);
+      return;
+    }
+    setState(() => _busy = null);
     final actions = ref.read(savingsPlanActionProvider.notifier);
     await actions.create(request);
     if (!mounted) return;
-    final action = ref.read(savingsPlanActionProvider);
+    final action = ref
+        .read(savingsPlanActionProvider)
+        .viewFor(SavingsPlanAction.create);
     switch (action.phase) {
       case SavingsPlanActionPhase.done:
         final planId = action.planId;
@@ -511,13 +520,15 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final steps = _steps;
-    final action = ref.watch(savingsPlanActionProvider);
+    final action = ref
+        .watch(savingsPlanActionProvider)
+        .viewFor(SavingsPlanAction.create);
     final sending = action.phase == SavingsPlanActionPhase.sending;
-    final failure =
-        _step == _WizardStep.confirm &&
-            action.phase == SavingsPlanActionPhase.failed
+    final failure = _step != _WizardStep.confirm
+        ? null
+        : action.phase == SavingsPlanActionPhase.failed
         ? action.message
-        : null;
+        : _busy;
     final title = switch (widget.type) {
       SavingsProductType.padi => 'Create a Padi',
       SavingsProductType.fixed => 'New Fixed Deposit',

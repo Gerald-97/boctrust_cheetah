@@ -25,13 +25,18 @@ class AppActionSheet extends StatelessWidget {
   ///
   /// The sheet returns a value rather than invoking a callback captured from
   /// the caller's `State`, so a launcher can re-check `mounted` before acting
-  /// on the result.
+  /// on the result. [isDismissible] and [enableDrag] let a sheet refuse a
+  /// barrier tap or a drag, e.g. while it is sending money.
   static Future<T?> show<T>({
     required BuildContext context,
     required WidgetBuilder builder,
+    bool isDismissible = true,
+    bool enableDrag = true,
   }) => showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
+    isDismissible: isDismissible,
+    enableDrag: enableDrag,
     useSafeArea: true,
     // The sheet draws its own handle inside its scroll view.
     showDragHandle: false,

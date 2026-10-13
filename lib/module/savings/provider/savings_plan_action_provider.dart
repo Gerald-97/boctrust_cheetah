@@ -11,9 +11,18 @@ import 'savings_plan_provider.dart';
 /// applied it (no response, a 5xx, or a reply that could not be read).
 enum SavingsPlanActionPhase { idle, sending, done, failed, unknown }
 
+/// Which flow started an action; one flow never shows another's state.
+enum SavingsPlanAction { fund, liquidate, create }
+
+/// Shown when a flow starts while another flow's action is still sending.
+const savingsPlanBusyMessage =
+    'Another savings action is still in progress. Try again in a moment.';
+
 class SavingsPlanActionState extends Equatable {
   const SavingsPlanActionState({
     this.phase = SavingsPlanActionPhase.idle,
+    this.action,
+    this.requestedPlanId,
     this.planId,
     this.result,
     this.message,
@@ -21,13 +30,39 @@ class SavingsPlanActionState extends Equatable {
 
   final SavingsPlanActionPhase phase;
 
+  /// The flow that started this state; null when idle.
+  final SavingsPlanAction? action;
+
+  /// The plan the flow asked about; null for [SavingsPlanAction.create].
+  final String? requestedPlanId;
+
   /// The plan the action touched, set once Core confirms it.
   final String? planId;
   final SavingsPlanActionResult? result;
   final String? message;
 
+  /// Whether the flow for [kind] on [planId] started this state.
+  bool startedBy(SavingsPlanAction kind, [String? planId]) =>
+      action == kind && requestedPlanId == planId;
+
+  /// What the flow for [kind] on [planId] shows: this state when it started
+  /// it, otherwise idle.
+  SavingsPlanActionState viewFor(SavingsPlanAction kind, [String? planId]) =>
+      startedBy(kind, planId) ? this : const SavingsPlanActionState();
+
+  /// Whether another flow's action is still sending.
+  bool busyFor(SavingsPlanAction kind, [String? planId]) =>
+      phase == SavingsPlanActionPhase.sending && !startedBy(kind, planId);
+
   @override
-  List<Object?> get props => [phase, planId, result, message];
+  List<Object?> get props => [
+    phase,
+    action,
+    requestedPlanId,
+    planId,
+    result,
+    message,
+  ];
 }
 
 const _unconfirmed =
@@ -46,6 +81,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
 
   /// Tops up [planId] from Boc Flex with [amountNaira].
   Future<void> fund(String planId, String amountNaira) => _run(
+    SavingsPlanAction.fund,
     planId,
     () =>
         ref.read(coreSavingsPlanServiceProvider).fundPlan(planId, amountNaira),
@@ -54,6 +90,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
 
   /// Withdraws [planId] early into Boc Flex.
   Future<void> liquidate(String planId) => _run(
+    SavingsPlanAction.liquidate,
     planId,
     () => ref.read(coreSavingsPlanServiceProvider).liquidatePlan(planId),
     _withResult,
@@ -63,25 +100,21 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
   /// Creates a plan funded from Boc Flex; [SavingsPlanActionState.planId]
   /// is the new plan's once done.
   Future<void> create(CreateSavingsPlanRequest request) => _run<String>(
+    SavingsPlanAction.create,
     null,
     () => ref.read(coreSavingsPlanServiceProvider).createPlan(request),
-    (planId) => SavingsPlanActionState(
-      phase: SavingsPlanActionPhase.done,
-      planId: planId,
-    ),
+    (planId) => (planId, null),
   );
 
-  static SavingsPlanActionState _withResult(SavingsPlanActionResult result) =>
-      SavingsPlanActionState(
-        phase: SavingsPlanActionPhase.done,
-        planId: result.planId,
-        result: result,
-      );
+  static (String?, SavingsPlanActionResult?) _withResult(
+    SavingsPlanActionResult result,
+  ) => (result.planId, result);
 
   Future<void> _run<T>(
+    SavingsPlanAction action,
     String? planId,
     Future<NotifierState<T>> Function() call,
-    SavingsPlanActionState Function(T data) done, {
+    (String?, SavingsPlanActionResult?) Function(T data) done, {
     String? forbidden,
   }) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
@@ -89,25 +122,37 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     // refreshes the plan and the balance.
     final link = ref.keepAlive();
     try {
-      await _send(planId, call, done, forbidden);
+      await _send(action, planId, call, done, forbidden);
     } finally {
       link.close();
     }
   }
 
   Future<void> _send<T>(
+    SavingsPlanAction action,
     String? planId,
     Future<NotifierState<T>> Function() call,
-    SavingsPlanActionState Function(T data) done,
+    (String?, SavingsPlanActionResult?) Function(T data) done,
     String? forbidden,
   ) async {
-    state = const SavingsPlanActionState(phase: SavingsPlanActionPhase.sending);
+    state = SavingsPlanActionState(
+      phase: SavingsPlanActionPhase.sending,
+      action: action,
+      requestedPlanId: planId,
+    );
     final reply = await call();
     if (!ref.mounted) return;
 
     final data = reply.data;
     if (reply.isDone && data != null) {
-      state = done(data);
+      final (donePlanId, result) = done(data);
+      state = SavingsPlanActionState(
+        phase: SavingsPlanActionPhase.done,
+        action: action,
+        requestedPlanId: planId,
+        planId: donePlanId,
+        result: result,
+      );
       _refresh(state.planId);
       return;
     }
@@ -119,8 +164,10 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
         reply.isError &&
         (code == null || code >= 500 || (code >= 200 && code < 300));
     if (unknown) {
-      state = const SavingsPlanActionState(
+      state = SavingsPlanActionState(
         phase: SavingsPlanActionPhase.unknown,
+        action: action,
+        requestedPlanId: planId,
         message: _unconfirmed,
       );
       _refresh(planId);
@@ -128,6 +175,8 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     }
     state = SavingsPlanActionState(
       phase: SavingsPlanActionPhase.failed,
+      action: action,
+      requestedPlanId: planId,
       message: code == 403 && forbidden != null
           ? forbidden
           : reply.message ?? 'Request failed.',

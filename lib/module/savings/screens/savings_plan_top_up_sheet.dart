@@ -40,6 +40,12 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
   }
 
   void _submit() {
+    if (ref
+        .read(savingsPlanActionProvider)
+        .busyFor(SavingsPlanAction.fund, widget.planId)) {
+      setState(() => _error = savingsPlanBusyMessage);
+      return;
+    }
     switch (parseNairaToKobo(_controller.text, maxKobo: _maxTopUpKobo)) {
       case InvalidMoney(:final message):
         setState(() => _error = message);
@@ -53,13 +59,23 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = context.bocColors;
-    final action = ref.watch(savingsPlanActionProvider);
+    final action = ref
+        .watch(savingsPlanActionProvider)
+        .viewFor(SavingsPlanAction.fund, widget.planId);
     final sending = action.phase == SavingsPlanActionPhase.sending;
 
     void close() => Navigator.of(context).pop();
 
+    return PopScope(canPop: !sending, child: _body(action, sending, close));
+  }
+
+  Widget _body(
+    SavingsPlanActionState action,
+    bool sending,
+    VoidCallback close,
+  ) {
+    final theme = Theme.of(context);
+    final colors = context.bocColors;
     switch (action.phase) {
       case SavingsPlanActionPhase.done:
         final principal = formatApiAmount(
