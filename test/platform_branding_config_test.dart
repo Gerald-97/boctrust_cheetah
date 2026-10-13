@@ -287,11 +287,15 @@ void main() {
       );
     });
 
-    test('signs the Runner target with the push entitlement', () {
+    test('signs Profile and Release with the push entitlement', () {
       final entitlements = File(
         'ios/Runner/Runner.entitlements',
       ).readAsStringSync();
       expect(entitlements, contains('<key>aps-environment</key>'));
+      final debugEntitlements = File(
+        'ios/Runner/RunnerDebug.entitlements',
+      ).readAsStringSync();
+      expect(debugEntitlements, isNot(contains('<key>aps-environment</key>')));
       final project = File(
         'ios/Runner.xcodeproj/project.pbxproj',
       ).readAsStringSync();
@@ -299,12 +303,15 @@ void main() {
         r'INFOPLIST_FILE = Runner/Info\.plist;',
       ).allMatches(project).length;
       expect(runnerConfigs, 3);
-      expect(
-        RegExp(
-          r'CODE_SIGN_ENTITLEMENTS = Runner/Runner\.entitlements;',
-        ).allMatches(project).length,
-        runnerConfigs,
-      );
+      final pushConfigs = RegExp(
+        r'CODE_SIGN_ENTITLEMENTS = Runner/Runner\.entitlements;',
+      ).allMatches(project).length;
+      final debugConfigs = RegExp(
+        r'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDebug\.entitlements;',
+      ).allMatches(project).length;
+      expect(pushConfigs, 2);
+      expect(debugConfigs, 1);
+      expect(pushConfigs + debugConfigs, runnerConfigs);
     });
 
     test('AppDelegate serves the notification-center delegate', () {
