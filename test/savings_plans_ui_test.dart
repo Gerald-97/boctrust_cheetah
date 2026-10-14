@@ -364,6 +364,25 @@ void main() {
     expect(find.text('Create goal'), findsNothing);
   });
 
+  testWidgets('the goal review explains manual saving and funding', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(),
+      create: true,
+    );
+
+    await walkGoalWizard(tester);
+
+    expect(find.text('Review your goal'), findsOneWidget);
+    expect(find.text('₦200,000.00'), findsOneWidget);
+    expect(find.text('Manual deposits'), findsOneWidget);
+    expect(find.text('Funded from Boc Flex Savings'), findsOneWidget);
+    expect(find.textContaining('opening amount for this term'), findsOneWidget);
+  });
+
   testWidgets('a term Core does not offer keeps the draft', (tester) async {
     await _open(
       tester,

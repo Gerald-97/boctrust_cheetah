@@ -943,6 +943,83 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             widget.type != SavingsProductType.smartSave || _draft.autoSave
             ? _draft.frequency
             : null;
+        if (widget.type == SavingsProductType.smartSave || fixed) {
+          final months = _draft.durationMonths;
+          final recurring = formatApiAmount(
+            savingsPlanNaira(_draft.recurringAmount),
+            currency: 'NGN',
+          );
+          return [
+            _heading(
+              theme,
+              fixed ? 'Review your deposit' : 'Review your goal',
+              'Check the details before you create it.',
+            ),
+            if (fixed) ...[
+              AppTextField(
+                label: 'Deposit name (optional)',
+                controller: _name,
+                hintText: 'e.g. School fees',
+                onChanged: (value) => _update(_draft.copyWith(name: value)),
+              ),
+              const SizedBox(height: BocSpace.md),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(BocSpace.lg),
+                decoration: BoxDecoration(
+                  color: context.bocColors.smartSaveContainer,
+                  borderRadius: BorderRadius.circular(BocRadius.lg),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_draft.name.trim().isNotEmpty) ...[
+                      Text(
+                        _draft.name.trim(),
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: BocSpace.xxs),
+                    ],
+                    Text(
+                      formatApiAmount(
+                            savingsPlanNaira(_draft.amount),
+                            currency: 'NGN',
+                          ) ??
+                          '₦${_draft.amount}',
+                      style: theme.textTheme.headlineMedium?.figures,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: BocSpace.md),
+            ],
+            SavingsFactGroup(
+              title: 'Saving plan',
+              rows: [
+                if (months != null)
+                  (label: fixed ? 'Term' : 'Duration', value: '$months months'),
+                if (!fixed)
+                  (
+                    label: 'Auto-save',
+                    value: frequency != null && recurring != null
+                        ? '$recurring ${frequency.label.toLowerCase()}'
+                        : 'Manual deposits',
+                  ),
+              ],
+            ),
+            if (_createsInCore) ...[
+              const SizedBox(height: BocSpace.md),
+              const SavingsCallout(
+                icon: IconsaxPlusLinear.wallet_2,
+                title: 'Funded from Boc Flex Savings',
+                body:
+                    "When you create it, we'll move the opening amount for "
+                    'this term from Boc Flex Savings.',
+              ),
+            ],
+          ];
+        }
         return [
           _heading(
             theme,
