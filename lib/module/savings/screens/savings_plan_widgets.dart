@@ -56,12 +56,15 @@ class SavingsPlanHero extends StatelessWidget {
               vertical: BocSpace.xxs,
             ),
             decoration: BoxDecoration(
-              color: accent,
+              color: colors.surface,
+              border: Border.all(color: accent, width: 1.5),
               borderRadius: BorderRadius.circular(BocRadius.pill),
             ),
             child: Text(
               status,
-              style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: BocSpace.md),
@@ -77,19 +80,26 @@ class SavingsPlanHero extends StatelessWidget {
           ],
           if (progress != null) ...[
             const SizedBox(height: BocSpace.md),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(BocRadius.pill),
-              child: LinearProgressIndicator(
-                value: progress.fraction,
-                minHeight: BocSpace.xs,
-                color: accent,
-                backgroundColor: colors.surface,
+            MergeSemantics(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(BocRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: progress.fraction,
+                      minHeight: BocSpace.xs,
+                      color: accent,
+                      backgroundColor: colors.surface,
+                    ),
+                  ),
+                  if (progressLabel != null) ...[
+                    const SizedBox(height: BocSpace.xs),
+                    Text(progressLabel!, style: theme.textTheme.bodySmall),
+                  ],
+                ],
               ),
             ),
-            if (progressLabel != null) ...[
-              const SizedBox(height: BocSpace.xs),
-              Text(progressLabel!, style: theme.textTheme.bodySmall),
-            ],
           ],
         ],
       ),
