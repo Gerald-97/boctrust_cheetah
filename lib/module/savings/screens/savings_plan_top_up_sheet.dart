@@ -7,6 +7,7 @@ import '../../../utils/input_formatters.dart';
 import '../../../utils/utils.dart';
 import '../../app_flow/app_ui.dart';
 import '../../core_banking/model/core_money.dart';
+import '../../home/provider/home_provider.dart';
 import '../provider/savings_plan_action_provider.dart';
 
 /// The largest top-up the form accepts (in Kobo); Core enforces the real one.
@@ -32,6 +33,7 @@ class SavingsPlanTopUpSheet extends ConsumerStatefulWidget {
 class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
   final _controller = TextEditingController();
   String? _error;
+  String? _submitted;
 
   @override
   void dispose() {
@@ -50,10 +52,14 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
       case InvalidMoney(:final message):
         setState(() => _error = message);
       case ValidMoney(:final minorUnits):
-        setState(() => _error = null);
+        final amount = koboToNaira(minorUnits);
+        setState(() {
+          _error = null;
+          _submitted = amount;
+        });
         ref
             .read(savingsPlanActionProvider.notifier)
-            .fund(widget.planId, koboToNaira(minorUnits));
+            .fund(widget.planId, amount);
     }
   }
 
@@ -78,18 +84,44 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
     final colors = context.bocColors;
     switch (action.phase) {
       case SavingsPlanActionPhase.done:
-        final principal = formatApiAmount(
+        final hidden = ref.watch(homeBalanceHiddenProvider);
+        final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        final balance = formatApiAmount(
           action.result?.principalAmount,
           currency: 'NGN',
         );
         return AppActionSheet(
           icon: IconsaxPlusLinear.tick_circle,
           title: 'Money added',
-          subtitle: principal == null
-              ? 'Your plan has been topped up.'
-              : '${widget.planName} now holds $principal.',
+          subtitle: 'Added to ${widget.planName} from Boc Flex Savings',
           footer: PrimaryButton(label: 'Done', onPressed: close),
-          child: const SizedBox.shrink(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BocMoneyText(
+                formatApiAmount(_submitted, currency: 'NGN') ?? '',
+                hidden: hidden,
+                semanticsLabel: 'Amount added',
+              ),
+              if (balance != null) ...[
+                const SizedBox(height: BocSpace.sm),
+                Flex(
+                  direction: stacked ? Axis.vertical : Axis.horizontal,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: stacked
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
+                  children: [
+                    Text('New plan balance', style: theme.textTheme.bodyMedium),
+                    Text(
+                      hidden ? '₦ ••••••' : balance,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         );
       case SavingsPlanActionPhase.unknown:
         return SavingsPlanNotConfirmedSheet(

@@ -330,6 +330,36 @@ void main() {
 
     expect(_funded, [('p1', '2500.00')]);
     expect(find.text('Money added'), findsOneWidget);
+    expect(find.text('₦2,500.00'), findsOneWidget);
+    expect(find.text('New plan balance'), findsOneWidget);
+    expect(find.text('₦7,500.00'), findsOneWidget);
+  });
+
+  testWidgets('a hidden balance stays hidden after a deposit', (tester) async {
+    _funded.clear();
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      deposit: true,
+      hidden: true,
+    );
+
+    await tester.tap(find.text('Deposit'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    await tester.enterText(find.byType(TextField), '2,500');
+    await tester.pump();
+    await tester.tap(find.text('Add money'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(find.text('Money added'), findsOneWidget);
+    expect(find.textContaining('7,500'), findsNothing);
+    expect(find.textContaining('2,500.00'), findsNothing);
   });
 
   /// Fills the SmartSave wizard up to its confirm step.
