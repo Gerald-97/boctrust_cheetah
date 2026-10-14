@@ -257,9 +257,8 @@ void main() {
     }
   });
 
-  // Staging support needs these replies. The name enquiry stays redacted:
-  // Core can return the recipient's BVN.
-  test('status checks are logged in full, name enquiries are not', () async {
+  // Staging support needs these replies, the name enquiry included.
+  test('status checks and name enquiries are logged in full', () async {
     final core = _Core({});
     final service = _service(core);
 
@@ -272,11 +271,6 @@ void main() {
       const CoreTrackingReference(CoreTransferKind.intrabank, 'a1b2c3d4e5f6'),
     );
 
-    expect(core.requests.map(_logged), [
-      '/me/interbank/name-enquiry',
-      null,
-      null,
-      null,
-    ]);
+    expect(core.requests.map(_logged), [null, null, null, null]);
   });
 }

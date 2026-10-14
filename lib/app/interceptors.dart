@@ -43,6 +43,9 @@ class LoggingInterceptor extends Interceptor {
     'accountnumber',
     'cardnumber',
     'cvv',
+    // Core bill-payment and biller customer identifiers: staging logs show
+    // them in full by product decision.
+    'customerid',
   };
 
   final bool includeSensitiveData;
@@ -185,8 +188,6 @@ class LoggingInterceptor extends Interceptor {
     // until production-launch hardening; staging shows it for support.
     'documentnumber',
     'resultjson',
-    // Core bill-payment and biller customer identifiers.
-    'customerid',
   };
 
   Object? _visible(Object? value) =>

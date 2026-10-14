@@ -218,17 +218,25 @@ void main() {
     },
   );
 
-  test('Core customer IDs are redacted even in staging', () {
-    interceptor.onRequest(
-      RequestOptions(
-        path: '/me/bills/payments',
-        data: {'customerId': '04512345678', 'amount': '1000.00'},
-      ),
-      RequestInterceptorHandler(),
+  test('Core customer IDs are visible in staging, redacted in production', () {
+    RequestOptions bill() => RequestOptions(
+      path: '/me/bills/payments',
+      data: {'customerId': '04512345678', 'amount': '1000.00'},
     );
-    final logged = output.lines.join();
-    expect(logged, isNot(contains('04512345678')));
-    expect(logged, contains('1000.00'));
+    interceptor.onRequest(bill(), RequestInterceptorHandler());
+    expect(output.lines.join(), contains('04512345678'));
+
+    final production = _CapturingOutput();
+    LoggingInterceptor(
+      includeSensitiveData: false,
+      logger: Logger(
+        filter: ProductionFilter(),
+        printer: SimplePrinter(printTime: false, colors: false),
+        output: production,
+      ),
+    ).onRequest(bill(), RequestInterceptorHandler());
+    expect(production.lines.join(), isNot(contains('04512345678')));
+    expect(production.lines.join(), contains('1000.00'));
   });
 
   test('privacy-sensitive enquiry hides its account path and body', () {

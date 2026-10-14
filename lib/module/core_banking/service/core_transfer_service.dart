@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
-import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
 import '../model/core_check_progress.dart';
@@ -32,10 +31,6 @@ class CoreTransferService {
   final ApiService? _api;
 
   static const _readUnavailable = 'Transfers are not available right now.';
-
-  static Map<String, Object?> _logAs(String template) => {
-    LoggingInterceptor.privacySensitivePathKey: template,
-  };
 
   /// Records a pending BOCTRUST transfer. No money moves.
   Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
@@ -205,8 +200,6 @@ class CoreTransferService {
         CoreApiEndpoints.interbankNameEnquiry,
         data: {'accountNumber': accountNumber, 'bankCode': bankCode},
         parser: NameEnquiryResult.fromJson,
-        // Core can return the recipient's BVN; keep the bodies out of logs.
-        requestExtra: _logAs(CoreApiEndpoints.interbankNameEnquiry),
         cancelToken: cancelToken,
       ),
     );
