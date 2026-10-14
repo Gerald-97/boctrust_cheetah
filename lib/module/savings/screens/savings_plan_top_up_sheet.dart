@@ -118,13 +118,19 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
                         'New plan balance',
                         style: theme.textTheme.bodyMedium,
                       ),
-                      Flexible(
-                        child: Text(
+                      if (stacked)
+                        Text(
                           hidden ? '₦ ••••••' : balance,
-                          textAlign: stacked ? TextAlign.start : TextAlign.end,
                           style: theme.textTheme.titleSmall,
+                        )
+                      else
+                        Flexible(
+                          child: Text(
+                            hidden ? '₦ ••••••' : balance,
+                            textAlign: TextAlign.end,
+                            style: theme.textTheme.titleSmall,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

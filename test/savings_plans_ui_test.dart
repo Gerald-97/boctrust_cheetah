@@ -335,6 +335,33 @@ void main() {
     expect(find.text('₦7,500.00'), findsOneWidget);
   });
 
+  testWidgets('the deposit result fits large text', (tester) async {
+    _funded.clear();
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      const _Plans(),
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      deposit: true,
+    );
+
+    await tester.tap(find.text('Deposit'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    await tester.enterText(find.byType(TextField), '2,500');
+    await tester.pump();
+    await tester.tap(find.text('Add money'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(find.text('New plan balance'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a hidden balance stays hidden after a deposit', (tester) async {
     _funded.clear();
     await _open(
