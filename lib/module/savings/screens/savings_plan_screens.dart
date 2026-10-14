@@ -218,7 +218,11 @@ extension SavingsPlanScreens on FlowPageState {
     final theme = Theme.of(context);
     final rate = plan.rate;
     final hidden = ref.watch(homeBalanceHiddenProvider);
-    final progress = plan.type == SavingsProductType.smartSave && !hidden
+    final progress =
+        plan.type == SavingsProductType.smartSave &&
+            !hidden &&
+            (plan.status == SavingsPlanStatus.active ||
+                plan.status == SavingsPlanStatus.pendingFunding)
         ? savingsPlanProgress(principal: plan.principal, target: plan.target)
         : null;
     String date(DateTime value) => DateFormat('d MMM yyyy').format(value);
@@ -338,7 +342,9 @@ extension SavingsPlanScreens on FlowPageState {
                             ? null
                             : date(event.createdAt!.toLocal()),
                         amount: switch (event.amount) {
-                          null || '0.00' => null,
+                          null => null,
+                          final amount when double.tryParse(amount) == 0 =>
+                            null,
                           final amount =>
                             '${hidden ? '' : _eventSign(event.type)}'
                                 '${_planMoney(amount)}',
@@ -981,6 +987,12 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                       ),
                       const SizedBox(height: BocSpace.xxs),
                     ],
+                    Text(
+                      'Target',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.bocColors.textSecondary,
+                      ),
+                    ),
                     Text(
                       formatApiAmount(
                             savingsPlanNaira(_draft.amount),

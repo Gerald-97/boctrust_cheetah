@@ -222,7 +222,13 @@ class SavingsActivityRow extends StatelessWidget {
               ),
               if (amount != null) ...[
                 const SizedBox(width: BocSpace.sm),
-                Text(amount!, style: theme.textTheme.titleSmall?.figures),
+                Flexible(
+                  child: Text(
+                    amount!,
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.titleSmall?.figures,
+                  ),
+                ),
               ],
             ],
           ),

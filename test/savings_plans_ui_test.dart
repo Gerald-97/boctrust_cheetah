@@ -407,6 +407,7 @@ void main() {
     await walkGoalWizard(tester);
 
     expect(find.text('Review your goal'), findsOneWidget);
+    expect(find.text('Target'), findsOneWidget);
     expect(find.text('₦200,000.00'), findsOneWidget);
     expect(find.text('Manual deposits'), findsOneWidget);
     expect(find.text('Funded from Boc Flex Savings'), findsOneWidget);

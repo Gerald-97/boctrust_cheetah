@@ -98,26 +98,35 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              BocMoneyText(
-                formatApiAmount(_submitted, currency: 'NGN') ?? '',
-                hidden: hidden,
-                semanticsLabel: 'Amount added',
-              ),
+              if (_submitted != null)
+                BocMoneyText(
+                  formatApiAmount(_submitted, currency: 'NGN') ?? '',
+                  hidden: hidden,
+                  semanticsLabel: 'Amount added',
+                ),
               if (balance != null) ...[
                 const SizedBox(height: BocSpace.sm),
-                Flex(
-                  direction: stacked ? Axis.vertical : Axis.horizontal,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: stacked
-                      ? CrossAxisAlignment.start
-                      : CrossAxisAlignment.center,
-                  children: [
-                    Text('New plan balance', style: theme.textTheme.bodyMedium),
-                    Text(
-                      hidden ? '₦ ••••••' : balance,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ],
+                MergeSemantics(
+                  child: Flex(
+                    direction: stacked ? Axis.vertical : Axis.horizontal,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: stacked
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'New plan balance',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      Flexible(
+                        child: Text(
+                          hidden ? '₦ ••••••' : balance,
+                          textAlign: stacked ? TextAlign.start : TextAlign.end,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
