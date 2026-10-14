@@ -29,6 +29,7 @@ import '../provider/savings_plan_action_provider.dart';
 import '../provider/savings_plan_provider.dart';
 
 import 'savings_plan_top_up_sheet.dart';
+import 'savings_plan_widgets.dart';
 import 'savings_plan_withdraw_sheet.dart';
 
 part 'savings_plan_screens.dart';

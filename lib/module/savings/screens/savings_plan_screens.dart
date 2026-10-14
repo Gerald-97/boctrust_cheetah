@@ -14,6 +14,35 @@ extension SavingsPlanScreens on FlowPageState {
     };
   }
 
+  Color _productContainer(SavingsProductType type) {
+    final colors = context.bocColors;
+    return switch (type) {
+      SavingsProductType.flex => colors.flexContainer,
+      SavingsProductType.smartSave => colors.smartSaveContainer,
+      SavingsProductType.fixed => colors.fixedContainer,
+      SavingsProductType.padi => colors.padiContainer,
+    };
+  }
+
+  IconData _eventIcon(SavingsPlanEventType type) => switch (type) {
+    SavingsPlanEventType.topUp => IconsaxPlusLinear.add_circle,
+    SavingsPlanEventType.interestCredit => IconsaxPlusLinear.percentage_circle,
+    SavingsPlanEventType.withdrawal ||
+    SavingsPlanEventType.maturityPayout ||
+    SavingsPlanEventType.liquidation => IconsaxPlusLinear.export,
+    SavingsPlanEventType.created => IconsaxPlusLinear.flag,
+    SavingsPlanEventType.unknown => IconsaxPlusLinear.activity,
+  };
+
+  /// Money in or out; the created and unknown rows carry no direction.
+  String _eventSign(SavingsPlanEventType type) => switch (type) {
+    SavingsPlanEventType.topUp || SavingsPlanEventType.interestCredit => '+',
+    SavingsPlanEventType.withdrawal ||
+    SavingsPlanEventType.maturityPayout ||
+    SavingsPlanEventType.liquidation => '\u2212',
+    _ => '',
+  };
+
   String _planMoney(String? naira) => ref.watch(homeBalanceHiddenProvider)
       ? '₦ ••••••'
       : formatApiAmount(naira, currency: 'NGN') ?? 'Unavailable';
@@ -188,6 +217,10 @@ extension SavingsPlanScreens on FlowPageState {
     final plan = detail.plan;
     final theme = Theme.of(context);
     final rate = plan.rate;
+    final hidden = ref.watch(homeBalanceHiddenProvider);
+    final progress = plan.type == SavingsProductType.smartSave && !hidden
+        ? savingsPlanProgress(principal: plan.principal, target: plan.target)
+        : null;
     String date(DateTime value) => DateFormat('d MMM yyyy').format(value);
     return AppScaffold(
       title: plan.name,
@@ -232,33 +265,60 @@ extension SavingsPlanScreens on FlowPageState {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(BocSpace.gutter),
                 children: [
-                  BocMoneyText(
-                    _planMoney(plan.principal),
-                    semanticsLabel: 'Plan balance',
+                  SavingsPlanHero(
+                    status: plan.status.label,
+                    amount: _planMoney(plan.principal),
+                    accent: _productAccent(plan.type),
+                    container: _productContainer(plan.type),
+                    rate: rate == null ? null : '$rate% per annum',
+                    progress: progress,
+                    progressLabel: progress == null
+                        ? null
+                        : progress.reached
+                        ? 'Target reached'
+                        : '${_planMoney(plan.principal)} of '
+                              '${_planMoney(plan.target)} target',
                   ),
-                  if (rate != null) ...[
-                    const SizedBox(height: BocSpace.xxs),
-                    Text(
-                      '$rate% per annum',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: context.bocColors.blueStrong,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: BocSpace.lg),
-                  BocSummaryGrid(
-                    items: [
-                      (label: 'Status', value: plan.status.label),
+                  const SizedBox(height: BocSpace.md),
+                  SavingsFactGroup(
+                    title: 'Your plan',
+                    rows: [
                       if (plan.target case final target?)
                         (label: 'Target', value: _planMoney(target)),
-                      if (plan.interestEarned case final interest?)
-                        (label: 'Interest earned', value: _planMoney(interest)),
-                      if (plan.accruedInterest case final accrued?)
-                        (label: 'Interest so far', value: _planMoney(accrued)),
-                      if (plan.tenorDays case final days?)
-                        (label: 'Tenor', value: '$days days'),
+                      if (plan.type == SavingsProductType.smartSave)
+                        (
+                          label: 'Auto-save',
+                          value: switch ((
+                            plan.recurringAmount,
+                            plan.saveFrequency,
+                          )) {
+                            (final amount?, final frequency?) =>
+                              '${_planMoney(amount)} '
+                                  '${frequency.label.toLowerCase()}',
+                            _ => 'Manual deposits',
+                          },
+                        ),
+                      if (plan.startDate case final start?)
+                        (label: 'Started', value: date(start)),
                       if (plan.maturityDate case final maturity?)
                         (label: 'Matures', value: date(maturity)),
+                      if (plan.tenorDays case final days?)
+                        (label: 'Tenor', value: '$days days'),
+                    ],
+                  ),
+                  const SizedBox(height: BocSpace.md),
+                  SavingsFactGroup(
+                    title: 'Interest',
+                    rows: [
+                      if (plan.accruedInterest case final accrued?)
+                        (label: 'Interest so far', value: _planMoney(accrued)),
+                      if (plan.interestEarned case final interest?)
+                        (label: 'Interest earned', value: _planMoney(interest)),
+                      if (plan.projectedInterest case final projected?)
+                        (
+                          label: 'Projected at maturity',
+                          value: _planMoney(projected),
+                        ),
                     ],
                   ),
                   if (detail.events.isNotEmpty) ...[
@@ -271,15 +331,18 @@ extension SavingsPlanScreens on FlowPageState {
                       ),
                     ),
                     for (final event in detail.events)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(event.type.label),
-                        subtitle: event.createdAt == null
+                      SavingsActivityRow(
+                        icon: _eventIcon(event.type),
+                        label: event.type.label,
+                        date: event.createdAt == null
                             ? null
-                            : Text(date(event.createdAt!.toLocal())),
-                        trailing: event.amount == null
-                            ? null
-                            : Text(_planMoney(event.amount)),
+                            : date(event.createdAt!.toLocal()),
+                        amount: switch (event.amount) {
+                          null || '0.00' => null,
+                          final amount =>
+                            '${hidden ? '' : _eventSign(event.type)}'
+                                '${_planMoney(amount)}',
+                        },
                       ),
                   ],
                 ],

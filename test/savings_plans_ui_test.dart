@@ -9,7 +9,8 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/model/savings_plan_models.dart';
 import 'package:boctrust_savings_loan/module/savings/service/core_savings_plan_service.dart';
-import 'package:flutter/material.dart' show PopupMenuButton, TextField;
+import 'package:flutter/material.dart'
+    show LinearProgressIndicator, PopupMenuButton, Size, TextField;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/flow_harness.dart';
@@ -23,6 +24,32 @@ const _plan = SavingsPlan(
   principal: '5000.00',
   status: SavingsPlanStatus.active,
 );
+
+/// New plans can start above their target, as Core funds the product minimum.
+const _aboveTarget = _Plans(
+  detail: NotifierState.done(
+    SavingsPlanDetail(
+      plan: SavingsPlan(
+        id: 'p1',
+        type: SavingsProductType.smartSave,
+        name: 'Rent',
+        principal: '5000.00',
+        target: '4500.00',
+        status: SavingsPlanStatus.active,
+        accruedInterest: '0.00',
+      ),
+      events: [
+        SavingsPlanEvent(type: SavingsPlanEventType.topUp, amount: '5000.00'),
+        SavingsPlanEvent(type: SavingsPlanEventType.created, amount: '0.00'),
+      ],
+    ),
+  ),
+);
+
+class _HiddenBalances extends HomeBalanceHiddenNotifier {
+  @override
+  bool build() => true;
+}
 
 final _funded = <(String, String)>[];
 final _opened = <String>[];
@@ -131,7 +158,12 @@ Future<void> _open(
   bool withdraw = false,
   bool deposit = false,
   bool create = false,
+  bool hidden = false,
 }) async {
+  // Tall enough that the detail's activity rows are built, not lazily skipped.
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(800, 1600);
+  addTearDown(tester.view.reset);
   await pumpFlow(
     tester,
     route: route,
@@ -155,6 +187,7 @@ Future<void> _open(
         featureAvailabilityProvider(
           FeatureCapability.smartSaveCreate,
         ).overrideWithValue(FeatureAvailability.available),
+      if (hidden) homeBalanceHiddenProvider.overrideWith(_HiddenBalances.new),
       userHomeProvider.overrideWith(LayoutHome.new),
       customerBankAccountsProvider.overrideWith(_SmartSaveAccounts.new),
       coreBankProductsProvider.overrideWith(LayoutCoreProducts.new),
@@ -177,33 +210,38 @@ void main() {
     }
 
     expect(find.text('Top-up'), findsOneWidget);
-    expect(find.text('₦2,500.00'), findsOneWidget);
+    expect(find.text('+₦2,500.00'), findsOneWidget);
   });
 
-  testWidgets('plan detail shows interest so far', (tester) async {
+  testWidgets('a plan above its target says so', (tester) async {
     await _open(
       tester,
       AppRoutes.savingsPlanDetail,
-      const _Plans(
-        detail: NotifierState.done(
-          SavingsPlanDetail(
-            plan: SavingsPlan(
-              id: 'p1',
-              type: SavingsProductType.smartSave,
-              name: 'Rent',
-              principal: '5000.00',
-              status: SavingsPlanStatus.active,
-              accruedInterest: '120.40',
-            ),
-            events: [],
-          ),
-        ),
-      ),
+      _aboveTarget,
       arguments: const AppRouteArguments(entityId: 'p1'),
     );
 
+    expect(find.text('Target reached'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('+₦5,000.00'), findsOneWidget);
     expect(find.text('Interest so far'), findsOneWidget);
-    expect(find.text('₦120.40'), findsOneWidget);
+    // Interest only: the created row has no amount.
+    expect(find.text('₦0.00'), findsOneWidget);
+  });
+
+  testWidgets('hidden balances hide the amounts and the progress', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      AppRoutes.savingsPlanDetail,
+      _aboveTarget,
+      arguments: const AppRouteArguments(entityId: 'p1'),
+      hidden: true,
+    );
+
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.textContaining('5,000'), findsNothing);
   });
 
   testWidgets('early withdrawal names the fee on the interest', (tester) async {
