@@ -51,85 +51,134 @@ extension SavingsPlanScreens on FlowPageState {
   Widget _savingsPlansScreen(SavingsProductType type, String title) {
     final state = ref.watch(savingsPlansProvider(type));
     final theme = Theme.of(context);
+    // A product can hold many plans; the empty state offers the first one.
+    final hasPlans = switch (state) {
+      AsyncData(:final value) =>
+        value.data
+                ?.where((group) => group.type == type)
+                .firstOrNull
+                ?.plans
+                .isNotEmpty ??
+            false,
+      _ => false,
+    };
+    final canAddPlan = hasPlans && _canCreatePlan(type);
+    const listPadding = EdgeInsets.fromLTRB(
+      BocSpace.gutter,
+      BocSpace.xxs,
+      BocSpace.gutter,
+      BocSpace.lg,
+    );
     return AppScaffold(
       title: title,
       activeSection: AppSection.save,
       onBack: back,
       onSectionSelected: goSection,
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(savingsPlansProvider(type).future),
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(
-            BocSpace.gutter,
-            BocSpace.xxs,
-            BocSpace.gutter,
-            BocSpace.lg,
-          ).clearOfNav(context),
-          children: switch (state) {
-            AsyncData(:final value)
-                when value.data != null ||
-                    value.status == ServiceStatus.empty =>
-              switch (value.data
-                  ?.where((group) => group.type == type)
-                  .firstOrNull) {
-                final group? when group.plans.isNotEmpty => [
-                  SurfaceCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          group.productName,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: BocSpace.xxs),
-                        BocMoneyText(
-                          _planMoney(
-                            _watchCoreAccounts().data?.accounts
-                                .where(
-                                  (account) =>
-                                      account.accountNumber ==
-                                      group.accountNumber,
-                                )
-                                .firstOrNull
-                                ?.availableBalance,
-                          ),
-                          semanticsLabel: 'Product balance',
-                        ),
-                        if (group.rate case final rate?)
-                          Text('$rate% p.a.', style: theme.textTheme.bodySmall),
-                      ],
-                    ),
-                  ),
-                  for (final plan in group.plans) ...[
-                    const SizedBox(height: BocSpace.sm),
-                    _planTile(plan),
-                  ],
-                ],
-                _ => [
-                  SavingsEmptyState(
-                    icon: IconsaxPlusLinear.save_2,
-                    title: 'No ${type.displayName} plans yet',
-                    message: 'Plans you create will appear here.',
-                    actionLabel: _canCreatePlan(type) ? 'Create a plan' : null,
-                    onAction: _canCreatePlan(type)
-                        ? () => _startPlanCreation(type)
-                        : null,
-                  ),
-                ],
-              },
-            AsyncData(:final value) => [
-              ApiStateCard(
-                title: 'Plans unavailable',
-                message: value.message ?? "We couldn't load your plans.",
-                tone: ApiStateTone.error,
-                actionLabel: 'Retry',
-                onAction: () => ref.invalidate(savingsPlansProvider(type)),
+      body: Column(
+        children: [
+          Expanded(
+            child: _plansList(
+              type,
+              state,
+              theme,
+              canAddPlan ? listPadding : listPadding.clearOfNav(context),
+            ),
+          ),
+          if (canAddPlan)
+            Padding(
+              // The list above stops at this footer, so the footer itself
+              // has to clear the floating nav pill.
+              padding: const EdgeInsets.fromLTRB(
+                BocSpace.gutter,
+                0,
+                BocSpace.gutter,
+                BocSpace.md,
+              ).clearOfNav(context),
+              child: PrimaryButton(
+                label: type == SavingsProductType.fixed
+                    ? 'New fixed deposit'
+                    : 'New goal',
+                onPressed: () => _startPlanCreation(type),
               ),
-            ],
-            _ => const [ApiLoadingSection(label: 'Loading your plans')],
-          },
-        ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _plansList(
+    SavingsProductType type,
+    AsyncValue<NotifierState<List<SavingsProductGroup>>> state,
+    ThemeData theme,
+    EdgeInsets padding,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(savingsPlansProvider(type).future),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: padding,
+        children: switch (state) {
+          AsyncData(:final value)
+              when value.data != null || value.status == ServiceStatus.empty =>
+            switch (value.data
+                ?.where((group) => group.type == type)
+                .firstOrNull) {
+              final group? when group.plans.isNotEmpty => [
+                SurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.productName,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: BocSpace.xxs),
+                      BocMoneyText(
+                        _planMoney(
+                          _watchCoreAccounts().data?.accounts
+                              .where(
+                                (account) =>
+                                    account.accountNumber ==
+                                    group.accountNumber,
+                              )
+                              .firstOrNull
+                              ?.availableBalance,
+                        ),
+                        semanticsLabel: 'Product balance',
+                      ),
+                      if (group.rate case final rate?)
+                        Text('$rate% p.a.', style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                for (final plan in group.plans) ...[
+                  const SizedBox(height: BocSpace.sm),
+                  _planTile(plan),
+                ],
+              ],
+              _ => [
+                SavingsEmptyState(
+                  icon: IconsaxPlusLinear.save_2,
+                  title: 'No ${type.displayName} plans yet',
+                  message: 'Plans you create will appear here.',
+                  actionLabel: _canCreatePlan(type) ? 'Create a plan' : null,
+                  onAction: _canCreatePlan(type)
+                      ? () => _startPlanCreation(type)
+                      : null,
+                ),
+              ],
+            },
+          AsyncData(:final value) => [
+            ApiStateCard(
+              title: 'Plans unavailable',
+              message: value.message ?? "We couldn't load your plans.",
+              tone: ApiStateTone.error,
+              actionLabel: 'Retry',
+              onAction: () => ref.invalidate(savingsPlansProvider(type)),
+            ),
+          ],
+          _ => const [ApiLoadingSection(label: 'Loading your plans')],
+        },
       ),
     );
   }

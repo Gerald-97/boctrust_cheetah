@@ -213,6 +213,17 @@ void main() {
     expect(find.text('+₦2,500.00'), findsOneWidget);
   });
 
+  testWidgets('a product with plans still offers another', (tester) async {
+    await _open(tester, AppRoutes.targetSave, const _Plans(), create: true);
+
+    await tester.tap(find.text('New goal'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    expect(find.text('What are you saving for?'), findsOneWidget);
+  });
+
   testWidgets('a plan above its target says so', (tester) async {
     await _open(
       tester,
