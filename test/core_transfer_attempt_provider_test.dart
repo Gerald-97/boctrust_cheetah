@@ -307,6 +307,22 @@ void main() {
     );
   });
 
+  test('a refused initiate shows Core’s reason', () async {
+    final (:container, :transfers) = _setUp();
+    const reason = 'You need to complete at least Tier 1 verification.';
+    transfers.initiation = const NotifierState.error(reason, statusCode: 403);
+
+    await _initiate(container);
+
+    expect(
+      _current(container)?.outcome,
+      const RejectedSubmission(
+        CoreRejection.accountRestricted,
+        detail: reason,
+      ),
+    );
+  });
+
   test('an expired initiation is never finalized', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);

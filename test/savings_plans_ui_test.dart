@@ -216,7 +216,7 @@ void main() {
   testWidgets('a product with plans still offers another', (tester) async {
     await _open(tester, AppRoutes.targetSave, const _Plans(), create: true);
 
-    await tester.tap(find.text('New goal'));
+    await tester.tap(find.byTooltip('New goal'));
     for (var i = 0; i < 3; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }

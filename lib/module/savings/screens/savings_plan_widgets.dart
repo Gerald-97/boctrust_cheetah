@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
@@ -21,6 +22,8 @@ class SavingsPlanHero extends StatelessWidget {
     required this.amount,
     required this.accent,
     required this.container,
+    required this.icon,
+    required this.onDeposit,
     this.rate,
     this.progressLabel,
     this.progress,
@@ -31,6 +34,8 @@ class SavingsPlanHero extends StatelessWidget {
   final String amount;
   final Color accent;
   final Color container;
+  final IconData icon;
+  final VoidCallback onDeposit;
   final String? rate;
   final String? progressLabel;
   final SavingsPlanProgress? progress;
@@ -50,24 +55,41 @@ class SavingsPlanHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: BocSpace.sm,
-              vertical: BocSpace.xxs,
-            ),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              border: Border.all(color: accent, width: 1.5),
-              borderRadius: BorderRadius.circular(BocRadius.pill),
-            ),
-            child: Text(
-              status,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colors.textPrimary,
+          Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: Icon(icon, color: accent, size: 22),
+                ),
               ),
-            ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BocSpace.sm,
+                  vertical: BocSpace.xxs,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border.all(color: accent),
+                  borderRadius: BorderRadius.circular(BocRadius.pill),
+                ),
+                child: Text(
+                  status,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: BocSpace.md),
+          Text('Plan balance', style: theme.textTheme.bodySmall),
+          const SizedBox(height: BocSpace.xxs),
           BocMoneyText(amount, semanticsLabel: 'Plan balance'),
           if (rate != null) ...[
             const SizedBox(height: BocSpace.xxs),
@@ -101,6 +123,24 @@ class SavingsPlanHero extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(height: BocSpace.lg),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onDeposit,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, BocSpace.minTouch),
+                backgroundColor: colors.surface,
+                foregroundColor: accent,
+                side: BorderSide(color: accent),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+              ),
+              icon: const Icon(IconsaxPlusLinear.add_circle, size: 20),
+              label: const Text('Deposit'),
+            ),
+          ),
         ],
       ),
     );
@@ -187,50 +227,87 @@ class SavingsActivityRow extends StatelessWidget {
   const SavingsActivityRow({
     required this.icon,
     required this.label,
+    required this.accent,
+    required this.container,
     this.date,
     this.amount,
+    this.onTap,
     super.key,
   });
 
   final IconData icon;
   final String label;
+  final Color accent;
+  final Color container;
   final String? date;
   final String? amount;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.bocColors;
     final theme = Theme.of(context);
     return MergeSemantics(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: BocSpace.minTouch),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: BocSpace.xs),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: colors.textSecondary),
-              const SizedBox(width: BocSpace.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: theme.textTheme.bodyMedium),
-                    if (date != null)
-                      Text(date!, style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              ),
-              if (amount != null) ...[
-                const SizedBox(width: BocSpace.sm),
-                Flexible(
-                  child: Text(
-                    amount!,
-                    textAlign: TextAlign.end,
-                    style: theme.textTheme.titleSmall?.figures,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: BocSpace.minTouch),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: BocSpace.md,
+              vertical: BocSpace.sm,
+            ),
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: container,
+                    borderRadius: BorderRadius.circular(BocRadius.sm),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Icon(icon, size: 20, color: accent),
                   ),
                 ),
+                const SizedBox(width: BocSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: theme.textTheme.bodyMedium),
+                      if (date != null)
+                        Text(date!, style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                if (amount != null) ...[
+                  const SizedBox(width: BocSpace.sm),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.36,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        amount!,
+                        style: theme.textTheme.titleSmall?.figures.copyWith(
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (onTap != null) ...[
+                  const SizedBox(width: BocSpace.xs),
+                  Icon(
+                    IconsaxPlusLinear.arrow_right_3,
+                    size: 14,
+                    color: colors.textTertiary,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

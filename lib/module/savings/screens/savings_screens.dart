@@ -189,6 +189,7 @@ extension SavingsScreens on FlowPageState {
       ref.read(customerBankAccountsProvider.notifier).load(),
       ref.read(coreBankProductsProvider.notifier).load(),
     ]);
+    ref.invalidate(savingsPlansProvider);
   }
 
   /// Starts the Core account and product reads the first time a savings
@@ -260,10 +261,48 @@ extension SavingsScreens on FlowPageState {
     CoreAccountStatus.unknown => 'Unavailable',
   };
 
-  /// One owned Core account other than Flex: name, balance and server status.
+  /// Only show a count after Core has returned a plan list for this account.
+  int? _createdPlanCount(SavingsProductType type, String accountNumber) {
+    final result = switch (ref.watch(savingsPlansProvider(type))) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    if (result == null) return null;
+    if (result.status == ServiceStatus.empty) return 0;
+    if (!result.isDone || result.data == null) return null;
+
+    final groups = result.data!.where((group) => group.type == type).toList();
+    if (groups.isEmpty) return 0;
+    final matching = groups
+        .where((group) => group.accountNumber == accountNumber)
+        .toList();
+    if (matching.isNotEmpty) {
+      return matching.fold<int>(
+        0,
+        (count, group) => count + group.plans.length,
+      );
+    }
+    if (groups.length == 1 && groups.single.accountNumber == null) {
+      return groups.single.plans.length;
+    }
+    return null;
+  }
+
+  /// One owned Core account other than Flex, with its published product facts.
   /// A plan product's account opens its plans; any other its account detail.
-  Widget _coreAccountTile(CustomerBankAccount account, {required bool hidden}) {
-    final theme = Theme.of(context);
+  Widget _coreAccountTile(
+    CustomerBankAccount account, {
+    required bool hidden,
+    CoreBankProduct? product,
+  }) {
+    final colors = context.bocColors;
+    final type =
+        SavingsProductType.fromCoreCode(account.productCode) ??
+        (product == null ? null : _planTypeFor(product)) ??
+        (account.productName.toLowerCase().contains('padi')
+            ? SavingsProductType.padi
+            : null);
+    final rate = product?.interestRate;
     final balance = formatApiAmount(account.availableBalance, currency: 'NGN');
     bool available(FeatureCapability capability) =>
         ref.watch(featureAvailabilityProvider(capability)).isAvailable;
@@ -274,7 +313,31 @@ extension SavingsScreens on FlowPageState {
             _ => null,
           }
         : null;
-    return SurfaceCard(
+    final createdItemCount = plansRoute == null
+        ? null
+        : _createdPlanCount(type!, account.accountNumber);
+    return OwnedSavingsTile(
+      title: account.productName,
+      balance: balance,
+      hidden: hidden,
+      accountNumber: account.accountNumber,
+      status: _accountStatusLabel(account.status),
+      icon: switch (type) {
+        SavingsProductType.smartSave => IconsaxPlusLinear.flag,
+        SavingsProductType.fixed => IconsaxPlusLinear.lock,
+        SavingsProductType.padi => IconsaxPlusLinear.profile_2user,
+        _ => IconsaxPlusLinear.save_2,
+      },
+      accent: type == null ? colors.goldStrong : _productAccent(type),
+      container: type == null ? colors.goldPale : _productContainer(type),
+      rate: rate == null ? null : _formatRate(rate),
+      tenureDays: product?.tenureDays,
+      createdItemCount: createdItemCount,
+      createdItemLabel: switch (type) {
+        SavingsProductType.smartSave => 'goal',
+        SavingsProductType.fixed => 'deposit',
+        _ => null,
+      },
       onTap: plansRoute != null
           ? () => go(plansRoute)
           : available(FeatureCapability.coreAccountActivity)
@@ -283,28 +346,6 @@ extension SavingsScreens on FlowPageState {
               arguments: AppRouteArguments(entityId: account.accountNumber),
             )
           : null,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(account.productName, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  hidden ? '₦ ••••••' : balance ?? 'Balance unavailable',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-          if (!account.isActive)
-            Text(
-              _accountStatusLabel(account.status),
-              style: theme.textTheme.labelMedium,
-            ),
-        ],
-      ),
     );
   }
 
@@ -353,6 +394,11 @@ extension SavingsScreens on FlowPageState {
     final userCatalogue = CoreBankProduct.listFromJson(
       homeState.data?.savingsProducts ?? const [],
     );
+    final catalogue = productsState.data ?? userCatalogue;
+    final flexProduct = catalogue
+        .where((product) => product.code == kFlexProductCode)
+        .firstOrNull;
+    final flexRate = flexProduct?.interestRate;
     final hidden = ref.watch(homeBalanceHiddenProvider);
     final otherAccounts = [
       for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
@@ -389,24 +435,24 @@ extension SavingsScreens on FlowPageState {
             // Core problems only matter while Core is the balance source.
             if (flex?.isCoreAccount ?? true)
               ..._coreAccountsStatus(accountsState),
+            if (flex != null || otherAccounts.isNotEmpty) ...[
+              Semantics(
+                header: true,
+                child: Text('Your savings', style: theme.textTheme.titleMedium),
+              ),
+              const SizedBox(height: BocSpace.sm),
+            ],
             if (flex != null)
               FlexSavingsTile(
                 title:
-                    flex.productName ??
-                    productsState.data
-                        ?.where((p) => p.code == kFlexProductCode)
-                        .firstOrNull
-                        ?.name ??
-                    userCatalogue
-                        .where((p) => p.code == kFlexProductCode)
-                        .firstOrNull
-                        ?.name ??
-                    'Boc Flex Savings',
+                    flex.productName ?? flexProduct?.name ?? 'Boc Flex Savings',
                 balance: formatApiAmount(
                   flex.availableBalance,
                   currency: 'NGN',
                 ),
                 hidden: hidden,
+                accountNumber: flex.accountNumber,
+                rate: flexRate == null ? null : _formatRate(flexRate),
                 onTap: () => go(AppRoutes.flexSave),
               )
             else if (accounts != null || homeState.data != null)
@@ -417,7 +463,13 @@ extension SavingsScreens on FlowPageState {
               ),
             for (final account in otherAccounts) ...[
               const SizedBox(height: BocSpace.sm),
-              _coreAccountTile(account, hidden: hidden),
+              _coreAccountTile(
+                account,
+                hidden: hidden,
+                product: catalogue
+                    .where((p) => p.code == account.productCode)
+                    .firstOrNull,
+              ),
             ],
             const SizedBox(height: BocSpace.lg),
             Semantics(
@@ -501,12 +553,31 @@ extension SavingsScreens on FlowPageState {
           onAction: _refreshSavings,
         )
       else if (unowned.isEmpty)
-        const SavingsEmptyState(
-          icon: IconsaxPlusLinear.wallet_money,
-          title: "You're all set",
-          message:
-              'You already hold every savings product we offer. New '
-              'products will appear here.',
+        SurfaceCard(
+          child: Row(
+            children: [
+              Icon(
+                IconsaxPlusLinear.wallet_money,
+                color: context.bocColors.goldStrong,
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "You're all set",
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Text(
+                      'You hold every savings product we offer.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         )
       else
         for (final (i, product) in unowned.indexed) ...[

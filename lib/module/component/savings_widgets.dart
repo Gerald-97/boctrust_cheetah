@@ -45,6 +45,8 @@ class FlexSavingsTile extends StatelessWidget {
     required this.balance,
     required this.hidden,
     required this.onTap,
+    this.accountNumber,
+    this.rate,
     super.key,
   });
 
@@ -54,12 +56,18 @@ class FlexSavingsTile extends StatelessWidget {
   final String? balance;
   final bool hidden;
   final VoidCallback onTap;
+  final String? accountNumber;
+  final String? rate;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.bocColors;
     final theme = Theme.of(context);
     final value = balance;
+    final number = accountNumber;
+    final accountHint = number == null
+        ? null
+        : 'Account •••• ${number.substring(number.length > 4 ? number.length - 4 : 0)}';
     return Material(
       color: colors.flexAccent,
       borderRadius: BorderRadius.circular(BocRadius.md),
@@ -81,6 +89,13 @@ class FlexSavingsTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: BocSpace.xs),
+                    Text(
+                      'Available balance',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: BocColors.navy,
+                      ),
+                    ),
+                    const SizedBox(height: BocSpace.xxs),
                     if (value == null)
                       Text(
                         'Balance unavailable',
@@ -101,6 +116,29 @@ class FlexSavingsTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (rate != null || accountHint != null) ...[
+                      const SizedBox(height: BocSpace.sm),
+                      Wrap(
+                        spacing: BocSpace.sm,
+                        runSpacing: BocSpace.xxs,
+                        children: [
+                          if (rate != null)
+                            Text(
+                              '$rate% p.a.',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: BocColors.navy,
+                              ),
+                            ),
+                          if (accountHint != null)
+                            Text(
+                              accountHint,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: BocColors.navy,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -111,6 +149,150 @@ class FlexSavingsTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// An owned savings account on the Save hub, with only published product facts.
+class OwnedSavingsTile extends StatelessWidget {
+  const OwnedSavingsTile({
+    required this.title,
+    required this.balance,
+    required this.hidden,
+    required this.accountNumber,
+    required this.status,
+    required this.icon,
+    required this.accent,
+    required this.container,
+    this.rate,
+    this.tenureDays,
+    this.createdItemCount,
+    this.createdItemLabel,
+    this.onTap,
+    super.key,
+  });
+
+  final String title;
+  final String? balance;
+  final bool hidden;
+  final String accountNumber;
+  final String status;
+  final IconData icon;
+  final Color accent;
+  final Color container;
+  final String? rate;
+  final int? tenureDays;
+  final int? createdItemCount;
+  final String? createdItemLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final suffix = accountNumber.substring(
+      accountNumber.length > 4 ? accountNumber.length - 4 : 0,
+    );
+    return SurfaceCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: container,
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
+              if (onTap != null)
+                Icon(
+                  IconsaxPlusLinear.arrow_right_3,
+                  size: 20,
+                  color: colors.textTertiary,
+                ),
+            ],
+          ),
+          const SizedBox(height: BocSpace.sm),
+          Text('Available balance', style: theme.textTheme.bodySmall),
+          const SizedBox(height: BocSpace.xxs),
+          Text(
+            hidden ? '₦ ••••••' : balance ?? 'Balance unavailable',
+            style: theme.textTheme.titleMedium?.figures,
+          ),
+          const SizedBox(height: BocSpace.sm),
+          Wrap(
+            spacing: BocSpace.xs,
+            runSpacing: BocSpace.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Account •••• $suffix',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: status == 'Active'
+                          ? colors.successText
+                          : colors.textSecondary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const SizedBox.square(dimension: 6),
+                  ),
+                  const SizedBox(width: BocSpace.xxs),
+                  Text(
+                    status,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: status == 'Active'
+                          ? colors.successText
+                          : colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              if (rate != null)
+                Text(
+                  '$rate% p.a.',
+                  style: theme.textTheme.labelMedium?.copyWith(color: accent),
+                ),
+              if (tenureDays != null)
+                Text(
+                  tenureDays == 1 ? '1-day term' : '$tenureDays-day term',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              if (createdItemCount != null && createdItemLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: BocSpace.xs,
+                    vertical: BocSpace.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: container,
+                    borderRadius: BorderRadius.circular(BocRadius.pill),
+                  ),
+                  child: Text(
+                    '$createdItemCount ${createdItemLabel!}${createdItemCount == 1 ? '' : 's'}',
+                    style: theme.textTheme.labelMedium?.copyWith(color: accent),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -56,8 +56,8 @@ class _Accounts extends CustomerBankAccountsNotifier {
 
 final _catalogue = NotifierState.done(
   CoreBankProduct.listFromJson([
-    {'code': 'bocFlex', 'name': 'Boc Flex'},
-    {'code': 'regular_savings', 'name': 'Regular Savings'},
+    {'code': 'bocFlex', 'name': 'Boc Flex', 'interestRate': 2.5},
+    {'code': 'regular_savings', 'name': 'Regular Savings', 'interestRate': 4.5},
     {
       'code': 'fixed_deposit',
       'name': 'Fixed Deposit',
@@ -90,8 +90,9 @@ Future<void> _pump(
   String route, {
   required NotifierState<CustomerBankAccountsData> accounts,
   NotifierState<List<CoreBankProduct>>? products,
+  Size viewport = const Size(800, 2000),
 }) async {
-  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.physicalSize = viewport;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -155,6 +156,11 @@ void main() {
     expect(find.text('₦7,654.30'), findsOneWidget);
     expect(find.text('Regular Savings'), findsOneWidget);
     expect(find.text('Frozen'), findsOneWidget);
+    expect(find.text('Your savings'), findsOneWidget);
+    expect(find.text('Account •••• 0001'), findsOneWidget);
+    expect(find.text('Account •••• 0002'), findsOneWidget);
+    expect(find.text('2.5% p.a.'), findsOneWidget);
+    expect(find.text('4.5% p.a.'), findsOneWidget);
     expect(find.text('Fixed Deposit'), findsOneWidget);
     expect(find.text('Lock funds for a fixed term.'), findsOneWidget);
     expect(find.text('12.5% p.a.'), findsOneWidget);
@@ -175,6 +181,19 @@ void main() {
 
     expect(find.text('No savings products yet'), findsOneWidget);
     expect(find.text('Refresh'), findsOneWidget);
+  });
+
+  testWidgets('Savings cards fit a narrow phone', (tester) async {
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(_accounts),
+      viewport: const Size(360, 800),
+    );
+
+    expect(find.text('Your savings'), findsOneWidget);
+    expect(find.text('Account •••• 0002'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('owning every product shows the all-set state', (tester) async {

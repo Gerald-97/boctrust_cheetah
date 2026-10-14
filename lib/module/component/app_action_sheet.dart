@@ -11,6 +11,8 @@ class AppActionSheet extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    this.iconColor,
+    this.iconBackground,
     this.footer,
     super.key,
   });
@@ -19,6 +21,8 @@ class AppActionSheet extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
+  final Color? iconColor;
+  final Color? iconBackground;
   final Widget? footer;
 
   /// Opens [builder] as a branded modal sheet and returns its pop value.
@@ -79,7 +83,19 @@ class AppActionSheet extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RoundedIcon(icon: icon, color: BocColors.gold),
+                  if (iconColor != null && iconBackground != null)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: iconBackground,
+                        borderRadius: BorderRadius.circular(BocRadius.sm),
+                      ),
+                      child: SizedBox.square(
+                        dimension: 40,
+                        child: Icon(icon, size: 20, color: iconColor),
+                      ),
+                    )
+                  else
+                    RoundedIcon(icon: icon, color: BocColors.gold),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

@@ -202,7 +202,9 @@ abstract class KycScreenState<W extends ConsumerStatefulWidget>
   void refreshKycFormState(VoidCallback update) => setState(update);
 
   void _showMessage(String message) => ResponseHandler.showInfo(message);
+
   void _showErrorMessage(String message) => ResponseHandler.showError(message);
+
   void _showSuccessMessage(String message) =>
       ResponseHandler.showSuccess(message);
 

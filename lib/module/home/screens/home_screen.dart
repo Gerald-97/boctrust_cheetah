@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/api_logger.dart';
 import '../../../app/app_router.dart';
 import '../../../app/boc_icons.dart';
+import '../../../app/feature_capability.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../utils/utils.dart';
@@ -14,7 +16,9 @@ import '../../account/screens/contact_verification.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';
+import '../../core_banking/model/core_account_transactions.dart';
 import '../../core_banking/model/flex_balance.dart';
+import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
@@ -102,6 +106,29 @@ extension HomeScreenParts on FlowPageState {
             ref.read(userHomeProvider.notifier).load(),
             ref.read(customerBankAccountsProvider.notifier).load(),
           ]);
+          if (!mounted) return;
+          final accountNumber = ref
+              .read(customerBankAccountsProvider)
+              .data
+              ?.activeFlexAccount
+              ?.accountNumber;
+          if (accountNumber != null &&
+              ref
+                  .read(
+                    featureAvailabilityProvider(
+                      FeatureCapability.coreAccountHistory,
+                    ),
+                  )
+                  .isAvailable) {
+            await ref
+                .read(
+                  coreAccountHistoryProvider((
+                    accountNumber: accountNumber,
+                    range: CoreHistoryRange.last30Days,
+                  )).notifier,
+                )
+                .reload();
+          }
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -242,11 +269,10 @@ extension HomeScreenParts on FlowPageState {
                 ),
               ),
             ],
-            // Funding details follow the everyday actions, as in the design.
-            if (homeState.data case final home?) ...[
-              const SizedBox(height: BocSpace.sm),
-              dedicatedVirtualAccountCard(home.dedicatedVirtualAccount),
-            ],
+            const SizedBox(height: BocSpace.xs),
+            _homeTransactionsSection(
+              accountsState.data?.activeFlexAccount?.accountNumber,
+            ),
           ],
         ),
       ),
@@ -326,6 +352,9 @@ extension HomeScreenParts on FlowPageState {
 
     final accountNumber = present(funding?.accountNumber);
     final bankName = accountNumber == null ? null : present(funding?.bankName);
+    final accountName = accountNumber == null
+        ? null
+        : present(funding?.accountName);
 
     return BalanceCard(
       label: 'Wallet balance',
@@ -333,12 +362,122 @@ extension HomeScreenParts on FlowPageState {
       hidden: hidden,
       onToggle: () => ref.read(homeBalanceHiddenProvider.notifier).toggle(),
       accountNumber: accountNumber,
+      accountName: accountName,
       bankName: bankName,
       onCopyAccountNumber: accountNumber == null || funding == null
           ? null
           : () => _copyFundingAccountNumber(funding),
       tier: ref.watch(userTierProvider).data?.currentTier,
       loading: loading,
+    );
+  }
+
+  Widget _homeTransactionsSection(String? accountNumber) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final available = ref
+        .watch(
+          featureAvailabilityProvider(FeatureCapability.coreAccountHistory),
+        )
+        .isAvailable;
+    final key = accountNumber == null
+        ? null
+        : (accountNumber: accountNumber, range: CoreHistoryRange.last30Days);
+    final state = available && key != null
+        ? ref.watch(coreAccountHistoryProvider(key))
+        : null;
+    final history = state?.data;
+    final canSeeAll =
+        history?.rows.isNotEmpty == true &&
+        ref
+            .watch(
+              featureAvailabilityProvider(
+                FeatureCapability.coreAccountActivity,
+              ),
+            )
+            .isAvailable;
+    final hidden = ref.watch(homeBalanceHiddenProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  'Recent transactions',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ),
+            if (canSeeAll)
+              TextButton(
+                onPressed: () => go(AppRoutes.flexStatement),
+                child: const Text('See all'),
+              ),
+          ],
+        ),
+        const SizedBox(height: BocSpace.xs),
+        if (!available)
+          const ApiStateCard(
+            title: 'Transactions unavailable',
+            message: 'Transaction history is not available right now.',
+            tone: ApiStateTone.info,
+          )
+        else if (accountNumber == null)
+          _HomeTransactionsEmpty(
+            message:
+                'Your transactions will appear when your Flex account is ready.',
+          )
+        else if (history == null && state!.isError)
+          ApiStateCard(
+            title: 'Transactions unavailable',
+            message: state.message ?? "We couldn't load your transactions.",
+            tone: ApiStateTone.warning,
+            actionLabel: 'Retry',
+            onAction: () => ref.invalidate(coreAccountHistoryProvider(key!)),
+          )
+        else if (history == null)
+          const ApiLoadingSection(label: 'Loading your transactions')
+        else ...[
+          if (history.failure != null) ...[
+            ApiStateCard(
+              title: 'Refresh failed',
+              message: history.failure!,
+              tone: ApiStateTone.warning,
+              actionLabel: 'Retry',
+              onAction: () =>
+                  ref.read(coreAccountHistoryProvider(key!).notifier).reload(),
+            ),
+            const SizedBox(height: BocSpace.sm),
+          ],
+          if (history.rows.isEmpty && history.failure == null)
+            const _HomeTransactionsEmpty(
+              message:
+                  'Your Flex transactions from the last 30 days will appear here.',
+            )
+          else if (history.rows.isNotEmpty)
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final (index, row) in history.rows.take(4).indexed) ...[
+                    if (index > 0)
+                      Divider(
+                        height: 1,
+                        indent: BocSpace.md,
+                        endIndent: BocSpace.md,
+                        color: colors.border,
+                      ),
+                    _HomeTransactionRow(row: row, hidden: hidden),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ],
     );
   }
 
@@ -533,6 +672,135 @@ extension HomeScreenParts on FlowPageState {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeTransactionsEmpty extends StatelessWidget {
+  const _HomeTransactionsEmpty({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    return SurfaceCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.smartSaveContainer,
+              borderRadius: BorderRadius.circular(BocRadius.sm),
+            ),
+            child: SizedBox.square(
+              dimension: 40,
+              child: Icon(
+                IconsaxPlusLinear.receipt_item,
+                color: colors.smartSaveAccent,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: BocSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No transactions yet', style: theme.textTheme.titleSmall),
+                const SizedBox(height: BocSpace.xxs),
+                Text(message, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTransactionRow extends StatelessWidget {
+  const _HomeTransactionRow({required this.row, required this.hidden});
+
+  final CoreAccountTransaction row;
+  final bool hidden;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final credit = row.type == CoreTransactionType.credit;
+    final formatted = formatApiAmount(row.amount, currency: 'NGN');
+    final amount = hidden
+        ? '₦ ••••••'
+        : formatted == null
+        ? 'Unavailable'
+        : '${credit ? '+' : '−'}$formatted';
+    final date = row.date == null
+        ? 'Date unavailable'
+        : DateFormat('d MMM, h:mm a').format(row.date!.toLocal());
+    return MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: BocSpace.md,
+          vertical: BocSpace.sm,
+        ),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: credit ? colors.successContainer : colors.errorContainer,
+                borderRadius: BorderRadius.circular(BocRadius.sm),
+              ),
+              child: SizedBox.square(
+                dimension: 40,
+                child: Icon(
+                  credit
+                      ? IconsaxPlusLinear.arrow_down_1
+                      : IconsaxPlusLinear.arrow_up,
+                  color: credit ? colors.successText : colors.errorText,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: BocSpace.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.narration ?? 'Transaction',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  Text(
+                    row.reversed ? '$date · Reversed' : date,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: BocSpace.xs),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.34,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  amount,
+                  style: theme.textTheme.titleSmall?.figures.copyWith(
+                    color: credit ? colors.successText : colors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

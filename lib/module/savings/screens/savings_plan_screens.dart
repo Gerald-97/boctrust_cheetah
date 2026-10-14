@@ -34,6 +34,30 @@ extension SavingsPlanScreens on FlowPageState {
     SavingsPlanEventType.unknown => IconsaxPlusLinear.activity,
   };
 
+  Color _eventAccent(SavingsPlanEventType type, SavingsProductType product) {
+    final colors = context.bocColors;
+    return switch (type) {
+      SavingsPlanEventType.topUp ||
+      SavingsPlanEventType.interestCredit => colors.successText,
+      SavingsPlanEventType.withdrawal ||
+      SavingsPlanEventType.maturityPayout ||
+      SavingsPlanEventType.liquidation => colors.errorText,
+      _ => _productAccent(product),
+    };
+  }
+
+  Color _eventContainer(SavingsPlanEventType type, SavingsProductType product) {
+    final colors = context.bocColors;
+    return switch (type) {
+      SavingsPlanEventType.topUp ||
+      SavingsPlanEventType.interestCredit => colors.successContainer,
+      SavingsPlanEventType.withdrawal ||
+      SavingsPlanEventType.maturityPayout ||
+      SavingsPlanEventType.liquidation => colors.errorContainer,
+      _ => _productContainer(product),
+    };
+  }
+
   /// Money in or out; the created and unknown rows carry no direction.
   String _eventSign(SavingsPlanEventType type) => switch (type) {
     SavingsPlanEventType.topUp || SavingsPlanEventType.interestCredit => '+',
@@ -46,6 +70,45 @@ extension SavingsPlanScreens on FlowPageState {
   String _planMoney(String? naira) => ref.watch(homeBalanceHiddenProvider)
       ? '₦ ••••••'
       : formatApiAmount(naira, currency: 'NGN') ?? 'Unavailable';
+
+  String? _eventAmount(SavingsPlanEvent event, {required bool hidden}) {
+    final amount = event.amount;
+    if (amount == null || num.tryParse(amount) == 0) return null;
+    final value = hidden
+        ? '₦ ••••••'
+        : formatApiAmount(amount, currency: 'NGN');
+    return value == null
+        ? null
+        : '${hidden ? '' : _eventSign(event.type)}$value';
+  }
+
+  Future<void> _showPlanEvent(SavingsPlan plan, SavingsPlanEvent event) async {
+    final hidden = ref.read(homeBalanceHiddenProvider);
+    final amount = _eventAmount(event, hidden: hidden);
+    final occurred = event.createdAt?.toLocal();
+    await AppActionSheet.show<void>(
+      context: context,
+      builder: (_) => AppActionSheet(
+        icon: _eventIcon(event.type),
+        iconColor: _eventAccent(event.type, plan.type),
+        iconBackground: _eventContainer(event.type, plan.type),
+        title: event.type.label,
+        subtitle: 'Activity in ${plan.name}',
+        child: TransactionDetailRows(
+          rows: [
+            (label: 'Type', value: event.type.label),
+            if (amount != null) (label: 'Amount', value: amount),
+            if (occurred != null)
+              (
+                label: 'Date and time',
+                value: DateFormat('d MMM yyyy, h:mm a').format(occurred),
+              ),
+            (label: 'Plan', value: plan.name),
+          ],
+        ),
+      ),
+    );
+  }
 
   /// One product's plans, as Core groups them, with the product balance.
   Widget _savingsPlansScreen(SavingsProductType type, String title) {
@@ -69,13 +132,19 @@ extension SavingsPlanScreens on FlowPageState {
       onSectionSelected: goSection,
       actions: [
         if (hasPlans && _canCreatePlan(type))
-          TextButton.icon(
+          IconButton(
             onPressed: () => _startPlanCreation(type),
-            icon: const Icon(IconsaxPlusLinear.add),
-            label: Text(
-              type == SavingsProductType.fixed ? 'New deposit' : 'New goal',
+            tooltip: type == SavingsProductType.fixed
+                ? 'New deposit'
+                : 'New goal',
+            style: IconButton.styleFrom(
+              backgroundColor: context.bocColors.surface,
+              foregroundColor: context.bocColors.textPrimary,
+              shape: const CircleBorder(),
             ),
+            icon: const Icon(IconsaxPlusLinear.add),
           ),
+        SizedBox(width: 10),
       ],
       body: _plansList(
         type,
@@ -113,9 +182,37 @@ extension SavingsPlanScreens on FlowPageState {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: _productContainer(type),
+                              borderRadius: BorderRadius.circular(BocRadius.sm),
+                            ),
+                            child: SizedBox.square(
+                              dimension: 40,
+                              child: Icon(
+                                type == SavingsProductType.fixed
+                                    ? IconsaxPlusLinear.lock
+                                    : IconsaxPlusLinear.flag,
+                                color: _productAccent(type),
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: BocSpace.sm),
+                          Expanded(
+                            child: Text(
+                              group.productName,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: BocSpace.sm),
                       Text(
-                        group.productName,
-                        style: theme.textTheme.titleSmall,
+                        'Available balance',
+                        style: theme.textTheme.bodySmall,
                       ),
                       const SizedBox(height: BocSpace.xxs),
                       BocMoneyText(
@@ -131,9 +228,39 @@ extension SavingsPlanScreens on FlowPageState {
                         ),
                         semanticsLabel: 'Product balance',
                       ),
-                      if (group.rate case final rate?)
-                        Text('$rate% p.a.', style: theme.textTheme.bodySmall),
+                      if (group.rate != null ||
+                          group.accountNumber != null) ...[
+                        const SizedBox(height: BocSpace.xs),
+                        Wrap(
+                          spacing: BocSpace.sm,
+                          runSpacing: BocSpace.xxs,
+                          children: [
+                            if (group.rate case final rate?)
+                              Text(
+                                '$rate% p.a.',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: _productAccent(type),
+                                ),
+                              ),
+                            if (group.accountNumber case final number?)
+                              Text(
+                                'Account •••• ${number.substring(number.length > 4 ? number.length - 4 : 0)}',
+                                style: theme.textTheme.labelMedium,
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
+                  ),
+                ),
+                const SizedBox(height: BocSpace.lg),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    type == SavingsProductType.fixed
+                        ? 'Your deposits (${group.plans.length})'
+                        : 'Your goals (${group.plans.length})',
+                    style: theme.textTheme.titleMedium,
                   ),
                 ),
                 for (final plan in group.plans) ...[
@@ -170,24 +297,60 @@ extension SavingsPlanScreens on FlowPageState {
 
   Widget _planTile(SavingsPlan plan) {
     final theme = Theme.of(context);
+    final colors = context.bocColors;
     final maturity = plan.maturityDate;
     return SurfaceCard(
       onTap: () => go(
         AppRoutes.savingsPlanDetail,
         arguments: AppRouteArguments(entityId: plan.id),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(plan.name, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  _planMoney(plan.principal),
-                  style: theme.textTheme.bodyMedium,
+          Row(
+            children: [
+              Expanded(
+                child: Text(plan.name, style: theme.textTheme.titleSmall),
+              ),
+              const SizedBox(width: BocSpace.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BocSpace.xs,
+                  vertical: BocSpace.xxs,
                 ),
+                decoration: BoxDecoration(
+                  color: _productContainer(plan.type),
+                  borderRadius: BorderRadius.circular(BocRadius.pill),
+                ),
+                child: Text(
+                  plan.status.label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: _productAccent(plan.type),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BocSpace.sm),
+          Text('Plan balance', style: theme.textTheme.bodySmall),
+          const SizedBox(height: BocSpace.xxs),
+          Text(
+            _planMoney(plan.principal),
+            style: theme.textTheme.titleLarge?.figures,
+          ),
+          if (maturity != null || plan.target != null) ...[
+            const SizedBox(height: BocSpace.sm),
+            Divider(height: 1, color: colors.border),
+            const SizedBox(height: BocSpace.xs),
+            Wrap(
+              spacing: BocSpace.sm,
+              runSpacing: BocSpace.xxs,
+              children: [
+                if (plan.target case final target?)
+                  Text(
+                    'Target ${_planMoney(target)}',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 if (maturity != null)
                   Text(
                     'Matures ${DateFormat('d MMM yyyy').format(maturity)}',
@@ -195,8 +358,7 @@ extension SavingsPlanScreens on FlowPageState {
                   ),
               ],
             ),
-          ),
-          Text(plan.status.label, style: theme.textTheme.labelMedium),
+          ],
         ],
       ),
     );
@@ -301,13 +463,19 @@ extension SavingsPlanScreens on FlowPageState {
                   ref.refresh(savingsPlanDetailProvider(plan.id).future),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(BocSpace.gutter),
+                padding: const EdgeInsets.all(
+                  BocSpace.gutter,
+                ).clearOfNav(context),
                 children: [
                   SavingsPlanHero(
                     status: plan.status.label,
                     amount: _planMoney(plan.principal),
                     accent: _productAccent(plan.type),
                     container: _productContainer(plan.type),
+                    icon: plan.type == SavingsProductType.fixed
+                        ? IconsaxPlusLinear.lock
+                        : IconsaxPlusLinear.flag,
+                    onDeposit: () => _topUpPlan(plan),
                     rate: rate == null ? null : '$rate% per annum',
                     progress: progress,
                     progressLabel: progress == null
@@ -344,63 +512,77 @@ extension SavingsPlanScreens on FlowPageState {
                         (label: 'Tenor', value: '$days days'),
                     ],
                   ),
-                  const SizedBox(height: BocSpace.md),
-                  SavingsFactGroup(
-                    title: 'Interest',
-                    rows: [
-                      if (plan.accruedInterest case final accrued?)
-                        (label: 'Interest so far', value: _planMoney(accrued)),
-                      if (plan.interestEarned case final interest?)
-                        (label: 'Interest earned', value: _planMoney(interest)),
-                      if (plan.projectedInterest case final projected?)
-                        (
-                          label: 'Projected at maturity',
-                          value: _planMoney(projected),
-                        ),
-                    ],
+                  if (plan.accruedInterest != null ||
+                      plan.interestEarned != null ||
+                      plan.projectedInterest != null) ...[
+                    const SizedBox(height: BocSpace.md),
+                    SavingsFactGroup(
+                      title: 'Interest & returns',
+                      rows: [
+                        if (plan.accruedInterest case final accrued?)
+                          (
+                            label: 'Interest so far',
+                            value: _planMoney(accrued),
+                          ),
+                        if (plan.interestEarned case final interest?)
+                          (
+                            label: 'Interest earned',
+                            value: _planMoney(interest),
+                          ),
+                        if (plan.projectedInterest case final projected?)
+                          (
+                            label: 'Projected at maturity',
+                            value: _planMoney(projected),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: BocSpace.lg),
+                  Semantics(
+                    header: true,
+                    child: Text('Activity', style: theme.textTheme.titleMedium),
                   ),
-                  if (detail.events.isNotEmpty) ...[
-                    const SizedBox(height: BocSpace.lg),
-                    Semantics(
-                      header: true,
+                  const SizedBox(height: BocSpace.xs),
+                  if (detail.events.isEmpty)
+                    SurfaceCard(
                       child: Text(
-                        'Activity',
-                        style: theme.textTheme.titleMedium,
+                        'Deposits, interest and withdrawals will appear here.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    )
+                  else
+                    SurfaceCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (final (index, event)
+                              in detail.events.indexed) ...[
+                            if (index > 0)
+                              Divider(
+                                height: 1,
+                                indent: BocSpace.md,
+                                endIndent: BocSpace.md,
+                                color: context.bocColors.border,
+                              ),
+                            SavingsActivityRow(
+                              icon: _eventIcon(event.type),
+                              label: event.type.label,
+                              accent: _eventAccent(event.type, plan.type),
+                              container: _eventContainer(event.type, plan.type),
+                              date: event.createdAt == null
+                                  ? null
+                                  : DateFormat(
+                                      'd MMM yyyy · h:mm a',
+                                    ).format(event.createdAt!.toLocal()),
+                              amount: _eventAmount(event, hidden: hidden),
+                              onTap: () => _showPlanEvent(plan, event),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    for (final event in detail.events)
-                      SavingsActivityRow(
-                        icon: _eventIcon(event.type),
-                        label: event.type.label,
-                        date: event.createdAt == null
-                            ? null
-                            : date(event.createdAt!.toLocal()),
-                        amount: switch (event.amount) {
-                          null => null,
-                          final amount when double.tryParse(amount) == 0 =>
-                            null,
-                          final amount =>
-                            '${hidden ? '' : _eventSign(event.type)}'
-                                '${_planMoney(amount)}',
-                        },
-                      ),
-                  ],
                 ],
               ),
-            ),
-          ),
-          Padding(
-            // The list above stops at this footer, so the footer itself
-            // has to clear the floating nav pill.
-            padding: const EdgeInsets.fromLTRB(
-              BocSpace.gutter,
-              0,
-              BocSpace.gutter,
-              BocSpace.md,
-            ).clearOfNav(context),
-            child: PrimaryButton(
-              label: 'Deposit',
-              onPressed: () => _topUpPlan(plan),
             ),
           ),
         ],

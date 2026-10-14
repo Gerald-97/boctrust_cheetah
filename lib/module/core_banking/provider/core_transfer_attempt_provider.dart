@@ -283,6 +283,19 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     }
     final initiation = result.data;
     if (initiation == null) {
+      // A 403 explains itself (e.g. Tier 1 verification still needed), so
+      // Core's reason is shown instead of generic copy.
+      if (result.statusCode == 403) {
+        return _set(
+          current: current._with(
+            phase: CoreTransferPhase.settled,
+            outcome: RejectedSubmission(
+              CoreRejection.accountRestricted,
+              detail: result.message,
+            ),
+          ),
+        );
+      }
       return _settle(current, switch (result.statusCode) {
         400 => CoreRejection.validation,
         404 => CoreRejection.accountMissing,

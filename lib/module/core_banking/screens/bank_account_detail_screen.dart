@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
@@ -13,7 +14,6 @@ import '../model/customer_bank_account_models.dart';
 import '../provider/core_account_activity_providers.dart';
 import '../provider/core_account_providers.dart';
 import 'core_account_history_list.dart';
-import 'core_flow_widgets.dart';
 
 /// One Core account's live summary. Opened with the account number as the
 /// route's `entityId`, or for the Flex account.
@@ -135,7 +135,7 @@ class _BankAccountDetailScreenState
                 ),
                 _ => const ApiLoadingSection(label: 'Loading your account'),
               },
-              const SizedBox(height: BocSpace.md),
+              const SizedBox(height: BocSpace.sectionGap),
               if (historyAvailable && accountNumber != null)
                 CoreAccountHistoryList(
                   key: ValueKey(accountNumber),
@@ -157,19 +157,90 @@ class _BankAccountDetailScreenState
 
   Widget _summaryCard(CoreAccountSummary summary) {
     final hidden = ref.watch(homeBalanceHiddenProvider);
-    String money(String? value) => hidden
-        ? '₦ ••••••'
-        : formatApiAmount(value, currency: 'NGN') ?? 'Unavailable';
-    return CoreReviewCard(
-      caption: summary.product ?? 'Account',
-      amount: money(summary.availableBalance),
-      rows: [
-        if (summary.name case final name?) (label: 'Name', value: name),
-        (label: 'Account number', value: summary.accountNumber),
-        if (summary.branch case final branch?) (label: 'Branch', value: branch),
-        (label: 'Status', value: _status(summary.status)),
-        (label: 'Ledger balance', value: money(summary.ledgerBalance)),
-      ],
+    final colors = context.bocColors;
+    final theme = Theme.of(context);
+    final ledgerBalance = formatApiAmount(
+      summary.ledgerBalance,
+      currency: 'NGN',
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(BocSpace.md),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border.all(color: colors.border),
+        borderRadius: BorderRadius.circular(BocRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colors.infoContainer,
+                  borderRadius: BorderRadius.circular(BocRadius.sm),
+                ),
+                child: Icon(
+                  IconsaxPlusLinear.bank,
+                  color: colors.info,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Text(
+                  'Account ${summary.accountNumber}',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _statusBadge(summary.status),
+            ],
+          ),
+          const SizedBox(height: BocSpace.md),
+          Divider(color: colors.border, height: 1),
+          const SizedBox(height: BocSpace.md),
+          Text(
+            'Ledger balance',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: BocSpace.xxs),
+          BocMoneyText(
+            ledgerBalance ?? 'Unavailable',
+            hidden: hidden && ledgerBalance != null,
+            semanticsLabel: 'Ledger balance',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge(CoreAccountStatus status) {
+    final colors = context.bocColors;
+    final active = status == CoreAccountStatus.active;
+    final foreground = active ? colors.successText : colors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BocSpace.sm,
+        vertical: BocSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: active ? colors.successContainer : colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(BocRadius.pill),
+      ),
+      child: Text(
+        _status(status),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 

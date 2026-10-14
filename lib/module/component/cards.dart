@@ -47,6 +47,7 @@ class BalanceCard extends StatelessWidget {
     required this.hidden,
     required this.onToggle,
     this.accountNumber,
+    this.accountName,
     this.bankName,
     this.onCopyAccountNumber,
     this.tier,
@@ -66,6 +67,9 @@ class BalanceCard extends StatelessWidget {
   /// Shown under the balance with a copy button, when the server supplied
   /// it.
   final String? accountNumber;
+
+  /// The name on the funding account, when the server provides it.
+  final String? accountName;
 
   /// The funding bank, shown under [accountNumber] when supplied.
   final String? bankName;
@@ -88,6 +92,7 @@ class BalanceCard extends StatelessWidget {
     final theme = Theme.of(context);
     final value = balance;
     final account = accountNumber;
+    final name = accountName;
     final tier = this.tier;
     final note = this.note;
     final status = statusLabel;
@@ -279,6 +284,15 @@ class BalanceCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (account != null && name != null)
+                  Text(
+                    name,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onNavy,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 // Under the tier row so a long bank name has the full width.
                 if (account != null && bankName != null)
                   Text(
