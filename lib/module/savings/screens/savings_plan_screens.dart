@@ -62,46 +62,31 @@ extension SavingsPlanScreens on FlowPageState {
             false,
       _ => false,
     };
-    final canAddPlan = hasPlans && _canCreatePlan(type);
-    const listPadding = EdgeInsets.fromLTRB(
-      BocSpace.gutter,
-      BocSpace.xxs,
-      BocSpace.gutter,
-      BocSpace.lg,
-    );
     return AppScaffold(
       title: title,
       activeSection: AppSection.save,
       onBack: back,
       onSectionSelected: goSection,
-      body: Column(
-        children: [
-          Expanded(
-            child: _plansList(
-              type,
-              state,
-              theme,
-              canAddPlan ? listPadding : listPadding.clearOfNav(context),
+      actions: [
+        if (hasPlans && _canCreatePlan(type))
+          TextButton.icon(
+            onPressed: () => _startPlanCreation(type),
+            icon: const Icon(IconsaxPlusLinear.add),
+            label: Text(
+              type == SavingsProductType.fixed ? 'New deposit' : 'New goal',
             ),
           ),
-          if (canAddPlan)
-            Padding(
-              // The list above stops at this footer, so the footer itself
-              // has to clear the floating nav pill.
-              padding: const EdgeInsets.fromLTRB(
-                BocSpace.gutter,
-                0,
-                BocSpace.gutter,
-                BocSpace.md,
-              ).clearOfNav(context),
-              child: PrimaryButton(
-                label: type == SavingsProductType.fixed
-                    ? 'New fixed deposit'
-                    : 'New goal',
-                onPressed: () => _startPlanCreation(type),
-              ),
-            ),
-        ],
+      ],
+      body: _plansList(
+        type,
+        state,
+        theme,
+        const EdgeInsets.fromLTRB(
+          BocSpace.gutter,
+          BocSpace.xxs,
+          BocSpace.gutter,
+          BocSpace.lg,
+        ).clearOfNav(context),
       ),
     );
   }
