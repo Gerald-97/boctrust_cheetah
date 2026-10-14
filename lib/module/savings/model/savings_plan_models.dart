@@ -89,6 +89,10 @@ class SavingsPlan extends Equatable {
     this.rate,
     this.tenorDays,
     this.maturityDate,
+    this.startDate,
+    this.saveFrequency,
+    this.recurringAmount,
+    this.projectedInterest,
   });
 
   final String id;
@@ -111,6 +115,14 @@ class SavingsPlan extends Equatable {
   final String? rate;
   final int? tenorDays;
   final DateTime? maturityDate;
+  final DateTime? startDate;
+
+  /// How often the customer chose to save; null when Core has none.
+  final SavingsFrequency? saveFrequency;
+  final String? recurringAmount;
+
+  /// Core's estimate of the interest at maturity (Naira).
+  final String? projectedInterest;
 
   /// A plan of a product this app knows, else null.
   static SavingsPlan? tryParse(Object? json) {
@@ -131,6 +143,11 @@ class SavingsPlan extends Equatable {
       rate: coreText(json['currentInterestRatePercent']),
       tenorDays: _days(json['tenorDays']),
       maturityDate: DateTime.tryParse(coreText(json['maturityDate']) ?? ''),
+      startDate: DateTime.tryParse(coreText(json['startDate']) ?? ''),
+      saveFrequency: SavingsFrequency.values
+          .asNameMap()[coreText(json['saveFrequency'])],
+      recurringAmount: coreNaira(json['recurringAmount']),
+      projectedInterest: coreNaira(json['projectedInterestAtMaturity']),
     );
   }
 
@@ -148,6 +165,10 @@ class SavingsPlan extends Equatable {
     rate,
     tenorDays,
     maturityDate,
+    startDate,
+    saveFrequency,
+    recurringAmount,
+    projectedInterest,
   ];
 }
 

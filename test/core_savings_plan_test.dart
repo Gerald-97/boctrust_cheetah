@@ -138,6 +138,37 @@ void main() {
     expect(plan.earlyWithdrawalFeePercent, '2.5');
   });
 
+  test('a plan reads its schedule and projected interest', () {
+    final plan = SavingsPlan.tryParse({
+      'planId': 'csp-3b7c7ffec81311f1b91ebf559b007420',
+      'productCode': 'bocSmartSave',
+      'productName': 'Boc SmartSave',
+      'planName': 'Rent',
+      'targetAmount': '4500.00',
+      'principalAmount': '5000.00',
+      'interestEarned': '0.00',
+      'tenorDays': 90,
+      'startDate': '2026-10-14',
+      'maturityDate': '2027-01-12',
+      'saveFrequency': 'daily',
+      'recurringAmount': '550.00',
+      'status': 'active',
+      'currentInterestRatePercent': '10.000',
+      'projectedInterestAtMaturity': '110.96',
+      'accruedInterest': '0.00',
+      'earlyWithdrawalFeePercent': '0',
+      'createdAt': '2026-10-14T21:07:15.290Z',
+      'accountNumber': '1200927899',
+    })!;
+
+    expect(plan.startDate, DateTime(2026, 10, 14));
+    expect(plan.saveFrequency, SavingsFrequency.daily);
+    expect(plan.recurringAmount, '550.00');
+    expect(plan.projectedInterest, '110.96');
+    expect(plan.target, '4500.00');
+    expect(plan.principal, '5000.00');
+  });
+
   test('plan detail keeps events without their references', () {
     final detail = SavingsPlanDetail.fromJson({
       ..._plan(),
