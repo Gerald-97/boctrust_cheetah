@@ -121,11 +121,11 @@ class _TransactionPinSheetState extends State<TransactionPinSheet> {
             Padding(
               padding: const EdgeInsets.only(top: BocSpace.xs),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(label, style: theme.textTheme.bodyMedium),
+                  const SizedBox(width: BocSpace.md),
                   Expanded(
-                    child: Text(label, style: theme.textTheme.bodyMedium),
-                  ),
-                  Flexible(
                     child: Text(
                       value,
                       textAlign: TextAlign.end,
