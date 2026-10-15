@@ -24,13 +24,9 @@ String? email(String? value, {String message = 'Input a valid email'}) =>
     isEmail(value) ? null : message;
 
 String? nigerianPhone(String? value) {
-  final normalized = normalizePhoneNumber(value ?? '');
-  if (normalized.length != 11) return 'Input a valid phone number';
-  if (!normalized.startsWith('0')) return "Phone number must start with '0'";
-  if (!auth_input.isValidNigerianPhone(normalized)) {
-    return 'Input a valid phone number';
-  }
-  return null;
+  return auth_input.isValidNigerianPhone(value ?? '')
+      ? null
+      : 'Input a valid phone number';
 }
 
 bool isPasswordValidValue(String? value) {

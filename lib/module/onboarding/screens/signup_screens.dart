@@ -5,6 +5,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 import '../../../app/auth_navigation_provider.dart';
 import '../../../app/response_handler.dart';
 import '../../../utils/auth_input.dart';
+import '../../../utils/input_formatters.dart';
 import '../../../utils/validators.dart' as validators;
 import '../../app_flow/app_ui.dart';
 import '../../component/password_strength_component.dart';
@@ -90,6 +91,9 @@ class _VerifyMethodScreenState extends ConsumerState<VerifyMethodScreen> {
               keyboardType: _byPhone
                   ? TextInputType.phone
                   : TextInputType.emailAddress,
+              inputFormatters: _byPhone
+                  ? [NigerianPhoneInputFormatter()]
+                  : null,
             ),
             if (_byPhone) ...[
               const SizedBox(height: 10),

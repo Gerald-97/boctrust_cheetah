@@ -259,6 +259,28 @@ Future<void> _enterCode(WidgetTester tester, String code, String button) async {
 
 void main() {
   group('BOCTRUST recipient lookup', () {
+    testWidgets('account entry keeps only the first ten pasted digits', (
+      tester,
+    ) async {
+      final transfers = _Transfers();
+      await _pumpBoctrust(tester, transfers);
+
+      await tester.enterText(
+        find.byType(EditableText).first,
+        '11000abc3777799',
+      );
+      await _settle(tester);
+
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText).first)
+            .controller
+            .text,
+        '1100037777',
+      );
+      expect(transfers.lookups, ['090117 1100037777']);
+    });
+
     testWidgets('a reply for an earlier number is discarded', (tester) async {
       final transfers = _Transfers()..pending = Completer();
       await _pumpBoctrust(tester, transfers);

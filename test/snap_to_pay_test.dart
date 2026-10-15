@@ -154,6 +154,27 @@ void main() {
       );
     }
 
+    testWidgets('manual account correction limits pasted input to ten digits', (
+      tester,
+    ) async {
+      await pumpReview(
+        tester,
+        numbers: const [number],
+        match: const BankMatch(BankMatchStatus.unique, [_access]),
+      );
+
+      await tester.enterText(find.byType(EditableText).first, '01234x5678900');
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText).first)
+            .controller
+            .text,
+        number,
+      );
+    });
+
     testWidgets('a unique match is checked only when asked, then routes', (
       tester,
     ) async {

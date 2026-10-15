@@ -3,12 +3,14 @@ import '../module/onboarding/model/auth_enums.dart';
 String normalizeEmailAddress(String value) => value.trim().toLowerCase();
 
 String normalizeNigerianPhone(String value) {
-  final digits = value.replaceAll(RegExp(r'\D'), '');
-  if (digits.length == 11 && digits.startsWith('0')) {
-    return '+234${digits.substring(1)}';
+  // Spaces and dashes are presentation characters used by phone inputs.
+  // Leave other characters intact so validation rejects them.
+  final compact = value.trim().replaceAll(RegExp(r'[\s-]'), '');
+  if (RegExp(r'^0\d{10}$').hasMatch(compact)) {
+    return '+234${compact.substring(1)}';
   }
-  if (digits.length == 13 && digits.startsWith('234')) return '+$digits';
-  return value.trim();
+  if (RegExp(r'^234\d{10}$').hasMatch(compact)) return '+$compact';
+  return compact;
 }
 
 IdentifierType identifierTypeFor(String value) =>

@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../app/app_router.dart';
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
+import '../../../utils/input_formatters.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/interbank_models.dart';
 import '../model/scan_text_models.dart';
@@ -741,6 +742,7 @@ class _ScannedAccountResultState extends State<ScannedAccountResult> {
               controller: _number,
               hintText: '10 digits',
               keyboardType: TextInputType.number,
+              inputFormatters: bankAccountNumberInputFormatters(),
               onChanged: (_) => _change(() {}),
             ),
             if (widget.numbers.length > 1) ...[

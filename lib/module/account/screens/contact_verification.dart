@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/response_handler.dart';
 import '../../../app/theme.dart';
 import '../../../utils/auth_input.dart';
+import '../../../utils/input_formatters.dart';
 import '../../../utils/validators.dart' as validators;
 import '../../app_flow/app_ui.dart';
 import '../../component/text_fields.dart';
@@ -208,6 +209,7 @@ extension ContactVerification on ConsumerState {
                           hintText: '0801 234 5678',
                           controller: identifierController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [NigerianPhoneInputFormatter()],
                         ),
                         const SizedBox(height: 12),
                         SegmentedButton<PhoneVerificationChannel>(
