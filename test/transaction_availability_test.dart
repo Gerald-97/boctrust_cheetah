@@ -1,4 +1,5 @@
 import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
@@ -127,15 +128,57 @@ void main() {
   });
 
   testWidgets('Send hub lists no sample recipients', (tester) async {
-    await pumpFlow(tester, route: AppRoutes.sendHub);
+    await pumpFlow(
+      tester,
+      route: AppRoutes.sendHub,
+      overrides: [
+        authSessionProvider.overrideWith(SavingsSession.new),
+        userProfileProvider.overrideWith(LayoutProfile.new),
+        featureAvailabilityProvider(
+          FeatureCapability.boctrustTransfers,
+        ).overrideWithValue(FeatureAvailability.unavailable),
+        featureAvailabilityProvider(
+          FeatureCapability.interbankTransfers,
+        ).overrideWithValue(FeatureAvailability.unavailable),
+        featureAvailabilityProvider(
+          FeatureCapability.scanToPay,
+        ).overrideWithValue(FeatureAvailability.unavailable),
+      ],
+    );
 
     expect(find.text('Recent recipients'), findsNothing);
+    expect(find.text('Between my accounts'), findsNothing);
+    expect(find.text('To a BOCTRUST account'), findsOneWidget);
+    expect(find.text('To another bank'), findsOneWidget);
+    expect(find.text('Scan to pay'), findsOneWidget);
     expectNothingFabricated();
 
+    await tester.ensureVisible(find.text('To another bank'));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -120));
+    await tester.pump();
     await tester.tap(find.text('To another bank'));
-    await tester.pump(const Duration(milliseconds: 300));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(find.text('Transfers are unavailable'), findsOneWidget);
     expectNothingFabricated();
+  });
+
+  testWidgets('Send options fit a narrow phone without savings transfers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpFlow(tester, route: AppRoutes.sendHub);
+
+    expect(find.text('Between my accounts'), findsNothing);
+    expect(find.text('To a BOCTRUST account'), findsOneWidget);
+    expect(find.text('To another bank'), findsOneWidget);
+    expect(find.text('Scan to pay'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Pay hub shows no sample activity', (tester) async {

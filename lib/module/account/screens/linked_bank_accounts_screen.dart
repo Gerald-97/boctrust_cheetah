@@ -268,10 +268,7 @@ class _WithdrawalAccountFormState
           controller: _accountController,
           keyboardType: TextInputType.number,
           enabled: !busy,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(10),
-          ],
+          inputFormatters: bankAccountNumberInputFormatters(),
           onChanged: (value) => ref
               .read(withdrawalBankDraftProvider.notifier)
               .setAccountNumber(value),

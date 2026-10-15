@@ -59,6 +59,7 @@ class AppRoutes {
   static const billerListInternet = '/payments/billers/internet';
   static const billerListEducation = '/payments/billers/education';
   static const billerListMore = '/payments/billers/more';
+  static const billerSearch = '/payments/billers/search';
   static const billPay = '/payments/bill-pay';
   static const account = '/account';
   static const tierOverview = '/account/tier';

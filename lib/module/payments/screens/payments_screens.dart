@@ -17,38 +17,55 @@ enum _PaymentsPage { hub, bills }
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen.hub({super.key})
     : _page = _PaymentsPage.hub,
-      _group = null;
+      _group = null,
+      _searchFirst = false;
   const PaymentsScreen.airtime({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.airtime;
+      _group = BillerGroup.airtime,
+      _searchFirst = false;
   const PaymentsScreen.data({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.data;
+      _group = BillerGroup.data,
+      _searchFirst = false;
   const PaymentsScreen.electricity({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.electricity;
+      _group = BillerGroup.electricity,
+      _searchFirst = false;
   const PaymentsScreen.water({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.water;
+      _group = BillerGroup.water,
+      _searchFirst = false;
   const PaymentsScreen.cableTv({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.cableTv;
+      _group = BillerGroup.cableTv,
+      _searchFirst = false;
   const PaymentsScreen.internet({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.internet;
+      _group = BillerGroup.internet,
+      _searchFirst = false;
   const PaymentsScreen.education({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.education;
+      _group = BillerGroup.education,
+      _searchFirst = false;
 
   /// More: every category, chosen by the customer.
   const PaymentsScreen.billers({super.key})
     : _page = _PaymentsPage.bills,
-      _group = BillerGroup.all;
+      _group = BillerGroup.all,
+      _searchFirst = false;
+
+  /// More, opened from the hub's search with its search field focused.
+  const PaymentsScreen.search({super.key})
+    : _page = _PaymentsPage.bills,
+      _group = BillerGroup.all,
+      _searchFirst = true;
 
   final _PaymentsPage _page;
 
   /// The bill tile this page opens; null for the hub.
   final BillerGroup? _group;
+
+  final bool _searchFirst;
 
   @override
   ConsumerState<PaymentsScreen> createState() => _PaymentsScreenState();
@@ -73,6 +90,7 @@ class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
     if (_available(capability)) {
       return BillPaymentFlow(
         group: group,
+        searchFirst: widget._searchFirst,
         onExit: back,
         onSectionSelected: goSection,
       );
@@ -157,6 +175,7 @@ extension PaymentsScreens on FlowPageState {
               (IconsaxPlusLinear.more, 'More', AppRoutes.billerListMore),
             ],
             onSelected: go,
+            onSearch: () => go(AppRoutes.billerSearch),
           ),
           const SizedBox(height: BocSpace.lg),
           const RegulatoryBadge(),
@@ -192,76 +211,60 @@ extension PaymentsScreens on FlowPageState {
   );
 }
 
-/// Searchable biller grid: four columns, three on narrow screens.
-class _BillerGrid extends StatefulWidget {
-  const _BillerGrid({required this.billers, required this.onSelected});
+/// Biller grid: four columns, three on narrow screens. Its search field
+/// opens More, where every biller can be searched.
+class _BillerGrid extends StatelessWidget {
+  const _BillerGrid({
+    required this.billers,
+    required this.onSelected,
+    required this.onSearch,
+  });
 
   final List<(IconData, String, String)> billers;
   final ValueChanged<String> onSelected;
-
-  @override
-  State<_BillerGrid> createState() => _BillerGridState();
-}
-
-class _BillerGridState extends State<_BillerGrid> {
-  String _query = '';
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
-    final query = _query.trim().toLowerCase();
     final iconColor = Theme.of(context).brightness == Brightness.dark
         ? context.bocColors.textPrimary
         : BocColors.navy2;
-    final visible = [
-      for (final biller in widget.billers)
-        if (query.isEmpty || biller.$2.toLowerCase().contains(query)) biller,
-    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          onChanged: (value) => setState(() => _query = value),
-          textInputAction: TextInputAction.search,
+          readOnly: true,
+          onTap: onSearch,
           decoration: const InputDecoration(
             hintText: 'Search billers',
             prefixIcon: Icon(IconsaxPlusLinear.search_normal_1),
           ),
         ),
         const SizedBox(height: BocSpace.sm),
-        if (visible.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: BocSpace.md),
-            child: Text(
-              'No billers match "$_query".',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth < 328 ? 3 : 4;
-              const gap = BocSpace.xs;
-              final width =
-                  (constraints.maxWidth - gap * (columns - 1)) / columns;
-              return Wrap(
-                spacing: gap,
-                runSpacing: gap,
-                children: [
-                  for (final (icon, label, screen) in visible)
-                    SizedBox(
-                      width: width,
-                      child: BillGridItem(
-                        icon: icon,
-                        label: label,
-                        color: iconColor,
-                        onTap: () => widget.onSelected(screen),
-                      ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth < 328 ? 3 : 4;
+            const gap = BocSpace.xs;
+            final width =
+                (constraints.maxWidth - gap * (columns - 1)) / columns;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final (icon, label, screen) in billers)
+                  SizedBox(
+                    width: width,
+                    child: BillGridItem(
+                      icon: icon,
+                      label: label,
+                      color: iconColor,
+                      onTap: () => onSelected(screen),
                     ),
-                ],
-              );
-            },
-          ),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }

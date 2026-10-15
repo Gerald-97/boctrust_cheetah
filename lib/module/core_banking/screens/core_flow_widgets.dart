@@ -373,16 +373,19 @@ class CoreSearchField extends StatelessWidget {
   const CoreSearchField({
     required this.hintText,
     required this.onChanged,
+    this.autofocus = false,
     super.key,
   });
 
   final String hintText;
   final ValueChanged<String> onChanged;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: BocSpace.md),
     child: TextField(
+      autofocus: autofocus,
       onChanged: onChanged,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(

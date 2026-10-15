@@ -7,6 +7,7 @@ import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/feature_capability.dart';
 import '../../../app/theme.dart';
+import '../../../utils/input_formatters.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/core_money.dart';
@@ -330,6 +331,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
         controller: _account,
         hintText: '10 digits',
         keyboardType: TextInputType.number,
+        inputFormatters: bankAccountNumberInputFormatters(),
         onChanged: (_) => _changeRecipient(() {}),
         suffix: _canSnap
             ? SnapNumberButton(
@@ -340,8 +342,7 @@ class _InterbankTransferFlowState extends ConsumerState<InterbankTransferFlow> {
               )
             : null,
       ),
-      if (ownNumber)
-        const FieldError('Use "Between my accounts" for your own accounts.'),
+      if (ownNumber) const FieldError('Choose a different recipient account.'),
       const SizedBox(height: BocSpace.sm),
       if (recipient != null)
         ApiStateCard(

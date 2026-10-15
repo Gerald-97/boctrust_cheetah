@@ -93,15 +93,20 @@ const _historyUnavailable = UnavailableDestination(
   capability: FeatureCapability.transactionHistory,
 );
 
-/// Transfers have no server contract yet, so nothing here collects payment
-/// details, resolves a recipient, or reports a result.
+/// Transfer destinations and their unavailable fallbacks.
 extension SendScreens on FlowPageState {
   Widget _sendHubScreen() {
-    final transfers = [
-      FeatureCapability.transfers,
-      FeatureCapability.boctrustTransfers,
-      FeatureCapability.interbankTransfers,
-    ].any((c) => ref.watch(featureAvailabilityProvider(c)).isAvailable);
+    final boctrustAvailable = ref
+        .watch(featureAvailabilityProvider(FeatureCapability.boctrustTransfers))
+        .isAvailable;
+    final interbankAvailable = ref
+        .watch(
+          featureAvailabilityProvider(FeatureCapability.interbankTransfers),
+        )
+        .isAvailable;
+    final scanAvailable = ref
+        .watch(featureAvailabilityProvider(FeatureCapability.scanToPay))
+        .isAvailable;
     return AppScaffold(
       title: 'Send money',
       activeSection: AppSection.send,
@@ -114,56 +119,50 @@ extension SendScreens on FlowPageState {
           BocSpace.lg,
         ).clearOfNav(context),
         children: [
-          if (!transfers) ...[
+          if (!boctrustAvailable && !interbankAvailable && !scanAvailable) ...[
             const ApiStateCard(
-              title: 'Transfers are unavailable',
-              message: 'Sending money is not available in this release.',
+              title: 'Sending money is unavailable',
+              message: 'These payment options are not available right now.',
               tone: ApiStateTone.blocked,
             ),
-            const SizedBox(height: BocSpace.md),
+            const SizedBox(height: BocSpace.lg),
           ],
-          for (final (icon, title, subtitle, screen) in const [
-            (
-              IconsaxPlusLinear.arrow_swap_horizontal,
-              'Between my accounts',
-              'Between your Flex, SmartSave, Fixed and Padi plans',
-              AppRoutes.sendOwnAccount,
-            ),
-            (
-              IconsaxPlusLinear.profile,
-              'To a BOCTRUST account',
-              'Free and instant to another BOCTRUST customer',
-              AppRoutes.sendBeneficiary,
-            ),
-            (
-              IconsaxPlusLinear.bank,
-              'To another bank',
-              'Send to any Nigerian bank account',
-              AppRoutes.sendOtherBank,
-            ),
-          ]) ...[
-            PaymentActionCard(
-              icon: icon,
-              title: title,
-              subtitle: transfers ? subtitle : 'Not available yet',
-              color: BocColors.goldLight,
-              onTap: () => go(screen),
-            ),
-            const SizedBox(height: BocSpace.xs),
-          ],
-          PaymentActionCard(
-            icon: IconsaxPlusLinear.scan_barcode,
-            title: 'Scan to pay',
-            subtitle:
-                ref
-                    .watch(
-                      featureAvailabilityProvider(FeatureCapability.scanToPay),
-                    )
-                    .isAvailable
-                ? 'Read an account number from a photo'
-                : 'Not available yet',
-            color: context.bocColors.smartSaveContainer,
-            onTap: _openScanToPay,
+          SettingsGroup(
+            caption: 'Bank transfers',
+            padding: EdgeInsets.zero,
+            children: [
+              SettingsTile(
+                icon: IconsaxPlusLinear.profile,
+                title: 'To a BOCTRUST account',
+                subtitle: boctrustAvailable
+                    ? 'Send instantly to another BOCTRUST customer'
+                    : 'Not available yet',
+                onTap: () => go(AppRoutes.sendBeneficiary),
+              ),
+              SettingsTile(
+                icon: IconsaxPlusLinear.bank,
+                title: 'To another bank',
+                subtitle: interbankAvailable
+                    ? 'Send to any Nigerian bank account'
+                    : 'Not available yet',
+                onTap: () => go(AppRoutes.sendOtherBank),
+              ),
+            ],
+          ),
+          const SizedBox(height: BocSpace.lg),
+          SettingsGroup(
+            caption: 'Pay with a photo',
+            padding: EdgeInsets.zero,
+            children: [
+              SettingsTile(
+                icon: IconsaxPlusLinear.scan_barcode,
+                title: 'Scan to pay',
+                subtitle: scanAvailable
+                    ? 'Read an account number from a photo'
+                    : 'Not available yet',
+                onTap: _openScanToPay,
+              ),
+            ],
           ),
         ],
       ),

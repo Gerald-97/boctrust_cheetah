@@ -17,6 +17,34 @@ import 'support/savings_fixtures.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 
 void main() {
+  testWidgets('funding detail values start in one column', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CheetahTheme.lightTheme,
+        home: const Scaffold(
+          body: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              children: [
+                ReceiptRow(label: 'Bank', value: 'BocTrust Microfinance Bank'),
+                ReceiptRow(label: 'Account number', value: '1100927896'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getTopLeft(find.text('BocTrust Microfinance Bank')).dx,
+      closeTo(tester.getTopLeft(find.text('1100927896')).dx, 1),
+    );
+  });
+
   Future<void> open(WidgetTester tester, String route) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
@@ -95,5 +123,20 @@ void main() {
       reason:
           'The funding refresh failed; stale details must not be actionable.',
     );
+    expect(
+      tester.getTopLeft(find.text('Example Merchant Bank')).dx,
+      closeTo(tester.getTopLeft(find.text('0123456789')).dx, 1),
+    );
+  });
+
+  testWidgets('Account keeps settings without a duplicate Wallet section', (
+    tester,
+  ) async {
+    await open(tester, AppRoutes.account);
+
+    expect(find.text('Account details'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Wallet'), findsNothing);
+    expect(find.text('Dedicated virtual account'), findsNothing);
   });
 }

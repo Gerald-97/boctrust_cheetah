@@ -175,6 +175,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
     PaymentsScreen.education,
   ),
   AppRoutes.billerListMore: AppRouteDefinition.page(PaymentsScreen.billers),
+  AppRoutes.billerSearch: AppRouteDefinition.page(PaymentsScreen.search),
   AppRoutes.billPay: AppRouteDefinition.page(PaymentsScreen.billers),
   AppRoutes.paymentWebView: AppRouteDefinition.unavailable(
     UnavailableDestination(

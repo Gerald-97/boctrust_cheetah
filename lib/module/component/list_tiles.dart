@@ -179,10 +179,10 @@ class ReceiptRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Flexible(
+          Expanded(
             child: Text(
               value,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign.left,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
             ),
           ),

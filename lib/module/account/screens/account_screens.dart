@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:intl/intl.dart' show DateFormat;
@@ -13,13 +12,12 @@ import '../../../app/feature_capability.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../../app/theme_controller.dart';
+import '../../../utils/input_formatters.dart';
 import '../../../utils/validators.dart' as validators;
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../component/password_strength_component.dart';
 import '../../component/text_fields.dart';
-import '../../home/model/user_home_model.dart';
-import '../../home/provider/home_provider.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/model/auth_enums.dart';
 import '../../onboarding/model/auth_flow_models.dart';
@@ -199,55 +197,10 @@ extension _AccountScreens on _AccountPageState {
     );
   }
 
-  /// Read-only mirror of the dedicated virtual account already loaded by Home.
-  ///
-  /// Copying the number stays on Home, where the full account details are
-  /// shown; this tile only reports status.
-  Widget _virtualAccountTile(DedicatedVirtualAccountData? account) {
-    final (subtitle, pill) = switch (account?.status) {
-      DedicatedVirtualAccountStatus.available => (
-        account?.bankName == null
-            ? 'Ready for bank transfers'
-            : 'Ready · ${account!.bankName}',
-        SmallPill.success('Active'),
-      ),
-      DedicatedVirtualAccountStatus.pending => (
-        'Being set up for bank transfers',
-        SmallPill.pending('Pending'),
-      ),
-      DedicatedVirtualAccountStatus.failed => (
-        account?.failureReason ?? 'Setup did not complete',
-        SmallPill.failed('Failed'),
-      ),
-      DedicatedVirtualAccountStatus.notRequested => (
-        'Not set up for your profile yet',
-        SmallPill.unavailable('Not set up'),
-      ),
-      DedicatedVirtualAccountStatus.unknown => (
-        'Status could not be confirmed',
-        SmallPill.unavailable('Unknown'),
-      ),
-      null => ('Open Home to load your funding details', null),
-    };
-
-    return SettingsTile(
-      icon: IconsaxPlusLinear.bank,
-      title: 'Dedicated virtual account',
-      subtitle: subtitle,
-      trailing: pill,
-    );
-  }
-
   Widget _accountScreen() {
     final profileState = ref.watch(userProfileProvider);
     final profile = profileState.data;
     final session = ref.watch(authSessionProvider);
-    // Read-only: Account reflects whatever Home already loaded and never
-    // starts its own Home request.
-    final virtualAccount = ref
-        .watch(userHomeProvider)
-        .data
-        ?.dedicatedVirtualAccount;
     if (profileState.status == ServiceStatus.idle && session != null) {
       Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
     }
@@ -367,10 +320,6 @@ extension _AccountScreens on _AccountPageState {
                   onTap: () => go(AppRoutes.accountStatement),
                 ),
               ],
-            ),
-            SettingsGroup(
-              caption: 'Wallet',
-              children: [_virtualAccountTile(virtualAccount)],
             ),
             SettingsGroup(
               caption: 'Settings',

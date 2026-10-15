@@ -23,16 +23,21 @@ enum _Step { category, biller, item, details, review, result }
 
 /// Pays airtime, data or a bill from BocFlex: biller, plan, the customer's
 /// identifier with the biller, then the amount. A tile's [group] opens its
-/// billers directly; [BillerGroup.all] starts from the full category list.
+/// billers directly; [BillerGroup.all] starts from the full category list,
+/// whose search also finds billers in every category.
 class BillPaymentFlow extends ConsumerStatefulWidget {
   const BillPaymentFlow({
     required this.group,
     required this.onExit,
     required this.onSectionSelected,
+    this.searchFirst = false,
     super.key,
   });
 
   final BillerGroup group;
+
+  /// Focuses the first step's search field on open.
+  final bool searchFirst;
   final VoidCallback onExit;
   final ValueChanged<AppSection> onSectionSelected;
 
@@ -190,9 +195,10 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   bool _matchesQuery(String text) =>
       _query.isEmpty || text.toLowerCase().contains(_query);
 
-  Widget _search(String hint) => CoreSearchField(
+  Widget _search(String hint, {bool autofocus = false}) => CoreSearchField(
     key: ValueKey(_step),
     hintText: hint,
+    autofocus: autofocus,
     onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
   );
 
@@ -247,16 +253,27 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
       for (final category in state.data!)
         if (_matchesQuery(category.name)) category,
     ];
+    final categoryById = {for (final c in state.data!) c.id: c};
+    final billers = _query.isEmpty
+        ? const <Biller>[]
+        : [
+            for (final biller in _sorted(
+              ref.watch(billersProvider).data ?? const [],
+            ))
+              if (categoryById.containsKey(biller.categoryId) &&
+                  _matchesQuery(biller.name))
+                biller,
+          ];
     return [
       const FlowHeading('What would you like to pay?'),
-      _search('Search categories'),
-      if (categories.isEmpty)
+      _search('Search categories or billers', autofocus: widget.searchFirst),
+      if (categories.isEmpty && billers.isEmpty)
         const ApiStateCard(
           title: 'No matches',
-          message: 'No category matches your search.',
+          message: 'No category or biller matches your search.',
           tone: ApiStateTone.info,
-        )
-      else
+        ),
+      if (categories.isNotEmpty)
         _group([
           for (final category in categories)
             _tile(
@@ -266,6 +283,21 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
               () => _go(_Step.biller, () => _category = category),
             ),
         ]),
+      if (billers.isNotEmpty) ...[
+        if (categories.isNotEmpty) const SizedBox(height: BocSpace.md),
+        _group([
+          for (final biller in billers)
+            _tile(
+              _iconOf(_groupOf(biller)),
+              biller.name,
+              biller.customerFieldLabel,
+              () => _go(_Step.item, () {
+                _category = categoryById[biller.categoryId];
+                _biller = biller;
+              }),
+            ),
+        ]),
+      ],
     ];
   }
 
