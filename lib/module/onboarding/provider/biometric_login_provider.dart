@@ -122,6 +122,12 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
         );
       }
     });
+    ref.listen(authSessionProvider, (_, next) {
+      // Explained once: a later logout in this process must not repeat it.
+      if (next != null && state.message == _recencyMessage) {
+        state = state.copyWith(clearMessage: true);
+      }
+    });
     Future.microtask(hydrate);
     return const BiometricLoginState(phase: BiometricLoginPhase.hydrating);
   }

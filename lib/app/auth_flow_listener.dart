@@ -37,7 +37,10 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(ref.read(appOpenRecencyProvider).recordColdLaunch());
+    // A background launch (for a push) is not an open: the first resume is.
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      unawaited(ref.read(appOpenRecencyProvider).recordColdLaunch());
+    }
   }
 
   @override
@@ -55,6 +58,8 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
     } else if (state == AppLifecycleState.resumed && _backgrounded) {
       _backgrounded = false;
       unawaited(_recordForegroundOpen());
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(appOpenRecencyProvider).recordColdLaunch());
     }
     if (state == AppLifecycleState.resumed &&
         ref.read(authSessionProvider) != null) {

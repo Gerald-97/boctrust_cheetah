@@ -24,13 +24,14 @@ class UnsupportedBiometricGateway implements BiometricAuthGateway {
 List<dynamic> biometricTestOverrides() {
   final secure = SecureStorage(storage: MemorySecureStorage());
   final biometrics = BiometricLoginStorage(secure);
+  // The test binding never reports a foreground lifecycle state, so record
+  // the foreground launch the app would otherwise wait for.
+  final recency = AppOpenRecency(secure, biometrics)..recordColdLaunch();
   return [
     biometricAuthGatewayProvider.overrideWithValue(
       UnsupportedBiometricGateway(),
     ),
     biometricLoginStorageProvider.overrideWithValue(biometrics),
-    appOpenRecencyProvider.overrideWithValue(
-      AppOpenRecency(secure, biometrics),
-    ),
+    appOpenRecencyProvider.overrideWithValue(recency),
   ];
 }

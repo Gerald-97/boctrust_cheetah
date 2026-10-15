@@ -11,4 +11,13 @@ void main() {
     expect(after(120), InactivityStatus.warning);
     expect(after(180), InactivityStatus.expired);
   });
+
+  test('a clock moved backward beyond the skew tolerance expires', () {
+    final last = DateTime.utc(2026, 10, 15, 9);
+
+    expect(
+      InactivityPolicy.evaluate(last, last.subtract(const Duration(hours: 1))),
+      InactivityStatus.expired,
+    );
+  });
 }

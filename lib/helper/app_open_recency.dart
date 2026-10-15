@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,8 +43,9 @@ abstract final class BiometricRecencyPolicy {
       !nowUtc.isAfter(anniversaryOf(lastOpenUtc));
 }
 
-/// Records each app open (a cold launch or a return from the background) and
-/// clears biometric enrollment when the previous open was not recent.
+/// Records each app open (a foreground cold launch or a return from the
+/// background) and clears biometric enrollment when the previous open was not
+/// recent. A background launch, such as for a push, is not an open.
 class AppOpenRecency {
   AppOpenRecency(this._storage, this._biometrics, {DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
@@ -53,23 +55,29 @@ class AppOpenRecency {
   final DateTime Function() _clock;
 
   Future<AppOpenRecencyResult>? _latest;
+  final _opened = Completer<void>();
   bool _cleanupFailed = false;
+  bool _readFailed = false;
 
-  /// True while a stale enrollment could not be deleted. It stays blocked,
-  /// and the old last-open time stays stale, until a later cleanup succeeds.
-  bool get biometricsBlocked => _cleanupFailed;
+  /// True while a stale enrollment could not be deleted, or for the rest of
+  /// the process once the last-open time could not be read. A failed cleanup
+  /// keeps the old last-open time stale until a later cleanup succeeds.
+  bool get biometricsBlocked => _cleanupFailed || _readFailed;
 
   /// Records the cold launch unless this process already recorded an open.
+  /// Call only while the app is in the foreground.
   Future<AppOpenRecencyResult> recordColdLaunch() =>
       _latest ?? recordOpen(_clock().toUtc());
 
   Future<AppOpenRecencyResult> recordForegroundOpen() =>
       recordOpen(_clock().toUtc());
 
-  /// The result of the most recent open, waiting for any still in progress.
+  /// The result of the most recent open, waiting for the first foreground
+  /// open and for any still in progress.
   Future<AppOpenRecencyResult> latest() async {
+    await _opened.future;
     while (true) {
-      final pending = recordColdLaunch();
+      final pending = _latest!;
       final result = await pending;
       if (identical(pending, _latest)) return result;
     }
@@ -78,6 +86,7 @@ class AppOpenRecency {
   /// Opens are evaluated one at a time, in the order they happened.
   Future<AppOpenRecencyResult> recordOpen(DateTime nowUtc) {
     final previous = _latest;
+    if (!_opened.isCompleted) _opened.complete();
     return _latest = () async {
       await previous;
       return _record(nowUtc);
@@ -95,7 +104,10 @@ class AppOpenRecency {
           BiometricRecencyPolicy.isRecent(lastOpen, nowUtc);
       enrolled = await _storage.hasBiometricValue(BiometricStorageKey.enabled);
     } catch (_) {
-      recent = false;
+      // Recency is unknown (for example, a locked keychain): block biometrics
+      // for this process but keep a possibly recent enrollment.
+      _readFailed = true;
+      return AppOpenRecencyResult.passwordRequired;
     }
     final invalidated = !recent || _cleanupFailed;
     if (invalidated) {
