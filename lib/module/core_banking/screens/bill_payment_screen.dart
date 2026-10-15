@@ -17,6 +17,7 @@ import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
+import 'transaction_pin_sheet.dart';
 
 enum _Step { category, biller, item, details, review, result }
 
@@ -456,30 +457,33 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         ],
       ),
       const SizedBox(height: BocSpace.lg),
-      PrimaryButton(
-        label: 'Pay $amount',
-        onPressed: () => _confirm(draft, biller, amount),
-      ),
+      PrimaryButton(label: 'Pay $amount', onPressed: () => _confirm(draft)),
     ];
   }
 
-  Future<void> _confirm(
-    BillPaymentDraft draft,
-    Biller biller,
-    String amount,
-  ) async {
-    final authorized = await authorizeCoreTransaction(
+  Future<void> _confirm(BillPaymentDraft draft) async {
+    final biller = _biller;
+    final item = _item;
+    if (biller == null || item == null) return;
+    final pin = await collectCoreTransactionPin(
       context,
-      ref,
       TransactionSummary(
         title: 'Pay ${biller.name}',
-        amountDisplay: amount,
-        lines: [(biller.customerFieldLabel, draft.customerId)],
+        amountDisplay:
+            formatApiAmount(draft.amountNaira, currency: 'NGN') ??
+            draft.amountNaira,
+        lines: [
+          ('Plan', item.name),
+          (biller.customerFieldLabel, draft.customerId),
+        ],
       ),
+      confirmLabel: 'Confirm payment',
     );
-    if (!authorized || !mounted) return;
+    if (pin == null || !mounted) return;
     setState(() => _step = _Step.result);
-    await ref.read(billPaymentProvider.notifier).submit(draft);
+    await ref
+        .read(billPaymentProvider.notifier)
+        .submit(draft, transactionPin: pin);
     if (!mounted) return;
     unawaited(ref.read(customerBankAccountsProvider.notifier).load());
   }

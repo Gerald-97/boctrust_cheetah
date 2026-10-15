@@ -15,7 +15,6 @@ import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../service/core_transfer_service.dart';
-import '../service/transaction_authorizer.dart';
 
 /// Integer Kobo as display Naira (`'150000'` → `₦1,500.00`).
 String nairaFromKobo(String kobo) =>
@@ -91,23 +90,6 @@ String? amountError(String text, MoneyInput amount) => text.trim().isEmpty
         InvalidMoney(:final message) => message,
         ValidMoney() => null,
       };
-
-/// Runs the transaction authorizer; true only when the customer authorized.
-Future<bool> authorizeCoreTransaction(
-  BuildContext context,
-  WidgetRef ref,
-  TransactionSummary summary,
-) async {
-  final authorized = await ref
-      .read(transactionAuthorizerProvider)
-      .authorize(context, summary);
-  if (!authorized && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This transaction was not authorized.')),
-    );
-  }
-  return authorized;
-}
 
 /// An outcome to show in place of the one read from Core's reply, e.g. an
 /// interbank transfer's checked status.

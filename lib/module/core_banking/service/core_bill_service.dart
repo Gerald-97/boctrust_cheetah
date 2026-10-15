@@ -39,7 +39,13 @@ class CoreBillService {
       _read(CoreApiEndpoints.paymentItems, PaymentItem.listFromJson);
 
   /// Sends exactly one POST and never retries.
-  Future<ServiceResponse<CoreTransferAck>> pay(BillPaymentDraft draft) async {
+  Future<ServiceResponse<CoreTransferAck>> pay(
+    BillPaymentDraft draft, {
+    required String transactionPin,
+  }) async {
+    if (!RegExp(r'^\d{4}$').hasMatch(transactionPin)) {
+      return const ServiceResponse.error('Enter a valid transaction PIN.');
+    }
     final api = _api;
     if (api == null) {
       return const ServiceResponse<CoreTransferAck>(
@@ -49,7 +55,7 @@ class CoreBillService {
     }
     return api.postData<CoreTransferAck>(
       CoreApiEndpoints.billPayments,
-      data: draft.toJson(),
+      data: {...draft.toJson(), 'transactionPin': transactionPin},
       parser: CoreTransferAck.fromJson,
     );
   }

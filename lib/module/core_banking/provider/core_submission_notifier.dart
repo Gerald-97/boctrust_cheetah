@@ -26,7 +26,10 @@ abstract class CoreSubmissionNotifier<D extends Object>
     extends Notifier<CoreSubmissionState<D>>
     with StaleResultGuard<CoreSubmissionState<D>> {
   /// Sends [draft] to Core.
-  Future<ServiceResponse<CoreTransferAck>> send(D draft);
+  Future<ServiceResponse<CoreTransferAck>> send(
+    D draft, {
+    String? transactionPin,
+  });
 
   @override
   CoreSubmissionState<D> build() {
@@ -34,7 +37,8 @@ abstract class CoreSubmissionNotifier<D extends Object>
     return CoreSubmissionState<D>();
   }
 
-  Future<void> submit(D draft) async {
+  /// [transactionPin] is passed only to [send], never retained in [state].
+  Future<void> submit(D draft, {String? transactionPin}) async {
     if (state.inFlight) return;
     final settled = state.outcome;
     if (state.draft == draft &&
@@ -45,7 +49,9 @@ abstract class CoreSubmissionNotifier<D extends Object>
     state = CoreSubmissionState<D>(draft: draft, inFlight: true);
     CoreSubmissionOutcome outcome;
     try {
-      outcome = mapCoreSubmission(await send(draft));
+      outcome = mapCoreSubmission(
+        await send(draft, transactionPin: transactionPin),
+      );
     } catch (_) {
       outcome = const UnknownSubmission();
     }

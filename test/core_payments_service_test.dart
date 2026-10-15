@@ -110,6 +110,7 @@ void main() {
         customerId: '08030000000',
         amountNaira: '100.00',
       ),
+      transactionPin: '0007',
     );
 
     expect(paid.data?.responseCode, '00');
@@ -118,8 +119,28 @@ void main() {
       'paymentItemId': 'i1',
       'customerId': '08030000000',
       'amount': '100.00',
+      'transactionPin': '0007',
     });
   });
+
+  test(
+    'bill payment rejects an invalid PIN without sending a request',
+    () async {
+      final core = _Core(const {});
+      final response = await CoreBillService(_api(core)).pay(
+        const BillPaymentDraft(
+          billerId: '157',
+          paymentItemId: 'i1',
+          customerId: '08030000000',
+          amountNaira: '100.00',
+        ),
+        transactionPin: '123',
+      );
+
+      expect(response.status, ServiceStatus.error);
+      expect(core.requests, isEmpty);
+    },
+  );
 
   test('beneficiaries list, add and delete', () async {
     final row = {

@@ -85,8 +85,7 @@ class _PaymentsScreenState extends FlowPageState<PaymentsScreen> {
   }
 }
 
-/// Only wallet funding is live. Bills, airtime, data, and QR payments have no
-/// server contract, so their routes explain that instead of taking input.
+/// Bill payments use Core where available; unavailable routes stay explicit.
 extension PaymentsScreens on FlowPageState {
   Widget _paymentsScreen() {
     return AppScaffold(

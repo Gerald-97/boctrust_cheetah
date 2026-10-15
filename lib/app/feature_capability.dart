@@ -268,7 +268,7 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // Core mobile banking, verified on staging before release. Staged
   // transfers initiate, collect the PIN and any OTP, then finalize; only
   // finalize moves money and it waits on `transferAuthorizationReadyProvider`.
-  // Bill payments still pass `transactionAuthorizerProvider` first.
+  // Bill payments use Core's single POST when their staging capability is on.
   // BOCTRUST uses the customer name enquiry with Boctrust MFB's code, but
   // moves money through the intrabank routes.
   FeatureCapability.boctrustTransfers: CapabilityRequirement(

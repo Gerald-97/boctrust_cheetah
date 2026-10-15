@@ -145,6 +145,14 @@ final billPaymentProvider =
 
 class BillPaymentNotifier extends CoreSubmissionNotifier<BillPaymentDraft> {
   @override
-  Future<ServiceResponse<CoreTransferAck>> send(BillPaymentDraft draft) =>
-      ref.read(coreBillServiceProvider).pay(draft);
+  Future<ServiceResponse<CoreTransferAck>> send(
+    BillPaymentDraft draft, {
+    String? transactionPin,
+  }) => transactionPin == null
+      ? Future.value(
+          const ServiceResponse.error('Enter a valid transaction PIN.'),
+        )
+      : ref
+            .read(coreBillServiceProvider)
+            .pay(draft, transactionPin: transactionPin);
 }

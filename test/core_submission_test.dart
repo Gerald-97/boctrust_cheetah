@@ -93,6 +93,8 @@ class _Notifier extends CoreSubmissionNotifier<String> {
   final _Service service;
 
   @override
-  Future<ServiceResponse<CoreTransferAck>> send(String draft) =>
-      service.send(draft);
+  Future<ServiceResponse<CoreTransferAck>> send(
+    String draft, {
+    String? transactionPin,
+  }) => service.send(draft);
 }
