@@ -415,11 +415,6 @@ extension SavingsScreens on FlowPageState {
       for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
         if (account.productCode != kFlexProductCode) account,
     ];
-    final ownedCodes = {
-      for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
-        account.productCode,
-      if (flex != null) kFlexProductCode,
-    };
     final theme = Theme.of(context);
     return AppScaffold(
       title: 'Save',
@@ -482,120 +477,10 @@ extension SavingsScreens on FlowPageState {
                     .firstOrNull,
               ),
             ],
-            const SizedBox(height: BocSpace.lg),
-            Semantics(
-              header: true,
-              child: Text(
-                'Savings products',
-                style: theme.textTheme.titleMedium,
-              ),
-            ),
-            const SizedBox(height: BocSpace.sm),
-            ..._productCatalogue(productsState, ownedCodes),
           ],
         ),
       ),
     );
-  }
-
-  /// The Core product catalogue (`GET /bank-products`) minus products the
-  /// customer already holds (`GET /me/bank-accounts`), with its loading,
-  /// failure and empty states.
-  List<Widget> _productCatalogue(
-    NotifierState<List<CoreBankProduct>> state,
-    Set<String> ownedCodes,
-  ) {
-    final products =
-        state.data ??
-        (state.status == ServiceStatus.empty
-            ? const <CoreBankProduct>[]
-            : null);
-    if (products == null) {
-      return switch (state.status) {
-        ServiceStatus.idle || ServiceStatus.loading => [
-          for (var i = 0; i < 3; i++) ...[
-            if (i > 0) const SizedBox(height: BocSpace.sm),
-            const BankProductSkeleton(),
-          ],
-        ],
-        ServiceStatus.blocked => const [
-          ApiStateCard(
-            title: 'Savings products unavailable',
-            message: 'Savings products are not available right now.',
-            tone: ApiStateTone.blocked,
-          ),
-        ],
-        _ => [
-          ApiStateCard(
-            title: 'Unable to load savings products',
-            message: state.message ?? 'Please try again to load products.',
-            tone: ApiStateTone.warning,
-            actionLabel: 'Retry',
-            onAction: _refreshSavings,
-          ),
-        ],
-      };
-    }
-    final unowned = [
-      for (final product in products)
-        if (!ownedCodes.contains(product.code)) product,
-    ];
-    return [
-      if (state.isError) ...[
-        ApiStateCard(
-          title: 'Refresh failed',
-          message:
-              'Showing previously loaded products. Refresh to check for '
-              'updates.',
-          tone: ApiStateTone.warning,
-          actionLabel: 'Retry',
-          onAction: _refreshSavings,
-        ),
-        const SizedBox(height: BocSpace.sm),
-      ],
-      if (products.isEmpty)
-        SavingsEmptyState(
-          icon: IconsaxPlusLinear.box_search,
-          title: 'No savings products yet',
-          message:
-              'New ways to grow your money will show up here as soon as '
-              'they are available.',
-          actionLabel: 'Refresh',
-          onAction: _refreshSavings,
-        )
-      else if (unowned.isEmpty)
-        SurfaceCard(
-          child: Row(
-            children: [
-              Icon(
-                IconsaxPlusLinear.wallet_money,
-                color: context.bocColors.goldStrong,
-              ),
-              const SizedBox(width: BocSpace.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "You're all set",
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    Text(
-                      'You hold every savings product we offer.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        )
-      else
-        for (final (i, product) in unowned.indexed) ...[
-          if (i > 0) const SizedBox(height: BocSpace.sm),
-          _bankProductCard(product),
-        ],
-    ];
   }
 
   /// The wizard behind a catalogue product, or null when the app has none.
@@ -608,68 +493,10 @@ extension SavingsScreens on FlowPageState {
     return null;
   }
 
-  Widget _bankProductCard(CoreBankProduct product) {
-    final colors = context.bocColors;
-    final type = _planTypeFor(product);
-    final rate = product.interestRate;
-    final days = product.tenureDays;
-    final kind = _productKindLabel(product.discriminator);
-    return BankProductCard(
-      title: product.name,
-      description: product.description,
-      icon: switch (type) {
-        SavingsProductType.smartSave => IconsaxPlusLinear.flag,
-        SavingsProductType.fixed => IconsaxPlusLinear.lock,
-        SavingsProductType.padi => IconsaxPlusLinear.profile_2user,
-        _ => IconsaxPlusLinear.save_2,
-      },
-      accent: type == null ? colors.goldStrong : _productAccent(type),
-      container: switch (type) {
-        SavingsProductType.smartSave => colors.smartSaveContainer,
-        SavingsProductType.fixed => colors.fixedContainer,
-        SavingsProductType.padi => colors.padiContainer,
-        _ => colors.goldPale,
-      },
-      facts: [
-        if (rate != null)
-          (
-            icon: IconsaxPlusLinear.percentage_circle,
-            label: '${_formatRate(rate)}% p.a.',
-          ),
-        if (days != null)
-          (
-            icon: IconsaxPlusLinear.calendar_1,
-            label: days == 1 ? '1-day tenure' : '$days-day tenure',
-          ),
-        if (kind != null) (icon: IconsaxPlusLinear.bank, label: kind),
-      ],
-      onTap: () => type == null
-          ? BocUnavailableSheet.show(
-              context,
-              title: '${product.name} is not available yet',
-            )
-          : _startPlanCreation(type),
-    );
-  }
-
   /// A published rate as written, without float noise: 7 → "7", 7.5 → "7.5".
   String _formatRate(num rate) {
     final fixed = rate.toStringAsFixed(2);
     return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
-  }
-
-  /// BankOne's product family in customer words, or null when unknown.
-  String? _productKindLabel(String? discriminator) {
-    if (discriminator == null) return null;
-    return switch (discriminator.toLowerCase().replaceAll(
-      RegExp('[^a-z]'),
-      '',
-    )) {
-      'fixeddeposit' => 'Fixed deposit',
-      'savingsorcurrent' || 'savings' => 'Savings account',
-      'current' => 'Current account',
-      _ => null,
-    };
   }
 
   bool _canCreatePlan(SavingsProductType type) {

@@ -284,7 +284,7 @@ void main() {
     );
   });
 
-  testWidgets('Save uses account and product shimmer while loading', (
+  testWidgets('Save shows owned-account loading without a product catalogue', (
     tester,
   ) async {
     await _pump(
@@ -300,7 +300,7 @@ void main() {
       find.bySemanticsLabel('Loading your savings accounts'),
       findsOneWidget,
     );
-    expect(find.bySemanticsLabel('Loading savings products'), findsWidgets);
+    expect(find.bySemanticsLabel('Loading savings products'), findsNothing);
   });
 
   testWidgets('Home shows the Core Flex balance beside the User DVA', (
@@ -333,7 +333,7 @@ void main() {
     expect(find.textContaining('0123456789'), findsWidgets);
   });
 
-  testWidgets('Savings lists Core accounts and read-only products', (
+  testWidgets('Savings lists owned Core accounts without a product catalogue', (
     tester,
   ) async {
     await _pump(
@@ -351,17 +351,15 @@ void main() {
     expect(find.text('Account •••• 0002'), findsOneWidget);
     expect(find.text('2.5% p.a.'), findsOneWidget);
     expect(find.text('4.5% p.a.'), findsOneWidget);
-    expect(find.text('Fixed Deposit'), findsOneWidget);
-    expect(find.text('Lock funds for a fixed term.'), findsOneWidget);
-    expect(find.text('12.5% p.a.'), findsOneWidget);
-    expect(find.text('90-day tenure'), findsOneWidget);
-    expect(find.text('Fixed deposit'), findsOneWidget);
-    // Owned products are not offered again, and there is one product list.
-    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.text('Fixed Deposit'), findsNothing);
+    expect(find.text('Lock funds for a fixed term.'), findsNothing);
+    expect(find.text('Savings products'), findsNothing);
     expect(find.text('Choose a plan'), findsNothing);
   });
 
-  testWidgets('an empty Core catalogue shows the empty state', (tester) async {
+  testWidgets('an empty Core catalogue does not add a product empty state', (
+    tester,
+  ) async {
     await _pump(
       tester,
       AppRoutes.savingsHub,
@@ -369,8 +367,9 @@ void main() {
       products: const NotifierState.done(<CoreBankProduct>[]),
     );
 
-    expect(find.text('No savings products yet'), findsOneWidget);
-    expect(find.text('Refresh'), findsOneWidget);
+    expect(find.text('No savings products yet'), findsNothing);
+    expect(find.text('Your savings'), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsOneWidget);
   });
 
   testWidgets('Savings cards fit a narrow phone', (tester) async {
@@ -386,7 +385,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('owning every product shows the all-set state', (tester) async {
+  testWidgets('owning every product shows only owned savings', (tester) async {
     await _pump(
       tester,
       AppRoutes.savingsHub,
@@ -399,6 +398,7 @@ void main() {
       ),
     );
 
-    expect(find.text("You're all set"), findsOneWidget);
+    expect(find.text("You're all set"), findsNothing);
+    expect(find.text('Your savings'), findsOneWidget);
   });
 }
