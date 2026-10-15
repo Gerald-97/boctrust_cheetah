@@ -1,12 +1,8 @@
 part of 'account_screens.dart';
 
-/// Security Center, delete account and statement request. Controls whose
-/// contract does not exist yet stay visible and explain themselves; none of
-/// them shows sample devices, balances or results.
+/// Security Center, delete account and statement request. Remaining
+/// unavailable controls explain themselves without sample data.
 extension _AccountControlScreens on _AccountPageState {
-  bool _isAvailable(FeatureCapability capability) =>
-      ref.watch(featureAvailabilityProvider(capability)).isAvailable;
-
   Widget _notAvailableTag() => const SmallPill(text: 'Not available yet');
 
   Widget _securityCenterScreen() {
@@ -74,30 +70,6 @@ extension _AccountControlScreens on _AccountPageState {
           SettingsGroup(
             caption: 'Account protection',
             children: [
-              SettingsTile(
-                icon: IconsaxPlusLinear.devices,
-                title: 'Device management',
-                subtitle: "See where you're signed in",
-                trailing: _isAvailable(FeatureCapability.deviceSessions)
-                    ? null
-                    : _notAvailableTag(),
-                onTap: () => BocUnavailableSheet.show(
-                  context,
-                  title: 'Device management is not available yet',
-                ),
-              ),
-              SettingsTile(
-                icon: IconsaxPlusLinear.mobile,
-                title: 'Change mobile number',
-                subtitle: 'Update the number linked to your account',
-                trailing: _isAvailable(FeatureCapability.changeMobile)
-                    ? null
-                    : _notAvailableTag(),
-                onTap: () => BocUnavailableSheet.show(
-                  context,
-                  title: 'Changing your mobile number is not available yet',
-                ),
-              ),
               SettingsTile.toggle(
                 icon: IconsaxPlusLinear.pause_circle,
                 title: 'Freeze account',

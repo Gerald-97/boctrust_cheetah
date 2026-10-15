@@ -526,85 +526,104 @@ extension _AccountScreens on _AccountPageState {
     var autovalidateMode = AutovalidateMode.disabled;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          // Title and actions scroll with the form when the keyboard and
-          // large text leave too little height.
-          scrollable: true,
-          title: const Text('Change password'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppPasswordField(
-                    label: 'Current password',
-                    controller: _currentSecretController,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter your current password'
-                        : null,
-                    autovalidateMode: autovalidateMode,
-                    autofillHints: const [AutofillHints.password],
+      builder: (dialogContext) => Consumer(
+        builder: (dialogContext, modalRef, _) {
+          final busy = modalRef.watch(changePasswordProvider).isLoading;
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) => AlertDialog(
+              // Title and actions scroll with the form when the keyboard and
+              // large text leave too little height.
+              scrollable: true,
+              title: const Text('Change password'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppPasswordField(
+                        label: 'Current password',
+                        controller: _currentSecretController,
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Enter your current password'
+                            : null,
+                        autovalidateMode: autovalidateMode,
+                        autofillHints: const [AutofillHints.password],
+                      ),
+                      const SizedBox(height: 12),
+                      AppPasswordField(
+                        label: 'New password',
+                        controller: _passwordController,
+                        validator: validators.isPasswordValid,
+                        autovalidateMode: autovalidateMode,
+                        autofillHints: const [AutofillHints.newPassword],
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
+                      const SizedBox(height: 12),
+                      AppPasswordField(
+                        label: 'Confirm new password',
+                        controller: _confirmPasswordController,
+                        validator: (value) => validators.confirmPassword(
+                          value,
+                          _passwordController.text,
+                        ),
+                        autovalidateMode: autovalidateMode,
+                        autofillHints: const [AutofillHints.newPassword],
+                      ),
+                      const SizedBox(height: 12),
+                      PasswordStrengthWidget(
+                        password: _passwordController.text,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  AppPasswordField(
-                    label: 'New password',
-                    controller: _passwordController,
-                    validator: validators.isPasswordValid,
-                    autovalidateMode: autovalidateMode,
-                    autofillHints: const [AutofillHints.newPassword],
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  AppPasswordField(
-                    label: 'Confirm new password',
-                    controller: _confirmPasswordController,
-                    validator: (value) => validators.confirmPassword(
-                      value,
-                      _passwordController.text,
-                    ),
-                    autovalidateMode: autovalidateMode,
-                    autofillHints: const [AutofillHints.newPassword],
-                  ),
-                  const SizedBox(height: 12),
-                  PasswordStrengthWidget(password: _passwordController.text),
-                ],
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          if (formKey.currentState?.validate() != true) {
+                            setDialogState(() {
+                              autovalidateMode =
+                                  AutovalidateMode.onUserInteraction;
+                            });
+                            return;
+                          }
+                          await ref
+                              .read(changePasswordProvider.notifier)
+                              .submit(
+                                currentPassword: _currentSecretController.text,
+                                newPassword: _passwordController.text,
+                              );
+                          final result = ref.read(changePasswordProvider);
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (result.isDone) Navigator.pop(dialogContext);
+                          if (result.isDone) {
+                            showSuccessMessage(
+                              result.message ?? 'Password updated.',
+                            );
+                          } else {
+                            showErrorMessage(
+                              result.message ?? 'Password update failed.',
+                            );
+                          }
+                        },
+                  child: busy
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Update'),
+                ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (formKey.currentState?.validate() != true) {
-                  setDialogState(() {
-                    autovalidateMode = AutovalidateMode.onUserInteraction;
-                  });
-                  return;
-                }
-                await ref
-                    .read(changePasswordProvider.notifier)
-                    .submit(
-                      currentPassword: _currentSecretController.text,
-                      newPassword: _passwordController.text,
-                    );
-                final result = ref.read(changePasswordProvider);
-                if (!mounted || !dialogContext.mounted) return;
-                if (result.isDone) Navigator.pop(dialogContext);
-                if (result.isDone) {
-                  showSuccessMessage(result.message ?? 'Password updated.');
-                } else {
-                  showErrorMessage(result.message ?? 'Password update failed.');
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
     if (!mounted) return;
@@ -621,95 +640,109 @@ extension _AccountScreens on _AccountPageState {
     var autovalidateMode = AutovalidateMode.disabled;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Change transaction PIN'),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 12,
-          ),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const PinSecurityWarningBox(),
-                    const SizedBox(height: 12),
-                    const Text('Current PIN'),
-                    const SizedBox(height: 8),
-                    PinInputField(
-                      pinLength: 4,
-                      pinCtrl: _currentSecretController,
-                      obscureText: true,
-                      validator: validators.transactionPin,
-                      autoValidateMode: autovalidateMode,
+      builder: (dialogContext) => Consumer(
+        builder: (dialogContext, modalRef, _) {
+          final busy = modalRef.watch(changePinProvider).isLoading;
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) => AlertDialog(
+              title: const Text('Change transaction PIN'),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const PinSecurityWarningBox(),
+                        const SizedBox(height: 12),
+                        const Text('Current PIN'),
+                        const SizedBox(height: 8),
+                        PinInputField(
+                          pinLength: 4,
+                          pinCtrl: _currentSecretController,
+                          obscureText: true,
+                          validator: validators.transactionPin,
+                          autoValidateMode: autovalidateMode,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('New PIN'),
+                        const SizedBox(height: 8),
+                        PinInputField(
+                          pinLength: 4,
+                          pinCtrl: _pinController,
+                          obscureText: true,
+                          validator: validators.strongTransactionPin,
+                          autoValidateMode: autovalidateMode,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Confirm new PIN'),
+                        const SizedBox(height: 8),
+                        PinInputField(
+                          pinLength: 4,
+                          pinCtrl: _confirmPinController,
+                          obscureText: true,
+                          validator: (value) => value == _pinController.text
+                              ? null
+                              : 'PINs do not match',
+                          autoValidateMode: autovalidateMode,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    const Text('New PIN'),
-                    const SizedBox(height: 8),
-                    PinInputField(
-                      pinLength: 4,
-                      pinCtrl: _pinController,
-                      obscureText: true,
-                      validator: validators.strongTransactionPin,
-                      autoValidateMode: autovalidateMode,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Confirm new PIN'),
-                    const SizedBox(height: 8),
-                    PinInputField(
-                      pinLength: 4,
-                      pinCtrl: _confirmPinController,
-                      obscureText: true,
-                      validator: (value) => value == _pinController.text
-                          ? null
-                          : 'PINs do not match',
-                      autoValidateMode: autovalidateMode,
-                    ),
-                  ],
+                  ),
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          if (formKey.currentState?.validate() != true) {
+                            setDialogState(() {
+                              autovalidateMode =
+                                  AutovalidateMode.onUserInteraction;
+                            });
+                            return;
+                          }
+                          await ref
+                              .read(changePinProvider.notifier)
+                              .submit(
+                                currentPin: _currentSecretController.text,
+                                newPin: _pinController.text,
+                              );
+                          final result = ref.read(changePinProvider);
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (result.isDone) Navigator.pop(dialogContext);
+                          if (result.isDone) {
+                            showSuccessMessage(
+                              result.message ?? 'Transaction PIN updated.',
+                            );
+                          } else {
+                            showErrorMessage(
+                              result.message ??
+                                  'Transaction PIN update failed.',
+                            );
+                          }
+                        },
+                  child: busy
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Update'),
+                ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (formKey.currentState?.validate() != true) {
-                  setDialogState(() {
-                    autovalidateMode = AutovalidateMode.onUserInteraction;
-                  });
-                  return;
-                }
-                await ref
-                    .read(changePinProvider.notifier)
-                    .submit(
-                      currentPin: _currentSecretController.text,
-                      newPin: _pinController.text,
-                    );
-                final result = ref.read(changePinProvider);
-                if (!mounted || !dialogContext.mounted) return;
-                if (result.isDone) Navigator.pop(dialogContext);
-                if (result.isDone) {
-                  showSuccessMessage(
-                    result.message ?? 'Transaction PIN updated.',
-                  );
-                } else {
-                  showErrorMessage(
-                    result.message ?? 'Transaction PIN update failed.',
-                  );
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
     if (!mounted) return;
@@ -939,65 +972,81 @@ extension _AccountScreens on _AccountPageState {
     }
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Verify current ${pin ? 'PIN' : 'password'}'),
-        content: pin
-            ? AppTextField(
-                label: 'Current PIN',
-                controller: _currentSecretController,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-              )
-            : AppPasswordField(
-                label: 'Current password',
-                controller: _currentSecretController,
-                autofillHints: const [AutofillHints.password],
+      builder: (dialogContext) => Consumer(
+        builder: (dialogContext, modalRef, _) {
+          final busy = pin
+              ? modalRef.watch(verifyCurrentPinProvider).isLoading
+              : modalRef.watch(verifyCurrentPasswordProvider).isLoading;
+          return AlertDialog(
+            title: Text('Verify current ${pin ? 'PIN' : 'password'}'),
+            content: pin
+                ? AppTextField(
+                    label: 'Current PIN',
+                    controller: _currentSecretController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                  )
+                : AppPasswordField(
+                    label: 'Current password',
+                    controller: _currentSecretController,
+                    autofillHints: const [AutofillHints.password],
+                  ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
               ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (pin &&
-                  validators.transactionPin(_currentSecretController.text) !=
-                      null) {
-                showMessage('Enter a 4-digit PIN.');
-                return;
-              }
-              if (!pin && _currentSecretController.text.isEmpty) {
-                showMessage('Enter your current password.');
-                return;
-              }
-              if (pin) {
-                await ref
-                    .read(verifyCurrentPinProvider.notifier)
-                    .submit(_currentSecretController.text);
-              } else {
-                await ref
-                    .read(verifyCurrentPasswordProvider.notifier)
-                    .submit(_currentSecretController.text);
-              }
-              final result = pin
-                  ? ref.read(verifyCurrentPinProvider)
-                  : ref.read(verifyCurrentPasswordProvider);
-              if (!mounted || !dialogContext.mounted) return;
-              if (result.isDone) Navigator.pop(dialogContext);
-              final message =
-                  result.message ??
-                  (result.isDone
-                      ? 'Current ${pin ? 'PIN' : 'password'} verified.'
-                      : 'Verification failed.');
-              if (result.isDone) {
-                showSuccessMessage(message);
-              } else {
-                showErrorMessage(message);
-              }
-            },
-            child: const Text('Verify'),
-          ),
-        ],
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (pin &&
+                            validators.transactionPin(
+                                  _currentSecretController.text,
+                                ) !=
+                                null) {
+                          showMessage('Enter a 4-digit PIN.');
+                          return;
+                        }
+                        if (!pin && _currentSecretController.text.isEmpty) {
+                          showMessage('Enter your current password.');
+                          return;
+                        }
+                        if (pin) {
+                          await ref
+                              .read(verifyCurrentPinProvider.notifier)
+                              .submit(_currentSecretController.text);
+                        } else {
+                          await ref
+                              .read(verifyCurrentPasswordProvider.notifier)
+                              .submit(_currentSecretController.text);
+                        }
+                        final result = pin
+                            ? ref.read(verifyCurrentPinProvider)
+                            : ref.read(verifyCurrentPasswordProvider);
+                        if (!mounted || !dialogContext.mounted) return;
+                        if (result.isDone) Navigator.pop(dialogContext);
+                        final message =
+                            result.message ??
+                            (result.isDone
+                                ? 'Current ${pin ? 'PIN' : 'password'} verified.'
+                                : 'Verification failed.');
+                        if (result.isDone) {
+                          showSuccessMessage(message);
+                        } else {
+                          showErrorMessage(message);
+                        }
+                      },
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Verify'),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (!mounted) return;
