@@ -40,11 +40,15 @@ class CreateFirstPinNotifier
     state = await ref
         .read(authServiceProvider)
         .createFirstPin(CreateFirstPinRequest(pin));
-    if (state.isDone) {
+    if (state.isDone && state.data?.isCreatedPin == true) {
       ref.read(userProfileProvider.notifier).markPinCreated();
       ref
           .read(authNavigationProvider.notifier)
           .publish(AuthDestination.home, mode: AuthNavigationMode.clearStack);
+    } else if (state.isDone) {
+      state = const NotifierState.error(
+        'Your transaction PIN was not confirmed. Please try again.',
+      );
     }
   }
 }
