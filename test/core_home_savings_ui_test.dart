@@ -3,13 +3,17 @@ import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_page.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
 import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 import 'package:boctrust_savings_loan/app/app_router.dart';
 import 'support/flow_harness.dart';
@@ -95,6 +99,42 @@ class _LoadingHome extends UserHomeNotifier {
   Future<NotifierState<UserHomeData>> load() async => state;
 }
 
+class _HiddenBalance extends HomeBalanceHiddenNotifier {
+  @override
+  bool build() => true;
+}
+
+class _Transactions extends CoreAccountService {
+  _Transactions({this.reversed = false}) : super(null);
+
+  final bool reversed;
+
+  @override
+  Future<NotifierState<CoreTransactionPage>> getAccountTransactions(
+    String accountNumber,
+    CoreHistoryRange range, {
+    int page = 1,
+    int pageSize = 20,
+    DateTime? today,
+  }) async => NotifierState.done(
+    CoreTransactionPage(
+      rows: [
+        CoreAccountTransaction(
+          id: 'txn-1',
+          type: CoreTransactionType.debit,
+          amount: '1250.00',
+          balance: '6404.30',
+          narration: 'Electricity payment',
+          reference: 'BILL-123',
+          date: DateTime.utc(2026, 10, 10, 12, 30),
+          reversed: reversed,
+        ),
+      ],
+      page: const CorePage(page: 1, pageSize: 20, total: 1, totalPages: 1),
+    ),
+  );
+}
+
 Future<void> _pump(
   WidgetTester tester,
   String route, {
@@ -102,6 +142,8 @@ Future<void> _pump(
   NotifierState<List<CoreBankProduct>>? products,
   bool loadingHome = false,
   bool historyAvailable = false,
+  CoreAccountService? accountService,
+  bool hidden = false,
   Size viewport = const Size(800, 2000),
 }) async {
   tester.view.physicalSize = viewport;
@@ -117,6 +159,9 @@ Future<void> _pump(
         featureAvailabilityProvider(
           FeatureCapability.coreAccountHistory,
         ).overrideWithValue(FeatureAvailability.available),
+      if (accountService != null)
+        coreAccountServiceProvider.overrideWithValue(accountService),
+      if (hidden) homeBalanceHiddenProvider.overrideWith(_HiddenBalance.new),
       userProfileProvider.overrideWith(LayoutProfile.new),
       userHomeProvider.overrideWith(loadingHome ? _LoadingHome.new : _Home.new),
       customerBankAccountsProvider.overrideWith(() => _Accounts(accounts)),
@@ -129,6 +174,92 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('tapping a Home transaction opens its details', (tester) async {
+    await _pump(
+      tester,
+      AppRoutes.home,
+      accounts: NotifierState.done(_accounts),
+      historyAvailable: true,
+      accountService: _Transactions(),
+      viewport: const Size(360, 800),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.scrollUntilVisible(
+      find.text('Electricity payment'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Electricity payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account transaction'), findsNothing);
+    expect(find.text('Type'), findsNothing);
+    expect(find.text('Electricity payment'), findsWidgets);
+    expect(find.text('-₦1,250.00'), findsOneWidget);
+    expect(find.text('BILL-123'), findsOneWidget);
+    expect(
+      find.text(
+        DateFormat(
+          'd MMM yyyy, h:mm a',
+        ).format(DateTime.utc(2026, 10, 10, 12, 30).toLocal()),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a reversed Home transaction shows a marker in row and sheet', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppRoutes.home,
+      accounts: NotifierState.done(_accounts),
+      historyAvailable: true,
+      accountService: _Transactions(reversed: true),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Electricity payment'));
+    expect(find.byTooltip('Reversed transaction'), findsOneWidget);
+
+    await tester.tap(find.text('Electricity payment'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Reversed transaction'), findsNWidgets(2));
+    expect(find.text('Reversed'), findsOneWidget);
+  });
+
+  testWidgets('Home transaction details mask amounts when balance is hidden', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppRoutes.home,
+      accounts: NotifierState.done(_accounts),
+      historyAvailable: true,
+      accountService: _Transactions(),
+      hidden: true,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Electricity payment'));
+    await tester.tap(find.text('Electricity payment'));
+    await tester.pumpAndSettle();
+
+    final sheet = find.byType(AppActionSheet);
+    expect(
+      find.descendant(of: sheet, matching: find.text('₦ ••••••')),
+      findsNWidgets(2),
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('-₦1,250.00')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('₦6,404.30')),
+      findsNothing,
+    );
+  });
+
   testWidgets('Home uses wallet and transaction shimmer while loading', (
     tester,
   ) async {

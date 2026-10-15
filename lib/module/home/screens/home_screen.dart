@@ -20,6 +20,7 @@ import '../../core_banking/model/core_account_transactions.dart';
 import '../../core_banking/model/flex_balance.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/screens/core_transaction_detail_sheet.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/user_home_model.dart';
@@ -824,64 +825,85 @@ class _HomeTransactionRow extends StatelessWidget {
         ? 'Date unavailable'
         : DateFormat('d MMM, h:mm a').format(row.date!.toLocal());
     return MergeSemantics(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: BocSpace.md,
-          vertical: BocSpace.sm,
-        ),
-        child: Row(
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: credit ? colors.successContainer : colors.errorContainer,
-                borderRadius: BorderRadius.circular(BocRadius.sm),
-              ),
-              child: SizedBox.square(
-                dimension: 40,
-                child: Icon(
-                  credit
-                      ? IconsaxPlusLinear.arrow_down_1
-                      : IconsaxPlusLinear.arrow_up,
-                  color: credit ? colors.successText : colors.errorText,
-                  size: 20,
-                ),
-              ),
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: () =>
+              showCoreTransactionDetailSheet(context, row, hidden: hidden),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: BocSpace.md,
+              vertical: BocSpace.sm,
             ),
-            const SizedBox(width: BocSpace.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    row.narration ?? 'Transaction',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall,
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: credit
+                        ? colors.successContainer
+                        : colors.errorContainer,
+                    borderRadius: BorderRadius.circular(BocRadius.sm),
                   ),
-                  Text(
-                    row.reversed ? '$date · Reversed' : date,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: BocSpace.xs),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.sizeOf(context).width * 0.34,
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Text(
-                  amount,
-                  style: theme.textTheme.titleSmall?.figures.copyWith(
-                    color: credit ? colors.successText : colors.textPrimary,
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Icon(
+                      credit
+                          ? IconsaxPlusLinear.arrow_down_1
+                          : IconsaxPlusLinear.arrow_up,
+                      color: credit ? colors.successText : colors.errorText,
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: BocSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.narration ?? 'Transaction',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              date,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                          if (row.reversed) ...[
+                            const SizedBox(width: BocSpace.xs),
+                            const CoreReversedIndicator(),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: BocSpace.xs),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.34,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      amount,
+                      style: theme.textTheme.titleSmall?.figures.copyWith(
+                        color: credit ? colors.successText : colors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

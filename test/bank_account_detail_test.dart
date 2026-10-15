@@ -127,6 +127,34 @@ void main() {
     expect(find.text('POS'), findsOneWidget);
   });
 
+  testWidgets('account history still opens transaction details', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      _Accounts([
+        [
+          CoreAccountTransaction(
+            id: 'details-1',
+            type: CoreTransactionType.credit,
+            amount: '5000.00',
+            balance: '7654.30',
+            narration: 'SALARY',
+            reference: 'PAY-REF',
+            date: DateTime.utc(2026, 10, 10, 12, 30),
+          ),
+        ],
+      ]),
+    );
+
+    await tester.tap(find.text('SALARY'));
+    await tester.pumpAndSettle();
+    expect(find.text('Account transaction'), findsNothing);
+    expect(find.text('Type'), findsNothing);
+    expect(find.text('+₦5,000.00'), findsWidgets);
+    expect(find.text('PAY-REF'), findsOneWidget);
+  });
+
   testWidgets('choosing a range re-reads that range', (tester) async {
     final accounts = _Accounts();
     await _pumpDetail(tester, accounts);
@@ -145,7 +173,11 @@ void main() {
       ]),
     );
 
-    expect(find.textContaining('Reversed'), findsOneWidget);
+    expect(find.byTooltip('Reversed transaction'), findsOneWidget);
+    await tester.tap(find.text('Money sent'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Reversed transaction'), findsNWidgets(2));
+    expect(find.text('Reversed'), findsOneWidget);
   });
 
   testWidgets('a later page never repeats a row', (tester) async {

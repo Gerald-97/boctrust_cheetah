@@ -9,7 +9,7 @@ class AppActionSheet extends StatelessWidget {
   const AppActionSheet({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle = '',
     required this.child,
     this.iconColor,
     this.iconBackground,
@@ -103,8 +103,10 @@ class AppActionSheet extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(title, style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 4),
-                        Text(subtitle, style: theme.textTheme.bodyMedium),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(subtitle, style: theme.textTheme.bodyMedium),
+                        ],
                       ],
                     ),
                   ),

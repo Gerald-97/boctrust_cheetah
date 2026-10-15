@@ -9,6 +9,7 @@ import '../../app_flow/app_ui.dart';
 import '../../home/provider/home_provider.dart';
 import '../model/core_account_transactions.dart';
 import '../provider/core_account_activity_providers.dart';
+import 'core_transaction_detail_sheet.dart';
 import 'paged_rows_footer.dart';
 
 /// One Core account's transactions: range chips, rows and the Show more
@@ -136,7 +137,11 @@ class _CoreAccountHistoryListState
         ? 'Date unavailable'
         : DateFormat('d MMM yyyy · h:mm a').format(row.date!.toLocal());
     return InkWell(
-      onTap: () => _showTransaction(row),
+      onTap: () => showCoreTransactionDetailSheet(
+        context,
+        row,
+        hidden: ref.read(homeBalanceHiddenProvider),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: BocSpace.md),
         child: Row(
@@ -171,12 +176,22 @@ class _CoreAccountHistoryListState
                     ),
                   ),
                   const SizedBox(height: BocSpace.xxs),
-                  Text(
-                    row.reversed ? '$date · Reversed' : date,
-                    maxLines: 2,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          date,
+                          maxLines: 2,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      if (row.reversed) ...[
+                        const SizedBox(width: BocSpace.xs),
+                        const CoreReversedIndicator(),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -202,93 +217,6 @@ class _CoreAccountHistoryListState
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Future<void> _showTransaction(CoreAccountTransaction row) async {
-    final hidden = ref.read(homeBalanceHiddenProvider);
-    final credit = row.type == CoreTransactionType.credit;
-    final amount = formatApiAmount(row.amount, currency: 'NGN');
-    final balance = formatApiAmount(row.balance, currency: 'NGN');
-    final date = row.date == null
-        ? 'Unavailable'
-        : DateFormat('d MMM yyyy, h:mm a').format(row.date!.toLocal());
-    await AppActionSheet.show<void>(
-      context: context,
-      builder: (sheet) {
-        final colors = sheet.bocColors;
-        return AppActionSheet(
-          icon: credit
-              ? IconsaxPlusLinear.arrow_down_1
-              : IconsaxPlusLinear.arrow_up,
-          iconColor: credit ? colors.successText : colors.info,
-          iconBackground: credit
-              ? colors.successContainer
-              : colors.infoContainer,
-          title: row.narration ?? (credit ? 'Money received' : 'Money sent'),
-          subtitle: 'Account transaction',
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _sheetRow(
-                  sheet,
-                  'Amount',
-                  hidden
-                      ? '₦ ••••••'
-                      : amount == null
-                      ? 'Unavailable'
-                      : '${credit ? '+' : '-'}$amount',
-                ),
-                _sheetRow(sheet, 'Date and time', date),
-                _sheetRow(sheet, 'Type', credit ? 'Credit' : 'Debit'),
-                if (row.reversed) _sheetRow(sheet, 'Status', 'Reversed'),
-                if (row.reference case final reference?)
-                  _sheetRow(sheet, 'Reference', reference),
-                if (row.balance != null)
-                  _sheetRow(
-                    sheet,
-                    'Balance after',
-                    hidden ? '₦ ••••••' : balance ?? 'Unavailable',
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _sheetRow(BuildContext context, String label, String value) {
-    final colors = context.bocColors;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: BocSpace.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: BocSpace.md),
-          Expanded(
-            flex: 2,
-            child: SelectableText(
-              value,
-              textAlign: TextAlign.end,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
