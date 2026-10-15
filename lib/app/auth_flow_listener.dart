@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../helper/app_open_recency.dart';
 import '../helper/fcm_service.dart';
 import '../helper/local_notification_service.dart';
 import '../helper/notification_navigator.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
+import '../module/onboarding/provider/biometric_login_provider.dart';
 import '../module/onboarding/provider/fcm_token_provider.dart';
 import 'app_router.dart';
 import 'auth_navigation_provider.dart';
@@ -29,11 +31,13 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
   bool _checkedInitialNotification = false;
   bool _authenticatedDestinationReady = false;
   Map<String, dynamic>? _pendingNotification;
+  bool _backgrounded = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(ref.read(appOpenRecencyProvider).recordColdLaunch());
   }
 
   @override
@@ -44,10 +48,30 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A biometric prompt only makes the app inactive; that is not an open.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _backgrounded = true;
+    } else if (state == AppLifecycleState.resumed && _backgrounded) {
+      _backgrounded = false;
+      unawaited(_recordForegroundOpen());
+    }
     if (state == AppLifecycleState.resumed &&
         ref.read(authSessionProvider) != null) {
       ref.read(fcmTokenProvider.notifier).registerAfterBootstrap();
     }
+  }
+
+  Future<void> _recordForegroundOpen() async {
+    final result = await ref
+        .read(appOpenRecencyProvider)
+        .recordForegroundOpen();
+    if (!mounted ||
+        result == AppOpenRecencyResult.eligible ||
+        !ref.exists(biometricLoginProvider)) {
+      return;
+    }
+    await ref.read(biometricLoginProvider.notifier).revokeForRecency();
   }
 
   @override

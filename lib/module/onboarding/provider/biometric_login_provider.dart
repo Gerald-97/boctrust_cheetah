@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../helper/app_open_recency.dart';
 import '../../../helper/biometric_auth_service.dart';
 import '../../../helper/biometric_login_storage.dart';
 import '../../../utils/auth_input.dart';
@@ -104,6 +105,7 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
 
   BiometricLoginStorage get _storage => ref.read(biometricLoginStorageProvider);
   BiometricAuthService get _auth => ref.read(biometricAuthServiceProvider);
+  AppOpenRecency get _recency => ref.read(appOpenRecencyProvider);
 
   @override
   BiometricLoginState build() {
@@ -124,15 +126,19 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
     return const BiometricLoginState(phase: BiometricLoginPhase.hydrating);
   }
 
-  /// Loads capability and enrollment. Concurrent callers share one load.
+  /// Loads capability and enrollment once the latest app open has been
+  /// checked for recency. Concurrent callers share one load.
   Future<void> hydrate() =>
       _hydration ??= _hydrate().whenComplete(() => _hydration = null);
 
   Future<void> _hydrate() async {
     if (_disposed || state.isBusy) return;
     final token = _operation;
+    final recency = await _recency.latest();
     final capability = await _auth.checkCapability();
-    final enrollment = await _storage.loadValidEnrollment();
+    final enrollment = _recency.biometricsBlocked
+        ? null
+        : await _storage.loadValidEnrollment();
     if (!_isCurrent(token) || state.isBusy) return;
     if (!capability.supported) {
       // Biometrics were removed from the device: the enrollment cannot be used.
@@ -144,13 +150,34 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
       );
       return;
     }
+    if (_recency.biometricsBlocked) {
+      // A stale enrollment survived cleanup: keep it unusable and
+      // unreplaceable until a later open deletes it.
+      state = BiometricLoginState(
+        phase: BiometricLoginPhase.unavailable,
+        presentation: capability.presentation,
+        message: _recencyMessage,
+      );
+      return;
+    }
     state = BiometricLoginState(
       phase: enrollment == null
           ? BiometricLoginPhase.disabled
           : BiometricLoginPhase.enabled,
       profile: enrollment?.profile,
       presentation: capability.presentation,
+      message: enrollment == null && recency != AppOpenRecencyResult.eligible
+          ? _recencyMessage
+          : null,
     );
+  }
+
+  /// Called when an app open invalidated biometric login: abandons any prompt
+  /// or login in flight so its late result cannot sign in.
+  Future<void> revokeForRecency() async {
+    if (_disposed) return;
+    cancelActiveOperation();
+    await hydrate();
   }
 
   /// Turns biometric login on for the signed-in customer.
@@ -320,6 +347,22 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
     if (outcome != BiometricAuthOutcome.success) {
       return _restore(_resultFor(outcome));
     }
+    // An app open during the prompt may have invalidated the enrollment.
+    await _recency.latest();
+    if (!_isCurrent(token)) return const BiometricOperationResult.cancelled();
+    if (_recency.biometricsBlocked) {
+      return _end(
+        BiometricLoginState(
+          phase: BiometricLoginPhase.unavailable,
+          presentation: state.presentation,
+          message: _recencyMessage,
+        ),
+        const BiometricOperationResult(
+          succeeded: false,
+          message: _recencyMessage,
+        ),
+      );
+    }
     final credential = await _storage.readCredentialAfterAuthentication();
     if (!_isCurrent(token)) return const BiometricOperationResult.cancelled();
     if (credential == null) {
@@ -435,6 +478,11 @@ class BiometricLoginNotifier extends Notifier<BiometricLoginState> {
     if (!state.isBusy) state = state.copyWith(message: message);
     return BiometricOperationResult(succeeded: false, message: message);
   }
+
+  static const _recencyMessage =
+      'Biometric login was turned off for your security, after a security '
+      'update or because the app was not opened for six months. Sign in with '
+      'your password, then turn it on again in Security Center.';
 
   static const _busy = BiometricOperationResult(
     succeeded: false,

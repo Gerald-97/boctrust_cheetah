@@ -134,4 +134,17 @@ class SecureStorage {
 
   Future<void> deleteBiometricValue(BiometricStorageKey key) =>
       _storage.delete(key: biometricKey(key), iOptions: _biometricAppleOptions);
+
+  // Shares the enrollment's accessibility so it never outlives or travels
+  // further than the enrollment it vouches for.
+  String get lastOpenKey => '$_prefix.app_open.v1.last_open';
+
+  Future<String?> readLastOpen() =>
+      _storage.read(key: lastOpenKey, iOptions: _biometricAppleOptions);
+
+  Future<void> writeLastOpen(String value) => _storage.write(
+    key: lastOpenKey,
+    value: value,
+    iOptions: _biometricAppleOptions,
+  );
 }
