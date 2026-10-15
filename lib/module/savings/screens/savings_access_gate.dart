@@ -1,6 +1,7 @@
 part of '../../app_flow/app_ui.dart';
 
-/// No Savings widget is built until the restored session and its profile agree.
+/// No Savings widget is built until this process's session and its profile
+/// agree.
 class SavingsAccessGate extends ConsumerStatefulWidget {
   const SavingsAccessGate({
     required this.builder,
@@ -18,28 +19,20 @@ class SavingsAccessGate extends ConsumerStatefulWidget {
 
 class _SavingsAccessGateState extends ConsumerState<SavingsAccessGate> {
   bool _busy = true;
-  bool _restoring = false;
   int _generation = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _prepare(restore: true);
+      if (mounted) _prepare();
     });
   }
 
-  Future<void> _prepare({bool restore = false}) async {
+  Future<void> _prepare() async {
     final generation = ++_generation;
     setState(() => _busy = true);
-    var session = ref.read(authSessionProvider);
-    if (restore && session == null) {
-      _restoring = true;
-      await ref.read(authSessionProvider.notifier).hydrate();
-      _restoring = false;
-      if (!mounted || generation != _generation) return;
-      session = ref.read(authSessionProvider);
-    }
+    final session = ref.read(authSessionProvider);
     if (session == null || session.isExpired) {
       if (session != null) {
         await ref.read(authSessionProvider.notifier).clear();
@@ -70,7 +63,7 @@ class _SavingsAccessGateState extends ConsumerState<SavingsAccessGate> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authSessionProvider, (previous, next) {
-      if (_restoring || previous == next) return;
+      if (previous == next) return;
       // Invalidate in-flight preparation immediately, before the next frame.
       _generation++;
       WidgetsBinding.instance.addPostFrameCallback((_) {

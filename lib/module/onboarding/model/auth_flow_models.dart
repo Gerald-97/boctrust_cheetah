@@ -6,7 +6,7 @@ import 'auth_enums.dart';
 
 enum StartupGateStage {
   idle,
-  hydratingSession,
+  clearingSession,
   loadingProfile,
   profileError,
   complete,

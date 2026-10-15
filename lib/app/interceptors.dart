@@ -400,7 +400,9 @@ class AuthInterceptor extends Interceptor {
       );
       return;
     }
-    if (token != null && token.isNotEmpty) {
+    // Only the session signed in by this process authorizes a request; a
+    // token left in storage by failed cleanup is never sent.
+    if (session != null && token == session.accessToken) {
       options.headers['Authorization'] = 'Bearer $token';
       options.extra['attachedAccessToken'] = token;
     }

@@ -37,7 +37,7 @@ class PrivateRouteGate extends StatelessWidget {
   }
 }
 
-/// Builds [child] once a stored session is restored and unexpired.
+/// Builds [child] only for an unexpired session signed in by this process.
 class _SessionGate extends ConsumerStatefulWidget {
   const _SessionGate({required this.onSignedOut, required this.child});
 
@@ -58,12 +58,7 @@ class _SessionGateState extends ConsumerState<_SessionGate> {
   }
 
   Future<void> _check() async {
-    var session = ref.read(authSessionProvider);
-    if (session == null) {
-      await ref.read(authSessionProvider.notifier).hydrate();
-      if (!mounted) return;
-      session = ref.read(authSessionProvider);
-    }
+    final session = ref.read(authSessionProvider);
     if (session == null || session.isExpired) {
       if (session != null) await ref.read(authSessionProvider.notifier).clear();
       if (mounted) widget.onSignedOut();

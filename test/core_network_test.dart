@@ -9,6 +9,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/savings_fixtures.dart';
+
 class _Unauthorized implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(
@@ -31,12 +33,13 @@ class _Unauthorized implements HttpClientAdapter {
 /// reports how many times the session was expired.
 Future<int> _expiriesAfter401({required bool expireOnRemote401}) async {
   var expiries = 0;
+  final session = savingsSession();
   final dio = Dio(BaseOptions(baseUrl: 'https://core.example.test/api/v1'))
     ..httpClientAdapter = _Unauthorized()
     ..interceptors.add(
       AuthInterceptor(
-        readAccessToken: () async => 'token-1',
-        readCurrentSession: () => null,
+        readAccessToken: () async => session.accessToken,
+        readCurrentSession: () => session,
         expireSessionOnce: () async => expiries++,
         isPublicOperation: (_, _) => false,
         expireSessionOnRemote401: expireOnRemote401,

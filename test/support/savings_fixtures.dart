@@ -1,4 +1,3 @@
-import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_enums.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_session.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
@@ -23,7 +22,4 @@ class SavingsSession extends AuthSessionNotifier {
 class SignedOutSavingsSession extends SavingsSession {
   @override
   AuthSession? build() => null;
-  @override
-  Future<StoredSessionResult> hydrate() async =>
-      (status: StoredSessionStatus.absent, session: null);
 }

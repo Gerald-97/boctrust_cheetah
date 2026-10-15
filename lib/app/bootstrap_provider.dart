@@ -27,27 +27,22 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
     if (_started) return;
     _started = true;
     state = const NotifierState.loading(
-      data: StartupGateData(stage: StartupGateStage.hydratingSession),
+      data: StartupGateData(stage: StartupGateStage.clearingSession),
     );
 
-    final result = await ref.read(authSessionProvider.notifier).hydrate();
-    if (result.status != StoredSessionStatus.valid) {
-      final hasSeen =
-          ref.read(sharedPreferencesProvider).getBool(hasSeenOnboardingKey) ??
-          false;
-      final destination = hasSeen
-          ? AuthDestination.login
-          : AuthDestination.onboarding;
-      _publish(
-        destination,
-        message: result.status == StoredSessionStatus.expired
-            ? 'Your session has expired. Please sign in again.'
-            : null,
-      );
-      return;
+    // A new process never resumes a stored session: every launch signs in
+    // again. If the delete fails, memory stays empty, private routes stay
+    // closed, and the interceptor refuses the leftover token.
+    try {
+      await ref.read(authSessionProvider.notifier).clear();
+      await ref.read(secureStorageProvider).deleteLegacySessionKeys();
+    } catch (_) {
+      // Routing below is the same either way.
     }
-
-    await _loadProfile();
+    final hasSeen =
+        ref.read(sharedPreferencesProvider).getBool(hasSeenOnboardingKey) ??
+        false;
+    _publish(hasSeen ? AuthDestination.login : AuthDestination.onboarding);
   }
 
   Future<void> startAfterLogin() async {
@@ -92,7 +87,7 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
     _publish(destination);
   }
 
-  void _publish(AuthDestination destination, {String? message}) {
+  void _publish(AuthDestination destination) {
     if (_publishedTerminalIntent) return;
     _publishedTerminalIntent = true;
     state = NotifierState.done(
@@ -103,10 +98,6 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
     );
     ref
         .read(authNavigationProvider.notifier)
-        .publish(
-          destination,
-          mode: AuthNavigationMode.clearStack,
-          message: message,
-        );
+        .publish(destination, mode: AuthNavigationMode.clearStack);
   }
 }
