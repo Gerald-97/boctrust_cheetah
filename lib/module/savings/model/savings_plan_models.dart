@@ -373,6 +373,20 @@ enum FundingSource {
 /// tenor with no rate band for the product, and that message is shown.
 const tenorDaysForMonths = {3: 90, 6: 180, 9: 270, 12: 365};
 
+int minimumSavingsTenorDays(SavingsProductType type) => switch (type) {
+  SavingsProductType.smartSave => 90,
+  SavingsProductType.fixed => 30,
+  SavingsProductType.flex || SavingsProductType.padi => 0,
+};
+
+/// Calendar dates are compared in UTC to count whole dates consistently even
+/// on devices whose local clock crosses a daylight-saving boundary.
+int daysUntilSavingsDate(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
 /// The largest amount a plan form accepts (in Kobo); Core enforces the real
 /// limits.
 const savingsPlanMaxKobo = '100000000000';
@@ -442,6 +456,7 @@ class SavingsPlanDraft extends Equatable {
     this.name = '',
     this.amount = '',
     this.durationMonths,
+    this.customMaturityDate,
     this.autoSave = false,
     this.frequency,
     this.contributionDays = const {},
@@ -458,6 +473,7 @@ class SavingsPlanDraft extends Equatable {
   /// as typed, in naira.
   final String amount;
   final int? durationMonths;
+  final DateTime? customMaturityDate;
   final bool autoSave;
   final SavingsFrequency? frequency;
   final Set<int> contributionDays;
@@ -472,6 +488,9 @@ class SavingsPlanDraft extends Equatable {
     String? name,
     String? amount,
     int? durationMonths,
+    DateTime? customMaturityDate,
+    bool clearDurationMonths = false,
+    bool clearCustomMaturityDate = false,
     bool? autoSave,
     SavingsFrequency? frequency,
     Set<int>? contributionDays,
@@ -483,7 +502,12 @@ class SavingsPlanDraft extends Equatable {
     type: type,
     name: name ?? this.name,
     amount: amount ?? this.amount,
-    durationMonths: durationMonths ?? this.durationMonths,
+    durationMonths: clearDurationMonths
+        ? null
+        : durationMonths ?? this.durationMonths,
+    customMaturityDate: clearCustomMaturityDate
+        ? null
+        : customMaturityDate ?? this.customMaturityDate,
     autoSave: autoSave ?? this.autoSave,
     frequency: frequency ?? this.frequency,
     contributionDays: contributionDays ?? this.contributionDays,
@@ -499,6 +523,7 @@ class SavingsPlanDraft extends Equatable {
     name,
     amount,
     durationMonths,
+    customMaturityDate,
     autoSave,
     frequency,
     contributionDays,
@@ -511,9 +536,17 @@ class SavingsPlanDraft extends Equatable {
   /// What Core needs to create this plan. Null for Flex and Padi, without a
   /// term, or when an amount cannot be read. Auto-save fields go only when
   /// auto-save is on.
-  CreateSavingsPlanRequest? toCreateRequest() {
+  int? tenorDaysOn(DateTime today) {
+    final customDate = customMaturityDate;
+    final days = customDate == null
+        ? tenorDaysForMonths[durationMonths]
+        : daysUntilSavingsDate(today, customDate);
+    return days != null && days >= minimumSavingsTenorDays(type) ? days : null;
+  }
+
+  CreateSavingsPlanRequest? toCreateRequest({DateTime? today}) {
     final code = type.coreCode;
-    final tenor = tenorDaysForMonths[durationMonths];
+    final tenor = tenorDaysOn(today ?? DateTime.now());
     if (code == null || tenor == null) return null;
     final planName = name.trim().isEmpty ? null : name.trim();
     switch (type) {

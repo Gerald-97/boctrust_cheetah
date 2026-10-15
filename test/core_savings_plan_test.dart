@@ -96,6 +96,46 @@ class _Accounts extends CustomerBankAccountsNotifier {
 }
 
 void main() {
+  test('custom dates enforce each product minimum in calendar days', () {
+    final today = DateTime(2026, 10, 15);
+    SavingsPlanDraft goal(int days) => SavingsPlanDraft(
+      type: SavingsProductType.smartSave,
+      name: 'Rent',
+      amount: '200000',
+      customMaturityDate: DateTime(2026, 10, 15 + days),
+    );
+    SavingsPlanDraft deposit(int days) => SavingsPlanDraft(
+      type: SavingsProductType.fixed,
+      customMaturityDate: DateTime(2026, 10, 15 + days),
+    );
+
+    expect(goal(89).toCreateRequest(today: today), isNull);
+    expect(goal(90).toCreateRequest(today: today)?.tenorDays, 90);
+    expect(
+      goal(90).toCreateRequest(today: today.add(const Duration(days: 1))),
+      isNull,
+    );
+    expect(deposit(29).toCreateRequest(today: today), isNull);
+    expect(deposit(30).toCreateRequest(today: today)?.tenorDays, 30);
+    expect(
+      deposit(45).toCreateRequest(today: today)?.toJson()['tenorDays'],
+      45,
+    );
+  });
+
+  test('choosing a preset after a custom date restores its fixed tenor', () {
+    final selected = SavingsPlanDraft(
+      type: SavingsProductType.fixed,
+      customMaturityDate: DateTime(2027, 1, 15),
+    ).copyWith(durationMonths: 3, clearCustomMaturityDate: true);
+
+    expect(selected.customMaturityDate, isNull);
+    expect(
+      selected.toCreateRequest(today: DateTime(2026, 10, 15))?.tenorDays,
+      90,
+    );
+  });
+
   test('SmartSave target must exceed its opening minimum', () {
     for (final amount in ['abc', '0', '4,999.99', '5,000', '5,000.00']) {
       expect(smartSaveTargetValid(amount), isFalse, reason: amount);

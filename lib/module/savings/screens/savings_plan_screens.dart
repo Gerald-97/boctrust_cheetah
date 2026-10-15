@@ -725,7 +725,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   bool get _stepValid => switch (_step) {
     _WizardStep.goal => _draft.name.trim().isNotEmpty && _amountValid,
     _WizardStep.amount => _amountValid,
-    _WizardStep.schedule => _draft.durationMonths != null,
+    _WizardStep.schedule => _draft.tenorDaysOn(DateTime.now()) != null,
     _WizardStep.days when _createsInCore =>
       _draft.frequency != null &&
           savingsPlanNaira(_draft.recurringAmount) != null,
@@ -742,6 +742,26 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   };
 
   void _update(SavingsPlanDraft next) => setState(() => _draft = next);
+
+  Future<void> _pickMaturityDate() async {
+    final today = DateTime.now();
+    final minimum = minimumSavingsTenorDays(widget.type);
+    final firstDate = DateTime(today.year, today.month, today.day + minimum);
+    final selected = _draft.customMaturityDate;
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: firstDate,
+      lastDate: DateTime(today.year + 100, today.month, today.day),
+      initialDate: selected != null && !selected.isBefore(firstDate)
+          ? selected
+          : firstDate,
+    );
+    if (picked != null && mounted) {
+      _update(
+        _draft.copyWith(customMaturityDate: picked, clearDurationMonths: true),
+      );
+    }
+  }
 
   /// Shown on the confirm step when another savings action is sending.
   String? _busy;
@@ -828,6 +848,18 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
   Future<void> _next() async {
     if (_step != _WizardStep.confirm) {
       setState(() => _index++);
+      return;
+    }
+    if (_draft.tenorDaysOn(DateTime.now()) == null && _createsInCore) {
+      setState(() => _index = _steps.indexOf(_WizardStep.schedule));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Choose a date at least '
+            '${minimumSavingsTenorDays(widget.type)} days from today.',
+          ),
+        ),
+      );
       return;
     }
     final capability = widget.type.createCapability;
@@ -1085,8 +1117,36 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               (value: 12, label: '12 months'),
             ],
             selected: {?_draft.durationMonths},
-            onChanged: (value) =>
-                _update(_draft.copyWith(durationMonths: value.first)),
+            onChanged: (value) => _update(
+              _draft.copyWith(
+                durationMonths: value.first,
+                clearCustomMaturityDate: true,
+              ),
+            ),
+          ),
+          const SizedBox(height: BocSpace.md),
+          InkWell(
+            borderRadius: BorderRadius.circular(BocRadius.sm),
+            onTap: _pickMaturityDate,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Custom maturity date',
+                suffixIcon: Icon(IconsaxPlusLinear.calendar),
+              ),
+              child: Text(
+                _draft.customMaturityDate == null
+                    ? 'Choose a date'
+                    : DateFormat(
+                        'd MMM yyyy',
+                      ).format(_draft.customMaturityDate!),
+              ),
+            ),
+          ),
+          const SizedBox(height: BocSpace.xs),
+          Text(
+            'Earliest date: '
+            '${minimumSavingsTenorDays(widget.type)} days from today.',
+            style: theme.textTheme.bodySmall,
           ),
           if (widget.type == SavingsProductType.smartSave) ...[
             const SizedBox(height: BocSpace.md),
@@ -1276,6 +1336,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             : null;
         if (widget.type == SavingsProductType.smartSave || fixed) {
           final months = _draft.durationMonths;
+          final customDate = _draft.customMaturityDate;
           final recurring = formatApiAmount(
             savingsPlanNaira(_draft.recurringAmount),
             currency: 'NGN',
@@ -1332,10 +1393,20 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               const SizedBox(height: BocSpace.md),
             ],
             SavingsFactGroup(
-              title: 'Saving plan',
+              title: fixed ? 'Deposit details' : 'Saving plan',
               rows: [
                 if (months != null)
-                  (label: fixed ? 'Term' : 'Duration', value: '$months months'),
+                  (label: 'Duration', value: '$months months'),
+                if (customDate != null) ...[
+                  (
+                    label: 'Duration',
+                    value: '${_draft.tenorDaysOn(DateTime.now())} days',
+                  ),
+                  (
+                    label: 'Target maturity date',
+                    value: DateFormat('d MMM yyyy').format(customDate),
+                  ),
+                ],
                 if (!fixed)
                   (
                     label: 'Auto-save',
@@ -1384,10 +1455,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                   value: '₦${_draft.amount}',
                 ),
               if (_draft.durationMonths != null)
-                (
-                  label: fixed ? 'Term' : 'Duration',
-                  value: '${_draft.durationMonths} months',
-                ),
+                (label: 'Duration', value: '${_draft.durationMonths} months'),
               if (frequency != null)
                 (label: 'Frequency', value: frequency.label),
               if (frequency != null && _createsInCore)

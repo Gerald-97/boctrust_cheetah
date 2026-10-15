@@ -506,6 +506,8 @@ void main() {
     await walkGoalWizard(tester);
 
     expect(find.text('Review your goal'), findsOneWidget);
+    expect(find.text('Saving plan'), findsOneWidget);
+    expect(find.text('Duration'), findsOneWidget);
     expect(find.text('Target'), findsOneWidget);
     expect(find.text('₦200,000.00'), findsOneWidget);
     expect(find.text('Manual deposits'), findsOneWidget);
@@ -553,6 +555,10 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Continue'));
     await tester.pump();
+    expect(find.text('Review your deposit'), findsOneWidget);
+    expect(find.text('Deposit details'), findsOneWidget);
+    expect(find.text('Duration'), findsOneWidget);
+    expect(find.text('Term'), findsNothing);
     expect(find.textContaining('₦1,000'), findsWidgets);
     await tester.enterText(find.byType(TextField), 'School fees 🎓');
     await tester.pump();
@@ -567,6 +573,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_createdRequests, hasLength(1));
     expect(_createdRequests.single.planName, 'School fees 🎓');
+  });
+
+  testWidgets('Fixed Deposit accepts a custom date from day 30', (
+    tester,
+  ) async {
+    await _open(tester, AppRoutes.lockCreate, const _Plans(), create: true);
+
+    expect(find.textContaining('30 days from today'), findsOneWidget);
+    await tester.tap(find.text('Choose a date'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('Review your deposit'), findsOneWidget);
+    expect(find.text('30 days'), findsOneWidget);
+    expect(find.text('Target maturity date'), findsOneWidget);
+  });
+
+  testWidgets('SmartSave accepts a custom date from day 90', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(),
+      create: true,
+    );
+    await tester.enterText(find.byType(TextField).at(0), 'Rent');
+    await tester.enterText(find.byType(TextField).at(1), '200,000');
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.textContaining('90 days from today'), findsOneWidget);
+    await tester.tap(find.text('Choose a date'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('Review your goal'), findsOneWidget);
+    expect(find.text('90 days'), findsOneWidget);
+    expect(find.text('Target maturity date'), findsOneWidget);
   });
 
   testWidgets('insufficient Boc Flex funds opens an error dialog', (
