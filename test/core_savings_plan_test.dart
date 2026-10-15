@@ -96,6 +96,24 @@ class _Accounts extends CustomerBankAccountsNotifier {
 }
 
 void main() {
+  test('SmartSave target must exceed its opening minimum', () {
+    for (final amount in ['abc', '0', '4,999.99', '5,000', '5,000.00']) {
+      expect(smartSaveTargetValid(amount), isFalse, reason: amount);
+      expect(
+        SavingsPlanDraft(
+          type: SavingsProductType.smartSave,
+          name: 'Rent',
+          amount: amount,
+          durationMonths: 6,
+        ).toCreateRequest(),
+        isNull,
+        reason: amount,
+      );
+    }
+    expect(smartSaveTargetValid('₦5,000.01'), isTrue);
+    expect(smartSaveTargetValid('6,000'), isTrue);
+  });
+
   // Plan amounts arrive as Naira decimal strings.
   test('amounts read as Naira', () {
     final groups = SavingsProductGroup.listFromJson([
@@ -257,6 +275,37 @@ void main() {
       'productCode': 'boctrustFixedDeposit',
       'tenorDays': 90,
     });
+  });
+
+  test('goal and deposit names keep emoji in Core requests and replies', () {
+    const goalName = 'New home 🏡';
+    const depositName = 'Family trip 👨‍👩‍👧‍👦';
+    const goal = SavingsPlanDraft(
+      type: SavingsProductType.smartSave,
+      name: goalName,
+      amount: '200,000',
+      durationMonths: 6,
+    );
+    const deposit = SavingsPlanDraft(
+      type: SavingsProductType.fixed,
+      name: depositName,
+      durationMonths: 3,
+    );
+
+    expect(goal.toCreateRequest()!.toJson()['planName'], goalName);
+    expect(deposit.toCreateRequest()!.toJson()['planName'], depositName);
+    expect(
+      SavingsPlan.tryParse({..._plan(), 'planName': goalName})!.name,
+      goalName,
+    );
+    expect(
+      SavingsPlan.tryParse({
+        ..._plan(),
+        'productCode': 'boctrustFixedDeposit',
+        'planName': depositName,
+      })!.name,
+      depositName,
+    );
   });
 
   test('liquidation sends no body and reads the payout', () async {

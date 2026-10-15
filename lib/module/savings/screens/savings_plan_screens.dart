@@ -709,10 +709,18 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
 
   _WizardStep get _step => _steps[_index];
 
-  bool get _amountValid => savingsPlanNaira(_draft.amount) != null;
+  bool get _amountValid => widget.type == SavingsProductType.smartSave
+      ? smartSaveTargetValid(_draft.amount)
+      : savingsPlanNaira(_draft.amount) != null;
 
   /// Created in Core and funded from Boc Flex.
   bool get _createsInCore => widget.type.coreCode != null;
+
+  String get _openingAmount =>
+      formatApiAmount('${widget.type.openingMinimumNaira}', currency: 'NGN')!;
+
+  String get _planKind =>
+      widget.type == SavingsProductType.fixed ? 'deposit' : 'goal';
 
   bool get _stepValid => switch (_step) {
     _WizardStep.goal => _draft.name.trim().isNotEmpty && _amountValid,
@@ -737,6 +745,71 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
 
   /// Shown on the confirm step when another savings action is sending.
   String? _busy;
+
+  Future<bool> _confirmOpeningTransfer() async {
+    final name = _draft.name.trim();
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: const Text('Confirm opening transfer'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (name.isNotEmpty) ...[
+                  Text(name, style: Theme.of(dialog).textTheme.titleMedium),
+                  const SizedBox(height: BocSpace.sm),
+                ],
+                Text(
+                  'Creating this $_planKind moves $_openingAmount from '
+                  'Boc Flex Savings into the new plan. This is its minimum '
+                  'opening balance.',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialog).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialog).pop(true),
+                child: const Text('Confirm and create'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _showCreateFailure(String? message) async {
+    final insufficient = RegExp(
+      r'insufficient|not enough|low balance',
+      caseSensitive: false,
+    ).hasMatch(message ?? '');
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(
+          insufficient
+              ? 'Not enough in Boc Flex'
+              : 'Could not create $_planKind',
+        ),
+        content: Text(
+          insufficient
+              ? 'You need at least $_openingAmount in Boc Flex Savings to '
+                    'open this $_planKind. Add money to Boc Flex and try again.'
+              : message ?? 'Please try again.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void back() {
     // A create in flight finishes on this screen.
@@ -772,6 +845,12 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       setState(() => _busy = savingsPlanBusyMessage);
       return;
     }
+    if (_createsInCore && !await _confirmOpeningTransfer()) return;
+    if (!mounted) return;
+    if (ref.read(savingsPlanActionProvider).busyFor(SavingsPlanAction.create)) {
+      setState(() => _busy = savingsPlanBusyMessage);
+      return;
+    }
     setState(() => _busy = null);
     final actions = ref.read(savingsPlanActionProvider.notifier);
     await actions.create(request);
@@ -794,9 +873,9 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
           ),
         );
         if (mounted) widget.onExit();
-      case SavingsPlanActionPhase.idle ||
-          SavingsPlanActionPhase.sending ||
-          SavingsPlanActionPhase.failed:
+      case SavingsPlanActionPhase.failed:
+        await _showCreateFailure(action.message);
+      case SavingsPlanActionPhase.idle || SavingsPlanActionPhase.sending:
         break;
     }
   }
@@ -809,11 +888,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
         .watch(savingsPlanActionProvider)
         .viewFor(SavingsPlanAction.create);
     final sending = action.phase == SavingsPlanActionPhase.sending;
-    final failure = _step != _WizardStep.confirm
-        ? null
-        : action.phase == SavingsPlanActionPhase.failed
-        ? action.message
-        : _busy;
+    final failure = _step == _WizardStep.confirm ? _busy : null;
     final title = switch (widget.type) {
       SavingsProductType.padi => 'Create a Padi',
       SavingsProductType.fixed => 'New Fixed Deposit',
@@ -944,6 +1019,21 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
     hintText: '₦0.00',
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: [ThousandsAmountFormatter()],
+    autovalidateMode: widget.type == SavingsProductType.smartSave
+        ? AutovalidateMode.onUserInteraction
+        : null,
+    validator: widget.type == SavingsProductType.smartSave
+        ? (value) {
+            final amount = value ?? '';
+            if (savingsPlanNaira(amount) == null) {
+              return 'Enter a valid target amount.';
+            }
+            if (!smartSaveTargetValid(amount)) {
+              return 'Target amount must be above $_openingAmount.';
+            }
+            return null;
+          }
+        : null,
     onChanged: (value) => _update(_draft.copyWith(amount: value)),
   );
 
@@ -955,11 +1045,20 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
           AppTextField(
             label: 'Goal name',
             controller: _name,
-            hintText: 'e.g. Rent',
+            hintText: 'e.g. New home 🏡',
             onChanged: (value) => _update(_draft.copyWith(name: value)),
           ),
           const SizedBox(height: BocSpace.md),
           _amountField('Target amount'),
+          const SizedBox(height: BocSpace.md),
+          SavingsCallout(
+            icon: IconsaxPlusLinear.wallet_2,
+            title: 'Minimum opening balance: $_openingAmount',
+            body:
+                'When you create this goal, we move this amount from '
+                'Boc Flex Savings. Your target amount must be above '
+                '$_openingAmount.',
+          ),
         ];
       case _WizardStep.amount:
         return [
@@ -1017,6 +1116,16 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                       'withdrawal fee.',
             style: theme.textTheme.bodySmall,
           ),
+          if (widget.type == SavingsProductType.fixed) ...[
+            const SizedBox(height: BocSpace.md),
+            SavingsCallout(
+              icon: IconsaxPlusLinear.wallet_2,
+              title: 'Minimum opening balance: $_openingAmount',
+              body:
+                  'When you create this deposit, we move this amount from '
+                  'Boc Flex Savings.',
+            ),
+          ],
         ];
       case _WizardStep.days:
         final frequency = _draft.frequency;
@@ -1181,7 +1290,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
               AppTextField(
                 label: 'Deposit name (optional)',
                 controller: _name,
-                hintText: 'e.g. School fees',
+                hintText: 'e.g. School fees 🎓',
                 onChanged: (value) => _update(_draft.copyWith(name: value)),
               ),
               const SizedBox(height: BocSpace.md),
@@ -1238,12 +1347,12 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             ),
             if (_createsInCore) ...[
               const SizedBox(height: BocSpace.md),
-              const SavingsCallout(
+              SavingsCallout(
                 icon: IconsaxPlusLinear.wallet_2,
-                title: 'Funded from Boc Flex Savings',
+                title: '$_openingAmount from Boc Flex Savings',
                 body:
-                    "When you create it, we'll move the opening amount for "
-                    'this term from Boc Flex Savings.',
+                    'Creating this $_planKind moves the minimum opening '
+                    'balance from Boc Flex Savings into your new plan.',
               ),
             ],
           ];
@@ -1258,7 +1367,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
             AppTextField(
               label: 'Deposit name (optional)',
               controller: _name,
-              hintText: 'e.g. School fees',
+              hintText: 'e.g. School fees 🎓',
               onChanged: (value) => _update(_draft.copyWith(name: value)),
             ),
             const SizedBox(height: BocSpace.md),

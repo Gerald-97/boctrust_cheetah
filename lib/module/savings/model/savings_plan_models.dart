@@ -31,6 +31,13 @@ enum SavingsProductType {
   /// plans and Padi has no plan routes.
   final String? coreCode;
 
+  /// Core moves this opening amount from Boc Flex when it creates a plan.
+  int? get openingMinimumNaira => switch (this) {
+    SavingsProductType.smartSave => 5000,
+    SavingsProductType.fixed => 1000,
+    SavingsProductType.flex || SavingsProductType.padi => null,
+  };
+
   static SavingsProductType? fromCoreCode(Object? code) {
     for (final type in values) {
       if (type.coreCode != null && type.coreCode == code) return type;
@@ -377,6 +384,17 @@ String? savingsPlanNaira(String text) =>
       InvalidMoney() => null,
     };
 
+/// A SmartSave target must exceed the amount used to open the goal.
+bool smartSaveTargetValid(String text) => switch (parseNairaToKobo(
+  text,
+  maxKobo: savingsPlanMaxKobo,
+)) {
+  ValidMoney(:final minorUnits) =>
+    BigInt.parse(minorUnits) >
+        BigInt.from(SavingsProductType.smartSave.openingMinimumNaira! * 100),
+  InvalidMoney() => false,
+};
+
 /// The body of POST /me/savings-plans. Amounts are Naira strings; null
 /// fields are left out.
 class CreateSavingsPlanRequest extends Equatable {
@@ -506,8 +524,8 @@ class SavingsPlanDraft extends Equatable {
           planName: planName,
         );
       case SavingsProductType.smartSave:
-        final target = savingsPlanNaira(amount);
-        if (target == null) return null;
+        if (!smartSaveTargetValid(amount)) return null;
+        final target = savingsPlanNaira(amount)!;
         if (!autoSave) {
           return CreateSavingsPlanRequest(
             productCode: code,

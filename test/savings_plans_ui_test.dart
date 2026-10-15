@@ -3,6 +3,7 @@ import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
@@ -53,6 +54,7 @@ class _HiddenBalances extends HomeBalanceHiddenNotifier {
 
 final _funded = <(String, String)>[];
 final _opened = <String>[];
+final _createdRequests = <CreateSavingsPlanRequest>[];
 
 class _Plans extends CoreSavingsPlanService {
   const _Plans({this.detail, this.created = const NotifierState.done('p9')})
@@ -63,7 +65,10 @@ class _Plans extends CoreSavingsPlanService {
   @override
   Future<NotifierState<String>> createPlan(
     CreateSavingsPlanRequest request,
-  ) async => created;
+  ) async {
+    _createdRequests.add(request);
+    return created;
+  }
 
   @override
   Future<NotifierState<List<SavingsProductGroup>>> getPlans(
@@ -186,6 +191,10 @@ Future<void> _open(
       if (create)
         featureAvailabilityProvider(
           FeatureCapability.smartSaveCreate,
+        ).overrideWithValue(FeatureAvailability.available),
+      if (create)
+        featureAvailabilityProvider(
+          FeatureCapability.fixedDepositCreate,
         ).overrideWithValue(FeatureAvailability.available),
       if (hidden) homeBalanceHiddenProvider.overrideWith(_HiddenBalances.new),
       userHomeProvider.overrideWith(LayoutHome.new),
@@ -413,6 +422,55 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets('goal target must be above the opening minimum', (tester) async {
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(),
+      create: true,
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), 'Rent');
+    await tester.enterText(find.byType(TextField).at(1), '5,000');
+    await tester.pump();
+    expect(find.text('Target amount must be above ₦5,000.00.'), findsOneWidget);
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNull,
+    );
+
+    await tester.enterText(find.byType(TextField).at(1), '5,000.01');
+    await tester.pump();
+    expect(find.text('Target amount must be above ₦5,000.00.'), findsNothing);
+    expect(
+      tester.widget<PrimaryButton>(find.byType(PrimaryButton)).onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('a goal name accepts emoji and keeps it in the review', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(),
+      create: true,
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), 'New home 🏡');
+    await tester.enterText(find.byType(TextField).at(1), '200,000');
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    await tester.tap(find.text('6 months'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('New home 🏡'), findsOneWidget);
+  });
+
   testWidgets('creating a goal opens the new plan', (tester) async {
     _opened.clear();
     await _open(
@@ -424,6 +482,9 @@ void main() {
 
     await walkGoalWizard(tester);
     await tester.tap(find.text('Create goal'));
+    await tester.pump();
+    expect(find.text('Confirm opening transfer'), findsOneWidget);
+    await tester.tap(find.text('Confirm and create'));
     for (var i = 0; i < 3; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
@@ -448,8 +509,116 @@ void main() {
     expect(find.text('Target'), findsOneWidget);
     expect(find.text('₦200,000.00'), findsOneWidget);
     expect(find.text('Manual deposits'), findsOneWidget);
-    expect(find.text('Funded from Boc Flex Savings'), findsOneWidget);
-    expect(find.textContaining('opening amount for this term'), findsOneWidget);
+    expect(find.text('₦5,000.00 from Boc Flex Savings'), findsOneWidget);
+    expect(find.textContaining('minimum opening balance'), findsOneWidget);
+  });
+
+  testWidgets(
+    'SmartSave shows its minimum and requires transfer confirmation',
+    (tester) async {
+      _createdRequests.clear();
+      await _open(
+        tester,
+        AppRoutes.targetSaveCreate,
+        const _Plans(),
+        create: true,
+      );
+
+      expect(find.textContaining('₦5,000'), findsWidgets);
+      await walkGoalWizard(tester);
+      expect(find.textContaining('₦5,000'), findsWidgets);
+      await tester.tap(find.text('Create goal'));
+      await tester.pump();
+
+      expect(_createdRequests, isEmpty);
+      expect(find.text('Confirm opening transfer'), findsOneWidget);
+      expect(find.textContaining('₦5,000'), findsWidgets);
+      expect(find.textContaining('Boc Flex Savings'), findsWidgets);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      expect(_createdRequests, isEmpty);
+      expect(find.text('Review your goal'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Fixed Deposit shows its minimum and confirms funding', (
+    tester,
+  ) async {
+    _createdRequests.clear();
+    await _open(tester, AppRoutes.lockCreate, const _Plans(), create: true);
+
+    expect(find.textContaining('₦1,000'), findsWidgets);
+    await tester.tap(find.text('3 months'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(find.textContaining('₦1,000'), findsWidgets);
+    await tester.enterText(find.byType(TextField), 'School fees 🎓');
+    await tester.pump();
+    await tester.tap(find.text('Create deposit'));
+    await tester.pump();
+
+    expect(_createdRequests, isEmpty);
+    expect(find.text('Confirm opening transfer'), findsOneWidget);
+    expect(find.text('School fees 🎓'), findsWidgets);
+    expect(find.textContaining('₦1,000'), findsWidgets);
+    await tester.tap(find.text('Confirm and create'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_createdRequests, hasLength(1));
+    expect(_createdRequests.single.planName, 'School fees 🎓');
+  });
+
+  testWidgets('insufficient Boc Flex funds opens an error dialog', (
+    tester,
+  ) async {
+    _createdRequests.clear();
+    await _open(
+      tester,
+      AppRoutes.targetSaveCreate,
+      const _Plans(
+        created: NotifierState.error('Insufficient balance', statusCode: 400),
+      ),
+      create: true,
+    );
+
+    await walkGoalWizard(tester);
+    await tester.tap(find.text('Create goal'));
+    await tester.pump();
+    await tester.tap(find.text('Confirm and create'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_createdRequests, hasLength(1));
+    expect(find.text('Not enough in Boc Flex'), findsOneWidget);
+    expect(find.textContaining('₦5,000'), findsWidgets);
+    await tester.tap(find.text('Close'));
+    await tester.pump();
+    expect(find.text('Review your goal'), findsOneWidget);
+  });
+
+  testWidgets('Fixed Deposit insufficient funds names its minimum', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      AppRoutes.lockCreate,
+      const _Plans(
+        created: NotifierState.error('Insufficient funds', statusCode: 400),
+      ),
+      create: true,
+    );
+
+    await tester.tap(find.text('3 months'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    await tester.tap(find.text('Create deposit'));
+    await tester.pump();
+    await tester.tap(find.text('Confirm and create'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Not enough in Boc Flex'), findsOneWidget);
+    expect(find.textContaining('₦1,000'), findsWidgets);
   });
 
   testWidgets('a term Core does not offer keeps the draft', (tester) async {
@@ -467,11 +636,16 @@ void main() {
 
     await walkGoalWizard(tester);
     await tester.tap(find.text('Create goal'));
+    await tester.pump();
+    await tester.tap(find.text('Confirm and create'));
     for (var i = 0; i < 3; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
+    expect(find.text('Could not create goal'), findsOneWidget);
     expect(find.text('No rate for this tenor.'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pump();
     expect(find.text('Create goal'), findsOneWidget);
   });
 
