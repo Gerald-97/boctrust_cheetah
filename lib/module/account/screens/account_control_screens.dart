@@ -210,7 +210,12 @@ extension _AccountControlScreens on _AccountPageState {
                           );
                         }
                       },
-                child: Text(busy ? 'Please wait…' : 'Continue'),
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Continue'),
               ),
             ],
           );

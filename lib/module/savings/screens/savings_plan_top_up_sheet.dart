@@ -156,6 +156,7 @@ class _SavingsPlanTopUpSheetState extends ConsumerState<SavingsPlanTopUpSheet> {
             children: [
               PrimaryButton(
                 label: 'Add money',
+                isLoading: sending,
                 onPressed: sending ? null : _submit,
               ),
               const SizedBox(height: BocSpace.xs),

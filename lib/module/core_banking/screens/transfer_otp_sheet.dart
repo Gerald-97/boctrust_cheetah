@@ -145,7 +145,8 @@ class _TransferOtpSheetState extends State<TransferOtpSheet> {
           ),
           const SizedBox(height: BocSpace.xs),
           BocTextButton(
-            label: _resending ? 'Sending…' : 'Resend code',
+            label: 'Resend code',
+            isLoading: _resending,
             onPressed: _resending || _verifying ? null : _resend,
           ),
           BocTextButton(label: 'Cancel', onPressed: () => _close(false)),

@@ -445,9 +445,8 @@ extension _AccountScreens on _AccountPageState {
               ),
               child: SecondaryButton(
                 icon: IconsaxPlusLinear.logout,
-                label: ref.watch(logoutProvider).isLoading
-                    ? 'Signing out…'
-                    : 'Sign out',
+                label: 'Sign out',
+                isLoading: ref.watch(logoutProvider).isLoading,
                 onPressed: ref.watch(logoutProvider).isLoading
                     ? null
                     : _confirmSignOut,
@@ -875,13 +874,12 @@ extension _AccountScreens on _AccountPageState {
                   ],
                   const SizedBox(height: 20),
                   PrimaryButton(
-                    label: state.isLoading
-                        ? 'Please wait…'
-                        : awaitingOtp
+                    label: awaitingOtp
                         ? 'Verify code'
                         : awaitingPin
                         ? 'Reset PIN'
                         : 'Send code',
+                    isLoading: state.isLoading,
                     onPressed: () async {
                       if (state.isLoading) return;
                       final notifier = modalRef.read(

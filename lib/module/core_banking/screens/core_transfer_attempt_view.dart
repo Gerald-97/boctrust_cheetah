@@ -242,11 +242,10 @@ class CoreTransferAttemptView extends ConsumerWidget {
       const SizedBox(height: BocSpace.md),
       if (error != null) FieldError(error),
       SecondaryButton(
-        label: attempt.checking
-            ? 'Checking…'
-            : attempt.live == null && error == null
+        label: attempt.live == null && error == null
             ? 'Check status'
             : 'Check again',
+        isLoading: attempt.checking,
         onPressed: attempt.checking
             ? null
             : () => ref

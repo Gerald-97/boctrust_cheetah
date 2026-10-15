@@ -28,7 +28,7 @@ class ApiStateCard extends StatelessWidget {
   final String message;
   final ApiStateTone tone;
   final String? actionLabel;
-  final VoidCallback? onAction;
+  final FutureOr<void> Function()? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -73,14 +73,10 @@ class ApiStateCard extends StatelessWidget {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton(
+              child: _ApiRetryButton(
+                label: label,
+                color: color,
                 onPressed: action,
-                style: TextButton.styleFrom(
-                  foregroundColor: color,
-                  minimumSize: const Size(0, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: Text(label),
               ),
             ),
           ],
@@ -104,6 +100,64 @@ class ApiStateCard extends StatelessWidget {
     ApiStateTone.error => IconsaxPlusLinear.warning_2,
     ApiStateTone.blocked => IconsaxPlusLinear.lock,
   };
+}
+
+class _ApiRetryButton extends StatefulWidget {
+  const _ApiRetryButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Color color;
+  final FutureOr<void> Function() onPressed;
+
+  @override
+  State<_ApiRetryButton> createState() => _ApiRetryButtonState();
+}
+
+class _ApiRetryButtonState extends State<_ApiRetryButton> {
+  bool _loading = false;
+
+  Future<void> _run() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await widget.onPressed();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: _loading ? null : _run,
+    style: TextButton.styleFrom(
+      foregroundColor: widget.color,
+      minimumSize: const Size(0, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+    ),
+    child: Semantics(
+      label: _loading ? '${widget.label}, in progress' : null,
+      child: _loading
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: widget.color,
+                  ),
+                ),
+                const SizedBox(width: BocSpace.xs),
+                Text(widget.label),
+              ],
+            )
+          : Text(widget.label),
+    ),
+  );
 }
 
 /// Section-level loading state with a descriptive semantics label.

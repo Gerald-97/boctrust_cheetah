@@ -22,9 +22,12 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spinner = Theme.of(context).brightness == Brightness.dark
-        ? BocColors.navy
-        : BocColors.goldLight;
+    final theme = Theme.of(context);
+    final spinner =
+        theme.filledButtonTheme.style?.foregroundColor?.resolve({
+          WidgetState.disabled,
+        }) ??
+        context.bocColors.textPrimary;
     final Widget child = isLoading
         ? SizedBox.square(
             dimension: 20,
@@ -57,19 +60,22 @@ class SecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.isLoading = false,
     super.key,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.bocColors;
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
-        onPressed: onPressed,
+        onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 56),
           padding: const EdgeInsets.symmetric(
@@ -77,7 +83,18 @@ class SecondaryButton extends StatelessWidget {
             vertical: BocSpace.sm,
           ),
         ),
-        child: _ButtonLabel(label: label, icon: icon),
+        child: Semantics(
+          label: isLoading ? '$label, in progress' : null,
+          child: isLoading
+              ? SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.textPrimary,
+                  ),
+                )
+              : _ButtonLabel(label: label, icon: icon),
+        ),
       ),
     );
   }
@@ -88,15 +105,38 @@ class BocTextButton extends StatelessWidget {
   const BocTextButton({
     required this.label,
     required this.onPressed,
+    this.isLoading = false,
     super.key,
   });
 
   final String label;
   final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(onPressed: onPressed, child: Text(label));
+    return TextButton(
+      onPressed: isLoading ? null : onPressed,
+      child: Semantics(
+        label: isLoading ? '$label, in progress' : null,
+        child: isLoading
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: BocSpace.xs),
+                  Text(label),
+                ],
+              )
+            : Text(label),
+      ),
+    );
   }
 }
 

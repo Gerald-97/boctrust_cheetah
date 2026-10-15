@@ -308,6 +308,7 @@ class _WithdrawalAccountFormState
 
         PrimaryButton(
           label: 'Check account',
+          isLoading: busy && !draft.canSave,
           onPressed: busy
               ? null
               : ref.read(withdrawalBankDraftProvider.notifier).resolve,
@@ -315,6 +316,7 @@ class _WithdrawalAccountFormState
         const SizedBox(height: 10),
         PrimaryButton(
           label: 'Save account',
+          isLoading: busy && draft.canSave,
           // Enabled only when the server confirmed this exact account.
           onPressed: (busy || !draft.canSave) ? null : widget.onSave,
         ),

@@ -566,7 +566,8 @@ class _SaveBeneficiaryButtonState extends ConsumerState<SaveBeneficiaryButton> {
 
   @override
   Widget build(BuildContext context) => SecondaryButton(
-    label: _saving ? 'Saving…' : 'Save as beneficiary',
+    label: 'Save as beneficiary',
+    isLoading: _saving,
     onPressed: _saving ? null : _save,
   );
 }

@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,6 +63,7 @@ part '../component/savings_widgets.dart';
 part '../component/misc_widgets.dart';
 
 part '../component/api_state_widgets.dart';
+part '../component/shimmer_widgets.dart';
 
 part '../component/private_route_gate.dart';
 

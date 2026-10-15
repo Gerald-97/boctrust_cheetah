@@ -438,6 +438,40 @@ class _ProductFactChip extends StatelessWidget {
   }
 }
 
+/// A savings account tile shape while balances load.
+class SavingsAccountSkeleton extends StatelessWidget {
+  const SavingsAccountSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.bocColors;
+    return Semantics(
+      label: 'Loading your savings accounts',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.all(BocSpace.md),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(BocRadius.md),
+            border: Border.all(color: colors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              AppShimmerBlock(width: 170, height: 18),
+              SizedBox(height: BocSpace.md),
+              AppShimmerBlock(width: 210, height: 30),
+              SizedBox(height: BocSpace.md),
+              AppShimmerBlock(width: 120, height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Placeholder rows while the product catalogue loads.
 class BankProductSkeleton extends StatelessWidget {
   const BankProductSkeleton({super.key});
@@ -445,14 +479,8 @@ class BankProductSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.bocColors;
-    Widget bar(double width, double height) => Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: colors.surfaceMuted,
-        borderRadius: BorderRadius.circular(BocRadius.xs),
-      ),
-    );
+    Widget bar(double width, double height) =>
+        AppShimmerBlock(width: width, height: height);
     return Semantics(
       label: 'Loading savings products',
       child: ExcludeSemantics(

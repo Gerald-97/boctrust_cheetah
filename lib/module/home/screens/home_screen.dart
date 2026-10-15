@@ -301,7 +301,7 @@ extension HomeScreenParts on FlowPageState {
 
     if (flex == null) {
       if (pending(accountsState) || pending(homeState)) {
-        return [const ApiLoadingSection(label: 'Loading your wallet')];
+        return [const _HomeWalletSkeleton()];
       }
       final bothFailed = accountsState.data == null && homeState.data == null;
       return [
@@ -427,10 +427,12 @@ extension HomeScreenParts on FlowPageState {
             tone: ApiStateTone.info,
           )
         else if (accountNumber == null)
-          _HomeTransactionsEmpty(
-            message:
-                'Your transactions will appear when your Flex account is ready.',
-          )
+          ref.watch(customerBankAccountsProvider).isLoading
+              ? const _HomeTransactionsSkeleton()
+              : _HomeTransactionsEmpty(
+                  message:
+                      'Your transactions will appear when your Flex account is ready.',
+                )
         else if (history == null && state!.isError)
           ApiStateCard(
             title: 'Transactions unavailable',
@@ -440,7 +442,7 @@ extension HomeScreenParts on FlowPageState {
             onAction: () => ref.invalidate(coreAccountHistoryProvider(key!)),
           )
         else if (history == null)
-          const ApiLoadingSection(label: 'Loading your transactions')
+          const _HomeTransactionsSkeleton()
         else ...[
           if (history.failure != null) ...[
             ApiStateCard(
@@ -675,6 +677,86 @@ extension HomeScreenParts on FlowPageState {
       ),
     );
   }
+}
+
+class _HomeWalletSkeleton extends StatelessWidget {
+  const _HomeWalletSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = BocColors.navy2;
+    const highlight = Color(0xFF435B75);
+    Widget bar(double width, double height) => AppShimmerBlock(
+      width: width,
+      height: height,
+      baseColor: base,
+      highlightColor: highlight,
+    );
+    return Semantics(
+      label: 'Loading your wallet',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(BocSpace.lg),
+          decoration: BoxDecoration(
+            color: BocColors.navy,
+            borderRadius: BorderRadius.circular(BocRadius.lg),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(130, 16),
+              const SizedBox(height: BocSpace.lg),
+              bar(225, 34),
+              const SizedBox(height: BocSpace.lg),
+              bar(155, 14),
+              const SizedBox(height: BocSpace.sm),
+              bar(200, 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTransactionsSkeleton extends StatelessWidget {
+  const _HomeTransactionsSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Loading your transactions',
+    liveRegion: true,
+    child: ExcludeSemantics(
+      child: SurfaceCard(
+        child: Column(
+          children: [
+            for (var i = 0; i < 3; i++) ...[
+              if (i > 0) const SizedBox(height: BocSpace.md),
+              const Row(
+                children: [
+                  AppShimmerBlock(width: 40, height: 40, radius: BocRadius.sm),
+                  SizedBox(width: BocSpace.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppShimmerBlock(width: 145, height: 14),
+                        SizedBox(height: BocSpace.xs),
+                        AppShimmerBlock(width: 95, height: 10),
+                      ],
+                    ),
+                  ),
+                  AppShimmerBlock(width: 68, height: 14),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _HomeTransactionsEmpty extends StatelessWidget {

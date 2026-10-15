@@ -101,7 +101,8 @@ class _VerifyMethodScreenState extends ConsumerState<VerifyMethodScreen> {
             AuthStateMessage(state),
           ],
         ),
-        buttonLabel: state.isLoading ? 'Sending code…' : 'Send code',
+        buttonLabel: 'Send code',
+        isLoading: state.isLoading,
         footer: const AuthLegalNotice(),
         onButtonPressed: () async {
           if (state.isLoading) return;
@@ -188,7 +189,8 @@ class _SignupOtpScreenState extends ConsumerState<SignupOtpScreen> {
             AuthStateMessage(state),
           ],
         ),
-        buttonLabel: state.isLoading ? 'Verifying…' : 'Verify',
+        buttonLabel: 'Verify',
+        isLoading: state.isLoading,
         onButtonPressed: () async {
           if (state.isLoading) return;
           if (validators.otp(_otpController.text) != null) {
@@ -271,7 +273,8 @@ class _CreatePasswordScreenState extends ConsumerState<CreatePasswordScreen> {
             AuthStateMessage(state),
           ],
         ),
-        buttonLabel: state.isLoading ? 'Creating password…' : 'Create password',
+        buttonLabel: 'Create password',
+        isLoading: state.isLoading,
         onButtonPressed: () async {
           if (state.isLoading) return;
           final password = _passwordController.text;

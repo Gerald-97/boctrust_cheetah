@@ -142,7 +142,7 @@ void main() {
     (tester) async {
       await open(tester, AppRoutes.flexSave, signedIn: false);
       expect(find.text('₦1,234,567,890.12'), findsNothing);
-      expect(find.text('Log in'), findsWidgets);
+      expect(find.text('Welcome back'), findsOneWidget);
     },
   );
   testWidgets('direct Savings entry enforces first PIN', (tester) async {

@@ -138,13 +138,12 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
         subtitle: subtitle,
         onBack: onBack,
         content: content,
-        buttonLabel: state.isLoading
-            ? 'Please wait…'
-            : awaitingOtp
+        buttonLabel: awaitingOtp
             ? 'Verify code'
             : awaitingPassword
             ? 'Reset password'
             : 'Send code',
+        isLoading: state.isLoading,
         onButtonPressed: () async {
           if (state.isLoading) return;
           final notifier = ref.read(passwordRecoveryProvider.notifier);
@@ -247,7 +246,8 @@ class _CreateFirstPinScreenState extends ConsumerState<CreateFirstPinScreen> {
             AuthStateMessage(state),
           ],
         ),
-        buttonLabel: state.isLoading ? 'Saving PIN…' : 'Create PIN',
+        buttonLabel: 'Create PIN',
+        isLoading: state.isLoading,
         onButtonPressed: () async {
           if (state.isLoading) return;
           if (_formKey.currentState?.validate() != true) {

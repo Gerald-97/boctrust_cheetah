@@ -232,9 +232,7 @@ extension SavingsScreens on FlowPageState {
   ) => [
     if (accounts.data == null &&
         (accounts.isLoading || accounts.status == ServiceStatus.idle)) ...[
-      const LinearProgressIndicator(),
-      const SizedBox(height: 12),
-      const Text('Loading your accounts…'),
+      const SavingsAccountSkeleton(),
       const SizedBox(height: 12),
     ],
     if (accounts.isError || accounts.status == ServiceStatus.blocked) ...[
@@ -351,7 +349,10 @@ extension SavingsScreens on FlowPageState {
 
   List<Widget> _savingsLoadStatus(NotifierState<UserHomeData> home) => [
     if (home.isLoading || home.status == ServiceStatus.idle) ...[
-      const LinearProgressIndicator(),
+      if (home.data == null)
+        const AppShimmerBlock(width: 180, height: 16)
+      else
+        const LinearProgressIndicator(),
       const SizedBox(height: 12),
       Text(
         home.data == null
@@ -379,8 +380,18 @@ extension SavingsScreens on FlowPageState {
   Widget _savingsRefreshAction(NotifierState<UserHomeData> home) => IconButton(
     tooltip: 'Refresh',
     onPressed: home.isLoading ? null : _refreshSavings,
-    icon: const Icon(IconsaxPlusLinear.refresh),
+    icon: _refreshIcon(home.isLoading),
   );
+
+  Widget _refreshIcon(bool loading) => loading
+      ? SizedBox.square(
+          dimension: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        )
+      : const Icon(IconsaxPlusLinear.refresh);
 
   Widget _saveHubScreen() {
     final accountsState = _watchCoreAccounts();
@@ -418,7 +429,7 @@ extension SavingsScreens on FlowPageState {
         IconButton(
           tooltip: 'Refresh',
           onPressed: accountsState.isLoading ? null : _refreshSavings,
-          icon: const Icon(IconsaxPlusLinear.refresh),
+          icon: _refreshIcon(accountsState.isLoading),
         ),
       ],
       body: RefreshIndicator(
@@ -769,8 +780,17 @@ extension SavingsScreens on FlowPageState {
           ),
         IconButton(
           tooltip: 'Refresh',
-          onPressed: accountsState.isLoading ? null : refresh,
-          icon: const Icon(IconsaxPlusLinear.refresh),
+          onPressed:
+              (coreAccountNumber == null
+                  ? homeState.isLoading || accountsState.isLoading
+                  : accountsState.isLoading)
+              ? null
+              : refresh,
+          icon: _refreshIcon(
+            coreAccountNumber == null
+                ? homeState.isLoading || accountsState.isLoading
+                : accountsState.isLoading,
+          ),
         ),
       ],
       body: RefreshIndicator(

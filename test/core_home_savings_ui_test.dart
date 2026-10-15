@@ -1,4 +1,5 @@
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/module/account/provider/user_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
@@ -6,6 +7,7 @@ import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_
 import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
 import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -85,11 +87,21 @@ class _Home extends LayoutHome {
   Future<NotifierState<UserHomeData>> load() async => state;
 }
 
+class _LoadingHome extends UserHomeNotifier {
+  @override
+  NotifierState<UserHomeData> build() => const NotifierState.loading();
+
+  @override
+  Future<NotifierState<UserHomeData>> load() async => state;
+}
+
 Future<void> _pump(
   WidgetTester tester,
   String route, {
   required NotifierState<CustomerBankAccountsData> accounts,
   NotifierState<List<CoreBankProduct>>? products,
+  bool loadingHome = false,
+  bool historyAvailable = false,
   Size viewport = const Size(800, 2000),
 }) async {
   tester.view.physicalSize = viewport;
@@ -101,8 +113,12 @@ Future<void> _pump(
     route: route,
     overrides: [
       authSessionProvider.overrideWith(SavingsSession.new),
+      if (historyAvailable)
+        featureAvailabilityProvider(
+          FeatureCapability.coreAccountHistory,
+        ).overrideWithValue(FeatureAvailability.available),
       userProfileProvider.overrideWith(LayoutProfile.new),
-      userHomeProvider.overrideWith(_Home.new),
+      userHomeProvider.overrideWith(loadingHome ? _LoadingHome.new : _Home.new),
       customerBankAccountsProvider.overrideWith(() => _Accounts(accounts)),
       coreBankProductsProvider.overrideWith(
         () => _Products(products ?? _catalogue),
@@ -113,6 +129,49 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('Home uses wallet and transaction shimmer while loading', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppRoutes.home,
+      accounts: const NotifierState.loading(),
+      loadingHome: true,
+      historyAvailable: true,
+    );
+
+    expect(find.byType(AppShimmerBlock), findsWidgets);
+    expect(find.bySemanticsLabel('Loading your wallet'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -900));
+    await tester.pump();
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.runtimeType.toString() == '_HomeTransactionsSkeleton',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Save uses account and product shimmer while loading', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: const NotifierState.loading(),
+      products: const NotifierState.loading(),
+      loadingHome: true,
+    );
+
+    expect(find.byType(AppShimmerBlock), findsWidgets);
+    expect(
+      find.bySemanticsLabel('Loading your savings accounts'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Loading savings products'), findsWidgets);
+  });
+
   testWidgets('Home shows the Core Flex balance beside the User DVA', (
     tester,
   ) async {

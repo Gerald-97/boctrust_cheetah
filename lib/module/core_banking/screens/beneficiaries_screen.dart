@@ -129,7 +129,12 @@ class _BeneficiariesViewState extends ConsumerState<BeneficiariesView> {
       subtitle: '$detail · ${b.maskedNumber}',
       trailing: IconButton(
         tooltip: 'Remove',
-        icon: const Icon(IconsaxPlusLinear.trash),
+        icon: _deleting.contains(b.id)
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(IconsaxPlusLinear.trash),
         onPressed: _deleting.contains(b.id) ? null : () => _delete(b),
       ),
     );

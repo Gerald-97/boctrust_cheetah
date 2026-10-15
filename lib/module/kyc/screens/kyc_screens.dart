@@ -790,11 +790,10 @@ extension KycScreens on KycScreenState {
             const SizedBox(height: 18),
             PrimaryButton(
               key: const ValueKey('identity-submit'),
-              label: submitting
-                  ? 'Submitting…'
-                  : continuing
+              label: continuing
                   ? 'Continue verification'
                   : 'Submit for verification',
+              isLoading: submitting,
               onPressed: submitting
                   ? null
                   : () => _submitIdentityVerification(identityType),
@@ -1331,11 +1330,8 @@ extension KycScreens on KycScreenState {
             ],
             const SizedBox(height: 18),
             PrimaryButton(
-              label: switch ((submitting, pending)) {
-                (true, _) => 'Starting…',
-                (false, true) => 'Continue verification',
-                (false, false) => 'Start verification',
-              },
+              label: pending ? 'Continue verification' : 'Start verification',
+              isLoading: submitting,
               onPressed: submitting ? null : _submitGovernmentId,
             ),
           ],
@@ -1809,7 +1805,8 @@ extension KycScreens on KycScreenState {
             ],
             const SizedBox(height: 18),
             PrimaryButton(
-              label: busy ? _uploadStageLabel(flow.stage) : 'Submit for review',
+              label: 'Submit for review',
+              isLoading: busy,
               onPressed: busy || bill == null ? null : _submitUtilityBill,
             ),
             // Cancelling is only offered before bytes start moving.

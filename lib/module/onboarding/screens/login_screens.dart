@@ -58,6 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Center(child: CircularProgressIndicator()),
             ),
             buttonLabel: 'Log in',
+            isLoading: true,
             onButtonPressed: () {},
           );
         }
@@ -94,7 +95,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               AuthStateMessage(state),
             ],
           ),
-          buttonLabel: state.isLoading ? 'Logging in…' : 'Log in',
+          buttonLabel: 'Log in',
+          isLoading: state.isLoading,
           onButtonPressed: () async {
             if (state.isLoading) return;
             final identifier = _identifierController.text.trim();
@@ -189,7 +191,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           AuthStateMessage(state),
         ],
       ),
-      buttonLabel: busy ? 'Logging in…' : 'Log in',
+      buttonLabel: 'Log in',
+      isLoading: busy,
       onButtonPressed: () async {
         if (busy) return;
         if (_passwordController.text.isEmpty) {
@@ -310,11 +313,8 @@ class _NewDeviceOtpScreenState extends ConsumerState<NewDeviceOtpScreen> {
             AuthStateMessage(state),
           ],
         ),
-        buttonLabel: state.isLoading
-            ? 'Please wait…'
-            : choosing
-            ? 'Send code'
-            : 'Verify device',
+        buttonLabel: choosing ? 'Send code' : 'Verify device',
+        isLoading: state.isLoading,
         onButtonPressed: () async {
           if (state.isLoading) return;
           final notifier = ref.read(loginFlowProvider.notifier);

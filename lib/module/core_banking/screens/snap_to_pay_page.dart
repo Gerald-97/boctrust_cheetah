@@ -507,6 +507,7 @@ class _SnapToPayPageState extends ConsumerState<SnapToPayPage>
         _RoundButton(
           tooltip: 'Choose a photo',
           icon: IconsaxPlusLinear.gallery,
+          isLoading: _recognizing,
           onPressed: _recognizing ? null : _pickFromGallery,
         ),
         Semantics(
@@ -828,11 +829,13 @@ class _RoundButton extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onPressed,
+    this.isLoading = false,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) => IconButton.filled(
@@ -844,6 +847,14 @@ class _RoundButton extends StatelessWidget {
       fixedSize: const Size.square(56),
     ),
     onPressed: onPressed,
-    icon: Icon(icon),
+    icon: isLoading
+        ? const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          )
+        : Icon(icon),
   );
 }

@@ -120,6 +120,7 @@ class AuthPage extends StatelessWidget {
     required this.content,
     required this.buttonLabel,
     required this.onButtonPressed,
+    this.isLoading = false,
     this.onBack,
     this.footer,
     super.key,
@@ -130,6 +131,7 @@ class AuthPage extends StatelessWidget {
   final Widget content;
   final String buttonLabel;
   final VoidCallback onButtonPressed;
+  final bool isLoading;
   final VoidCallback? onBack;
   final Widget? footer;
 
@@ -168,7 +170,11 @@ class AuthPage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          PrimaryButton(label: buttonLabel, onPressed: onButtonPressed),
+          PrimaryButton(
+            label: buttonLabel,
+            isLoading: isLoading,
+            onPressed: onButtonPressed,
+          ),
           if (footer != null) ...[const SizedBox(height: 10), footer],
         ],
       ),
