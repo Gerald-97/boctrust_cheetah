@@ -1,5 +1,6 @@
 import 'package:boctrust_savings_loan/app.dart';
 import 'package:boctrust_savings_loan/app/app_router.dart';
+import 'package:boctrust_savings_loan/app/inactivity_guard.dart';
 import 'package:boctrust_savings_loan/app/theme_controller.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/component/text_fields.dart';
@@ -37,6 +38,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Save without thinking about it'), findsOneWidget);
+    expect(find.byType(InactivityGuard), findsNothing);
     expect(find.text('0'), findsNothing);
     expect(find.byIcon(Icons.add), findsNothing);
   });

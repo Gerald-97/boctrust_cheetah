@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -100,7 +101,9 @@ class _CheetahMaterialApp extends ConsumerWidget {
             ),
             boldText: media.boldText || accessibility.boldText,
           ),
-          child: InactivityGuard(child: child!),
+          // Keep debug sessions open during development. Profile and release
+          // builds retain the normal inactivity warning and sign-out.
+          child: kDebugMode ? child! : InactivityGuard(child: child!),
         );
       },
     );
