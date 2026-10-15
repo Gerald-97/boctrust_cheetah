@@ -1786,27 +1786,17 @@ extension KycScreens on KycScreenState {
               helperText: 'PDF, JPEG or PNG, maximum 10 MB',
               selectedFileName: bill?.fileName,
               enabled: !busy,
-              loading: busy && flow.stage == KycFlowStage.uploading,
               onTap: _pickUtilityBill,
             ),
             if (busy) ...[
               const SizedBox(height: 12),
               ApiLoadingSection(
                 label: _uploadStageLabel(flow.stage),
-                compact: true,
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: Text(
-                  _uploadStageLabel(flow.stage),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
               ),
             ],
             const SizedBox(height: 18),
             PrimaryButton(
               label: 'Submit for review',
-              isLoading: busy,
               onPressed: busy || bill == null ? null : _submitUtilityBill,
             ),
             // Cancelling is only offered before bytes start moving.

@@ -10,6 +10,7 @@ import 'package:boctrust_savings_loan/module/home/service/home_service.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_provider_models.dart';
 import 'package:boctrust_savings_loan/module/kyc/model/kyc_status_models.dart';
+import 'package:boctrust_savings_loan/module/kyc/provider/kyc_providers.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_camera_permission.dart';
 import 'package:boctrust_savings_loan/module/kyc/service/dojah_config.dart';
 import 'package:boctrust_savings_loan/module/kyc/screens/dojah_webview.dart';
@@ -198,6 +199,20 @@ class _Gateway {
   }
 }
 
+class _UploadingBill extends UtilityBillUploadNotifier {
+  @override
+  NotifierState<KycFlowData> build() => const NotifierState.loading(
+    data: KycFlowData(
+      stage: KycFlowStage.uploading,
+      selectedBill: SelectedUtilityBill(
+        fileName: 'bill.pdf',
+        contentType: 'application/pdf',
+        bytes: [1, 2, 3],
+      ),
+    ),
+  );
+}
+
 void main() {
   late _Users users;
   late _Kyc kyc;
@@ -208,6 +223,7 @@ void main() {
     required String route,
     UserTierInfoData? tiers,
     String utilityBill = 'not_started',
+    bool uploadingBill = false,
   }) async {
     users = _Users(tiers: tiers);
     kyc = _Kyc()..utilityBill = utilityBill;
@@ -242,9 +258,15 @@ void main() {
             governmentWidgetId: 'government-widget',
           ),
         ),
+        if (uploadingBill)
+          utilityBillUploadProvider.overrideWith(_UploadingBill.new),
       ],
     );
-    await tester.pumpAndSettle();
+    if (uploadingBill) {
+      await tester.pump(const Duration(milliseconds: 300));
+    } else {
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<void> tapAndSettle(WidgetTester tester, Finder target) async {
@@ -482,5 +504,20 @@ void main() {
       );
       expect(navigatorOf(tester).canPop(), isFalse);
     });
+  });
+
+  testWidgets('utility upload shows one centered progress indicator', (
+    tester,
+  ) async {
+    await mountFlow(
+      tester,
+      gateway: _Gateway(KycCaptureOutcome.cancelled),
+      route: '/account/tier/address',
+      uploadingBill: true,
+    );
+
+    expect(find.text('Uploading your document…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Submit for review'), findsOneWidget);
   });
 }
