@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app_router.dart';
 import 'app/auth_flow_listener.dart';
+import 'app/inactivity_guard.dart';
 import 'app/navigators.dart';
 import 'app/preferences.dart';
 import 'app/theme.dart';
@@ -99,7 +100,7 @@ class _CheetahMaterialApp extends ConsumerWidget {
             ),
             boldText: media.boldText || accessibility.boldText,
           ),
-          child: child!,
+          child: InactivityGuard(child: child!),
         );
       },
     );
