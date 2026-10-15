@@ -88,6 +88,11 @@ class AppBottomNavigation extends StatelessWidget {
     // the pill; high contrast raises it to textSecondary.
     final inactiveColor = colors.textTertiary;
     final pillRadius = BorderRadius.circular(BocRadius.pill);
+    final edgeColor = Color.lerp(
+      colors.border,
+      colors.textSecondary,
+      dark ? 0.35 : 0.30,
+    )!;
     return SafeArea(
       top: false,
       child: Padding(
@@ -101,66 +106,66 @@ class AppBottomNavigation extends StatelessWidget {
           heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 350),
-            // The shadow sits outside the clip so the clip doesn't cut it off.
+            // Keep the shadows outside the clip so they frame all pill edges.
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(BocRadius.pill),
-                ),
+                borderRadius: pillRadius,
                 boxShadow: [
                   BoxShadow(
-                    // A light glow reads as a halo on the dark background.
                     color: dark
-                        ? const Color(0x66000000)
-                        : const Color(0x33B4B4B4),
-                    offset: Offset(0, 2),
-                    blurRadius: 12,
+                        ? const Color(0x99000000)
+                        : const Color(0x380F1D2B),
+                    offset: const Offset(0, 3),
+                    blurRadius: 8,
+                  ),
+                  BoxShadow(
+                    color: dark
+                        ? const Color(0x55000000)
+                        : const Color(0x260F1D2B),
+                    offset: const Offset(0, 10),
+                    blurRadius: 24,
                   ),
                 ],
               ),
               child: ClipRRect(
                 borderRadius: pillRadius,
-                // Page content scrolls under the pill; the blur keeps the
-                // labels legible over it.
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: DecoratedBox(
-                    key: pillKey,
-                    decoration: BoxDecoration(
-                      color: dark
-                          ? colors.surface.withValues(alpha: 0.8)
-                          : const Color(0xCCFFFFFF),
-                      borderRadius: pillRadius,
-                    ),
-                    // Ink has to paint on a Material above the fill, or the
-                    // fill hides the tap ripple.
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: SizedBox(
-                        height: kNavPillHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: BocSpace.md,
-                          ),
-                          child: Row(
-                            // Each slot fills the pill's height so its whole
-                            // area takes taps.
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final item in items)
-                                Expanded(
-                                  child: _NavPillItem(
-                                    asset: item.asset,
-                                    label: item.label,
-                                    selected: item.section == selected,
-                                    color: item.section == selected
-                                        ? activeColor
-                                        : inactiveColor,
-                                    onTap: () => onSelected(item.section),
-                                  ),
+                // The solid fill stops cards and transaction rows from
+                // showing through as they scroll behind the navigation.
+                child: DecoratedBox(
+                  key: pillKey,
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    border: Border.all(color: edgeColor, width: 1.2),
+                    borderRadius: pillRadius,
+                  ),
+                  // Ink has to paint on a Material above the fill, or the
+                  // fill hides the tap ripple.
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: SizedBox(
+                      height: kNavPillHeight,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: BocSpace.md,
+                        ),
+                        child: Row(
+                          // Each slot fills the pill's height so its whole
+                          // area takes taps.
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final item in items)
+                              Expanded(
+                                child: _NavPillItem(
+                                  asset: item.asset,
+                                  label: item.label,
+                                  selected: item.section == selected,
+                                  color: item.section == selected
+                                      ? activeColor
+                                      : inactiveColor,
+                                  onTap: () => onSelected(item.section),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                       ),
                     ),

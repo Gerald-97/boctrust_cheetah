@@ -46,6 +46,13 @@ TextStyle? _labelStyle(WidgetTester tester, String label) =>
 
 ColorFilter _tint(Color color) => ColorFilter.mode(color, BlendMode.srcIn);
 
+double _contrastRatio(Color a, Color b) {
+  final brighter = a.computeLuminance() > b.computeLuminance() ? a : b;
+  final darker = identical(brighter, a) ? b : a;
+  return (brighter.computeLuminance() + 0.05) /
+      (darker.computeLuminance() + 0.05);
+}
+
 Future<void> _pumpScaffoldList(
   WidgetTester tester, {
   ValueChanged<int>? onRow,
@@ -147,22 +154,28 @@ void main() {
     handle.dispose();
   });
 
-  group('floats as a translucent pill', () {
+  group('floats above content with a distinct edge', () {
     testWidgets('light', (tester) async {
-      await _pumpNav(tester, theme: CheetahTheme.lightTheme);
+      final theme = CheetahTheme.lightTheme;
+      await _pumpNav(tester, theme: theme);
       expect(
         find.descendant(
           of: find.byType(AppBottomNavigation),
           matching: find.byType(BackdropFilter),
         ),
-        // Page content scrolls under the pill; the blur keeps labels legible.
-        findsOneWidget,
+        findsNothing,
       );
       final pill = _pill();
       expect(pill, findsOneWidget);
       final decoration =
           tester.widget<DecoratedBox>(pill).decoration as BoxDecoration;
-      expect(decoration.color, const Color(0xCCFFFFFF));
+      final surface = theme.extension<BocSemanticColors>()!.surface;
+      expect(decoration.color, surface);
+      expect(decoration.border, isNotNull);
+      expect(
+        _contrastRatio((decoration.border! as Border).top.color, surface),
+        greaterThan(1.8),
+      );
       final rect = tester.getRect(pill);
       expect(rect.width, 350);
       expect(rect.center.dx, 215);
@@ -173,9 +186,12 @@ void main() {
       await _pumpNav(tester, theme: theme);
       final decoration =
           tester.widget<DecoratedBox>(_pill()).decoration as BoxDecoration;
+      final surface = theme.extension<BocSemanticColors>()!.surface;
+      expect(decoration.color, surface);
+      expect(decoration.border, isNotNull);
       expect(
-        decoration.color,
-        theme.extension<BocSemanticColors>()!.surface.withValues(alpha: 0.8),
+        _contrastRatio((decoration.border! as Border).top.color, surface),
+        greaterThan(1.8),
       );
     });
 
@@ -257,11 +273,14 @@ void main() {
           w.decoration is BoxDecoration &&
           (w.decoration as BoxDecoration).boxShadow != null,
     );
-    final shadow =
+    final shadows =
         (tester.widget<DecoratedBox>(shadowed).decoration as BoxDecoration)
-            .boxShadow!
-            .single;
-    expect(shadow.color.computeLuminance(), lessThan(0.05));
+            .boxShadow!;
+    expect(shadows, hasLength(2));
+    expect(
+      shadows.every((shadow) => shadow.color.computeLuminance() < 0.05),
+      isTrue,
+    );
   });
 
   testWidgets('ripples paint on the pill, not under it', (tester) async {
