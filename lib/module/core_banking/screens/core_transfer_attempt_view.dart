@@ -12,6 +12,7 @@ import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
+import '../provider/core_account_activity_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
@@ -36,6 +37,7 @@ Future<void> authorizeStagedTransfer(
   // reply arrives.
   final notifier = ref.read(coreTransferAttemptProvider.notifier);
   final accounts = ref.read(customerBankAccountsProvider.notifier);
+  final refreshHistory = ref.read(refreshFlexTransactionHistoryProvider);
   final id = notifier.beginReview(draft);
   if (id == null) {
     if (!ref.read(transferAuthorizationReadyProvider)) {
@@ -84,6 +86,12 @@ Future<void> authorizeStagedTransfer(
   if (at(CoreTransferPhase.readyToFinalize)) await notifier.finalize(id);
   // Balances come from Core only; never subtract locally.
   unawaited(accounts.load());
+  final outcome = notifier.current?.outcome;
+  if (notifier.current?.id == id &&
+      notifier.current?.phase == CoreTransferPhase.settled &&
+      (outcome is AcceptedSubmission || outcome is UnknownSubmission)) {
+    unawaited(refreshHistory());
+  }
 }
 
 /// Every transfer screen shows the session's current attempt in place of its
@@ -91,6 +99,7 @@ Future<void> authorizeStagedTransfer(
 /// OTP sheet is open, the review stays underneath.
 bool showsAttempt(CoreTransferAttempt? attempt) => switch (attempt?.phase) {
   CoreTransferPhase.initiating ||
+  CoreTransferPhase.verifyingPin ||
   CoreTransferPhase.readyToFinalize ||
   CoreTransferPhase.finalizing ||
   CoreTransferPhase.settled => true,
@@ -98,7 +107,7 @@ bool showsAttempt(CoreTransferAttempt? attempt) => switch (attempt?.phase) {
 };
 
 /// The result of a sent transfer, whichever flow sent it.
-class CoreTransferAttemptView extends ConsumerWidget {
+class CoreTransferAttemptView extends ConsumerStatefulWidget {
   const CoreTransferAttemptView({
     required this.attempt,
     required this.onExit,
@@ -117,10 +126,87 @@ class CoreTransferAttemptView extends ConsumerWidget {
   final VoidCallback onStartDifferent;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CoreTransferAttemptView> createState() =>
+      _CoreTransferAttemptViewState();
+}
+
+class _CoreTransferAttemptViewState
+    extends ConsumerState<CoreTransferAttemptView> {
+  Timer? _autoCheckTimer;
+  int? _checkedAttemptId;
+  CoreTransferAttempt get attempt => widget.attempt;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedulePendingCheck();
+  }
+
+  @override
+  void didUpdateWidget(covariant CoreTransferAttemptView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.attempt.id != widget.attempt.id) _checkedAttemptId = null;
+    _schedulePendingCheck();
+  }
+
+  @override
+  void dispose() {
+    _autoCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  void _schedulePendingCheck() {
+    final attempt = widget.attempt;
+    // An existing live result means the customer already checked. Never
+    // poll repeatedly: one automatic check is enough for a new result.
+    if (attempt.checking) _checkedAttemptId = attempt.id;
+    if (attempt.phase != CoreTransferPhase.settled ||
+        attempt.outcome is! AcceptedSubmission ||
+        attempt.tracking == null ||
+        attempt.live != null ||
+        attempt.checkError != null ||
+        _checkedAttemptId == attempt.id) {
+      _autoCheckTimer?.cancel();
+      _autoCheckTimer = null;
+      return;
+    }
+    if (_autoCheckTimer?.isActive ?? false) return;
+    _autoCheckTimer = Timer(const Duration(seconds: 1), () {
+      _autoCheckTimer = null;
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      final current = ref.read(coreTransferAttemptProvider).current;
+      if (current?.id != widget.attempt.id ||
+          current?.phase != CoreTransferPhase.settled ||
+          current?.outcome is! AcceptedSubmission ||
+          current?.tracking == null ||
+          current?.live != null ||
+          current?.checking != false) {
+        return;
+      }
+      _checkedAttemptId = current!.id;
+      unawaited(
+        ref.read(coreTransferAttemptProvider.notifier).check(current.id),
+      );
+    });
+  }
+
+  void _checkNow() {
+    _autoCheckTimer?.cancel();
+    _autoCheckTimer = null;
+    _checkedAttemptId = widget.attempt.id;
+    unawaited(
+      ref.read(coreTransferAttemptProvider.notifier).check(widget.attempt.id),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final attempt = widget.attempt;
     switch (attempt.phase) {
       case CoreTransferPhase.initiating:
         return const ApiLoadingSection(label: 'Starting your transfer');
+      case CoreTransferPhase.verifyingPin:
+        return const ApiLoadingSection(label: 'Verifying your PIN');
       case CoreTransferPhase.readyToFinalize || CoreTransferPhase.finalizing:
         return const ApiLoadingSection(label: 'Sending your transfer');
       case CoreTransferPhase.settled:
@@ -141,12 +227,12 @@ class CoreTransferAttemptView extends ConsumerWidget {
           primaryLabel: 'Change details',
           onPrimary: () {
             notifier.startNewTransfer();
-            onEditDetails();
+            widget.onEditDetails();
           },
           secondaryLabel: 'Close',
           onSecondary: () {
             notifier.startNewTransfer();
-            onExit();
+            widget.onExit();
           },
         );
       case AcceptedSubmission(:final ack):
@@ -202,7 +288,7 @@ class CoreTransferAttemptView extends ConsumerWidget {
           primaryLabel: 'Done',
           onPrimary: () {
             notifier.startNewTransfer();
-            onExit();
+            widget.onExit();
           },
         );
       case UnknownSubmission(:final message):
@@ -214,7 +300,7 @@ class CoreTransferAttemptView extends ConsumerWidget {
           details: details,
           extra: [_startDifferent(context, ref)],
           primaryLabel: 'Done',
-          onPrimary: onExit,
+          onPrimary: widget.onExit,
         );
       case null:
         return const SizedBox.shrink();
@@ -246,11 +332,7 @@ class CoreTransferAttemptView extends ConsumerWidget {
             ? 'Check status'
             : 'Check again',
         isLoading: attempt.checking,
-        onPressed: attempt.checking
-            ? null
-            : () => ref
-                  .read(coreTransferAttemptProvider.notifier)
-                  .check(attempt.id),
+        onPressed: attempt.checking ? null : _checkNow,
       ),
     ];
   }
@@ -281,13 +363,13 @@ class CoreTransferAttemptView extends ConsumerWidget {
       if (start == null) return;
       if (!start) {
         unawaited(ref.read(customerBankAccountsProvider.notifier).load());
-        onExit();
+        widget.onExit();
         return;
       }
       ref
           .read(coreTransferAttemptProvider.notifier)
           .acknowledgeUnresolved(attempt.id);
-      onStartDifferent();
+      widget.onStartDifferent();
     },
   );
 

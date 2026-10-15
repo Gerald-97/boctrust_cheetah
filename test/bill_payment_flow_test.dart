@@ -3,7 +3,9 @@ import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/bill_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_bill_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:flutter/material.dart';
@@ -62,11 +64,30 @@ class _Bills extends CoreBillService {
   }
 }
 
+class _History extends CoreAccountService {
+  _History() : super(null);
+
+  final accounts = <String>[];
+
+  @override
+  Future<NotifierState<CoreTransactionPage>> getAccountTransactions(
+    String accountNumber,
+    CoreHistoryRange range, {
+    int page = 1,
+    int pageSize = 20,
+    DateTime? today,
+  }) async {
+    accounts.add(accountNumber);
+    return const NotifierState.done(CoreTransactionPage(rows: []));
+  }
+}
+
 void main() {
   testWidgets('reviewed bill sends one payment and shows the Core result', (
     tester,
   ) async {
     final bills = _Bills();
+    final history = _History();
     await pumpFlow(
       tester,
       route: AppRoutes.billPay,
@@ -74,6 +95,7 @@ void main() {
         authSessionProvider.overrideWith(SavingsSession.new),
         customerBankAccountsProvider.overrideWith(LayoutCoreAccounts.new),
         coreBillServiceProvider.overrideWithValue(bills),
+        coreAccountServiceProvider.overrideWithValue(history),
         featureAvailabilityProvider(
           FeatureCapability.bills,
         ).overrideWithValue(FeatureAvailability.available),
@@ -117,6 +139,7 @@ void main() {
     ]);
     expect(find.text('Payment successful'), findsOneWidget);
     expect(find.text('BILL-REF'), findsOneWidget);
+    expect(history.accounts, ['0000000001']);
   });
 
   testWidgets('canceling the PIN prompt leaves the bill unsubmitted', (

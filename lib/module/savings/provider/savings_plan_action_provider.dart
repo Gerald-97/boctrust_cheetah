@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/services.dart';
 import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../model/savings_plan_models.dart';
 import '../service/core_savings_plan_service.dart';
 import 'savings_plan_provider.dart';
@@ -188,6 +189,9 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
   void _refresh(String? planId) {
     ref.invalidate(savingsPlansProvider);
     if (planId != null) ref.invalidate(savingsPlanDetailProvider(planId));
-    ref.read(customerBankAccountsProvider.notifier).load();
+    final refreshHistory = ref.read(refreshFlexTransactionHistoryProvider);
+    ref.read(customerBankAccountsProvider.notifier).load().then((accounts) {
+      if (accounts.data?.activeFlexAccount != null) return refreshHistory();
+    }).ignore();
   }
 }

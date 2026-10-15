@@ -73,9 +73,14 @@ class _Transfers extends CoreTransferService {
   final otps = <String>[];
   var resends = 0;
   var finalized = 0;
+  var requeries = 0;
+  CoreLiveState requeryState = CoreLiveState.pending;
 
   /// When set, initiate waits on it instead of answering at once.
   Completer<void>? initiateGate;
+
+  /// When set, PIN verification waits on it instead of answering at once.
+  Completer<void>? pinGate;
 
   @override
   Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
@@ -98,6 +103,7 @@ class _Transfers extends CoreTransferService {
     String pin,
   ) async {
     pins.add(pin);
+    await pinGate?.future;
     return NotifierState.done(
       initiation.needsOtp
           ? CoreCheckProgress(
@@ -145,6 +151,16 @@ class _Transfers extends CoreTransferService {
     return const ServiceResponse.success(
       CoreTransferAck(responseCode: '00', retrievalReference: 'a1b2c3d4e5f6'),
       statusCode: 200,
+    );
+  }
+
+  @override
+  Future<NotifierState<CoreLiveTransferStatus>> requeryTransfer(
+    CoreTrackingReference tracking,
+  ) async {
+    requeries++;
+    return NotifierState.done(
+      CoreLiveTransferStatus(state: requeryState, trackingReference: tracking),
     );
   }
 
@@ -350,6 +366,92 @@ void main() {
   });
 
   group('staged BOCTRUST transfer', () {
+    testWidgets('automatically checks a pending transfer once', (tester) async {
+      final transfers = _Transfers()..requeryState = CoreLiveState.completed;
+      await _pumpBoctrust(tester, transfers);
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+
+      expect(find.text('Transfer processing'), findsOneWidget);
+      expect(transfers.requeries, 0);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(transfers.requeries, 1);
+      expect(find.text('Transfer successful'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(transfers.requeries, 1);
+    });
+
+    testWidgets('manual status check cancels the automatic check', (
+      tester,
+    ) async {
+      final transfers = _Transfers();
+      await _pumpBoctrust(tester, transfers);
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+
+      await tester.tap(find.text('Check status'));
+      await tester.pump();
+      expect(transfers.requeries, 1);
+      await tester.pump(const Duration(seconds: 2));
+      expect(transfers.requeries, 1);
+    });
+
+    testWidgets('leaving the result cancels the automatic check', (
+      tester,
+    ) async {
+      final transfers = _Transfers();
+      await _pumpBoctrust(tester, transfers);
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+      expect(transfers.requeries, 0);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+      expect(transfers.requeries, 0);
+    });
+
+    testWidgets('a covered result does not check in the background', (
+      tester,
+    ) async {
+      final transfers = _Transfers();
+      await _pumpBoctrust(tester, transfers);
+      await _sendTen(tester);
+      await _enterCode(tester, '0007', 'Confirm transfer');
+      expect(transfers.requeries, 0);
+
+      final context = tester.element(find.byType(InterbankTransferFlow));
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const Scaffold()));
+      await tester.pump(const Duration(seconds: 2));
+      expect(transfers.requeries, 0);
+    });
+
+    testWidgets(
+      'shows progress while the PIN verification request is pending',
+      (tester) async {
+        final transfers = _Transfers()..pinGate = Completer<void>();
+        await _pumpBoctrust(tester, transfers);
+
+        await _sendTen(tester);
+        await tester.enterText(find.byType(EditableText).last, '0007');
+        await tester.pump();
+        await tester.tap(find.text('Confirm transfer'));
+        await _settle(tester);
+
+        expect(transfers.pins, ['0007']);
+        expect(find.text('Verifying your PIN'), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(transfers.finalized, 0);
+
+        transfers.pinGate!.complete();
+        await _settle(tester);
+        expect(transfers.finalized, 1);
+        expect(find.text('Transfer processing'), findsOneWidget);
+      },
+    );
+
     testWidgets('PIN only: finalized once with the PIN', (tester) async {
       final transfers = _Transfers();
       await _pumpBoctrust(tester, transfers);

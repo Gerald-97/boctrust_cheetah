@@ -5,6 +5,7 @@ import '../../onboarding/provider/auth_session_provider.dart';
 import '../model/core_account_summary.dart';
 import '../model/core_account_transactions.dart';
 import '../service/core_account_service.dart';
+import 'core_account_providers.dart';
 import 'core_paged_rows.dart';
 
 /// The live summary of one account. Re-read when the session changes, so a
@@ -35,6 +36,51 @@ final coreAccountHistoryProvider = NotifierProvider.autoDispose
       NotifierState<CoreAccountHistory>,
       CoreAccountHistoryKey
     >(CoreAccountHistoryNotifier.new);
+
+/// Re-reads the active Flex account's recent transactions after money may
+/// have moved. Other visible ranges are invalidated so they also reload when
+/// the customer returns to account history.
+final refreshFlexTransactionHistoryProvider = Provider<Future<void> Function()>(
+  (ref) => () async {
+    var accountNumber = ref
+        .read(customerBankAccountsProvider)
+        .data
+        ?.activeFlexAccount
+        ?.accountNumber;
+    accountNumber ??=
+        (await ref.read(customerBankAccountsProvider.notifier).load())
+            .data
+            ?.activeFlexAccount
+            ?.accountNumber;
+    if (accountNumber == null) return;
+
+    for (final range in [
+      CoreHistoryRange.last7Days,
+      CoreHistoryRange.last60Days,
+    ]) {
+      ref.invalidate(
+        coreAccountHistoryProvider((
+          accountNumber: accountNumber,
+          range: range,
+        )),
+      );
+    }
+
+    final key = (
+      accountNumber: accountNumber,
+      range: CoreHistoryRange.last30Days,
+    );
+    if (ref.exists(coreAccountHistoryProvider(key))) {
+      await ref.read(coreAccountHistoryProvider(key).notifier).reload();
+    } else {
+      // A history provider without a listener may dispose before its queued
+      // initial load. Read Core directly when the customer is off Home.
+      await ref
+          .read(coreAccountServiceProvider)
+          .getAccountTransactions(accountNumber, CoreHistoryRange.last30Days);
+    }
+  },
+);
 
 class CoreAccountHistoryNotifier
     extends PagedRowsNotifier<CoreAccountTransaction> {

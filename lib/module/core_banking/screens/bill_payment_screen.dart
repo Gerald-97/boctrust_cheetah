@@ -13,7 +13,9 @@ import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/bill_models.dart';
 import '../model/core_money.dart';
+import '../model/core_submission_models.dart';
 import '../provider/core_account_providers.dart';
+import '../provider/core_account_activity_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../service/transaction_authorizer.dart';
 import 'core_flow_widgets.dart';
@@ -518,6 +520,10 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
         .submit(draft, transactionPin: pin);
     if (!mounted) return;
     unawaited(ref.read(customerBankAccountsProvider.notifier).load());
+    final outcome = ref.read(billPaymentProvider).outcome;
+    if (outcome is AcceptedSubmission || outcome is UnknownSubmission) {
+      unawaited(ref.read(refreshFlexTransactionHistoryProvider)());
+    }
   }
 
   List<Widget> _saveBeneficiary() {

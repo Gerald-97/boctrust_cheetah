@@ -12,6 +12,7 @@ import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../service/core_transfer_service.dart';
 import 'core_account_providers.dart';
+import 'core_account_activity_providers.dart';
 
 enum CoreTransferPhase {
   /// Reviewed and reserved; initiate is being sent. No money moves.
@@ -554,6 +555,7 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     if (next.state == CoreLiveState.completed ||
         next.state == CoreLiveState.reversed) {
       ref.read(customerBankAccountsProvider.notifier).load().ignore();
+      ref.read(refreshFlexTransactionHistoryProvider)().ignore();
     }
   }
 
