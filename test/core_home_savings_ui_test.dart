@@ -91,6 +91,29 @@ class _Home extends LayoutHome {
   Future<NotifierState<UserHomeData>> load() async => state;
 }
 
+class _HomeWithProducts extends UserHomeNotifier {
+  @override
+  NotifierState<UserHomeData> build() => NotifierState.done(
+    UserHomeData.fromJson({
+      'flexWallet': {
+        'currency': 'NGN',
+        'availableBalance': '7654.30',
+        'ledgerBalance': '7654.30',
+        'status': 'active',
+      },
+      'savingsProducts': [
+        {'code': 'bocFlex', 'name': 'Boc Flex'},
+        {'code': 'bocSmartSave', 'name': 'Boc SmartSave'},
+        {'code': 'boctrustFixedDeposit', 'name': 'Boc Fixed Deposit'},
+        {'code': 'bocPadi', 'name': 'Boc Padi'},
+      ],
+    }),
+  );
+
+  @override
+  Future<NotifierState<UserHomeData>> load() async => state;
+}
+
 class _LoadingHome extends UserHomeNotifier {
   @override
   NotifierState<UserHomeData> build() => const NotifierState.loading();
@@ -141,6 +164,7 @@ Future<void> _pump(
   required NotifierState<CustomerBankAccountsData> accounts,
   NotifierState<List<CoreBankProduct>>? products,
   bool loadingHome = false,
+  bool homeWithProducts = false,
   bool historyAvailable = false,
   CoreAccountService? accountService,
   bool hidden = false,
@@ -163,7 +187,13 @@ Future<void> _pump(
         coreAccountServiceProvider.overrideWithValue(accountService),
       if (hidden) homeBalanceHiddenProvider.overrideWith(_HiddenBalance.new),
       userProfileProvider.overrideWith(LayoutProfile.new),
-      userHomeProvider.overrideWith(loadingHome ? _LoadingHome.new : _Home.new),
+      userHomeProvider.overrideWith(
+        loadingHome
+            ? _LoadingHome.new
+            : homeWithProducts
+            ? _HomeWithProducts.new
+            : _Home.new,
+      ),
       customerBankAccountsProvider.overrideWith(() => _Accounts(accounts)),
       coreBankProductsProvider.overrideWith(
         () => _Products(products ?? _catalogue),
@@ -284,7 +314,7 @@ void main() {
     );
   });
 
-  testWidgets('Save shows owned-account loading without a product catalogue', (
+  testWidgets('Save shows account placeholder and products while loading', (
     tester,
   ) async {
     await _pump(
@@ -300,7 +330,9 @@ void main() {
       find.bySemanticsLabel('Loading your savings accounts'),
       findsOneWidget,
     );
-    expect(find.bySemanticsLabel('Loading savings products'), findsNothing);
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Boc Padi'), findsOneWidget);
   });
 
   testWidgets('Home shows the Core Flex balance beside the User DVA', (
@@ -333,7 +365,7 @@ void main() {
     expect(find.textContaining('0123456789'), findsWidgets);
   });
 
-  testWidgets('Savings lists owned Core accounts without a product catalogue', (
+  testWidgets('Savings shows owned accounts and other published products', (
     tester,
   ) async {
     await _pump(
@@ -351,11 +383,154 @@ void main() {
     expect(find.text('Account •••• 0002'), findsOneWidget);
     expect(find.text('2.5% p.a.'), findsOneWidget);
     expect(find.text('4.5% p.a.'), findsOneWidget);
-    expect(find.text('Fixed Deposit'), findsNothing);
-    expect(find.text('Lock funds for a fixed term.'), findsNothing);
-    expect(find.text('Savings products'), findsNothing);
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Boc Padi'), findsOneWidget);
+    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.byType(BankProductCard), findsNWidgets(3));
     expect(find.text('Choose a plan'), findsNothing);
   });
+
+  testWidgets('Save shows all four published products with only Flex owned', (
+    tester,
+  ) async {
+    final flexOnly = CustomerBankAccountsData.fromJson({
+      'totalAvailableBalance': 1,
+      'products': [_account('bocFlex', 'Boc Flex', '0000000001', '7654.30')],
+    });
+    final fourProducts = CoreBankProduct.listFromJson([
+      {'code': 'bocFlex', 'name': 'Boc Flex'},
+      {'code': 'bocSmartSave', 'name': 'Boc SmartSave'},
+      {'code': 'boctrustFixedDeposit', 'name': 'Boc Fixed Deposit'},
+      {'code': 'bocPadi', 'name': 'Boc Padi'},
+    ]);
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(flexOnly),
+      products: NotifierState.done(fourProducts),
+      viewport: const Size(800, 2600),
+    );
+
+    expect(find.text('Your savings'), findsOneWidget);
+    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.byType(BankProductCard), findsNWidgets(3));
+    expect(find.text('Boc Flex'), findsOneWidget);
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Boc Padi'), findsOneWidget);
+    expect(find.text('₦7,654.30'), findsOneWidget);
+  });
+
+  testWidgets('Save fills missing Core products from User Home', (
+    tester,
+  ) async {
+    final flexOnly = CustomerBankAccountsData.fromJson({
+      'totalAvailableBalance': 1,
+      'products': [_account('bocFlex', 'Boc Flex', '0000000001', '7654.30')],
+    });
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(flexOnly),
+      products: NotifierState.done(
+        CoreBankProduct.listFromJson([
+          {'code': 'bocFlex', 'name': 'Boc Flex'},
+        ]),
+      ),
+      homeWithProducts: true,
+      viewport: const Size(800, 2600),
+    );
+
+    expect(find.byType(BankProductCard), findsNWidgets(3));
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Boc Padi'), findsOneWidget);
+  });
+
+  testWidgets('Save shows four products when the APIs publish only Flex', (
+    tester,
+  ) async {
+    final flexOnly = CustomerBankAccountsData.fromJson({
+      'totalAvailableBalance': 1,
+      'products': [_account('bocFlex', 'Boc Flex', '0000000001', '7654.30')],
+    });
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(flexOnly),
+      products: NotifierState.done(
+        CoreBankProduct.listFromJson([
+          {'code': 'bocFlex', 'name': 'Boc Flex'},
+        ]),
+      ),
+      viewport: const Size(800, 2600),
+    );
+
+    expect(find.text('Boc Flex'), findsOneWidget);
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Boc Padi'), findsOneWidget);
+    expect(find.text('Coming soon'), findsOneWidget);
+    expect(find.byType(BankProductCard), findsNWidgets(3));
+
+    await tester.tap(find.text('Boc Padi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Savings products'), findsOneWidget);
+    expect(find.textContaining('not available yet'), findsNothing);
+
+    await tester.tap(find.text('Boc SmartSave'));
+    await tester.pumpAndSettle();
+    expect(find.text('Target Savings'), findsOneWidget);
+    expect(find.textContaining('not available yet'), findsNothing);
+  });
+
+  testWidgets('an owned Padi account is not duplicated in the catalogue', (
+    tester,
+  ) async {
+    final accounts = CustomerBankAccountsData.fromJson({
+      'totalAvailableBalance': 1,
+      'products': [
+        _account('bocFlex', 'Boc Flex', '0000000001', '7654.30'),
+        _account('bocPadi', 'Boc Padi', '0000000003', '50.00'),
+      ],
+    });
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(accounts),
+      products: NotifierState.done(
+        CoreBankProduct.listFromJson([
+          {'code': 'bocFlex', 'name': 'Boc Flex'},
+          {'code': 'bocPadi', 'name': 'Boc Padi'},
+        ]),
+      ),
+      viewport: const Size(800, 2600),
+    );
+
+    expect(find.text('Boc Padi'), findsOneWidget);
+    expect(find.byType(BankProductCard), findsNWidgets(2));
+  });
+
+  testWidgets(
+    'Save keeps products visible and offers retry on catalogue error',
+    (tester) async {
+      await _pump(
+        tester,
+        AppRoutes.savingsHub,
+        accounts: NotifierState.done(_accounts),
+        products: const NotifierState.error('Product request failed'),
+      );
+
+      expect(
+        find.text('Product details could not be refreshed'),
+        findsOneWidget,
+      );
+      expect(find.text('Product request failed'), findsOneWidget);
+      expect(find.text('Boc SmartSave'), findsOneWidget);
+      expect(find.text('Retry'), findsWidgets);
+    },
+  );
 
   testWidgets('an empty Core catalogue does not add a product empty state', (
     tester,

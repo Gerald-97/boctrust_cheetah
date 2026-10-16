@@ -405,7 +405,17 @@ extension SavingsScreens on FlowPageState {
     final userCatalogue = CoreBankProduct.listFromJson(
       homeState.data?.savingsProducts ?? const [],
     );
-    final catalogue = productsState.data ?? userCatalogue;
+    // Core and User Home may publish different subsets. Keep Core's product
+    // facts when both publish the same code, while still showing products
+    // that only the User catalogue contains.
+    final productsByCode = <String, CoreBankProduct>{
+      for (final product in productsState.data ?? const <CoreBankProduct>[])
+        product.code: product,
+    };
+    for (final product in userCatalogue) {
+      productsByCode.putIfAbsent(product.code, () => product);
+    }
+    final catalogue = productsByCode.values.toList(growable: false);
     final flexProduct = catalogue
         .where((product) => product.code == kFlexProductCode)
         .firstOrNull;
@@ -414,6 +424,24 @@ extension SavingsScreens on FlowPageState {
     final otherAccounts = [
       for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
         if (account.productCode != kFlexProductCode) account,
+    ];
+    final ownedCodes = {
+      for (final account in accounts?.accounts ?? const <CustomerBankAccount>[])
+        account.productCode,
+      if (flex != null) kFlexProductCode,
+    };
+    // The two APIs can publish only Flex for a customer before their first
+    // plan. These are the four app products, independent of account opening;
+    // published facts enrich a card when the corresponding code is present.
+    final otherProducts = [
+      for (final type in SavingsProductType.values)
+        if (type != SavingsProductType.flex &&
+            !ownedCodes.contains(_catalogueCodeFor(type)))
+          productsByCode[_catalogueCodeFor(type)] ??
+              CoreBankProduct(
+                code: _catalogueCodeFor(type),
+                name: type.displayName,
+              ),
     ];
     final theme = Theme.of(context);
     return AppScaffold(
@@ -477,13 +505,42 @@ extension SavingsScreens on FlowPageState {
                     .firstOrNull,
               ),
             ],
+            if (otherProducts.isNotEmpty) ...[
+              const SizedBox(height: BocSpace.lg),
+              Semantics(
+                header: true,
+                child: Text(
+                  'Savings products',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              const SizedBox(height: BocSpace.sm),
+              if (productsState.isError && userCatalogue.isEmpty) ...[
+                ApiStateCard(
+                  title: 'Product details could not be refreshed',
+                  message: productsState.message ?? 'Please try again.',
+                  tone: ApiStateTone.warning,
+                  actionLabel: 'Retry',
+                  onAction: _refreshSavings,
+                ),
+                const SizedBox(height: BocSpace.sm),
+              ],
+              for (final (index, product) in otherProducts.indexed) ...[
+                if (index > 0) const SizedBox(height: BocSpace.sm),
+                _bankProductCard(product),
+              ],
+            ],
           ],
         ),
       ),
     );
   }
 
-  /// The wizard behind a catalogue product, or null when the app has none.
+  /// Padi is published in the catalogue but has no customer plan routes yet.
+  String _catalogueCodeFor(SavingsProductType type) =>
+      type == SavingsProductType.padi ? 'bocPadi' : type.coreCode!;
+
+  /// Matches a published product with a supported Save page.
   SavingsProductType? _planTypeFor(CoreBankProduct product) {
     if (product.isFixedDeposit) return SavingsProductType.fixed;
     final key = '${product.code} ${product.name}'.toLowerCase();
@@ -491,6 +548,47 @@ extension SavingsScreens on FlowPageState {
     if (key.contains('padi')) return SavingsProductType.padi;
     if (key.contains('fixed')) return SavingsProductType.fixed;
     return null;
+  }
+
+  Widget _bankProductCard(CoreBankProduct product) {
+    final colors = context.bocColors;
+    final type = product.code == kFlexProductCode
+        ? SavingsProductType.flex
+        : SavingsProductType.fromCoreCode(product.code) ??
+              _planTypeFor(product);
+    return BankProductCard(
+      title: product.name,
+      description: type == SavingsProductType.padi
+          ? 'Coming soon'
+          : product.description,
+      icon: switch (type) {
+        SavingsProductType.smartSave => IconsaxPlusLinear.flag,
+        SavingsProductType.fixed => IconsaxPlusLinear.lock,
+        SavingsProductType.padi => IconsaxPlusLinear.profile_2user,
+        _ => IconsaxPlusLinear.save_2,
+      },
+      accent: type == null ? colors.goldStrong : _productAccent(type),
+      container: type == null ? colors.goldPale : _productContainer(type),
+      facts: [
+        if (type != SavingsProductType.padi) ...[
+          if (product.interestRate case final rate?)
+            (
+              icon: IconsaxPlusLinear.percentage_circle,
+              label: '${_formatRate(rate)}% p.a.',
+            ),
+          if (product.tenureDays case final days?)
+            (
+              icon: IconsaxPlusLinear.calendar_1,
+              label: days == 1 ? '1-day tenure' : '$days-day tenure',
+            ),
+        ],
+      ],
+      onTap: switch (type) {
+        SavingsProductType.smartSave => () => go(AppRoutes.targetSave),
+        SavingsProductType.fixed => () => go(AppRoutes.lockSave),
+        _ => null,
+      },
+    );
   }
 
   /// A published rate as written, without float noise: 7 → "7", 7.5 → "7.5".

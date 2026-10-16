@@ -320,7 +320,7 @@ class BankProductCard extends StatelessWidget {
 
   /// Preformatted facts shown as chips under the description.
   final List<({IconData icon, String label})> facts;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -373,15 +373,17 @@ class BankProductCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: BocSpace.xs),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Icon(
-                      IconsaxPlusLinear.arrow_right_3,
-                      size: 20,
-                      color: colors.textTertiary,
+                  if (onTap != null) ...[
+                    const SizedBox(width: BocSpace.xs),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Icon(
+                        IconsaxPlusLinear.arrow_right_3,
+                        size: 20,
+                        color: colors.textTertiary,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               if (facts.isNotEmpty) ...[

@@ -163,7 +163,7 @@ void main() {
     });
     expect(find.text('₦2,500.00'), findsWidgets);
     expect(find.text('Server Flex Product'), findsOneWidget);
-    expect(find.textContaining('99.99'), findsNothing);
+    expect(find.text('99.99% p.a.'), findsOneWidget);
     expect(find.text('₦1.00'), findsNothing);
 
     await tester.tap(find.text('Server Flex Product'));
