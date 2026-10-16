@@ -426,11 +426,15 @@ extension _AccountScreens on _AccountPageState {
 
   /// Personal details and email/phone verification.
   Widget _myProfileScreen() {
-    final profile = ref.watch(userProfileProvider).data;
+    final profileState = ref.watch(userProfileProvider);
+    final session = ref.watch(authSessionProvider);
+    if (profileState.status == ServiceStatus.idle && session != null) {
+      Future<void>.microtask(ref.read(userProfileProvider.notifier).load);
+    }
+    final profile = profileState.data;
     final phoneNumber = profile?.phoneNumber?.trim();
     final hasPhoneNumber = phoneNumber?.isNotEmpty == true;
     final hasVerifiedPhone = isPhoneReadyForKyc(profile);
-    final session = ref.watch(authSessionProvider);
     final identifier =
         profile?.email ??
         profile?.phoneNumber ??
@@ -480,14 +484,12 @@ extension _AccountScreens on _AccountPageState {
               if (profile != null)
                 SettingsTile(
                   icon: IconsaxPlusLinear.mobile,
-                  title: hasPhoneNumber ? 'Phone verification' : 'Phone number',
-                  subtitle: hasVerifiedPhone
-                      ? 'Verified'
-                      : hasPhoneNumber
-                      ? 'Verify $phoneNumber'
-                      : 'Add phone number',
+                  title: 'Phone number',
+                  subtitle: hasPhoneNumber ? phoneNumber! : 'Add phone number',
                   trailing: hasVerifiedPhone
                       ? SmallPill.success('Verified')
+                      : hasPhoneNumber
+                      ? SmallPill.pending('Verify')
                       : null,
                   onTap: hasVerifiedPhone
                       ? null
