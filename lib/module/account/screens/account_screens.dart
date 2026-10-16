@@ -259,7 +259,7 @@ extension _AccountScreens on _AccountPageState {
                 children: [
                   ProfileAvatar(
                     displayName: profile?.displayName ?? '',
-                    hasImage: profile?.imageUrl?.isNotEmpty ?? false,
+                    imageUrl: profile?.imageUrl,
                     radius: 40,
                   ),
                   const SizedBox(height: BocSpace.sm),

@@ -41,7 +41,7 @@ class UserOwnProfileData extends Equatable {
       isVerifiedPhoneNumber: json['isVerifiedPhoneNumber']! as bool,
       isCreatedPassword: json['isCreatedPassword']! as bool,
       isCreatedPin: json['isCreatedPin']! as bool,
-      imageUrl: json['imageUrl'] as String?,
+      imageUrl: (json['imageUrl'] ?? json['image_url']) as String?,
       lastLoginAt: _date(json['lastLoginAt'], 'lastLoginAt'),
       createdAt: _date(json['createdAt'], 'createdAt'),
       updatedAt: _date(json['updatedAt'], 'updatedAt'),

@@ -93,7 +93,7 @@ class SmallPill extends StatelessWidget {
   }
 }
 
-/// Avatar backed by a short-lived signed URL for a private profile image.
+/// Avatar backed by a profile HTTPS URL or a signed private-image URL.
 ///
 /// Falls back to initials while loading, when no image exists, and on any load
 /// failure. An image problem is always local to the avatar — it never surfaces
@@ -101,16 +101,15 @@ class SmallPill extends StatelessWidget {
 class ProfileAvatar extends ConsumerStatefulWidget {
   const ProfileAvatar({
     required this.displayName,
-    required this.hasImage,
+    this.imageUrl,
     this.radius = 28,
     super.key,
   });
 
   final String displayName;
 
-  /// Whether the profile reports an image; the signed URL is only requested
-  /// when there is something to fetch.
-  final bool hasImage;
+  /// The profile's image URL or private image reference.
+  final String? imageUrl;
   final double radius;
 
   @override
@@ -121,13 +120,30 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
   /// Guards against a refresh loop: at most one replacement URL is requested
   /// per widget lifetime after a forbidden image load.
   bool _retriedAfterForbidden = false;
+  String? _failedDirectUrl;
+
+  @override
+  void didUpdateWidget(covariant ProfileAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      _failedDirectUrl = null;
+      _retriedAfterForbidden = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final signedState = ref.watch(profileImageSignedUrlProvider);
     final signed = signedState.data;
+    final reference = widget.imageUrl?.trim();
+    final parsed = reference == null ? null : Uri.tryParse(reference);
+    final profileUrl = parsed?.scheme == 'https' && parsed!.hasAuthority
+        ? reference
+        : null;
+    final directUrl = profileUrl == _failedDirectUrl ? null : profileUrl;
+    final hasImage = reference != null && reference.isNotEmpty;
 
-    if (widget.hasImage) {
+    if (hasImage && directUrl == null) {
       // Scheduled rather than called during build: ensureLoaded mutates
       // provider state.
       Future<void>.microtask(
@@ -152,7 +168,12 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
             ),
     );
 
-    if (!widget.hasImage || signed == null || signed.isExpired) {
+    final displayUrl =
+        directUrl ??
+        (hasImage && signed != null && !signed.isExpired
+            ? signed.imageUrl
+            : null);
+    if (displayUrl == null) {
       return Semantics(label: 'Profile photo', child: fallback);
     }
 
@@ -160,18 +181,29 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
       label: 'Profile photo',
       child: ClipOval(
         child: Image.network(
-          signed.imageUrl,
+          displayUrl,
           width: widget.radius * 2,
           height: widget.radius * 2,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, progress) =>
               progress == null ? child : fallback,
           errorBuilder: (context, error, stackTrace) {
-            // A lapsed signed URL is recoverable exactly once; anything else
-            // stays on initials.
-            if (error is NetworkImageLoadException &&
+            if (directUrl != null) {
+              // The profile may hold a private URL that needs a fresh
+              // signature. Try the signed endpoint after a direct load fails.
+              Future<void>.microtask(() {
+                if (!mounted || widget.imageUrl?.trim() != directUrl) return;
+                setState(() => _failedDirectUrl = directUrl);
+                unawaited(
+                  ref
+                      .read(profileImageSignedUrlProvider.notifier)
+                      .ensureLoaded(),
+                );
+              });
+            } else if (error is NetworkImageLoadException &&
                 error.statusCode == 403 &&
                 !_retriedAfterForbidden) {
+              // A lapsed signed URL is recoverable exactly once.
               _retriedAfterForbidden = true;
               Future<void>.microtask(
                 ref
