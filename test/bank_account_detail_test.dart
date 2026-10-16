@@ -34,6 +34,7 @@ class _Accounts extends CoreAccountService {
       name: 'ADA OBI',
       product: 'Boc Flex',
       availableBalance: '7654.30',
+      ledgerBalance: '7654.30',
     ),
   );
 
@@ -100,9 +101,10 @@ void main() {
   testWidgets('account detail shows the live summary', (tester) async {
     await _pumpDetail(tester, _Accounts());
 
-    expect(find.text('Boc Flex'), findsWidgets);
+    expect(find.text('Account 1100919408'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Ledger balance'), findsOneWidget);
     expect(find.text('₦7,654.30'), findsOneWidget);
-    expect(find.text('ADA OBI'), findsOneWidget);
   });
 
   testWidgets('history shows each row with its direction', (tester) async {
