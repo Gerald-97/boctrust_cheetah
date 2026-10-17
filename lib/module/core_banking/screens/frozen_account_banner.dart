@@ -7,35 +7,49 @@ import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/account_freeze_models.dart';
 import '../provider/account_freeze_provider.dart';
-import 'account_freeze_flow.dart';
 
 /// Shown for as long as Core reports the account frozen. A bank freeze can
 /// only be lifted by support, so the action changes to match.
 class FrozenAccountBanner extends ConsumerWidget {
-  const FrozenAccountBanner._(this.accountNumber, this.message, {super.key});
+  const FrozenAccountBanner._(
+    this.accountNumber,
+    this.message,
+    this.onUnfreeze, {
+    super.key,
+  });
 
   /// The customer's Boc Flex account.
-  factory FrozenAccountBanner.flex(String accountNumber, {Key? key}) =>
-      FrozenAccountBanner._(
-        accountNumber,
-        'Your Boc Flex account is frozen. Transfers and other outgoing '
-        'payments are paused.',
-        key: key,
-      );
+  factory FrozenAccountBanner.flex(
+    String accountNumber, {
+    required void Function(String accountNumber) onUnfreeze,
+    Key? key,
+  }) => FrozenAccountBanner._(
+    accountNumber,
+    'Your Boc Flex account is frozen. Transfers and other outgoing '
+    'payments are paused.',
+    onUnfreeze,
+    key: key,
+  );
 
   /// A savings product account, whose freeze pauses plan withdrawals.
   factory FrozenAccountBanner.savings(
     String accountNumber,
     String productName, {
+    required void Function(String accountNumber) onUnfreeze,
     Key? key,
   }) => FrozenAccountBanner._(
     accountNumber,
     'Your $productName account is frozen. Withdrawals are paused.',
+    onUnfreeze,
     key: key,
   );
 
   final String accountNumber;
   final String message;
+
+  /// Runs the unfreeze flow. The page supplies it so the flow keeps a live
+  /// context after the banner unmounts once the account reads active.
+  final void Function(String accountNumber) onUnfreeze;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -83,7 +97,7 @@ class FrozenAccountBanner extends ConsumerWidget {
               label: useSupport ? 'Contact support' : 'Unfreeze account',
               onPressed: useSupport
                   ? () => Navigator.of(context).pushNamed(AppRoutes.support)
-                  : () => openUnfreezeFlow(context, ref, accountNumber),
+                  : () => onUnfreeze(accountNumber),
             ),
           ],
         ),

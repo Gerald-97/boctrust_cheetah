@@ -18,6 +18,7 @@ import '../../core_banking/model/bank_product_models.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';
 import '../../core_banking/model/flex_balance.dart';
 import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/screens/account_freeze_flow.dart';
 import '../../core_banking/screens/frozen_account_banner.dart';
 import '../../home/model/user_home_model.dart';
 import '../../home/provider/home_provider.dart';
@@ -516,7 +517,10 @@ extension SavingsScreens on FlowPageState {
                 tone: ApiStateTone.info,
               ),
             if (flex?.frozenAccountNumber case final frozen?)
-              FrozenAccountBanner.flex(frozen),
+              FrozenAccountBanner.flex(
+                frozen,
+                onUnfreeze: (number) => openUnfreezeFlow(context, ref, number),
+              ),
             for (final account in otherAccounts) ...[
               const SizedBox(height: BocSpace.sm),
               _coreAccountTile(
@@ -530,6 +534,8 @@ extension SavingsScreens on FlowPageState {
                 FrozenAccountBanner.savings(
                   account.accountNumber,
                   account.productName,
+                  onUnfreeze: (number) =>
+                      openUnfreezeFlow(context, ref, number),
                 ),
             ],
             if (otherProducts.isNotEmpty) ...[
@@ -787,9 +793,11 @@ extension SavingsScreens on FlowPageState {
                     : null,
               ),
             if (flex?.frozenAccountNumber case final frozen?)
-              FrozenAccountBanner.flex(frozen),
+              FrozenAccountBanner.flex(
+                frozen,
+                onUnfreeze: (number) => openUnfreezeFlow(context, ref, number),
+              ),
             if (flex != null) ..._flexInterestSection(hidden),
-            // Only an active Flex account is shown, so no status row is needed.
             if (flex != null && ledger != null) ...[
               const SizedBox(height: BocSpace.sm),
               GridViewInfo(

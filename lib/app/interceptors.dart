@@ -17,7 +17,8 @@ class LoggingInterceptor extends Interceptor {
   static const _requestStartedAtKey = 'apiLogger.requestStartedAt';
 
   /// A safe path template for requests whose real path or body must never be
-  /// logged, including in staging. Its presence also suppresses request and
+  /// logged, including in staging (the one exception is `/me/bank-accounts`
+  /// replies, which staging logs verbatim; see [_rawResponse]). Its presence also suppresses request and
   /// response payloads and raw exception details.
   static const privacySensitivePathKey = 'apiLogger.privacySensitivePath';
   static const _sensitiveKeyParts = <String>{
@@ -199,8 +200,9 @@ class LoggingInterceptor extends Interceptor {
     'resultjson',
   };
 
-  /// Core `/me/bank-accounts` replies (accounts, balances, freeze and
-  /// unfreeze, including the staging-only `otpCode`) are logged verbatim in
+  /// Every Core `/me/bank-accounts` reply (accounts, balances, account
+  /// transactions and summary, freeze and unfreeze, including the
+  /// staging-only `otpCode`) is logged verbatim in
   /// staging by product decision. Production still redacts them, and request
   /// bodies (PIN, code) stay redacted everywhere.
   bool _rawResponse(RequestOptions request) =>

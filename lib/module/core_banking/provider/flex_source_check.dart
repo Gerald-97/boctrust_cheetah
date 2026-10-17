@@ -32,7 +32,8 @@ final freshFlexDebitCheckProvider = Provider<Future<FlexDebitCheck> Function()>(
 );
 
 /// The same fresh read for any owned account (a savings product account).
-/// An absent or unknown account number is allowed; Core stays the authority.
+/// An absent account number is allowed without a check; an unknown one is
+/// allowed once the account list reads successfully. Core stays the authority.
 final freshAccountDebitCheckProvider =
     Provider<Future<FlexDebitCheck> Function(String? accountNumber)>(
       (ref) =>

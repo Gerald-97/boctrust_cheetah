@@ -217,7 +217,12 @@ extension SavingsPlanScreens on FlowPageState {
                 ),
                 if (_frozenAccountNumber(group.accountNumber)
                     case final frozen?)
-                  FrozenAccountBanner.savings(frozen, group.productName),
+                  FrozenAccountBanner.savings(
+                    frozen,
+                    group.productName,
+                    onUnfreeze: (number) =>
+                        openUnfreezeFlow(context, ref, number),
+                  ),
                 if (_canCreatePlan(type)) ...[
                   const SizedBox(height: BocSpace.sm),
                   PrimaryButton(
@@ -465,7 +470,9 @@ extension SavingsPlanScreens on FlowPageState {
                   if (frozenAccount != null) ...[
                     FrozenAccountBanner.savings(
                       frozenAccount,
-                      plan.type.displayName,
+                      productGroup?.productName ?? plan.type.displayName,
+                      onUnfreeze: (number) =>
+                          openUnfreezeFlow(context, ref, number),
                     ),
                     const SizedBox(height: BocSpace.sm),
                   ],

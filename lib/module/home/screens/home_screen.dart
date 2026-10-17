@@ -21,6 +21,7 @@ import '../../core_banking/model/flex_balance.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
 import '../../core_banking/screens/core_flow_widgets.dart';
+import '../../core_banking/screens/account_freeze_flow.dart';
 import '../../core_banking/screens/frozen_account_banner.dart';
 import '../../core_banking/screens/core_transaction_detail_sheet.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
@@ -346,7 +347,10 @@ extension HomeScreenParts on FlowPageState {
       ],
       _flexWalletCard(flex, loading: source.isLoading),
       if (flex.frozenAccountNumber case final frozen?)
-        FrozenAccountBanner.flex(frozen),
+        FrozenAccountBanner.flex(
+          frozen,
+          onUnfreeze: (number) => openUnfreezeFlow(context, ref, number),
+        ),
     ];
   }
 
