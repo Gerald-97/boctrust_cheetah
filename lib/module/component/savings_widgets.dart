@@ -166,6 +166,7 @@ class OwnedSavingsTile extends StatelessWidget {
     required this.hidden,
     this.accountNumber,
     required this.status,
+    this.frozen = false,
     required this.icon,
     required this.accent,
     required this.container,
@@ -182,6 +183,7 @@ class OwnedSavingsTile extends StatelessWidget {
   final bool hidden;
   final String? accountNumber;
   final String status;
+  final bool frozen;
   final IconData icon;
   final Color accent;
   final Color container;
@@ -244,7 +246,7 @@ class OwnedSavingsTile extends StatelessWidget {
                     color: colors.textSecondary,
                   ),
                 ),
-              if (status == 'Frozen')
+              if (frozen)
                 const FrozenLabel()
               else
                 Row(

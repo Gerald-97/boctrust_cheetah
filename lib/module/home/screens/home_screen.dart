@@ -345,13 +345,8 @@ extension HomeScreenParts on FlowPageState {
         const SizedBox(height: 14),
       ],
       _flexWalletCard(flex, loading: source.isLoading),
-      if (flex.isFrozen && flex.accountNumber != null)
-        FrozenAccountBanner(
-          accountNumber: flex.accountNumber!,
-          message:
-              'Your Boc Flex account is frozen. Transfers and other '
-              'outgoing payments are paused.',
-        ),
+      if (flex.frozenAccountNumber case final frozen?)
+        FrozenAccountBanner.flex(frozen),
     ];
   }
 

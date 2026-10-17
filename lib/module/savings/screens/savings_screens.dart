@@ -338,6 +338,7 @@ extension SavingsScreens on FlowPageState {
           ? null
           : account.accountNumber,
       status: _accountStatusLabel(account.status),
+      frozen: account.status == CoreAccountStatus.frozen,
       icon: switch (type) {
         SavingsProductType.smartSave => IconsaxPlusLinear.flag,
         SavingsProductType.fixed => IconsaxPlusLinear.lock,
@@ -514,13 +515,8 @@ extension SavingsScreens on FlowPageState {
                 message: 'Your Flex account will appear here when available.',
                 tone: ApiStateTone.info,
               ),
-            if (flex != null && flex.isFrozen && flex.accountNumber != null)
-              FrozenAccountBanner(
-                accountNumber: flex.accountNumber!,
-                message:
-                    'Your Boc Flex account is frozen. Transfers and other '
-                    'outgoing payments are paused.',
-              ),
+            if (flex?.frozenAccountNumber case final frozen?)
+              FrozenAccountBanner.flex(frozen),
             for (final account in otherAccounts) ...[
               const SizedBox(height: BocSpace.sm),
               _coreAccountTile(
@@ -531,11 +527,9 @@ extension SavingsScreens on FlowPageState {
                     .firstOrNull,
               ),
               if (account.status == CoreAccountStatus.frozen)
-                FrozenAccountBanner(
-                  accountNumber: account.accountNumber,
-                  message:
-                      'Your ${account.productName} account is frozen. '
-                      'Withdrawals are paused.',
+                FrozenAccountBanner.savings(
+                  account.accountNumber,
+                  account.productName,
                 ),
             ],
             if (otherProducts.isNotEmpty) ...[
@@ -792,13 +786,8 @@ extension SavingsScreens on FlowPageState {
                     ? SecondaryButton(label: 'Withdraw', onPressed: () {})
                     : null,
               ),
-            if (flex != null && flex.isFrozen && flex.accountNumber != null)
-              FrozenAccountBanner(
-                accountNumber: flex.accountNumber!,
-                message:
-                    'Your Boc Flex account is frozen. Transfers and other '
-                    'outgoing payments are paused.',
-              ),
+            if (flex?.frozenAccountNumber case final frozen?)
+              FrozenAccountBanner.flex(frozen),
             if (flex != null) ..._flexInterestSection(hidden),
             // Only an active Flex account is shown, so no status row is needed.
             if (flex != null && ledger != null) ...[

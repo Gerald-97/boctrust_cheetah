@@ -12,11 +12,27 @@ import 'account_freeze_flow.dart';
 /// Shown for as long as Core reports the account frozen. A bank freeze can
 /// only be lifted by support, so the action changes to match.
 class FrozenAccountBanner extends ConsumerWidget {
-  const FrozenAccountBanner({
-    required this.accountNumber,
-    required this.message,
-    super.key,
-  });
+  const FrozenAccountBanner._(this.accountNumber, this.message, {super.key});
+
+  /// The customer's Boc Flex account.
+  factory FrozenAccountBanner.flex(String accountNumber, {Key? key}) =>
+      FrozenAccountBanner._(
+        accountNumber,
+        'Your Boc Flex account is frozen. Transfers and other outgoing '
+        'payments are paused.',
+        key: key,
+      );
+
+  /// A savings product account, whose freeze pauses plan withdrawals.
+  factory FrozenAccountBanner.savings(
+    String accountNumber,
+    String productName, {
+    Key? key,
+  }) => FrozenAccountBanner._(
+    accountNumber,
+    'Your $productName account is frozen. Withdrawals are paused.',
+    key: key,
+  );
 
   final String accountNumber;
   final String message;

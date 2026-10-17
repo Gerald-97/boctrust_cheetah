@@ -217,12 +217,7 @@ extension SavingsPlanScreens on FlowPageState {
                 ),
                 if (_frozenAccountNumber(group.accountNumber)
                     case final frozen?)
-                  FrozenAccountBanner(
-                    accountNumber: frozen,
-                    message:
-                        'Your ${group.productName} account is frozen. '
-                        'Withdrawals are paused.',
-                  ),
+                  FrozenAccountBanner.savings(frozen, group.productName),
                 if (_canCreatePlan(type)) ...[
                   const SizedBox(height: BocSpace.sm),
                   PrimaryButton(
@@ -465,11 +460,9 @@ extension SavingsPlanScreens on FlowPageState {
                 ).clearOfNav(context),
                 children: [
                   if (frozenAccount != null) ...[
-                    FrozenAccountBanner(
-                      accountNumber: frozenAccount,
-                      message:
-                          'Your ${plan.type.displayName} account is frozen. '
-                          'Withdrawals are paused.',
+                    FrozenAccountBanner.savings(
+                      frozenAccount,
+                      plan.type.displayName,
                     ),
                     const SizedBox(height: BocSpace.sm),
                   ],

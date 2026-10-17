@@ -27,6 +27,9 @@ class FlexBalance extends Equatable {
 
   bool get isCoreAccount => accountNumber != null;
 
+  /// The Core account number while that account is frozen, otherwise null.
+  String? get frozenAccountNumber => isFrozen ? accountNumber : null;
+
   @override
   List<Object?> get props => [
     availableBalance,
