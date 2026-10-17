@@ -118,7 +118,7 @@ class BalanceCard extends StatelessWidget {
               color: colors.info.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(BocRadius.md),
               border: Border.all(
-                color: colors.bluePale.withValues(alpha: 0.55),
+                color: colors.onNavyMuted.withValues(alpha: 0.55),
                 width: 1.5,
               ),
             ),
@@ -199,14 +199,14 @@ class BalanceCard extends StatelessWidget {
                         Icon(
                           IconsaxPlusLinear.lock,
                           size: 16,
-                          color: colors.bluePale,
+                          color: colors.onNavyMuted,
                         ),
                         const SizedBox(width: BocSpace.xxs),
                         Flexible(
                           child: Text(
                             frozen,
                             style: theme.textTheme.labelMedium?.copyWith(
-                              color: colors.bluePale,
+                              color: colors.onNavyMuted,
                               fontWeight: FontWeight.w700,
                             ),
                           ),

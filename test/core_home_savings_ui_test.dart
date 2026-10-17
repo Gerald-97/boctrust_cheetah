@@ -236,7 +236,12 @@ void main() {
           ],
         }),
       ),
-      overrides: [accountFreezeProvider.overrideWith2(_UnfreezeSpy.new)],
+      overrides: [
+        featureAvailabilityProvider(
+          FeatureCapability.freezeAccount,
+        ).overrideWithValue(FeatureAvailability.available),
+        accountFreezeProvider.overrideWith2(_UnfreezeSpy.new),
+      ],
     );
 
     expect(find.text('Boc Flex account frozen'), findsOneWidget);

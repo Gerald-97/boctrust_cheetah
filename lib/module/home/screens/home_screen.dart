@@ -387,6 +387,13 @@ extension HomeScreenParts on FlowPageState {
     final bankFrozen =
         ref.watch(accountFreezeMemoryProvider)[accountNumber] ==
         CoreFrozenBy.admin;
+    // Unfreezing is staging-only for now; elsewhere support handles it.
+    final canUnfreeze =
+        ref.watch(
+          featureAvailabilityProvider(FeatureCapability.freezeAccount),
+        ) ==
+        FeatureAvailability.available;
+    final useSupport = bankFrozen || !canUnfreeze;
     return Padding(
       padding: const EdgeInsets.only(top: BocSpace.xs),
       child: Container(
@@ -417,8 +424,8 @@ extension HomeScreenParts on FlowPageState {
             ),
             const SizedBox(height: BocSpace.xs),
             SecondaryButton(
-              label: bankFrozen ? 'Contact support' : 'Unfreeze account',
-              onPressed: bankFrozen
+              label: useSupport ? 'Contact support' : 'Unfreeze account',
+              onPressed: useSupport
                   ? () => Navigator.of(context).pushNamed(AppRoutes.support)
                   : () => openUnfreezeFlow(context, ref, accountNumber),
             ),
