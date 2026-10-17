@@ -6,6 +6,11 @@ import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/app/theme.dart';
+import 'package:boctrust_savings_loan/helper/app_open_recency.dart';
+import 'package:boctrust_savings_loan/helper/biometric_auth_service.dart';
+import 'package:boctrust_savings_loan/helper/biometric_login_storage.dart';
+import 'package:boctrust_savings_loan/helper/biometric_transfer_storage.dart';
+import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/interbank_models.dart';
@@ -21,13 +26,16 @@ import 'package:boctrust_savings_loan/module/core_banking/screens/core_flow_widg
 import 'package:boctrust_savings_loan/module/core_banking/model/beneficiary_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_beneficiary_service.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
+import 'package:boctrust_savings_loan/module/onboarding/model/remembered_biometric_profile.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/biometric_overrides.dart';
 import 'support/flow_harness.dart';
+import 'support/memory_secure_storage.dart';
 import 'support/savings_fixtures.dart';
 
 class _Accounts extends CustomerBankAccountsNotifier {
@@ -82,6 +90,9 @@ class _Transfers extends CoreTransferService {
   /// When set, PIN verification waits on it instead of answering at once.
   Completer<void>? pinGate;
 
+  /// When set, PIN verification answers with it.
+  NotifierState<CoreCheckProgress>? pinReply;
+
   @override
   Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
     BoctrustTransferDraft draft,
@@ -104,6 +115,7 @@ class _Transfers extends CoreTransferService {
   ) async {
     pins.add(pin);
     await pinGate?.future;
+    if (pinReply case final reply?) return reply;
     return NotifierState.done(
       initiation.needsOtp
           ? CoreCheckProgress(
@@ -220,6 +232,7 @@ Future<void> _pumpBoctrust(
   WidgetTester tester,
   _Transfers transfers, {
   String? initialAccountNumber,
+  List<dynamic>? biometrics,
 }) async {
   tester.view.physicalSize = const Size(800, 2400);
   tester.view.devicePixelRatio = 1;
@@ -233,6 +246,7 @@ Future<void> _pumpBoctrust(
         customerBankAccountsProvider.overrideWith(_Accounts.new),
         coreTransferServiceProvider.overrideWithValue(transfers),
         transferAuthorizationReadyProvider.overrideWithValue(true),
+        ...biometrics ?? biometricTestOverrides(),
       ],
       child: MaterialApp(
         theme: CheetahTheme.lightTheme,
@@ -271,6 +285,43 @@ Future<void> _enterCode(WidgetTester tester, String code, String button) async {
   await tester.pump();
   await tester.tap(find.text(button));
   await _settle(tester);
+}
+
+class _Fingerprint implements BiometricAuthGateway {
+  @override
+  Future<BiometricCapability> checkCapability() async =>
+      const BiometricCapability(
+        supported: true,
+        presentation: BiometricPresentation.fingerprint,
+        reason: null,
+      );
+
+  @override
+  Future<BiometricAuthOutcome> authenticate({required String reason}) async =>
+      BiometricAuthOutcome.success;
+
+  @override
+  Future<void> stopAuthentication() async {}
+}
+
+/// A device enrolled for biometric approval with the saved PIN '0007'.
+Future<(BiometricTransferStorage, List<dynamic>)> _enrolled() async {
+  final secure = SecureStorage(storage: MemorySecureStorage());
+  final login = BiometricLoginStorage(secure);
+  final storage = BiometricTransferStorage(secure);
+  final recency = AppOpenRecency(secure, login, storage);
+  // A first open clears any enrollment, so enroll after it.
+  await recency.recordColdLaunch();
+  await storage.enable(userId: savingsSession().userId, pin: '0007');
+  return (
+    storage,
+    <dynamic>[
+      biometricAuthGatewayProvider.overrideWithValue(_Fingerprint()),
+      biometricLoginStorageProvider.overrideWithValue(login),
+      biometricTransferStorageProvider.overrideWithValue(storage),
+      appOpenRecencyProvider.overrideWithValue(recency),
+    ],
+  );
 }
 
 void main() {
@@ -705,5 +756,52 @@ void main() {
     expect(find.text('Continue'), findsNothing);
     expect(find.text('Account lookup failed. Try again.'), findsOneWidget);
     expect(find.text('Check account'), findsOneWidget);
+  });
+
+  testWidgets('biometric approval of a staged BOCTRUST transfer', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+    // Approves with one PIN verification.
+    var transfers = _Transfers();
+    var (storage, biometrics) = await _enrolled();
+    await _pumpBoctrust(tester, transfers, biometrics: biometrics);
+    await _sendTen(tester);
+    expect(find.byKey(const Key('transaction-pin-sheet')), findsNothing);
+    await tester.tap(find.text('Use fingerprint'));
+    await _settle(tester);
+    expect(transfers.pins, ['0007']);
+    expect(transfers.finalized, 1);
+
+    // "Use PIN instead" opens the PIN sheet.
+    transfers = _Transfers();
+    (storage, biometrics) = await _enrolled();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpBoctrust(tester, transfers, biometrics: biometrics);
+    await _sendTen(tester);
+    await tester.tap(find.text('Use PIN instead'));
+    await _settle(tester);
+    expect(find.byKey(const Key('transaction-pin-sheet')), findsOneWidget);
+    expect(transfers.pins, isEmpty);
+
+    // A rejected saved PIN opens the PIN sheet with approval turned off.
+    transfers = _Transfers()
+      ..pinReply = const NotifierState.error('Incorrect.', statusCode: 401);
+    (storage, biometrics) = await _enrolled();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpBoctrust(tester, transfers, biometrics: biometrics);
+    await _sendTen(tester);
+    await tester.tap(find.text('Use fingerprint'));
+    await _settle(tester);
+    expect(transfers.pins, ['0007']);
+    expect(find.byKey(const Key('transaction-pin-sheet')), findsOneWidget);
+    expect(
+      find.text(
+        'Biometric approval has been turned off. Enter your transaction PIN.',
+      ),
+      findsOneWidget,
+    );
+    expect(await storage.loadValidEnrollment(), isNull);
   });
 }

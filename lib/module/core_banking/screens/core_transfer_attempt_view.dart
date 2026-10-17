@@ -11,10 +11,12 @@ import '../model/core_submission_models.dart';
 import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
+import '../provider/biometric_transfer_provider.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
+import 'biometric_approval_sheet.dart';
 import 'core_flow_widgets.dart';
 import 'transaction_pin_sheet.dart';
 import 'transfer_otp_sheet.dart';
@@ -22,6 +24,11 @@ import 'transfer_otp_sheet.dart';
 /// Starts the reviewed [draft]: initiate, then the PIN sheet (PIN verify),
 /// then — only when Core sends an OTP — the OTP sheet (OTP verify), then one
 /// bodyless finalize.
+///
+/// While biometric approval is on, the biometric sheet stands in for the PIN
+/// sheet until the customer chooses "Use PIN instead" or biometrics cannot be
+/// used for this attempt; an approval sends the saved PIN to the same PIN
+/// verification.
 ///
 /// Closing a sheet sends nothing more and releases the attempt. A wrong PIN
 /// reopens the PIN sheet on the same initiation; a wrong OTP stays on the OTP
@@ -49,10 +56,56 @@ Future<void> authorizeStagedTransfer(
       notifier.current?.id == id && notifier.current?.phase == phase;
 
   String? error;
+  String? biometricError;
+  // "Use PIN instead", or biometrics stopped working, for this attempt only.
+  var usePin = false;
   while (at(CoreTransferPhase.awaitingPin)) {
     // The customer left while it started: release it so it can't block the
     // next transfer. Nothing was finalized, so no money moved.
     if (!context.mounted) return notifier.cancelReview(id);
+    if (!usePin) {
+      final approval = ref.read(biometricApprovalProvider.notifier);
+      if (ref.read(biometricApprovalProvider).phase ==
+          BiometricApprovalPhase.hydrating) {
+        await approval.hydrate();
+        if (!context.mounted) return notifier.cancelReview(id);
+      }
+      final biometric = ref.read(biometricApprovalProvider);
+      if (biometric.enabled) {
+        final choice = await collectBiometricApproval(
+          context,
+          summary,
+          presentation: biometric.presentation,
+          errorMessage: biometricError,
+        );
+        if (choice == null || !context.mounted) {
+          return notifier.cancelReview(id);
+        }
+        biometricError = null;
+        if (choice == BiometricApprovalChoice.usePin) {
+          usePin = true;
+          continue;
+        }
+        // The attempt view shows its verifying state while Core checks the
+        // saved PIN; a pass or a stop leaves the PIN step on its own.
+        final result = await approval.approve(id);
+        if (!context.mounted) return notifier.cancelReview(id);
+        final message = ref.read(biometricApprovalProvider).message;
+        switch (result) {
+          case ApprovalResult.passed || ApprovalResult.stopped:
+            break;
+          case ApprovalResult.cancelled:
+            biometricError = message;
+          case ApprovalResult.unavailable:
+            usePin = true;
+            error = message ?? _biometricUnavailable;
+          case ApprovalResult.wiped:
+            usePin = true;
+            error = _biometricTurnedOff;
+        }
+        continue;
+      }
+    }
     final needsOtp = notifier.current?.initiation?.needsOtp ?? false;
     final pin = await collectCoreTransactionPin(
       context,
@@ -82,6 +135,11 @@ Future<void> authorizeStagedTransfer(
 
   if (at(CoreTransferPhase.readyToFinalize)) await notifier.finalize(id);
 }
+
+const _biometricUnavailable =
+    "Biometric approval isn't available right now. Enter your transaction PIN.";
+const _biometricTurnedOff =
+    'Biometric approval has been turned off. Enter your transaction PIN.';
 
 /// Every transfer screen shows the session's current attempt in place of its
 /// own steps, so re-entering any transfer flow resumes it. While the PIN or
