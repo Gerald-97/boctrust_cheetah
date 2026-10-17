@@ -5,6 +5,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/bank_product_mod
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_page.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/account_freeze_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
 import 'package:boctrust_savings_loan/module/home/model/user_home_model.dart';
@@ -12,6 +13,7 @@ import 'package:boctrust_savings_loan/module/home/provider/home_provider.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
@@ -158,6 +160,15 @@ class _Transactions extends CoreAccountService {
   );
 }
 
+class _UnfreezeSpy extends AccountFreezeController {
+  _UnfreezeSpy(super.accountNumber);
+
+  static final otpRequests = <String>[];
+
+  @override
+  Future<void> sendOtp() async => otpRequests.add(accountNumber);
+}
+
 Future<void> _pump(
   WidgetTester tester,
   String route, {
@@ -169,6 +180,7 @@ Future<void> _pump(
   CoreAccountService? accountService,
   bool hidden = false,
   Size viewport = const Size(800, 2000),
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = viewport;
   tester.view.devicePixelRatio = 1;
@@ -178,6 +190,7 @@ Future<void> _pump(
     tester,
     route: route,
     overrides: [
+      ...overrides,
       authSessionProvider.overrideWith(SavingsSession.new),
       if (historyAvailable)
         featureAvailabilityProvider(
@@ -204,6 +217,43 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('a frozen Flex account shows its label and banner, and Unfreeze '
+      'opens the flow for that account', (tester) async {
+    _UnfreezeSpy.otpRequests.clear();
+    await _pump(
+      tester,
+      AppRoutes.home,
+      accounts: NotifierState.done(
+        CustomerBankAccountsData.fromJson({
+          'products': [
+            _account(
+              'bocFlex',
+              'Boc Flex',
+              '0000000001',
+              '7654.30',
+              status: 'frozen',
+            ),
+          ],
+        }),
+      ),
+      overrides: [accountFreezeProvider.overrideWith2(_UnfreezeSpy.new)],
+    );
+
+    expect(find.text('Boc Flex account frozen'), findsOneWidget);
+    expect(
+      find.text(
+        'Your Boc Flex account is frozen. Transfers and other outgoing '
+        'payments are paused.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Unfreeze account'));
+    await tester.pump();
+
+    expect(_UnfreezeSpy.otpRequests, ['0000000001']);
+  });
+
   testWidgets('tapping a Home transaction opens its details', (tester) async {
     await _pump(
       tester,

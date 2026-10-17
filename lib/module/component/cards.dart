@@ -54,10 +54,15 @@ class BalanceCard extends StatelessWidget {
     this.note,
     this.statusLabel,
     this.loading = false,
+    this.frozenLabel,
     super.key,
   });
 
   final String label;
+
+  /// Set when the account is frozen: the card takes a cool frost tint and
+  /// edge and shows this label with a lock. Null leaves the card unchanged.
+  final String? frozenLabel;
 
   /// Preformatted display balance, or null when none has been returned yet.
   final String? balance;
@@ -96,6 +101,7 @@ class BalanceCard extends StatelessWidget {
     final tier = this.tier;
     final note = this.note;
     final status = statusLabel;
+    final frozen = frozenLabel;
     final muted = theme.textTheme.bodyMedium?.copyWith(
       color: colors.onNavyMuted,
     );
@@ -104,6 +110,18 @@ class BalanceCard extends StatelessWidget {
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 126),
       clipBehavior: Clip.antiAlias,
+      foregroundDecoration: frozen == null
+          ? null
+          : BoxDecoration(
+              // A translucent frost edge and tint over the navy; the content
+              // underneath stays fully visible and tappable.
+              color: colors.info.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(BocRadius.md),
+              border: Border.all(
+                color: colors.bluePale.withValues(alpha: 0.55),
+                width: 1.5,
+              ),
+            ),
       decoration: BoxDecoration(
         color: BocColors.navy,
         borderRadius: BorderRadius.circular(BocRadius.md),
@@ -170,6 +188,32 @@ class BalanceCard extends StatelessWidget {
                       ),
                   ],
                 ),
+                if (frozen != null)
+                  Semantics(
+                    container: true,
+                    label: frozen,
+                    excludeSemantics: true,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          IconsaxPlusLinear.lock,
+                          size: 16,
+                          color: colors.bluePale,
+                        ),
+                        const SizedBox(width: BocSpace.xxs),
+                        Flexible(
+                          child: Text(
+                            frozen,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colors.bluePale,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Row(
                   children: [
                     Flexible(
