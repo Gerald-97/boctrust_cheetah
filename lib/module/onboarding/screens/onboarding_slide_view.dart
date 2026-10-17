@@ -142,15 +142,8 @@ class _Illustration extends StatelessWidget {
     final still = Image.asset(stillAsset, fit: BoxFit.contain);
     final art = MediaQuery.disableAnimationsOf(context)
         ? still
-        : Image.asset(
-            gifAsset,
-            // A fresh element per slide, so returning to a slide starts over.
-            key: ValueKey(index),
-            fit: BoxFit.contain,
-            frameBuilder: (context, child, frame, _) =>
-                frame == null ? still : child,
-            errorBuilder: (context, error, stackTrace) => still,
-          );
+        // Keyed per slide so each visit gets a fresh state and a fresh loop.
+        : _SlideGif(key: ValueKey(index), asset: gifAsset, still: still);
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
@@ -172,6 +165,82 @@ class _Illustration extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Plays [asset] from its first frame for as long as this state lives.
+///
+/// [ImageCache] keeps a GIF's decoder, so a plain [AssetImage] would resume
+/// mid-loop when its slide returns. Each visit resolves under its own cache
+/// key instead, and evicts that key when it ends so visits don't accumulate.
+class _SlideGif extends StatefulWidget {
+  const _SlideGif({required this.asset, required this.still, super.key});
+
+  final String asset;
+  final Widget still;
+
+  @override
+  State<_SlideGif> createState() => _SlideGifState();
+}
+
+class _SlideGifState extends State<_SlideGif> {
+  static var _visits = 0;
+  late _VisitImage _image = _VisitImage(widget.asset, _visits++);
+
+  @override
+  void didUpdateWidget(_SlideGif oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.asset != widget.asset) {
+      _image.evict();
+      _image = _VisitImage(widget.asset, _visits++);
+    }
+  }
+
+  @override
+  void dispose() {
+    _image.evict();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Image(
+    image: _image,
+    fit: BoxFit.contain,
+    frameBuilder: (context, child, frame, _) =>
+        frame == null ? widget.still : child,
+    errorBuilder: (context, error, stackTrace) => widget.still,
+  );
+}
+
+/// An asset image cached under a per-visit key. Keys resolve synchronously,
+/// so [evict] takes effect immediately.
+class _VisitImage extends ImageProvider<_VisitKey> {
+  _VisitImage(String asset, this.visit) : _asset = ExactAssetImage(asset);
+
+  final ExactAssetImage _asset;
+  final int visit;
+
+  @override
+  Future<_VisitKey> obtainKey(ImageConfiguration configuration) =>
+      _asset.obtainKey(configuration).then((key) => _VisitKey(key, visit));
+
+  @override
+  ImageStreamCompleter loadImage(_VisitKey key, ImageDecoderCallback decode) =>
+      _asset.loadImage(key.asset, decode);
+}
+
+@immutable
+class _VisitKey {
+  const _VisitKey(this.asset, this.visit);
+
+  final AssetBundleImageKey asset;
+  final int visit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _VisitKey && other.asset == asset && other.visit == visit;
+
+  @override
+  int get hashCode => Object.hash(asset, visit);
 }
 
 /// Two thin pale-gold circles, mostly off-canvas, behind the art.

@@ -42,6 +42,11 @@ Widget _app({
 
 Finder _image(String asset) => find.image(AssetImage(asset));
 
+// The GIF resolves under a per-visit provider; the still is a plain asset.
+final _gifImage = find.byWidgetPredicate(
+  (w) => w is Image && w.image is! AssetImage,
+);
+
 void main() {
   testWidgets('lays out the slide with accessible actions', (tester) async {
     final handle = tester.ensureSemantics();
@@ -113,6 +118,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_app());
+    expect(_gifImage, findsOneWidget);
     expect(_image(_still), findsOneWidget);
 
     await tester.pumpWidget(
@@ -126,8 +132,20 @@ void main() {
 
   testWidgets('reduced motion shows only the still', (tester) async {
     await tester.pumpWidget(_app(disableAnimations: true));
-    expect(_image(_gif), findsNothing);
+    expect(_gifImage, findsNothing);
     expect(_image(_still), findsOneWidget);
+  });
+
+  testWidgets('returning to a slide starts its GIF afresh', (tester) async {
+    ImageProvider gif() => tester.widget<Image>(_gifImage).image;
+    await tester.pumpWidget(_app());
+    final first = gif();
+    await tester.pumpWidget(_app());
+    expect(gif(), same(first));
+
+    await tester.pumpWidget(_app(index: 1));
+    await tester.pumpWidget(_app());
+    expect(gif(), isNot(same(first)));
   });
 
   testWidgets('fits small, large-text and tablet screens in dark mode', (
