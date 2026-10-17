@@ -13,6 +13,7 @@ import '../model/intrabank_models.dart';
 import '../service/core_transfer_service.dart';
 import 'core_account_providers.dart';
 import 'core_account_activity_providers.dart';
+import 'flex_source_check.dart';
 
 enum CoreTransferPhase {
   /// Reviewed and reserved; initiate is being sent. No money moves.
@@ -271,6 +272,22 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
       return;
     }
     final generation = _generation;
+    // Core debits Boc Flex whatever the app shows, so a fresh read decides
+    // before anything is sent; an unconfirmed read also stops it.
+    final check = await ref.read(freshFlexDebitCheckProvider)();
+    if (!ref.mounted ||
+        generation != _generation ||
+        _open(id, CoreTransferPhase.initiating) == null) {
+      return;
+    }
+    if (check != FlexDebitCheck.allowed) {
+      return _settle(
+        current,
+        check == FlexDebitCheck.frozen
+            ? CoreRejection.sourcePaused
+            : CoreRejection.sourceUnconfirmed,
+      );
+    }
     final service = ref.read(coreTransferServiceProvider);
     final result = await switch (current.draft) {
       final BoctrustTransferDraft d => service.initiateBoctrust(d),
@@ -489,6 +506,11 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     );
     if (outcome is AcceptedSubmission || outcome is UnknownSubmission) {
       ref.read(refreshFlexTransactionHistoryProvider)().ignore();
+      ref.read(customerBankAccountsProvider.notifier).load().ignore();
+    } else if (outcome case RejectedSubmission(
+      reason: CoreRejection.transferRestricted,
+    )) {
+      // Possibly frozen from another device: let Home show it.
       ref.read(customerBankAccountsProvider.notifier).load().ignore();
     }
   }

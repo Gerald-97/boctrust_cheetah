@@ -37,7 +37,7 @@ final coreAccountHistoryProvider = NotifierProvider.autoDispose
       CoreAccountHistoryKey
     >(CoreAccountHistoryNotifier.new);
 
-/// Re-reads the active Flex account's recent transactions after money may
+/// Re-reads the Flex account's recent transactions after money may
 /// have moved. Other visible ranges are invalidated so they also reload when
 /// the customer returns to account history.
 final refreshFlexTransactionHistoryProvider = Provider<Future<void> Function()>(
@@ -45,12 +45,12 @@ final refreshFlexTransactionHistoryProvider = Provider<Future<void> Function()>(
     var accountNumber = ref
         .read(customerBankAccountsProvider)
         .data
-        ?.activeFlexAccount
+        ?.flexAccount
         ?.accountNumber;
     accountNumber ??=
         (await ref.read(customerBankAccountsProvider.notifier).load())
             .data
-            ?.activeFlexAccount
+            ?.flexAccount
             ?.accountNumber;
     if (accountNumber == null) return;
 

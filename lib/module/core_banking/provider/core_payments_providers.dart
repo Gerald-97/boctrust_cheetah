@@ -15,6 +15,7 @@ import '../service/core_transfer_service.dart';
 import 'core_account_activity_providers.dart';
 import 'core_account_providers.dart';
 import 'core_submission_notifier.dart';
+import 'flex_source_check.dart';
 
 // Reads.
 
@@ -147,9 +148,22 @@ final billPaymentProvider =
 
 class BillPaymentNotifier extends CoreSubmissionNotifier<BillPaymentDraft> {
   @override
+  Future<CoreRejection?> precheck(BillPaymentDraft draft) async =>
+      switch (await ref.read(freshFlexDebitCheckProvider)()) {
+        FlexDebitCheck.allowed => null,
+        FlexDebitCheck.frozen => CoreRejection.billSourcePaused,
+        FlexDebitCheck.unconfirmed => CoreRejection.sourceUnconfirmed,
+      };
+
+  @override
   void onSettled(CoreSubmissionOutcome outcome) {
     if (outcome is AcceptedSubmission || outcome is UnknownSubmission) {
       unawaited(ref.read(refreshFlexTransactionHistoryProvider)());
+      unawaited(ref.read(customerBankAccountsProvider.notifier).load());
+    } else if (outcome case RejectedSubmission(
+      reason: CoreRejection.accountRestricted,
+    )) {
+      // Possibly frozen from another device: let Home show it.
       unawaited(ref.read(customerBankAccountsProvider.notifier).load());
     }
   }

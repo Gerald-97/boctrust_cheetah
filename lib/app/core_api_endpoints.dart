@@ -9,6 +9,7 @@ abstract final class CoreApiEndpoints {
   /// One of the caller's accounts; [accountNumber] is one path segment.
   static String bankAccount(String accountNumber) =>
       '$bankAccounts/${Uri.encodeComponent(accountNumber)}';
+  static const bankAccountTemplate = '$bankAccounts/{accountNumber}';
 
   /// Live summary of one of the caller's accounts.
   static String bankAccountSummary(String accountNumber) =>
@@ -21,6 +22,24 @@ abstract final class CoreApiEndpoints {
       '${bankAccount(accountNumber)}/transactions';
   static const bankAccountTransactionsTemplate =
       '$bankAccounts/{accountNumber}/transactions';
+
+  /// Freezes one of the caller's accounts against debits.
+  static String bankAccountFreeze(String accountNumber) =>
+      '${bankAccount(accountNumber)}/freeze';
+  static const bankAccountFreezeTemplate =
+      '$bankAccounts/{accountNumber}/freeze';
+
+  /// Sends the code that confirms an unfreeze. Calling it again resends.
+  static String bankAccountUnfreezeOtp(String accountNumber) =>
+      '${bankAccount(accountNumber)}/unfreeze/otp';
+  static const bankAccountUnfreezeOtpTemplate =
+      '$bankAccounts/{accountNumber}/unfreeze/otp';
+
+  /// Unfreezes one of the caller's accounts with the PIN and the sent code.
+  static String bankAccountUnfreeze(String accountNumber) =>
+      '${bankAccount(accountNumber)}/unfreeze';
+  static const bankAccountUnfreezeTemplate =
+      '$bankAccounts/{accountNumber}/unfreeze';
 
   /// Prefix of the staged intrabank routes. The bare path is no longer a
   /// documented submit route.

@@ -20,6 +20,9 @@ import '../../core_banking/model/core_account_transactions.dart';
 import '../../core_banking/model/flex_balance.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/screens/core_flow_widgets.dart';
+import '../../core_banking/screens/account_freeze_flow.dart';
+import '../../core_banking/screens/frozen_account_banner.dart';
 import '../../core_banking/screens/core_transaction_detail_sheet.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
@@ -111,7 +114,7 @@ extension HomeScreenParts on FlowPageState {
           final accountNumber = ref
               .read(customerBankAccountsProvider)
               .data
-              ?.activeFlexAccount
+              ?.flexAccount
               ?.accountNumber;
           if (accountNumber != null &&
               ref
@@ -209,7 +212,13 @@ extension HomeScreenParts on FlowPageState {
                         foreground: theme.brightness == Brightness.dark
                             ? colors.textPrimary
                             : BocColors.navy,
-                        onTap: () => go(screen),
+                        onTap: () {
+                          if (screen == AppRoutes.sendHub &&
+                              transfersPaused(context, ref)) {
+                            return;
+                          }
+                          go(screen);
+                        },
                       ),
                     ),
                 ],
@@ -272,7 +281,7 @@ extension HomeScreenParts on FlowPageState {
             ],
             const SizedBox(height: BocSpace.xs),
             _homeTransactionsSection(
-              accountsState.data?.activeFlexAccount?.accountNumber,
+              accountsState.data?.flexAccount?.accountNumber,
             ),
           ],
         ),
@@ -337,6 +346,11 @@ extension HomeScreenParts on FlowPageState {
         const SizedBox(height: 14),
       ],
       _flexWalletCard(flex, loading: source.isLoading),
+      if (flex.frozenAccountNumber case final frozen?)
+        FrozenAccountBanner.flex(
+          frozen,
+          onUnfreeze: (number) => openUnfreezeFlow(context, ref, number),
+        ),
     ];
   }
 
@@ -370,6 +384,7 @@ extension HomeScreenParts on FlowPageState {
           : () => _copyFundingAccountNumber(funding),
       tier: ref.watch(userTierProvider).data?.currentTier,
       loading: loading,
+      frozenLabel: flex.isFrozen ? 'Boc Flex account frozen' : null,
     );
   }
 

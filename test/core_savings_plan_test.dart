@@ -11,6 +11,7 @@ import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_activity_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/flex_source_check.dart';
 import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_action_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,10 +68,13 @@ class _SlowFund extends CoreSavingsPlanService {
   final Completer<NotifierState<SavingsPlanActionResult>> reply;
   var reads = 0;
   var liquidations = 0;
+  var funds = 0;
 
   @override
-  Future<NotifierState<SavingsPlanActionResult>> fundPlan(String _, String _) =>
-      reply.future;
+  Future<NotifierState<SavingsPlanActionResult>> fundPlan(String _, String _) {
+    funds++;
+    return reply.future;
+  }
 
   @override
   Future<NotifierState<SavingsPlanActionResult>> liquidatePlan(String _) async {
@@ -86,9 +90,34 @@ class _SlowFund extends CoreSavingsPlanService {
 }
 
 class _Accounts extends CustomerBankAccountsNotifier {
+  _Accounts([this.status = CoreAccountStatus.active, this.savingsStatus]);
+  final CoreAccountStatus status;
+  final CoreAccountStatus? savingsStatus;
   static var loads = 0;
   @override
-  NotifierState<CustomerBankAccountsData> build() => const NotifierState.idle();
+  NotifierState<CustomerBankAccountsData> build() => NotifierState.done(
+    CustomerBankAccountsData(
+      accounts: [
+        CustomerBankAccount(
+          productCode: kFlexProductCode,
+          productName: 'Boc Flex',
+          accountNumber: '1100012345',
+          status: status,
+        ),
+        if (savingsStatus != null)
+          CustomerBankAccount(
+            productCode: 'SAVINGS',
+            productName: 'SmartSave',
+            accountNumber: '2200012345',
+            status: savingsStatus!,
+          ),
+      ],
+    ),
+  );
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
+
   @override
   Future<NotifierState<CustomerBankAccountsData>> load() async {
     loads++;
@@ -445,6 +474,51 @@ void main() {
       expect(service.reads, 2);
       expect(_Accounts.loads, 1);
       expect(historyRefreshes, 1);
+    },
+  );
+
+  test('a top-up is not sent while Boc Flex is frozen', () async {
+    final service = _SlowFund(Completer());
+    final container = ProviderContainer(
+      overrides: [
+        coreSavingsPlanServiceProvider.overrideWithValue(service),
+        customerBankAccountsProvider.overrideWith(
+          () => _Accounts(CoreAccountStatus.frozen),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(savingsPlanActionProvider, (_, _) {});
+    await container.read(savingsPlanActionProvider.notifier).fund('p1', '5.00');
+
+    final state = container.read(savingsPlanActionProvider);
+    expect(service.funds, 0);
+    expect(state.phase, SavingsPlanActionPhase.failed);
+    expect(state.message, kSavingsPausedMessage);
+  });
+
+  test(
+    'a withdrawal is not sent while its savings account is frozen',
+    () async {
+      final service = _SlowFund(Completer());
+      final container = ProviderContainer(
+        overrides: [
+          coreSavingsPlanServiceProvider.overrideWithValue(service),
+          customerBankAccountsProvider.overrideWith(
+            () => _Accounts(CoreAccountStatus.active, CoreAccountStatus.frozen),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(savingsPlanActionProvider, (_, _) {});
+      await container
+          .read(savingsPlanActionProvider.notifier)
+          .liquidate('p1', accountNumber: '2200012345');
+
+      final state = container.read(savingsPlanActionProvider);
+      expect(service.liquidations, 0);
+      expect(state.phase, SavingsPlanActionPhase.failed);
+      expect(state.message, kSavingsAccountFrozenMessage);
     },
   );
 

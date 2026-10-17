@@ -183,14 +183,21 @@ class CustomerBankAccountsData extends Equatable {
         missingProducts: missingProducts,
       );
 
-  /// The single active Flex account, or null when it is absent, not active,
-  /// or ambiguous.
-  CustomerBankAccount? get activeFlexAccount {
+  /// The single Flex account in any status, or null when it is absent or
+  /// ambiguous. Use for display and history; spending needs
+  /// [activeFlexAccount].
+  CustomerBankAccount? get flexAccount {
     final flex = accounts
         .where((account) => account.productCode == kFlexProductCode)
         .toList(growable: false);
-    if (flex.length != 1 || !flex.single.isActive) return null;
-    return flex.single;
+    return flex.length == 1 ? flex.single : null;
+  }
+
+  /// The single active Flex account, or null when it is absent, not active,
+  /// or ambiguous.
+  CustomerBankAccount? get activeFlexAccount {
+    final flex = flexAccount;
+    return flex != null && flex.isActive ? flex : null;
   }
 
   @override

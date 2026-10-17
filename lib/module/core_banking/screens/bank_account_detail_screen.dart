@@ -48,11 +48,7 @@ class _BankAccountDetailScreenState
   }
 
   String? get _accountNumber => widget._flex
-      ? ref
-            .watch(customerBankAccountsProvider)
-            .data
-            ?.activeFlexAccount
-            ?.accountNumber
+      ? ref.watch(customerBankAccountsProvider).data?.flexAccount?.accountNumber
       : routeArguments.entityId;
 
   @override

@@ -14,7 +14,18 @@ import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
+import '../provider/flex_source_check.dart';
 import '../service/core_transfer_service.dart';
+
+/// Whether a transfer entry point is paused because Boc Flex is frozen; when
+/// it is, tells the customer instead of starting the flow.
+bool transfersPaused(BuildContext context, WidgetRef ref) {
+  if (!ref.read(flexDebitPausedProvider)) return false;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(CoreRejection.sourcePaused.message)),
+  );
+  return true;
+}
 
 /// Integer Kobo as display Naira (`'150000'` → `₦1,500.00`).
 String nairaFromKobo(String kobo) =>

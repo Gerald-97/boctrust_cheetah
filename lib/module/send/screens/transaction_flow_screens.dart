@@ -11,7 +11,7 @@ extension TransactionFlowScreens on FlowPageState {
         ref.read(customerBankAccountsProvider.notifier).ensureLoaded,
       );
     }
-    final accountNumber = accounts.data?.activeFlexAccount?.accountNumber;
+    final accountNumber = accounts.data?.flexAccount?.accountNumber;
     return AppScaffold(
       title: 'Transaction history',
       activeSection: AppSection.payments,

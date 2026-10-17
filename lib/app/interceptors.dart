@@ -17,7 +17,8 @@ class LoggingInterceptor extends Interceptor {
   static const _requestStartedAtKey = 'apiLogger.requestStartedAt';
 
   /// A safe path template for requests whose real path or body must never be
-  /// logged, including in staging. Its presence also suppresses request and
+  /// logged, including in staging (the one exception is `/me/bank-accounts`
+  /// replies, which staging logs verbatim; see [_rawResponse]). Its presence also suppresses request and
   /// response payloads and raw exception details.
   static const privacySensitivePathKey = 'apiLogger.privacySensitivePath';
   static const _sensitiveKeyParts = <String>{
@@ -71,18 +72,21 @@ class LoggingInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     final request = response.requestOptions;
-    _logger.i(
-      _masked({
-        'event': 'RESPONSE',
-        'method': request.method,
-        'url': _urlForLog(request),
-        'statusCode': response.statusCode,
-        'statusMessage': response.statusMessage,
-        'durationMs': _durationMilliseconds(request),
-        // 'headers': _visible(response.headers.map),
-        'body': _visibleForRequest(request, response.data),
-      }, _credentialValues(request.data)),
-    );
+    final raw = _rawResponse(request);
+    _logger.i(<Object?, Object?>{
+      ...(_masked({
+            'event': 'RESPONSE',
+            'method': request.method,
+            'url': _urlForLog(request),
+            'statusCode': response.statusCode,
+            'statusMessage': response.statusMessage,
+            'durationMs': _durationMilliseconds(request),
+            // 'headers': _visible(response.headers.map),
+            if (!raw) 'body': _visibleForRequest(request, response.data),
+          }, _credentialValues(request.data))
+          as Map),
+      if (raw) 'body': response.data,
+    });
     handler.next(response);
   }
 
@@ -96,21 +100,27 @@ class LoggingInterceptor extends Interceptor {
     final privacySensitive = _privacySafePath(request) != null;
     final raw =
         includeSensitiveData && credentials.isEmpty && !privacySensitive;
+    final rawResponse = _rawResponse(request);
     _logger.e(
-      _masked({
-        'event': 'ERROR',
-        'method': request.method,
-        'url': _urlForLog(request),
-        'query': _visibleForRequest(request, request.queryParameters),
-        'statusCode': err.response?.statusCode,
-        'durationMs': _durationMilliseconds(request),
-        'type': err.type.name,
-        'message': raw ? err.message : 'The API request failed.',
-        'requestHeaders': _visible(request.headers),
-        'requestBody': _visibleForRequest(request, request.data),
-        // 'responseHeaders': _visible(err.response?.headers.map),
-        'responseBody': _visibleForRequest(request, err.response?.data),
-      }, credentials),
+      <Object?, Object?>{
+        ...(_masked({
+              'event': 'ERROR',
+              'method': request.method,
+              'url': _urlForLog(request),
+              'query': _visibleForRequest(request, request.queryParameters),
+              'statusCode': err.response?.statusCode,
+              'durationMs': _durationMilliseconds(request),
+              'type': err.type.name,
+              'message': raw ? err.message : 'The API request failed.',
+              'requestHeaders': _visible(request.headers),
+              'requestBody': _visibleForRequest(request, request.data),
+              // 'responseHeaders': _visible(err.response?.headers.map),
+              if (!rawResponse)
+                'responseBody': _visibleForRequest(request, err.response?.data),
+            }, credentials)
+            as Map),
+        if (rawResponse) 'responseBody': err.response?.data,
+      },
       error: raw ? err.error : err.error?.runtimeType,
       stackTrace: credentials.isEmpty && !privacySensitive
           ? err.stackTrace
@@ -189,6 +199,16 @@ class LoggingInterceptor extends Interceptor {
     'documentnumber',
     'resultjson',
   };
+
+  /// Every Core `/me/bank-accounts` reply (accounts, balances, account
+  /// transactions and summary, freeze and unfreeze, including the
+  /// staging-only `otpCode`) is logged verbatim in
+  /// staging by product decision. Production still redacts them, and request
+  /// bodies (PIN, code) stay redacted everywhere.
+  bool _rawResponse(RequestOptions request) =>
+      includeSensitiveData && _bankAccountsPath.hasMatch(request.uri.path);
+
+  static final _bankAccountsPath = RegExp(r'/me/bank-accounts(/|$)');
 
   Object? _visible(Object? value) =>
       _redact(value, includeSensitiveData: includeSensitiveData);

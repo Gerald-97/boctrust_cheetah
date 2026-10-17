@@ -47,6 +47,7 @@ class FlexSavingsTile extends StatelessWidget {
     required this.onTap,
     this.accountNumber,
     this.rate,
+    this.frozen = false,
     super.key,
   });
 
@@ -58,6 +59,7 @@ class FlexSavingsTile extends StatelessWidget {
   final VoidCallback onTap;
   final String? accountNumber;
   final String? rate;
+  final bool frozen;
 
   @override
   Widget build(BuildContext context) {
@@ -116,12 +118,14 @@ class FlexSavingsTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (rate != null || accountHint != null) ...[
+                    if (rate != null || accountHint != null || frozen) ...[
                       const SizedBox(height: BocSpace.sm),
                       Wrap(
                         spacing: BocSpace.sm,
                         runSpacing: BocSpace.xxs,
                         children: [
+                          // The tile is always light, so the label takes navy.
+                          if (frozen) const FrozenLabel(color: BocColors.navy),
                           if (rate != null)
                             Text(
                               '$rate% p.a.',
@@ -162,6 +166,7 @@ class OwnedSavingsTile extends StatelessWidget {
     required this.hidden,
     this.accountNumber,
     required this.status,
+    this.frozen = false,
     required this.icon,
     required this.accent,
     required this.container,
@@ -178,6 +183,7 @@ class OwnedSavingsTile extends StatelessWidget {
   final bool hidden;
   final String? accountNumber;
   final String status;
+  final bool frozen;
   final IconData icon;
   final Color accent;
   final Color container;
@@ -240,29 +246,32 @@ class OwnedSavingsTile extends StatelessWidget {
                     color: colors.textSecondary,
                   ),
                 ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: status == 'Active'
-                          ? colors.successText
-                          : colors.textSecondary,
-                      shape: BoxShape.circle,
+              if (frozen)
+                const FrozenLabel()
+              else
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: status == 'Active'
+                            ? colors.successText
+                            : colors.textSecondary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const SizedBox.square(dimension: 6),
                     ),
-                    child: const SizedBox.square(dimension: 6),
-                  ),
-                  const SizedBox(width: BocSpace.xxs),
-                  Text(
-                    status,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: status == 'Active'
-                          ? colors.successText
-                          : colors.textSecondary,
+                    const SizedBox(width: BocSpace.xxs),
+                    Text(
+                      status,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: status == 'Active'
+                            ? colors.successText
+                            : colors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               if (rate != null)
                 Text(
                   '$rate% p.a.',
@@ -823,6 +832,36 @@ class BocChoiceChips<T> extends StatelessWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+/// A frozen account's marker: lock icon and text, announced as one label.
+class FrozenLabel extends StatelessWidget {
+  const FrozenLabel({this.color, super.key});
+
+  /// Defaults to the info token, which reads on themed surfaces.
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? context.bocColors.info;
+    return Semantics(
+      label: 'Account frozen',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(IconsaxPlusLinear.lock, size: 14, color: tint),
+          const SizedBox(width: BocSpace.xxs),
+          Text(
+            'Frozen',
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: tint),
+          ),
+        ],
+      ),
     );
   }
 }

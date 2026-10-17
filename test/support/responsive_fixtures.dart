@@ -193,6 +193,9 @@ class LayoutCoreAccounts extends CustomerBankAccountsNotifier {
 
   @override
   Future<NotifierState<CustomerBankAccountsData>> load() async => state;
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
 }
 
 class LayoutCoreProducts extends CoreBankProductsNotifier {

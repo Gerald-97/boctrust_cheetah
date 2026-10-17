@@ -169,6 +169,9 @@ class _SmartSaveAccounts extends CustomerBankAccountsNotifier {
 
   @override
   Future<NotifierState<CustomerBankAccountsData>> load() async => state;
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
 }
 
 Future<void> _open(

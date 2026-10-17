@@ -379,6 +379,39 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
       ),
     },
   ),
+  // Freezing and unfreezing one of the customer's own accounts. Core stops
+  // debits; balance and history stay readable. Unfreezing needs the PIN and a
+  // sent code, so staging only until the contract is confirmed live.
+  FeatureCapability.freezeAccount: CapabilityRequirement(
+    stagingOnly: true,
+    operations: {
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.bankAccountFreezeTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.bankAccountUnfreezeOtpTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'POST',
+        path: CoreApiEndpoints.bankAccountUnfreezeTemplate,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccounts,
+      ),
+      (
+        backend: ApiBackend.core,
+        method: 'GET',
+        path: CoreApiEndpoints.bankAccountTemplate,
+      ),
+    },
+  ),
   // Live summary of one account.
   FeatureCapability.coreAccountActivity: CapabilityRequirement(
     stagingOnly: true,

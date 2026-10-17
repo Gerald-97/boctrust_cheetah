@@ -42,4 +42,23 @@ void main() {
       isNull,
     );
   });
+
+  test('a frozen Core Flex keeps its Core balance over the User wallet', () {
+    final core = CustomerBankAccountsData.fromJson({
+      'products': [
+        {
+          'productCode': 'bocFlex',
+          'productName': 'Boc Flex',
+          'accountNumber': '0000000001',
+          'status': 'frozen',
+          'availableBalance': '75.00',
+        },
+      ],
+    });
+
+    final balance = resolveFlexBalance(core: core, wallet: _wallet('active'));
+    expect(balance?.availableBalance, '75.00');
+    expect(balance?.accountNumber, '0000000001');
+    expect(balance?.isFrozen, isTrue);
+  });
 }

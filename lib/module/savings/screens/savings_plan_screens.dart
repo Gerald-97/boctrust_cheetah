@@ -180,6 +180,8 @@ extension SavingsPlanScreens on FlowPageState {
                               style: theme.textTheme.titleSmall,
                             ),
                           ),
+                          if (_frozenAccountNumber(group.accountNumber) != null)
+                            const FrozenLabel(),
                         ],
                       ),
                       const SizedBox(height: BocSpace.sm),
@@ -213,6 +215,14 @@ extension SavingsPlanScreens on FlowPageState {
                     ],
                   ),
                 ),
+                if (_frozenAccountNumber(group.accountNumber)
+                    case final frozen?)
+                  FrozenAccountBanner.savings(
+                    frozen,
+                    group.productName,
+                    onUnfreeze: (number) =>
+                        openUnfreezeFlow(context, ref, number),
+                  ),
                 if (_canCreatePlan(type)) ...[
                   const SizedBox(height: BocSpace.sm),
                   PrimaryButton(
@@ -400,6 +410,14 @@ extension SavingsPlanScreens on FlowPageState {
         ? savingsPlanProgress(principal: plan.principal, target: plan.target)
         : null;
     String date(DateTime value) => DateFormat('d MMM yyyy').format(value);
+    final productGroup = ref
+        .watch(savingsPlansProvider(plan.type))
+        .value
+        ?.data
+        ?.where((group) => group.type == plan.type)
+        .firstOrNull;
+    final accountNumber = detail.accountNumber ?? productGroup?.accountNumber;
+    final frozenAccount = _frozenAccountNumber(accountNumber);
     return AppScaffold(
       title: plan.name,
       activeSection: AppSection.save,
@@ -414,7 +432,11 @@ extension SavingsPlanScreens on FlowPageState {
               AppRoutes.interestHistory,
               arguments: AppRouteArguments(entityId: plan.id),
             ),
-            _ => _withdrawFromPlan(plan),
+            _ when frozenAccount != null =>
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text(kSavingsAccountFrozenMessage)),
+              ),
+            _ => _withdrawFromPlan(plan, accountNumber),
           },
           itemBuilder: (_) => [
             if (ref
@@ -445,6 +467,15 @@ extension SavingsPlanScreens on FlowPageState {
                   BocSpace.gutter,
                 ).clearOfNav(context),
                 children: [
+                  if (frozenAccount != null) ...[
+                    FrozenAccountBanner.savings(
+                      frozenAccount,
+                      productGroup?.productName ?? plan.type.displayName,
+                      onUnfreeze: (number) =>
+                          openUnfreezeFlow(context, ref, number),
+                    ),
+                    const SizedBox(height: BocSpace.sm),
+                  ],
                   SavingsPlanHero(
                     status: plan.status.label,
                     amount: _planMoney(plan.principal),
@@ -594,7 +625,10 @@ extension SavingsPlanScreens on FlowPageState {
 
   /// Early withdrawal costs a fee on the interest, so it needs an explicit,
   /// clearly labelled confirmation; the safe choice is the prominent one.
-  Future<void> _withdrawFromPlan(SavingsPlan plan) async {
+  Future<void> _withdrawFromPlan(
+    SavingsPlan plan,
+    String? accountNumber,
+  ) async {
     if (!ref
         .read(
           featureAvailabilityProvider(FeatureCapability.savingsPlanWithdraw),
@@ -623,7 +657,10 @@ extension SavingsPlanScreens on FlowPageState {
       context: context,
       isDismissible: false,
       enableDrag: false,
-      builder: (_) => SavingsPlanWithdrawSheet(planId: plan.id),
+      builder: (_) => SavingsPlanWithdrawSheet(
+        planId: plan.id,
+        accountNumber: accountNumber,
+      ),
     );
     if (withdrawn == true && mounted) back();
   }
