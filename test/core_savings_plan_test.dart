@@ -90,8 +90,9 @@ class _SlowFund extends CoreSavingsPlanService {
 }
 
 class _Accounts extends CustomerBankAccountsNotifier {
-  _Accounts([this.status = CoreAccountStatus.active]);
+  _Accounts([this.status = CoreAccountStatus.active, this.savingsStatus]);
   final CoreAccountStatus status;
+  final CoreAccountStatus? savingsStatus;
   static var loads = 0;
   @override
   NotifierState<CustomerBankAccountsData> build() => NotifierState.done(
@@ -103,6 +104,13 @@ class _Accounts extends CustomerBankAccountsNotifier {
           accountNumber: '1100012345',
           status: status,
         ),
+        if (savingsStatus != null)
+          CustomerBankAccount(
+            productCode: 'SAVINGS',
+            productName: 'SmartSave',
+            accountNumber: '2200012345',
+            status: savingsStatus!,
+          ),
       ],
     ),
   );
@@ -488,6 +496,31 @@ void main() {
     expect(state.phase, SavingsPlanActionPhase.failed);
     expect(state.message, kSavingsPausedMessage);
   });
+
+  test(
+    'a withdrawal is not sent while its savings account is frozen',
+    () async {
+      final service = _SlowFund(Completer());
+      final container = ProviderContainer(
+        overrides: [
+          coreSavingsPlanServiceProvider.overrideWithValue(service),
+          customerBankAccountsProvider.overrideWith(
+            () => _Accounts(CoreAccountStatus.active, CoreAccountStatus.frozen),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(savingsPlanActionProvider, (_, _) {});
+      await container
+          .read(savingsPlanActionProvider.notifier)
+          .liquidate('p1', accountNumber: '2200012345');
+
+      final state = container.read(savingsPlanActionProvider);
+      expect(service.liquidations, 0);
+      expect(state.phase, SavingsPlanActionPhase.failed);
+      expect(state.message, kSavingsAccountFrozenMessage);
+    },
+  );
 
   test('a withdrawal started while a top-up sends sends nothing', () async {
     final reply = Completer<NotifierState<SavingsPlanActionResult>>();

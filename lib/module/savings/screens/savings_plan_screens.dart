@@ -411,9 +411,8 @@ extension SavingsPlanScreens on FlowPageState {
         ?.data
         ?.where((group) => group.type == plan.type)
         .firstOrNull;
-    final frozenAccount = _frozenAccountNumber(
-      detail.accountNumber ?? productGroup?.accountNumber,
-    );
+    final accountNumber = detail.accountNumber ?? productGroup?.accountNumber;
+    final frozenAccount = _frozenAccountNumber(accountNumber);
     return AppScaffold(
       title: plan.name,
       activeSection: AppSection.save,
@@ -428,7 +427,11 @@ extension SavingsPlanScreens on FlowPageState {
               AppRoutes.interestHistory,
               arguments: AppRouteArguments(entityId: plan.id),
             ),
-            _ => _withdrawFromPlan(plan),
+            _ when frozenAccount != null =>
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text(kSavingsAccountFrozenMessage)),
+              ),
+            _ => _withdrawFromPlan(plan, accountNumber),
           },
           itemBuilder: (_) => [
             if (ref
@@ -615,7 +618,10 @@ extension SavingsPlanScreens on FlowPageState {
 
   /// Early withdrawal costs a fee on the interest, so it needs an explicit,
   /// clearly labelled confirmation; the safe choice is the prominent one.
-  Future<void> _withdrawFromPlan(SavingsPlan plan) async {
+  Future<void> _withdrawFromPlan(
+    SavingsPlan plan,
+    String? accountNumber,
+  ) async {
     if (!ref
         .read(
           featureAvailabilityProvider(FeatureCapability.savingsPlanWithdraw),
@@ -644,7 +650,10 @@ extension SavingsPlanScreens on FlowPageState {
       context: context,
       isDismissible: false,
       enableDrag: false,
-      builder: (_) => SavingsPlanWithdrawSheet(planId: plan.id),
+      builder: (_) => SavingsPlanWithdrawSheet(
+        planId: plan.id,
+        accountNumber: accountNumber,
+      ),
     );
     if (withdrawn == true && mounted) back();
   }

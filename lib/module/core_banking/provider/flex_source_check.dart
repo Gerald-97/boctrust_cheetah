@@ -27,31 +27,48 @@ const kFlexUnconfirmedMessage =
 /// no single Core Flex account there is nothing to find frozen, so Core's
 /// own answer to the request stands.
 final freshFlexDebitCheckProvider = Provider<Future<FlexDebitCheck> Function()>(
-  (ref) {
-    return () async {
-      final accounts = ref.read(customerBankAccountsProvider.notifier);
-      CustomerBankAccountsData? data() =>
-          ref.read(customerBankAccountsProvider).data;
-      // A load that just finished (e.g. after a payment) is the fresh read.
-      await accounts.settleLoad();
-      if (data() == null) await accounts.load();
-      if (data() == null) return FlexDebitCheck.unconfirmed;
-      final number = data()?.flexAccount?.accountNumber;
-      if (number == null) return FlexDebitCheck.allowed;
-      var confirmed = await accounts.refreshAccount(number);
-      // A load that started meanwhile replaced the list with fresh data.
-      if (!confirmed && await accounts.settleLoad()) {
-        confirmed = !ref.read(customerBankAccountsProvider).isError;
-      }
-      final latest = data();
-      if (!confirmed || latest == null) return FlexDebitCheck.unconfirmed;
-      final flex = latest.flexAccount;
-      return switch (flex?.status) {
-        null || CoreAccountStatus.active => FlexDebitCheck.allowed,
-        CoreAccountStatus.frozen => FlexDebitCheck.frozen,
-        CoreAccountStatus.closed ||
-        CoreAccountStatus.unknown => FlexDebitCheck.unconfirmed,
-      };
-    };
-  },
+  (ref) =>
+      () => _freshDebitCheck(ref, (data) => data.flexAccount),
 );
+
+/// The same fresh read for any owned account (a savings product account).
+/// An absent or unknown account number is allowed; Core stays the authority.
+final freshAccountDebitCheckProvider =
+    Provider<Future<FlexDebitCheck> Function(String? accountNumber)>(
+      (ref) =>
+          (accountNumber) => _freshDebitCheck(
+            ref,
+            (data) => data.accounts
+                .where((account) => account.accountNumber == accountNumber)
+                .firstOrNull,
+          ),
+    );
+
+Future<FlexDebitCheck> _freshDebitCheck(
+  Ref ref,
+  CustomerBankAccount? Function(CustomerBankAccountsData data) pick,
+) async {
+  final accounts = ref.read(customerBankAccountsProvider.notifier);
+  CustomerBankAccountsData? data() =>
+      ref.read(customerBankAccountsProvider).data;
+  // A load that just finished (e.g. after a payment) is the fresh read.
+  await accounts.settleLoad();
+  if (data() == null) await accounts.load();
+  final loaded = data();
+  if (loaded == null) return FlexDebitCheck.unconfirmed;
+  final number = pick(loaded)?.accountNumber;
+  if (number == null) return FlexDebitCheck.allowed;
+  var confirmed = await accounts.refreshAccount(number);
+  // A load that started meanwhile replaced the list with fresh data.
+  if (!confirmed && await accounts.settleLoad()) {
+    confirmed = !ref.read(customerBankAccountsProvider).isError;
+  }
+  final latest = data();
+  if (!confirmed || latest == null) return FlexDebitCheck.unconfirmed;
+  return switch (pick(latest)?.status) {
+    null || CoreAccountStatus.active => FlexDebitCheck.allowed,
+    CoreAccountStatus.frozen => FlexDebitCheck.frozen,
+    CoreAccountStatus.closed ||
+    CoreAccountStatus.unknown => FlexDebitCheck.unconfirmed,
+  };
+}

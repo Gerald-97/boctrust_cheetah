@@ -10,9 +10,16 @@ import 'savings_plan_top_up_sheet.dart';
 /// Withdraws [planId] early the moment it opens, then shows what Core paid.
 /// Pops `true` only when Core confirmed the withdrawal.
 class SavingsPlanWithdrawSheet extends ConsumerStatefulWidget {
-  const SavingsPlanWithdrawSheet({required this.planId, super.key});
+  const SavingsPlanWithdrawSheet({
+    required this.planId,
+    this.accountNumber,
+    super.key,
+  });
 
   final String planId;
+
+  /// The plan's product account, checked for a freeze before withdrawing.
+  final String? accountNumber;
 
   @override
   ConsumerState<SavingsPlanWithdrawSheet> createState() =>
@@ -36,7 +43,9 @@ class _SavingsPlanWithdrawSheetState
         setState(() => _busy = true);
         return;
       }
-      ref.read(savingsPlanActionProvider.notifier).liquidate(widget.planId);
+      ref
+          .read(savingsPlanActionProvider.notifier)
+          .liquidate(widget.planId, accountNumber: widget.accountNumber);
     });
   }
 

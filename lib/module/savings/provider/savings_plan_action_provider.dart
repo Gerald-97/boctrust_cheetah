@@ -67,6 +67,22 @@ class SavingsPlanActionState extends Equatable {
   ];
 }
 
+/// Shown instead of withdrawing from a frozen savings account.
+const kSavingsAccountFrozenMessage =
+    'This savings account is frozen. Withdrawals are paused.';
+
+/// Shown when the savings account's status could not be read.
+const kSavingsAccountUnconfirmedMessage =
+    "We could not confirm this account's status. Try again.";
+
+/// A fresh status check that must allow the request before it is sent, and
+/// what to show when it does not.
+typedef _DebitGate = ({
+  Future<FlexDebitCheck> Function() check,
+  String frozen,
+  String unconfirmed,
+});
+
 const _unconfirmed =
     "We couldn't confirm this. Check your plan before trying again.";
 
@@ -88,16 +104,22 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     () =>
         ref.read(coreSavingsPlanServiceProvider).fundPlan(planId, amountNaira),
     _withResult,
-    debitsFlex: true,
+    gate: _flexGate,
   );
 
-  /// Withdraws [planId] early into Boc Flex.
-  Future<void> liquidate(String planId) => _run(
+  /// Withdraws [planId] early into Boc Flex. [accountNumber] is the plan's
+  /// product account, which must not be frozen.
+  Future<void> liquidate(String planId, {String? accountNumber}) => _run(
     SavingsPlanAction.liquidate,
     planId,
     () => ref.read(coreSavingsPlanServiceProvider).liquidatePlan(planId),
     _withResult,
     forbidden: 'This plan can no longer be withdrawn.',
+    gate: (
+      check: () => ref.read(freshAccountDebitCheckProvider)(accountNumber),
+      frozen: kSavingsAccountFrozenMessage,
+      unconfirmed: kSavingsAccountUnconfirmedMessage,
+    ),
   );
 
   /// Creates a plan funded from Boc Flex; [SavingsPlanActionState.planId]
@@ -107,7 +129,13 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     null,
     () => ref.read(coreSavingsPlanServiceProvider).createPlan(request),
     (planId) => (planId, null),
-    debitsFlex: true,
+    gate: _flexGate,
+  );
+
+  _DebitGate get _flexGate => (
+    check: ref.read(freshFlexDebitCheckProvider),
+    frozen: kSavingsPausedMessage,
+    unconfirmed: kFlexUnconfirmedMessage,
   );
 
   static (String?, SavingsPlanActionResult?) _withResult(
@@ -120,14 +148,14 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     Future<NotifierState<T>> Function() call,
     (String?, SavingsPlanActionResult?) Function(T data) done, {
     String? forbidden,
-    bool debitsFlex = false,
+    _DebitGate? gate,
   }) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
     // The sheet can close mid-request; stay alive so the reply still
     // refreshes the plan and the balance.
     final link = ref.keepAlive();
     try {
-      await _send(action, planId, call, done, forbidden, debitsFlex);
+      await _send(action, planId, call, done, forbidden, gate);
     } finally {
       link.close();
     }
@@ -139,7 +167,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     Future<NotifierState<T>> Function() call,
     (String?, SavingsPlanActionResult?) Function(T data) done,
     String? forbidden,
-    bool debitsFlex,
+    _DebitGate? gate,
   ) async {
     state = SavingsPlanActionState(
       phase: SavingsPlanActionPhase.sending,
@@ -147,9 +175,9 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
       requestedPlanId: planId,
     );
     // Core documents no frozen rejection here, so a frozen or unconfirmed
-    // Boc Flex stops the request before it is sent.
-    if (debitsFlex) {
-      final check = await ref.read(freshFlexDebitCheckProvider)();
+    // source account stops the request before it is sent.
+    if (gate != null) {
+      final check = await gate.check();
       if (!ref.mounted) return;
       if (check != FlexDebitCheck.allowed) {
         state = SavingsPlanActionState(
@@ -157,8 +185,8 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
           action: action,
           requestedPlanId: planId,
           message: check == FlexDebitCheck.frozen
-              ? kSavingsPausedMessage
-              : kFlexUnconfirmedMessage,
+              ? gate.frozen
+              : gate.unconfirmed,
         );
         return;
       }
