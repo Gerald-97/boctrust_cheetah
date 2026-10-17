@@ -273,14 +273,21 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
     }
     final generation = _generation;
     // Core debits Boc Flex whatever the app shows, so a fresh read decides
-    // before anything is sent; an unconfirmed read counts as frozen.
-    final canDebit = await ref.read(freshFlexDebitCheckProvider)();
+    // before anything is sent; an unconfirmed read also stops it.
+    final check = await ref.read(freshFlexDebitCheckProvider)();
     if (!ref.mounted ||
         generation != _generation ||
         _open(id, CoreTransferPhase.initiating) == null) {
       return;
     }
-    if (!canDebit) return _settle(current, CoreRejection.sourcePaused);
+    if (check != FlexDebitCheck.allowed) {
+      return _settle(
+        current,
+        check == FlexDebitCheck.frozen
+            ? CoreRejection.sourcePaused
+            : CoreRejection.sourceUnconfirmed,
+      );
+    }
     final service = ref.read(coreTransferServiceProvider);
     final result = await switch (current.draft) {
       final BoctrustTransferDraft d => service.initiateBoctrust(d),

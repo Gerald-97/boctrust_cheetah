@@ -129,6 +129,7 @@ enum CoreRejection {
   /// sent.
   sourcePaused('Transfers paused while Boc Flex is frozen'),
   billSourcePaused('Payments paused while Boc Flex is frozen'),
+  sourceUnconfirmed('We could not confirm your Boc Flex status. Try again.'),
   other('This request was declined.');
 
   const CoreRejection(this.message);

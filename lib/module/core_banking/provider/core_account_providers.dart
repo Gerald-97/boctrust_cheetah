@@ -28,6 +28,13 @@ class CustomerBankAccountsNotifier
   Future<NotifierState<CustomerBankAccountsData>> fetch() =>
       ref.read(coreAccountServiceProvider).getBankAccounts();
 
+  /// Waits for a load that is already running; true when there was one.
+  Future<bool> settleLoad() async {
+    if (!isLoadInFlight) return false;
+    await load();
+    return true;
+  }
+
   /// Refreshes one account's live balance in place, so every screen reading
   /// the list sees it. A failed or stale refresh leaves the list unchanged.
   /// Returns whether the fresh account was applied.

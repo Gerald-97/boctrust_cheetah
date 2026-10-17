@@ -149,14 +149,16 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     // Core documents no frozen rejection here, so a frozen or unconfirmed
     // Boc Flex stops the request before it is sent.
     if (debitsFlex) {
-      final canDebit = await ref.read(freshFlexDebitCheckProvider)();
+      final check = await ref.read(freshFlexDebitCheckProvider)();
       if (!ref.mounted) return;
-      if (!canDebit) {
+      if (check != FlexDebitCheck.allowed) {
         state = SavingsPlanActionState(
           phase: SavingsPlanActionPhase.failed,
           action: action,
           requestedPlanId: planId,
-          message: kSavingsPausedMessage,
+          message: check == FlexDebitCheck.frozen
+              ? kSavingsPausedMessage
+              : kFlexUnconfirmedMessage,
         );
         return;
       }

@@ -19,26 +19,37 @@ final flexDebitPausedProvider = Provider<bool>((ref) {
   return data != null && !flexCanBeDebited(data);
 });
 
-/// Reads Boc Flex again from Core and reports whether it can be debited. A
-/// missing, inactive, or unconfirmed account is blocked: nothing is sent on
-/// a status that could not be checked.
-final freshFlexDebitCheckProvider = Provider<Future<bool> Function()>((ref) {
-  return () async {
-    final accounts = ref.read(customerBankAccountsProvider.notifier);
-    if (ref.read(customerBankAccountsProvider).data == null) {
-      await accounts.load();
-    }
-    final number = ref
-        .read(customerBankAccountsProvider)
-        .data
-        ?.flexAccount
-        ?.accountNumber;
-    if (number == null || !await accounts.refreshAccount(number)) return false;
-    return ref
-            .read(customerBankAccountsProvider)
-            .data
-            ?.flexAccount
-            ?.isActive ==
-        true;
-  };
-});
+/// What a fresh read of Boc Flex says about debiting it.
+enum FlexDebitCheck { allowed, frozen, unconfirmed }
+
+/// Shown when the Boc Flex status could not be read, so nothing was sent.
+const kFlexUnconfirmedMessage =
+    'We could not confirm your Boc Flex status. Try again.';
+
+/// Reads Boc Flex again from Core. A missing or inactive account is
+/// [FlexDebitCheck.frozen]; a status that could not be read is
+/// [FlexDebitCheck.unconfirmed]. Either way nothing is sent.
+final freshFlexDebitCheckProvider = Provider<Future<FlexDebitCheck> Function()>(
+  (ref) {
+    return () async {
+      final accounts = ref.read(customerBankAccountsProvider.notifier);
+      CustomerBankAccountsData? data() =>
+          ref.read(customerBankAccountsProvider).data;
+      // A load that just finished (e.g. after a payment) is the fresh read.
+      await accounts.settleLoad();
+      if (data() == null) await accounts.load();
+      final number = data()?.flexAccount?.accountNumber;
+      if (data() == null) return FlexDebitCheck.unconfirmed;
+      if (number == null) return FlexDebitCheck.frozen;
+      var confirmed = await accounts.refreshAccount(number);
+      // A load that started meanwhile replaced the list with fresh data.
+      if (!confirmed && await accounts.settleLoad()) {
+        confirmed = !ref.read(customerBankAccountsProvider).isError;
+      }
+      if (!confirmed) return FlexDebitCheck.unconfirmed;
+      return flexCanBeDebited(data())
+          ? FlexDebitCheck.allowed
+          : FlexDebitCheck.frozen;
+    };
+  },
+);

@@ -149,9 +149,11 @@ final billPaymentProvider =
 class BillPaymentNotifier extends CoreSubmissionNotifier<BillPaymentDraft> {
   @override
   Future<CoreRejection?> precheck(BillPaymentDraft draft) async =>
-      await ref.read(freshFlexDebitCheckProvider)()
-      ? null
-      : CoreRejection.billSourcePaused;
+      switch (await ref.read(freshFlexDebitCheckProvider)()) {
+        FlexDebitCheck.allowed => null,
+        FlexDebitCheck.frozen => CoreRejection.billSourcePaused,
+        FlexDebitCheck.unconfirmed => CoreRejection.sourceUnconfirmed,
+      };
 
   @override
   void onSettled(CoreSubmissionOutcome outcome) {
