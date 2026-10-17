@@ -29,7 +29,7 @@
 
 ## Source handoff before execution
 
-- [ ] Track this plan and `docs/superpowers/specs/2026-10-17-onboarding-motion-design.md` with an explicit `git add -f` because `.gitignore` excludes new `docs/` files. Track the carousel plan and only the nine approved `*-afro-*` artwork files in `design/onboarding_previews/` in the same checkpoint. Leave older previews untracked. Commit this checkpoint before creating a fresh worktree so both plans and approved assets are available there.
+- [ ] Before creating a fresh worktree, commit this plan, the carousel plan, the design brief, the six approved `*-afro-smooth-preview.*` files, and `design/onboarding_previews/build_smooth_gifs.py` in one checkpoint. The three `*-afro-master.png` source files are already tracked. Keep older previews out of the production asset copy.
 
 ---
 

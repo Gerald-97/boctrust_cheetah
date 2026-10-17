@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- Approved animation sources: `design/onboarding_previews/01-save-afro-preview.gif`, `02-goals-afro-preview.gif`, and `03-pay-afro-preview.gif`, with matching `*-preview.png` stills.
-- All three are 600 × 600, loop in 1,920 ms, and include `#F6F4EE` background; show on `BocColors.paper` even when the app theme is dark.
+- Approved animation sources: `design/onboarding_previews/01-save-afro-smooth-preview.gif`, `02-goals-afro-smooth-preview.gif`, and `03-pay-afro-smooth-preview.gif`, with matching `*-afro-smooth-preview.png` stills. Their source artwork is the matching `*-afro-master.png`; `build_smooth_gifs.py` regenerates the animations.
+- All three are 600 × 600, loop in 1,920 ms, and include `#F6F4EE` background; show on `BocColors.paper` even when the app theme is dark. Keep the character and canvas fixed; only floating motifs move. Do not promote the older `*-afro-preview.gif` exports.
 - Use the existing slide titles, descriptions, `Next` / `Get started` labels, and destinations. Do not swap product names from the screenshots into app copy.
 - Preserve a visible `I already have an account` route to `AuthDestination.login`.
 - Follow the screenshot layout by removing the current top `CheetahBrand`, `Skip`, and carousel `RegulatoryBadge`; keep sign-in beneath the primary button.
@@ -24,12 +24,13 @@
 - Slow device, missing GIF, or decode failure: show the matching still PNG without a blank frame (Task 2 widget tests).
 - Rapid Next/back/dot taps: displayed image, title, progress, and button label always refer to the same slide (Task 3 widget test).
 - Reduced motion: the still PNG appears and no GIF animates (Task 2 widget test).
+- GIF loop boundary and decoded frames: the character stays fixed and the last-to-first transition is no larger than an ordinary adjacent-frame transition (Task 1 asset test and Task 3 device review).
 - Small screen and 2× text: lower panel scrolls and button/sign-in remain reachable (Task 2 widget test).
 - Sign-in and final slide: existing users can reach login, while `Get started` still reaches verification method (Task 3 widget test).
 
 ## Source handoff before execution
 
-- [ ] If the shared checkpoint in the splash plan has not been made, explicitly track both plans and the design brief with `git add -f` (new `docs/` files are ignored), plus only the nine approved `*-afro-*` artwork files. Leave earlier previews untracked and commit before creating a fresh worktree.
+- [ ] Before creating a fresh worktree, track the six approved `*-afro-smooth-preview.*` files and `build_smooth_gifs.py`, and commit them with both plan updates and the design brief. The three `*-afro-master.png` source files are already tracked. Keep older previews out of the production asset copy.
 
 ---
 
@@ -44,9 +45,9 @@
 **Interfaces:**
 - Produces: six stable `assets/img/onboarding/...` asset paths consumed by Tasks 2 and 3.
 
-- [ ] **Step 1: Write an asset test** that reads the six intended production paths, decodes each GIF and PNG, checks each is 600 × 600, checks GIF frame count > 1 and loop duration 1,920 ms, and checks the asset directory is declared in `pubspec.yaml`.
+- [ ] **Step 1: Write an asset test** that reads the six intended production paths, decodes each GIF and PNG, checks each is 600 × 600, checks each GIF has at least 40 decoded frames, no frame lasts longer than 80 ms, and total loop duration is 1,920 ms. Compare the fixed character region across frames (Save: `(185, 235, 425, 425)`; Goals: `(175, 265, 445, 500)`; Pay: `(220, 280, 370, 480)`) and require identical pixels. Check the summed last-to-first pixel difference is no greater than the largest ordinary adjacent-frame difference. Check the asset directory is declared in `pubspec.yaml`.
 - [ ] **Step 2: Run `flutter test test/onboarding_assets_test.dart`** and expect missing-asset failures.
-- [ ] **Step 3: Copy only the approved `*-afro-preview.gif` and matching `*-afro-preview.png` files** to the six named production paths. Declare `assets/img/onboarding/` explicitly in `pubspec.yaml` so Flutter bundles nested assets.
+- [ ] **Step 3: Copy only the approved `*-afro-smooth-preview.gif` and matching `*-afro-smooth-preview.png` files** to the six named production paths. Declare `assets/img/onboarding/` explicitly in `pubspec.yaml` so Flutter bundles nested assets.
 - [ ] **Step 4: Verify and commit.** Run `flutter test test/onboarding_assets_test.dart`; expect pass. Commit the six assets, manifest, and test together. Leave older preview versions out of the app bundle.
 
 ### Task 2: Screenshot-based slide presentation
@@ -80,4 +81,4 @@
 - [ ] **Step 1: Write flow tests** for all three image/title/description pairs, dot selection, `Next` on slides 1–2, `Get started` on slide 3, and `I already have an account` navigation. Assert the carousel no longer uses `OnboardingIllustration`, top `CheetahBrand`, `Skip`, or `RegulatoryBadge`; keep logo assertions for bootstrap, login, and home.
 - [ ] **Step 2: Run `flutter test test/onboarding_carousel_test.dart test/in_app_branding_test.dart`** and expect the new layout assertions to fail.
 - [ ] **Step 3: Replace each slide's icon field** with its `gifAsset` and `stillAsset` path in `_OnboardingScreenState._slides`; keep the current titles and descriptions. Render `OnboardingSlideView` on a `BocColors.paper` scaffold even in dark mode, use dark status/navigation-bar icons, and connect callbacks to the current `_advance()` and `openAuthDestination` logic. Remove `OnboardingIllustration` only if `rg` confirms no other consumer.
-- [ ] **Step 4: Verify and commit.** Run `flutter test test/onboarding_assets_test.dart test/onboarding_slide_view_test.dart test/onboarding_carousel_test.dart test/in_app_branding_test.dart test/widget_test.dart`, then `flutter analyze`, with writable Flutter SDK cache access; expect pass. Check all three slides on available iOS and Android simulators/devices at normal and large text sizes, including a full GIF loop and dark system theme. Report unavailable platform checks as unverified, then commit.
+- [ ] **Step 4: Verify and commit.** Run `flutter test test/onboarding_assets_test.dart test/onboarding_slide_view_test.dart test/onboarding_carousel_test.dart test/in_app_branding_test.dart test/widget_test.dart`, then `flutter analyze`, with writable Flutter SDK cache access; expect pass. Check all three slides on available iOS and Android simulators/devices at normal and large text sizes, including a full GIF loop without a character jump and dark system theme. Report unavailable platform checks as unverified, then commit.
