@@ -111,7 +111,7 @@ extension HomeScreenParts on FlowPageState {
           final accountNumber = ref
               .read(customerBankAccountsProvider)
               .data
-              ?.activeFlexAccount
+              ?.flexAccount
               ?.accountNumber;
           if (accountNumber != null &&
               ref
@@ -272,7 +272,7 @@ extension HomeScreenParts on FlowPageState {
             ],
             const SizedBox(height: BocSpace.xs),
             _homeTransactionsSection(
-              accountsState.data?.activeFlexAccount?.accountNumber,
+              accountsState.data?.flexAccount?.accountNumber,
             ),
           ],
         ),

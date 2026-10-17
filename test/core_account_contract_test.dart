@@ -97,6 +97,15 @@ void main() {
       );
     });
 
+    test('flexAccount keeps a frozen account that activeFlexAccount hides', () {
+      final data = CustomerBankAccountsData.fromJson({
+        'products': [_account('bocFlex', '1', status: 'frozen')],
+      });
+
+      expect(data.flexAccount?.accountNumber, '1');
+      expect(data.activeFlexAccount, isNull);
+    });
+
     test('a duplicated account number is dropped entirely', () {
       final data = CustomerBankAccountsData.fromJson({
         'products': [

@@ -10,6 +10,7 @@ class FlexBalance extends Equatable {
     required this.ledgerBalance,
     this.productName,
     this.accountNumber,
+    this.isFrozen = false,
   });
 
   /// Exact decimal Naira strings, or null when not published.
@@ -21,6 +22,9 @@ class FlexBalance extends Equatable {
   /// a full reload refreshes.
   final String? accountNumber;
 
+  /// True only for a frozen Core account.
+  final bool isFrozen;
+
   bool get isCoreAccount => accountNumber != null;
 
   @override
@@ -29,26 +33,28 @@ class FlexBalance extends Equatable {
     ledgerBalance,
     productName,
     accountNumber,
+    isFrozen,
   ];
 }
 
 /// The customer's Flex balance.
 ///
-/// Core is authoritative when the customer has an active Core Flex account.
-/// Until Core has opened one, the User Service Flex wallet is shown instead,
-/// so a customer always sees their balance. Neither inactive source is
-/// shown.
+/// Core is authoritative whenever the customer has a Core Flex account, even
+/// a frozen one, which keeps its Core balance. Until Core has opened one, the
+/// active User Service Flex wallet is shown instead, so a customer always
+/// sees their balance.
 FlexBalance? resolveFlexBalance({
   required CustomerBankAccountsData? core,
   required FlexWalletData? wallet,
 }) {
-  final account = core?.activeFlexAccount;
+  final account = core?.flexAccount;
   if (account != null) {
     return FlexBalance(
       availableBalance: account.availableBalance,
       ledgerBalance: account.ledgerBalance,
       productName: account.productName,
       accountNumber: account.accountNumber,
+      isFrozen: account.status == CoreAccountStatus.frozen,
     );
   }
   if (wallet != null && wallet.isActive) {
