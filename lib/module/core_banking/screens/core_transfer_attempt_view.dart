@@ -98,10 +98,10 @@ Future<void> authorizeStagedTransfer(
             biometricError = message;
           case ApprovalResult.unavailable:
             usePin = true;
-            error = message ?? _biometricUnavailable;
+            error = message ?? biometricUnavailableMessage;
           case ApprovalResult.wiped:
             usePin = true;
-            error = _biometricTurnedOff;
+            error = biometricTurnedOffMessage;
         }
         continue;
       }
@@ -135,11 +135,6 @@ Future<void> authorizeStagedTransfer(
 
   if (at(CoreTransferPhase.readyToFinalize)) await notifier.finalize(id);
 }
-
-const _biometricUnavailable =
-    "Biometric approval isn't available right now. Enter your transaction PIN.";
-const _biometricTurnedOff =
-    'Biometric approval has been turned off. Enter your transaction PIN.';
 
 /// Every transfer screen shows the session's current attempt in place of its
 /// own steps, so re-entering any transfer flow resumes it. While the PIN or

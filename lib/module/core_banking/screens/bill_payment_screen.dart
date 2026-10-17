@@ -13,9 +13,11 @@ import '../../app_flow/app_ui.dart';
 import '../model/beneficiary_models.dart';
 import '../model/bill_models.dart';
 import '../model/core_money.dart';
+import '../provider/biometric_transfer_provider.dart';
 import '../provider/core_account_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../service/transaction_authorizer.dart';
+import 'biometric_approval_sheet.dart';
 import 'core_flow_widgets.dart';
 import 'transaction_pin_sheet.dart';
 
@@ -497,25 +499,82 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
     final biller = _biller;
     final item = _item;
     if (biller == null || item == null) return;
-    final pin = await collectCoreTransactionPin(
-      context,
-      TransactionSummary(
-        title: 'Pay ${biller.name}',
-        amountDisplay:
-            formatApiAmount(draft.amountNaira, currency: 'NGN') ??
-            draft.amountNaira,
-        lines: [
-          ('Plan', item.name),
-          (biller.customerFieldLabel, draft.customerId),
-        ],
-      ),
-      confirmLabel: 'Confirm payment',
+    final summary = TransactionSummary(
+      title: 'Pay ${biller.name}',
+      amountDisplay:
+          formatApiAmount(draft.amountNaira, currency: 'NGN') ??
+          draft.amountNaira,
+      lines: [
+        ('Plan', item.name),
+        (biller.customerFieldLabel, draft.customerId),
+      ],
     );
-    if (pin == null || !mounted) return;
-    setState(() => _step = _Step.result);
-    await ref
-        .read(billPaymentProvider.notifier)
-        .submit(draft, transactionPin: pin);
+    // Held directly: `ref` is gone once the screen is.
+    final approval = ref.read(biometricApprovalProvider.notifier);
+    final payments = ref.read(billPaymentProvider.notifier);
+    String? error;
+    String? biometricError;
+    // "Use PIN instead", or biometrics stopped working, for this payment only.
+    var usePin = false;
+    while (true) {
+      if (!mounted) return;
+      if (!usePin) {
+        if (ref.read(biometricApprovalProvider).phase ==
+            BiometricApprovalPhase.hydrating) {
+          await approval.hydrate();
+          if (!mounted) return;
+        }
+        final biometric = ref.read(biometricApprovalProvider);
+        if (biometric.enabled) {
+          final choice = await collectBiometricApproval(
+            context,
+            summary,
+            title: 'Confirm payment',
+            presentation: biometric.presentation,
+            errorMessage: biometricError,
+          );
+          if (choice == null || !mounted) return;
+          biometricError = null;
+          if (choice == BiometricApprovalChoice.usePin) {
+            usePin = true;
+            continue;
+          }
+          setState(() => _step = _Step.result);
+          final result = await approval.approveBill(draft);
+          // The result is recorded by the provider; nothing is left to do
+          // for a screen that has gone.
+          if (!mounted) return;
+          final message = ref.read(biometricApprovalProvider).message;
+          switch (result) {
+            case ApprovalResult.passed || ApprovalResult.stopped:
+              return;
+            case ApprovalResult.cancelled:
+              setState(() => _step = _Step.review);
+              biometricError = message;
+            case ApprovalResult.unavailable:
+              setState(() => _step = _Step.review);
+              usePin = true;
+              error = message ?? biometricUnavailableMessage;
+            case ApprovalResult.wiped:
+              payments.reset();
+              setState(() => _step = _Step.review);
+              usePin = true;
+              error = biometricTurnedOffMessage;
+          }
+          continue;
+        }
+      }
+      final pin = await collectCoreTransactionPin(
+        context,
+        summary,
+        errorMessage: error,
+        confirmLabel: 'Confirm payment',
+      );
+      if (pin == null || !mounted) return;
+      setState(() => _step = _Step.result);
+      await payments.submit(draft, transactionPin: pin);
+      return;
+    }
   }
 
   List<Widget> _saveBeneficiary() {

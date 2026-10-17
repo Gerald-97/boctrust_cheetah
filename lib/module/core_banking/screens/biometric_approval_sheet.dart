@@ -142,3 +142,10 @@ class _BiometricApprovalSheetState extends State<BiometricApprovalSheet> {
     );
   }
 }
+
+/// Shown above the PIN sheet when biometric approval cannot be used for this
+/// attempt, and after a failed saved-PIN check turned it off.
+const biometricUnavailableMessage =
+    "Biometric approval isn't available right now. Enter your transaction PIN.";
+const biometricTurnedOffMessage =
+    'Biometric approval has been turned off. Enter your transaction PIN.';
