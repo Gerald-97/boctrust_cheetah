@@ -30,12 +30,24 @@ class _StartupBrandSequenceState extends State<StartupBrandSequence>
 
   late final Animation<double> _scale =
       TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.04), weight: 1),
-        TweenSequenceItem(tween: Tween(begin: 1.04, end: 1.0), weight: 1),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 1.0,
+            end: 1.04,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 1,
+        ),
+        TweenSequenceItem(
+          tween: Tween(
+            begin: 1.04,
+            end: 1.0,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 1,
+        ),
       ]).animate(
         CurvedAnimation(
           parent: _controller,
-          curve: const Interval(0, 650 / _total, curve: Curves.easeInOut),
+          curve: const Interval(0, 650 / _total),
         ),
       );
 

@@ -5,13 +5,26 @@ part of '../app_flow/app_ui.dart';
 class BocBrandMark extends StatelessWidget {
   const BocBrandMark({required this.size, this.semanticLabel, super.key});
 
+  static const _loader = SvgAssetLoader('assets/branding/cheetah_app_icon.svg');
+
+  /// Encodes the mark into flutter_svg's byte cache before the first frame.
+  /// A cache hit and the image-free decode both return synchronous futures,
+  /// so the startup splash paints the mark in its first frame instead of a
+  /// blank gold one. Never throws or stalls startup; on failure the mark
+  /// simply loads as usual.
+  static Future<void> precache() async {
+    try {
+      await _loader.loadBytes(null).timeout(const Duration(seconds: 2));
+    } catch (_) {}
+  }
+
   final double size;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      'assets/branding/cheetah_app_icon.svg',
+    return SvgPicture(
+      _loader,
       width: size,
       height: size,
       fit: BoxFit.contain,
@@ -22,10 +35,11 @@ class BocBrandMark extends StatelessWidget {
 }
 
 /// The app's name, Cheetah, with its "by BocTrust" tagline beside the brand
-/// mark: stacked on the startup screen, in one row in the home header.
+/// mark: stacked on the sign-in, sign-up and recovery pages and the
+/// post-login loading screen, in one row in the home header.
 class CheetahBrand extends StatelessWidget {
-  /// Stacked, for the startup, onboarding and sign-in screens; the words
-  /// scale with [markSize].
+  /// Stacked, for the auth pages and the post-login loading and error
+  /// screen; the words scale with [markSize].
   const CheetahBrand.launch({this.markSize = 72, super.key}) : _compact = false;
 
   /// One row, sized for an app bar title.
