@@ -71,7 +71,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(CheetahTestApp(preferences: preferences));
     // Past the cold-launch splash hold.
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 3));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
@@ -84,7 +84,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(CheetahTestApp(preferences: preferences));
     // Past the cold-launch splash hold.
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 3));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.system);

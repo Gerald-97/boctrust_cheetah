@@ -16,14 +16,14 @@
 - Mark: `assets/branding/cheetah_app_icon.svg` through `BocBrandMark`; do not redraw the logo.
 - Flutter's first mark frame must match the static native mark; use a 1.0 → 1.04 → 1.0 scale settle without a 36 px entrance translation or an opacity reset. Use `BocColors.navy` for splash text on gold.
 - Exact copy: `Cheetah`, `by BocTrust`, and `Licensed by the CBN · Deposits insured by the NDIC`.
-- Cold-start sequence: 1,350 ms total; reduced motion has no animation delay.
+- Cold-start sequence: 2,700 ms total; reduced motion has no animation delay.
 - Preserve `AuthDestination.login` versus `AuthDestination.onboarding` selection and post-login bootstrap behavior.
 
 ## Review Focus
 
 - Slow storage cleanup: the final splash frame remains visible until routing finishes (Task 3 widget test).
 - Returning user: the same splash ends at login, not onboarding (Task 3 provider test).
-- Post-login profile load: no 1,350 ms hold or splash replay (Task 3 widget test).
+- Post-login profile load: no 2,700 ms hold or splash replay (Task 3 widget test).
 - Reduced motion: final mark and full name appear immediately and routing is not delayed (Tasks 2 and 3 tests).
 - Platform handoff: no dark flash, disappearing mark, placement jump, or premature native title branding (Tasks 1–2 and device review).
 
@@ -61,9 +61,9 @@
 - Produces: `CheetahBrandWords({required double markSize, double titleOpacity = 1, double bylineOpacity = 1})` in the existing `app_ui.dart` library. `CheetahBrand.launch` uses it at full opacity. Also produces `RegulatoryBadge.splash()` using the existing legal copy without the normal card border.
 - Produces: `StartupBrandSequence({required bool reduceMotion})`, a widget using `BocBrandMark` plus `CheetahBrandWords` with the established lockup semantics.
 
-- [ ] **Step 1: Write widget tests** for the reveal: the mark is visible at full size on the first Flutter frame, settles at the same position during the first 650 ms, `Cheetah` begins after 650 ms, and `by BocTrust` begins after 1,000 ms; both are fully visible at 1,350 ms. Assert navy text, immediate final composition under reduced motion, and one `Cheetah by BocTrust` semantics label.
+- [ ] **Step 1: Write widget tests** for the reveal: the mark is visible at full size on the first Flutter frame, settles at the same position during the first 1,300 ms, `Cheetah` begins after 1,300 ms, and `by BocTrust` begins after 2,000 ms; both are fully visible at 2,700 ms. Assert navy text, immediate final composition under reduced motion, and one `Cheetah by BocTrust` semantics label.
 - [ ] **Step 2: Run the focused tests and confirm they fail.** Run `flutter test test/startup_brand_sequence_test.dart`; expect missing-widget or timing failures.
-- [ ] **Step 3: Extract the existing launch word styles** into `CheetahBrandWords` without changing normal `CheetahBrand` layout, color, or accessibility behavior; let the splash supply navy foreground colors. Add `RegulatoryBadge.splash()` with the current legal copy rendered as a plain navy line on gold. Build `StartupBrandSequence` with an `AnimationController` of 1,350 ms: mark scale 1.0→1.04→1.0 over 0–650 ms with fixed center and full opacity, title fade over 650–1,000 ms, byline fade over 1,000–1,350 ms. Use the existing mark and words, not a flattened image. Anchor the regulatory variant near the bottom.
+- [ ] **Step 3: Extract the existing launch word styles** into `CheetahBrandWords` without changing normal `CheetahBrand` layout, color, or accessibility behavior; let the splash supply navy foreground colors. Add `RegulatoryBadge.splash()` with the current legal copy rendered as a plain navy line on gold. Build `StartupBrandSequence` with an `AnimationController` of 2,700 ms: mark scale 1.0→1.04→1.0 over 0–1,300 ms with fixed center and full opacity, title fade over 1,300–2,000 ms, byline fade over 2,000–2,700 ms. Use the existing mark and words, not a flattened image. Anchor the regulatory variant near the bottom.
 - [ ] **Step 4: Verify and commit.** Run `flutter test test/startup_brand_sequence_test.dart test/in_app_branding_test.dart`; expect pass. Commit the shared brand and reveal widget with tests.
 
 ### Task 3: Cold-start gate and bootstrap integration
@@ -76,7 +76,7 @@
 
 **Interfaces:**
 - Consumes: `StartupBrandSequence({required bool reduceMotion})` from Task 2.
-- Produces: `StartupGateNotifier.start({Duration minimumSplashDuration = const Duration(milliseconds: 1350)})` for cold launch only. `startAfterLogin()` keeps its existing signature and immediate behavior.
+- Produces: `StartupGateNotifier.start({Duration minimumSplashDuration = const Duration(milliseconds: 2700)})` for cold launch only. `startAfterLogin()` keeps its existing signature and immediate behavior.
 
 - [ ] **Step 1: Write provider/widget tests** asserting that an immediate cold-start decision publishes only after the minimum duration; slow cleanup publishes as soon as both cleanup and minimum duration finish; `Duration.zero` publishes without a hold; returning users reach login; `startAfterLogin()` keeps the loading/error path without the animated splash.
 - [ ] **Step 2: Run tests to confirm they fail.** Run `flutter test test/cold_launch_auth_test.dart test/bootstrap_splash_test.dart`; expect missing-parameter or early-navigation failures.

@@ -20,11 +20,11 @@ class StartupBrandSequence extends StatefulWidget {
 class _StartupBrandSequenceState extends State<StartupBrandSequence>
     with SingleTickerProviderStateMixin {
   static const _markSize = 120.0;
-  static const _total = 1350.0;
+  static const _total = 2700.0;
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1350),
+    duration: const Duration(milliseconds: 2700),
     value: widget.reduceMotion ? 1 : 0,
   );
 
@@ -47,18 +47,18 @@ class _StartupBrandSequenceState extends State<StartupBrandSequence>
       ]).animate(
         CurvedAnimation(
           parent: _controller,
-          curve: const Interval(0, 650 / _total),
+          curve: const Interval(0, 1300 / _total),
         ),
       );
 
   late final Animation<double> _title = CurvedAnimation(
     parent: _controller,
-    curve: const Interval(650 / _total, 1000 / _total, curve: Curves.easeOut),
+    curve: const Interval(1300 / _total, 2000 / _total, curve: Curves.easeOut),
   );
 
   late final Animation<double> _byline = CurvedAnimation(
     parent: _controller,
-    curve: const Interval(1000 / _total, 1, curve: Curves.easeOut),
+    curve: const Interval(2000 / _total, 1, curve: Curves.easeOut),
   );
 
   @override

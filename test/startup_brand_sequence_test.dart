@@ -38,20 +38,20 @@ void main() {
     expect(_opacity(tester, 'Cheetah'), 0);
     expect(_opacity(tester, 'by BocTrust'), 0);
 
-    await tester.pump(const Duration(milliseconds: 325));
+    await tester.pump(const Duration(milliseconds: 650));
     expect(_mark(tester).width, greaterThan(120));
     expect(_mark(tester).center, _centre);
     expect(_opacity(tester, 'Cheetah'), 0);
 
-    await tester.pump(const Duration(milliseconds: 425)); // 750 ms
+    await tester.pump(const Duration(milliseconds: 850)); // 1500 ms
     expect(_opacity(tester, 'Cheetah'), inExclusiveRange(0, 1));
     expect(_opacity(tester, 'by BocTrust'), 0);
 
-    await tester.pump(const Duration(milliseconds: 350)); // 1100 ms
+    await tester.pump(const Duration(milliseconds: 700)); // 2200 ms
     expect(_opacity(tester, 'Cheetah'), 1);
     expect(_opacity(tester, 'by BocTrust'), inExclusiveRange(0, 1));
 
-    await tester.pump(const Duration(milliseconds: 250)); // 1350 ms
+    await tester.pump(const Duration(milliseconds: 500)); // 2700 ms
     expect(_opacity(tester, 'by BocTrust'), 1);
     expect(
       _mark(tester),

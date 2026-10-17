@@ -9,7 +9,7 @@ The three intro slides use the supplied `Onboarding - 1.png`, `Onboarding - 2.pn
 ## Splash behavior
 
 - Use `BocColors.goldLight` (`#E5C367`) for the launch field in both themes. Keep the approved blue Cheetah app mark.
-- On initial cold launch, keep the mark at the native splash's apparent location and animate a small scale settle (1.0 → 1.04 → 1.0), reveal `Cheetah` after 650 ms, then reveal `by BocTrust` after 1,000 ms. Finish by 1,350 ms; if startup work takes longer, keep the final frame visible until routing completes.
+- On initial cold launch, keep the mark at the native splash's apparent location and animate a small scale settle (1.0 → 1.04 → 1.0), reveal `Cheetah` after 1,300 ms, then reveal `by BocTrust` after 2,000 ms. Finish by 2,700 ms; if startup work takes longer, keep the final frame visible until routing completes.
 - Match the native and Flutter gold fields and mark placement across the handoff. Use navy for splash text to keep it readable on gold.
 - Show the existing regulatory copy near the bottom. Reduced-motion mode immediately shows the final composition and does not add an animation delay.
 - Do not delay the post-login profile bootstrap, alter its error/retry actions, or change the cold-launch destination decision.

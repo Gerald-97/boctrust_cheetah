@@ -66,7 +66,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(StartupBrandSequence), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 1349));
+    await tester.pump(const Duration(milliseconds: 2699));
     expect(container.read(authNavigationProvider), isEmpty);
 
     await tester.pump(const Duration(milliseconds: 1));

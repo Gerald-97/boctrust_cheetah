@@ -26,7 +26,7 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
   /// Cold launch only. Routing waits at least [minimumSplashDuration] so the
   /// brand sequence can finish; slower cleanup holds its final frame.
   Future<void> start({
-    Duration minimumSplashDuration = const Duration(milliseconds: 1350),
+    Duration minimumSplashDuration = const Duration(milliseconds: 2700),
   }) async {
     if (_started) return;
     _started = true;
