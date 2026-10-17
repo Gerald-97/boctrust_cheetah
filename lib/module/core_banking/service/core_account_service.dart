@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/core_api_endpoints.dart';
 import '../../../app/core_network.dart';
+import '../../../app/interceptors.dart';
 import '../../../app/network.dart';
 import '../../../app/services.dart';
+import '../model/account_freeze_models.dart';
 import '../model/bank_product_models.dart';
 import '../model/core_account_summary.dart';
 import '../model/core_account_transactions.dart';
@@ -112,5 +114,80 @@ class CoreAccountService {
         parser: CoreBankProduct.listFromJson,
       ),
     );
+  }
+
+  /// Freezes [accountNumber]. The PIN goes only in this request's body.
+  Future<AccountFreezeOutcome<AccountFreezeResult>> freezeAccount(
+    String accountNumber,
+    String transactionPin,
+  ) => _freezeWrite(
+    accountNumber,
+    CoreApiEndpoints.bankAccountFreeze,
+    CoreApiEndpoints.bankAccountFreezeTemplate,
+    {'transactionPin': transactionPin},
+    AccountFreezeResult.fromJson,
+  );
+
+  /// Asks Core to send the code that confirms an unfreeze. Calling it again
+  /// resends; there is no separate route.
+  Future<AccountFreezeOutcome<UnfreezeOtpReply>> sendUnfreezeOtp(
+    String accountNumber,
+  ) => _freezeWrite(
+    accountNumber,
+    CoreApiEndpoints.bankAccountUnfreezeOtp,
+    CoreApiEndpoints.bankAccountUnfreezeOtpTemplate,
+    null,
+    UnfreezeOtpReply.fromJson,
+  );
+
+  /// Unfreezes [accountNumber]. The PIN and code go only in this request's
+  /// body.
+  Future<AccountFreezeOutcome<AccountFreezeResult>> unfreezeAccount(
+    String accountNumber,
+    String transactionPin,
+    String otpCode,
+  ) => _freezeWrite(
+    accountNumber,
+    CoreApiEndpoints.bankAccountUnfreeze,
+    CoreApiEndpoints.bankAccountUnfreezeTemplate,
+    {'transactionPin': transactionPin, 'otpCode': otpCode},
+    AccountFreezeResult.fromJson,
+  );
+
+  /// Sends exactly one POST and never retries. The logger is given only the
+  /// path template, so the PIN, the code and Core's staging-only `otpCode`
+  /// never reach a log line.
+  Future<AccountFreezeOutcome<T>> _freezeWrite<T>(
+    String accountNumber,
+    String Function(String accountNumber) path,
+    String template,
+    Map<String, Object?>? body,
+    T Function(Object? json) parser,
+  ) async {
+    if (!_accountNumber.hasMatch(accountNumber)) {
+      return FreezeNotFound<T>();
+    }
+    final api = _api;
+    if (api == null) return FreezeUncertain<T>();
+    final response = await api.postData<T>(
+      path(accountNumber),
+      data: body,
+      parser: parser,
+      requestExtra: {LoggingInterceptor.privacySensitivePathKey: template},
+    );
+    if (response.status == ServiceStatus.success && response.data is T) {
+      return FreezeSucceeded<T>(response.data as T);
+    }
+    // A 401 the client produced for an expired session was never sent.
+    if (response.errorCode == kLocalSessionExpiredCode) {
+      return FreezeUncertain<T>();
+    }
+    return switch (response.statusCode) {
+      401 => FreezeWrongCredentials<T>(),
+      403 => FreezeBankFrozen<T>(),
+      404 => FreezeNotFound<T>(),
+      409 => FreezeConflict<T>(),
+      _ => FreezeUncertain<T>(),
+    };
   }
 }
