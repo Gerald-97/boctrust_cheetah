@@ -265,6 +265,7 @@ const capabilityRequirements = <FeatureCapability, CapabilityRequirement>{
   // The runtime provider still decides whether this device has a usable
   // enrolled biometric.
   FeatureCapability.biometricLogin: CapabilityRequirement(localOnly: true),
+  FeatureCapability.biometricTransfers: CapabilityRequirement(localOnly: true),
   // Core mobile banking, verified on staging before release. Staged
   // transfers initiate, collect the PIN and any OTP, then finalize; only
   // finalize moves money and it waits on `transferAuthorizationReadyProvider`.

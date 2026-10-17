@@ -7,14 +7,12 @@ extension _AccountControlScreens on _AccountPageState {
 
   Widget _securityCenterScreen() {
     final profile = ref.watch(userProfileProvider).data;
-    // These controls are shells until each feature is built; switching a
-    // capability on without a real handler fails fast in debug.
-    for (final capability in const [
-      FeatureCapability.biometricTransfers,
+    // Freeze is a shell until it is built; switching its capability on
+    // without a real handler fails fast in debug.
+    assertPlaceholderFor(
       FeatureCapability.freezeAccount,
-    ]) {
-      assertPlaceholderFor(capability, FeatureAvailability.unavailable);
-    }
+      FeatureAvailability.unavailable,
+    );
     return AppScaffold(
       title: 'Security Center',
       activeSection: AppSection.account,
@@ -28,14 +26,7 @@ extension _AccountControlScreens on _AccountPageState {
             caption: 'Sign-in and approvals',
             children: [
               _biometricLoginTile(),
-              SettingsTile.toggle(
-                icon: IconsaxPlusLinear.finger_scan,
-                title: 'Fingerprint for transfers',
-                subtitle: 'Approve transfers with your fingerprint',
-                value: false,
-                onChanged: null,
-                trailing: _notAvailableTag(),
-              ),
+              _biometricApprovalTile(profile),
               SettingsTile(
                 icon: IconsaxPlusLinear.password_check,
                 title: 'Password',
@@ -203,6 +194,159 @@ extension _AccountControlScreens on _AccountPageState {
     if (!mounted) return;
     if (result.succeeded) {
       showSuccessMessage('Biometric login is off.');
+    } else if (!result.cancelled && result.message != null) {
+      showErrorMessage(result.message!);
+    }
+  }
+
+  /// One saved transaction PIN approves both transfers and bill payments.
+  Widget _biometricApprovalTile(UserOwnProfileData? profile) {
+    final approval = ref.watch(biometricApprovalProvider);
+    final (icon, title) = switch (approval.presentation) {
+      BiometricPresentation.faceId => (
+        IconsaxPlusLinear.scan,
+        'Face ID for transfers',
+      ),
+      BiometricPresentation.touchId => (
+        IconsaxPlusLinear.finger_scan,
+        'Touch ID for transfers',
+      ),
+      BiometricPresentation.fingerprint => (
+        IconsaxPlusLinear.finger_scan,
+        'Fingerprint for transfers',
+      ),
+      null => (IconsaxPlusLinear.finger_scan, 'Biometrics for transfers'),
+    };
+    final hydrating = approval.phase == BiometricApprovalPhase.hydrating;
+    // The shared capability reason speaks of login, so this tile keeps its
+    // own wording.
+    final unavailable = !hydrating && !approval.isAvailable;
+    final pinMissing = profile != null && profile.isCreatedPin != true;
+    final subtitle = hydrating || profile == null
+        ? 'Checking this device…'
+        : unavailable
+        ? 'Biometrics are not available on this device'
+        : pinMissing && !approval.enabled
+        ? 'Create a transaction PIN first'
+        : approval.isBusy
+        ? 'Please wait…'
+        : 'Approve transfers and bill payments with your saved transaction '
+              'PIN';
+    final locked =
+        hydrating ||
+        unavailable ||
+        approval.isBusy ||
+        profile == null ||
+        (pinMissing && !approval.enabled);
+    return SettingsTile.toggle(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      value: approval.enabled,
+      onChanged: locked
+          ? null
+          : (enable) => enable
+                ? _showBiometricApprovalDialog()
+                : _disableBiometricApproval(),
+      trailing: unavailable ? _notAvailableTag() : null,
+    );
+  }
+
+  /// Confirms the current transaction PIN with the server, then the device
+  /// biometric, before saving the PIN on this device.
+  Future<void> _showBiometricApprovalDialog() async {
+    _currentSecretController.clear();
+    final formKey = GlobalKey<FormState>();
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Consumer(
+        builder: (dialogContext, ref, _) {
+          final approval = ref.watch(biometricApprovalProvider);
+          final busy = approval.isBusy;
+          final progress = switch (approval.phase) {
+            BiometricApprovalPhase.verifyingPin => 'Verifying your PIN…',
+            BiometricApprovalPhase.confirmingBiometric =>
+              'Confirm with biometrics…',
+            BiometricApprovalPhase.enabling => 'Saving…',
+            _ => null,
+          };
+          return AlertDialog(
+            scrollable: true,
+            title: const Text('Turn on biometric approval'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Enter your current 4-digit transaction PIN. It is saved '
+                    'on this device to approve transfers and bill payments.',
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Current PIN',
+                    controller: _currentSecretController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    enabled: !busy,
+                    validator: validators.transactionPin,
+                  ),
+                  if (progress != null) ...[
+                    const SizedBox(height: 12),
+                    Text(progress),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (formKey.currentState?.validate() != true) return;
+                        final result = await ref
+                            .read(biometricApprovalProvider.notifier)
+                            .enable(_currentSecretController.text);
+                        if (!mounted || !dialogContext.mounted) return;
+                        if (result.succeeded) {
+                          Navigator.pop(dialogContext);
+                          showSuccessMessage('Biometric approval is on.');
+                        } else if (result.cancelled) {
+                          Navigator.pop(dialogContext);
+                        } else {
+                          showErrorMessage(
+                            result.message ??
+                                'We could not turn on biometric approval.',
+                          );
+                        }
+                      },
+                child: busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Continue'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    _currentSecretController.clear();
+  }
+
+  Future<void> _disableBiometricApproval() async {
+    final result = await ref.read(biometricApprovalProvider.notifier).disable();
+    if (!mounted) return;
+    if (result.succeeded) {
+      showSuccessMessage('Biometric approval is off.');
     } else if (!result.cancelled && result.message != null) {
       showErrorMessage(result.message!);
     }

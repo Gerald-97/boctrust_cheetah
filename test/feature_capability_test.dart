@@ -34,6 +34,7 @@ void main() {
       FeatureCapability.notificationPreferences,
       FeatureCapability.accessibilityPreferences,
       FeatureCapability.biometricLogin,
+      FeatureCapability.biometricTransfers,
     });
   });
 
