@@ -283,10 +283,17 @@ class SavingsPlanEvent extends Equatable {
 
 /// A plan with its history, from `GET /me/savings-plans/{planId}`.
 class SavingsPlanDetail extends Equatable {
-  const SavingsPlanDetail({required this.plan, this.events = const []});
+  const SavingsPlanDetail({
+    required this.plan,
+    this.events = const [],
+    this.accountNumber,
+  });
 
   final SavingsPlan plan;
   final List<SavingsPlanEvent> events;
+
+  /// The product account the plan belongs to, when Core states it.
+  final String? accountNumber;
 
   factory SavingsPlanDetail.fromJson(Object? json) {
     final plan = SavingsPlan.tryParse(json);
@@ -294,6 +301,7 @@ class SavingsPlanDetail extends Equatable {
     final events = (json as Map)['events'];
     return SavingsPlanDetail(
       plan: plan,
+      accountNumber: coreText(json['accountNumber']),
       events: List.unmodifiable(
         (events is List ? events : const [])
             .map(SavingsPlanEvent.tryParse)
@@ -303,7 +311,7 @@ class SavingsPlanDetail extends Equatable {
   }
 
   @override
-  List<Object?> get props => [plan, events];
+  List<Object?> get props => [plan, events, accountNumber];
 }
 
 /// What Core reports after a plan action (top-up, early withdrawal,

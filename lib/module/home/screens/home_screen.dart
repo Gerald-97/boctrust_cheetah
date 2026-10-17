@@ -15,15 +15,13 @@ import '../../account/provider/user_providers.dart';
 import '../../account/screens/contact_verification.dart';
 import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
-import '../../core_banking/model/account_freeze_models.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';
 import '../../core_banking/model/core_account_transactions.dart';
 import '../../core_banking/model/flex_balance.dart';
-import '../../core_banking/provider/account_freeze_provider.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
-import '../../core_banking/screens/account_freeze_flow.dart';
 import '../../core_banking/screens/core_flow_widgets.dart';
+import '../../core_banking/screens/frozen_account_banner.dart';
 import '../../core_banking/screens/core_transaction_detail_sheet.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
@@ -348,7 +346,12 @@ extension HomeScreenParts on FlowPageState {
       ],
       _flexWalletCard(flex, loading: source.isLoading),
       if (flex.isFrozen && flex.accountNumber != null)
-        _frozenBanner(flex.accountNumber!),
+        FrozenAccountBanner(
+          accountNumber: flex.accountNumber!,
+          message:
+              'Your Boc Flex account is frozen. Transfers and other '
+              'outgoing payments are paused.',
+        ),
     ];
   }
 
@@ -383,62 +386,6 @@ extension HomeScreenParts on FlowPageState {
       tier: ref.watch(userTierProvider).data?.currentTier,
       loading: loading,
       frozenLabel: flex.isFrozen ? 'Boc Flex account frozen' : null,
-    );
-  }
-
-  /// Shown for as long as Core reports the account frozen. A bank freeze can
-  /// only be lifted by support, so the action changes to match.
-  Widget _frozenBanner(String accountNumber) {
-    final colors = context.bocColors;
-    final theme = Theme.of(context);
-    final bankFrozen =
-        ref.watch(accountFreezeMemoryProvider)[accountNumber] ==
-        CoreFrozenBy.admin;
-    // Unfreezing is staging-only for now; elsewhere support handles it.
-    final canUnfreeze =
-        ref.watch(
-          featureAvailabilityProvider(FeatureCapability.freezeAccount),
-        ) ==
-        FeatureAvailability.available;
-    final useSupport = bankFrozen || !canUnfreeze;
-    return Padding(
-      padding: const EdgeInsets.only(top: BocSpace.xs),
-      child: Container(
-        padding: const EdgeInsets.all(BocSpace.sm),
-        decoration: BoxDecoration(
-          color: colors.infoContainer,
-          borderRadius: BorderRadius.circular(BocRadius.md),
-          border: Border.all(color: colors.info.withValues(alpha: 0.4)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(IconsaxPlusLinear.lock, size: 20, color: colors.info),
-                const SizedBox(width: BocSpace.xs),
-                Expanded(
-                  child: Text(
-                    'Your Boc Flex account is frozen. Transfers and other '
-                    'outgoing payments are paused.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: BocSpace.xs),
-            SecondaryButton(
-              label: useSupport ? 'Contact support' : 'Unfreeze account',
-              onPressed: useSupport
-                  ? () => Navigator.of(context).pushNamed(AppRoutes.support)
-                  : () => openUnfreezeFlow(context, ref, accountNumber),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

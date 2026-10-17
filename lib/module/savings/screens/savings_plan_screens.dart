@@ -180,6 +180,8 @@ extension SavingsPlanScreens on FlowPageState {
                               style: theme.textTheme.titleSmall,
                             ),
                           ),
+                          if (_frozenAccountNumber(group.accountNumber) != null)
+                            const FrozenLabel(),
                         ],
                       ),
                       const SizedBox(height: BocSpace.sm),
@@ -213,6 +215,14 @@ extension SavingsPlanScreens on FlowPageState {
                     ],
                   ),
                 ),
+                if (_frozenAccountNumber(group.accountNumber)
+                    case final frozen?)
+                  FrozenAccountBanner(
+                    accountNumber: frozen,
+                    message:
+                        'Your ${group.productName} account is frozen. '
+                        'Withdrawals are paused.',
+                  ),
                 if (_canCreatePlan(type)) ...[
                   const SizedBox(height: BocSpace.sm),
                   PrimaryButton(
@@ -400,6 +410,15 @@ extension SavingsPlanScreens on FlowPageState {
         ? savingsPlanProgress(principal: plan.principal, target: plan.target)
         : null;
     String date(DateTime value) => DateFormat('d MMM yyyy').format(value);
+    final productGroup = ref
+        .watch(savingsPlansProvider(plan.type))
+        .value
+        ?.data
+        ?.where((group) => group.type == plan.type)
+        .firstOrNull;
+    final frozenAccount = _frozenAccountNumber(
+      detail.accountNumber ?? productGroup?.accountNumber,
+    );
     return AppScaffold(
       title: plan.name,
       activeSection: AppSection.save,
@@ -445,6 +464,15 @@ extension SavingsPlanScreens on FlowPageState {
                   BocSpace.gutter,
                 ).clearOfNav(context),
                 children: [
+                  if (frozenAccount != null) ...[
+                    FrozenAccountBanner(
+                      accountNumber: frozenAccount,
+                      message:
+                          'Your ${plan.type.displayName} account is frozen. '
+                          'Withdrawals are paused.',
+                    ),
+                    const SizedBox(height: BocSpace.sm),
+                  ],
                   SavingsPlanHero(
                     status: plan.status.label,
                     amount: _planMoney(plan.principal),

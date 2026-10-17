@@ -18,6 +18,7 @@ import '../../core_banking/model/bank_product_models.dart';
 import '../../core_banking/model/customer_bank_account_models.dart';
 import '../../core_banking/model/flex_balance.dart';
 import '../../core_banking/provider/core_account_providers.dart';
+import '../../core_banking/screens/frozen_account_banner.dart';
 import '../../home/model/user_home_model.dart';
 import '../../home/provider/home_provider.dart';
 import '../../home/screens/home_screen.dart';
@@ -251,6 +252,19 @@ extension SavingsScreens on FlowPageState {
       const SizedBox(height: 12),
     ],
   ];
+
+  /// The account's number while Core reports it frozen, otherwise null.
+  String? _frozenAccountNumber(String? accountNumber) {
+    final accounts = _watchCoreAccounts().data?.accounts;
+    return accounts
+        ?.where(
+          (account) =>
+              account.accountNumber == accountNumber &&
+              account.status == CoreAccountStatus.frozen,
+        )
+        .firstOrNull
+        ?.accountNumber;
+  }
 
   String _accountStatusLabel(CoreAccountStatus status) => switch (status) {
     CoreAccountStatus.active => 'Active',
@@ -491,6 +505,7 @@ extension SavingsScreens on FlowPageState {
                 hidden: hidden,
                 accountNumber: flex.accountNumber,
                 rate: flexRate == null ? null : _formatRate(flexRate),
+                frozen: flex.isFrozen,
                 onTap: () => go(AppRoutes.flexSave),
               )
             else if (accounts != null || homeState.data != null)
@@ -498,6 +513,13 @@ extension SavingsScreens on FlowPageState {
                 title: 'Flex account unavailable',
                 message: 'Your Flex account will appear here when available.',
                 tone: ApiStateTone.info,
+              ),
+            if (flex != null && flex.isFrozen && flex.accountNumber != null)
+              FrozenAccountBanner(
+                accountNumber: flex.accountNumber!,
+                message:
+                    'Your Boc Flex account is frozen. Transfers and other '
+                    'outgoing payments are paused.',
               ),
             for (final account in otherAccounts) ...[
               const SizedBox(height: BocSpace.sm),
@@ -508,6 +530,13 @@ extension SavingsScreens on FlowPageState {
                     .where((p) => p.code == account.productCode)
                     .firstOrNull,
               ),
+              if (account.status == CoreAccountStatus.frozen)
+                FrozenAccountBanner(
+                  accountNumber: account.accountNumber,
+                  message:
+                      'Your ${account.productName} account is frozen. '
+                      'Withdrawals are paused.',
+                ),
             ],
             if (otherProducts.isNotEmpty) ...[
               const SizedBox(height: BocSpace.lg),
@@ -762,6 +791,13 @@ extension SavingsScreens on FlowPageState {
                 secondary: canWithdraw
                     ? SecondaryButton(label: 'Withdraw', onPressed: () {})
                     : null,
+              ),
+            if (flex != null && flex.isFrozen && flex.accountNumber != null)
+              FrozenAccountBanner(
+                accountNumber: flex.accountNumber!,
+                message:
+                    'Your Boc Flex account is frozen. Transfers and other '
+                    'outgoing payments are paused.',
               ),
             if (flex != null) ..._flexInterestSection(hidden),
             // Only an active Flex account is shown, so no status row is needed.
