@@ -239,6 +239,41 @@ void main() {
     expect(production.lines.join(), contains('1000.00'));
   });
 
+  test(
+    'bank-account replies are verbatim in staging, redacted in production',
+    () {
+      RequestOptions request() => RequestOptions(
+        baseUrl: 'https://core.test/api/v1',
+        path: '/me/bank-accounts/1100919408/unfreeze/otp',
+        method: 'POST',
+        extra: const {
+          'apiLogger.privacySensitivePath':
+              '/me/bank-accounts/{accountNumber}/unfreeze/otp',
+        },
+      );
+      Response<Object?> reply() => Response<Object?>(
+        requestOptions: request(),
+        statusCode: 200,
+        data: {'accountNumber': '1100919408', 'otpCode': '482913'},
+      );
+      interceptor.onResponse(reply(), ResponseInterceptorHandler());
+      expect(output.lines.join(), contains('1100919408'));
+      expect(output.lines.join(), contains('482913'));
+
+      final production = _CapturingOutput();
+      LoggingInterceptor(
+        includeSensitiveData: false,
+        logger: Logger(
+          filter: ProductionFilter(),
+          printer: SimplePrinter(printTime: false, colors: false),
+          output: production,
+        ),
+      ).onResponse(reply(), ResponseInterceptorHandler());
+      expect(production.lines.join(), isNot(contains('482913')));
+      expect(production.lines.join(), isNot(contains('1100919408')));
+    },
+  );
+
   test('privacy-sensitive enquiry hides its account path and body', () {
     final request = RequestOptions(
       baseUrl: 'https://core.test/api/v1',
