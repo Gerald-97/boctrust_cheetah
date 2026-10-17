@@ -51,17 +51,6 @@ class BiometricTransferStorage {
     }
   }
 
-  /// Cheap check that the enabled marker exists. Does not validate the rest.
-  Future<bool> hasEnabledMarker() async {
-    try {
-      return await _storage.hasBiometricTransferValue(
-        BiometricTransferStorageKey.enabled,
-      );
-    } catch (_) {
-      return false;
-    }
-  }
-
   /// Returns the enrolled user ID when every key is present and consistent.
   /// Any other state, including values that no longer decrypt, is cleared.
   Future<String?> loadValidEnrollment() async {

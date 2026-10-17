@@ -234,61 +234,62 @@ void main() {
     expect(find.text('Payment successful'), findsNothing);
   });
 
-  testWidgets('the biometric sheet pays a bill with the saved PIN', (
-    tester,
-  ) async {
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    final bills = _Bills();
-    final (storage, biometrics) = await _enrolled();
-    await pumpFlow(
-      tester,
-      route: AppRoutes.billPay,
-      overrides: [
-        authSessionProvider.overrideWith(SavingsSession.new),
-        customerBankAccountsProvider.overrideWith(LayoutCoreAccounts.new),
-        coreBillServiceProvider.overrideWithValue(bills),
-        coreAccountServiceProvider.overrideWithValue(_History()),
-        featureAvailabilityProvider(
-          FeatureCapability.bills,
-        ).overrideWithValue(FeatureAvailability.available),
-        ...biometrics,
-      ],
-    );
-    await tester.pump();
-    Future<void> settle() async {
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 300));
+  testWidgets(
+    'a rejected biometric payment wipes the enrollment and opens the PIN sheet',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final bills = _Bills();
+      final (storage, biometrics) = await _enrolled();
+      await pumpFlow(
+        tester,
+        route: AppRoutes.billPay,
+        overrides: [
+          authSessionProvider.overrideWith(SavingsSession.new),
+          customerBankAccountsProvider.overrideWith(LayoutCoreAccounts.new),
+          coreBillServiceProvider.overrideWithValue(bills),
+          coreAccountServiceProvider.overrideWithValue(_History()),
+          featureAvailabilityProvider(
+            FeatureCapability.bills,
+          ).overrideWithValue(FeatureAvailability.available),
+          ...biometrics,
+        ],
+      );
+      await tester.pump();
+      Future<void> settle() async {
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
       }
-    }
 
-    await tester.tap(find.text('Utility Bills'));
-    await tester.pump();
-    await tester.tap(find.text('Power Electric'));
-    await tester.pump();
-    await tester.tap(find.text('Prepaid'));
-    await tester.pump();
-    await tester.enterText(find.byType(TextFormField).first, '1234567890');
-    await tester.pump();
-    await tester.tap(find.text('Review'));
-    await tester.pump();
+      await tester.tap(find.text('Utility Bills'));
+      await tester.pump();
+      await tester.tap(find.text('Power Electric'));
+      await tester.pump();
+      await tester.tap(find.text('Prepaid'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextFormField).first, '1234567890');
+      await tester.pump();
+      await tester.tap(find.text('Review'));
+      await tester.pump();
 
-    // A rejected payment wipes the enrollment and opens the PIN sheet.
-    bills.reply = const ServiceResponse.error('No.', statusCode: 400);
-    await tester.tap(find.text('Pay ₦100.00'));
-    await settle();
-    expect(find.byKey(const Key('transaction-pin-sheet')), findsNothing);
-    await tester.tap(find.text('Use fingerprint'));
-    await settle();
-    expect(bills.payments.map((p) => p.$2), ['0007']);
-    expect(find.byKey(const Key('transaction-pin-sheet')), findsOneWidget);
-    expect(
-      find.text(
-        'Biometric approval has been turned off. Enter your transaction PIN.',
-      ),
-      findsOneWidget,
-    );
-    expect(await storage.loadValidEnrollment(), isNull);
-  });
+      // A rejected payment wipes the enrollment and opens the PIN sheet.
+      bills.reply = const ServiceResponse.error('No.', statusCode: 400);
+      await tester.tap(find.text('Pay ₦100.00'));
+      await settle();
+      expect(find.byKey(const Key('transaction-pin-sheet')), findsNothing);
+      await tester.tap(find.text('Use fingerprint'));
+      await settle();
+      expect(bills.payments.map((p) => p.$2), ['0007']);
+      expect(find.byKey(const Key('transaction-pin-sheet')), findsOneWidget);
+      expect(
+        find.text(
+          'Biometric approval has been turned off. Enter your transaction PIN.',
+        ),
+        findsOneWidget,
+      );
+      expect(await storage.loadValidEnrollment(), isNull);
+    },
+  );
 
   testWidgets('the biometric sheet sends the bill once and shows the result', (
     tester,

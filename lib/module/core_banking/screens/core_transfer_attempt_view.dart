@@ -89,6 +89,12 @@ Future<void> authorizeStagedTransfer(
         // The attempt view shows its verifying state while Core checks the
         // saved PIN; a pass or a stop leaves the PIN step on its own.
         final result = await approval.approve(id);
+        // A pass or a stop leaves the PIN step on its own; the loop then
+        // finalizes or ends without touching this screen's `ref`.
+        if (result == ApprovalResult.passed ||
+            result == ApprovalResult.stopped) {
+          continue;
+        }
         if (!context.mounted) return notifier.cancelReview(id);
         final message = ref.read(biometricApprovalProvider).message;
         switch (result) {

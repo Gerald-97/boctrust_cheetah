@@ -404,7 +404,9 @@ class BiometricApprovalNotifier extends Notifier<BiometricApprovalState> {
     if (!_isCurrent(token)) return end(ApprovalResult.cancelled);
     if (!capability.supported) {
       // Biometrics were removed or the hardware is no longer usable.
-      await _erase(message: capability.reason, unavailable: true);
+      // The shared capability reason speaks of login; the screens show
+      // their own approval copy instead.
+      await _erase(unavailable: true);
       return end(ApprovalResult.unavailable);
     }
 
@@ -446,8 +448,12 @@ class BiometricApprovalNotifier extends Notifier<BiometricApprovalState> {
     return (token: token, pin: pin, result: null);
   }
 
-  bool get _inForeground =>
-      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  /// The OS biometric prompt itself makes the app `inactive`, so only a
+  /// backgrounded (or not yet reported) app counts as away.
+  bool get _inForeground => switch (WidgetsBinding.instance.lifecycleState) {
+    AppLifecycleState.resumed || AppLifecycleState.inactive => true,
+    _ => false,
+  };
 
   bool _awaitsPin(int attemptId) {
     final current = ref.read(coreTransferAttemptProvider).current;

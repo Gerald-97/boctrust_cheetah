@@ -58,6 +58,9 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   PaymentItem? _item;
   BillPaymentDraft? _draft;
 
+  /// A payment confirmation is running; a second "Pay" tap is ignored.
+  bool _confirming = false;
+
   bool get _beneficiaries => ref
       .watch(featureAvailabilityProvider(FeatureCapability.beneficiaries))
       .isAvailable;
@@ -113,6 +116,16 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   @override
   Widget build(BuildContext context) {
     final submission = ref.watch(billPaymentProvider);
+    // The review stays up under the biometric prompt; the result step opens
+    // once the payment is actually sent.
+    ref.listen(billPaymentProvider.select((state) => state.inFlight), (
+      _,
+      inFlight,
+    ) {
+      if (inFlight && _step == _Step.review) {
+        setState(() => _step = _Step.result);
+      }
+    });
     return AppScaffold(
       title: widget.group.title,
       activeSection: AppSection.payments,
@@ -496,6 +509,16 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
   }
 
   Future<void> _confirm(BillPaymentDraft draft) async {
+    if (_confirming) return;
+    _confirming = true;
+    try {
+      await _approve(draft);
+    } finally {
+      _confirming = false;
+    }
+  }
+
+  Future<void> _approve(BillPaymentDraft draft) async {
     final biller = _biller;
     final item = _item;
     if (biller == null || item == null) return;
@@ -539,7 +562,6 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
             usePin = true;
             continue;
           }
-          setState(() => _step = _Step.result);
           final result = await approval.approveBill(draft);
           // The result is recorded by the provider; nothing is left to do
           // for a screen that has gone.
@@ -547,12 +569,11 @@ class _BillPaymentFlowState extends ConsumerState<BillPaymentFlow> {
           final message = ref.read(biometricApprovalProvider).message;
           switch (result) {
             case ApprovalResult.passed || ApprovalResult.stopped:
+              setState(() => _step = _Step.result);
               return;
             case ApprovalResult.cancelled:
-              setState(() => _step = _Step.review);
               biometricError = message;
             case ApprovalResult.unavailable:
-              setState(() => _step = _Step.review);
               usePin = true;
               error = message ?? biometricUnavailableMessage;
             case ApprovalResult.wiped:

@@ -23,6 +23,7 @@ import 'support/savings_fixtures.dart';
 
 class _Gateway implements BiometricAuthGateway {
   BiometricAuthOutcome outcome = BiometricAuthOutcome.success;
+  void Function()? onPrompt;
 
   @override
   Future<BiometricCapability> checkCapability() async =>
@@ -33,8 +34,10 @@ class _Gateway implements BiometricAuthGateway {
       );
 
   @override
-  Future<BiometricAuthOutcome> authenticate({required String reason}) async =>
-      outcome;
+  Future<BiometricAuthOutcome> authenticate({required String reason}) async {
+    onPrompt?.call();
+    return outcome;
+  }
 
   @override
   Future<void> stopAuthentication() async {}
@@ -126,6 +129,13 @@ void main() {
 
   test('approve sends one PIN verification with the saved PIN', () async {
     expect(container.read(biometricApprovalProvider).enabled, isTrue);
+    // The OS prompt leaves the app inactive; that still counts as active.
+    final binding = TestWidgetsFlutterBinding.instance;
+    gateway.onPrompt = () =>
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    addTearDown(
+      () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+    );
 
     expect(await approve(await initiate()), ApprovalResult.passed);
 
