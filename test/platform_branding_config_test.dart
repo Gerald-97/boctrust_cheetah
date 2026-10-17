@@ -71,18 +71,17 @@ void main() {
           config = _yaml('flutter_native_splash.yaml', 'flutter_native_splash'),
     );
 
-    test('shows the icon and the Cheetah branding on the dark background', () {
-      expect(config['color'], '#101E30');
-      expect(config['color_dark'], '#101E30');
+    test('shows the icon on the gold background with no native branding', () {
+      expect(config['color'], '#E5C367');
+      expect(config['color_dark'], '#E5C367');
       expect(config['image'], 'assets/branding/generated/cheetah_splash.png');
       expect(
         config['image_dark'],
         'assets/branding/generated/cheetah_splash.png',
       );
-      const branding = 'assets/branding/generated/cheetah_splash_branding.png';
-      expect(config['branding'], branding);
-      expect(config['branding_dark'], branding);
-      expect((config['android_12'] as YamlMap)['branding'], branding);
+      for (final map in [config, config['android_12'] as YamlMap]) {
+        expect(map.keys.where((k) => '$k'.startsWith('branding')), isEmpty);
+      }
       expect(config['android'], isTrue);
       expect(config['ios'], isTrue);
     });
@@ -92,8 +91,8 @@ void main() {
       const image = 'assets/branding/generated/cheetah_splash_android12.png';
       expect(android12['image'], image);
       expect(android12['image_dark'], image);
-      expect(android12['color'], '#101E30');
-      expect(android12['color_dark'], '#101E30');
+      expect(android12['color'], '#E5C367');
+      expect(android12['color_dark'], '#E5C367');
       expect(android12.containsKey('icon_background_color'), isFalse);
       expect(android12.containsKey('icon_background_color_dark'), isFalse);
     });
@@ -152,6 +151,7 @@ void main() {
         expect(styles, contains('android:windowSplashScreenAnimatedIcon'));
         expect(styles, contains('@drawable/android12splash'));
         expect(styles, contains('android:windowSplashScreenBackground'));
+        expect(styles, isNot(contains('windowSplashScreenBrandingImage')));
       }
       for (final density in _densities) {
         expect(
@@ -187,11 +187,12 @@ void main() {
       }
     });
 
-    test('launch screen shows the splash image on the dark background', () {
+    test('launch screen shows the splash image on the gold background', () {
       final storyboard = File(
         'ios/Runner/Base.lproj/LaunchScreen.storyboard',
       ).readAsStringSync();
       expect(storyboard, contains('image="LaunchImage"'));
+      expect(storyboard, isNot(contains('BrandingImage')));
       final launch = _png(
         'ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png',
       );
@@ -202,7 +203,7 @@ void main() {
       );
       expect(background.existsSync(), isTrue);
       final pixel = _png(background.path).getPixel(0, 0);
-      expect([pixel.r, pixel.g, pixel.b], [0x10, 0x1E, 0x30]);
+      expect([pixel.r, pixel.g, pixel.b], [0xE5, 0xC3, 0x67]);
     });
   });
 

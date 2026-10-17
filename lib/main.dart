@@ -8,10 +8,14 @@ import 'helper/fcm_service.dart';
 import 'helper/firebase_bootstrap.dart';
 import 'helper/local_notification_service.dart';
 import 'helper/notification_delivery.dart';
+import 'module/app_flow/app_ui.dart' show BocBrandMark;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppBootstrap.initialize();
+  // Cached while the native splash shows, so Flutter's first splash frame
+  // already has the mark.
+  final brandMarkReady = BocBrandMark.precache();
 
   var firebaseReady = false;
   try {
@@ -31,6 +35,7 @@ Future<void> main() async {
     displayForegroundMessages(FCMService().onMessage, notifications);
   }
   final preferences = await SharedPreferences.getInstance();
+  await brandMarkReady;
   runApp(
     CheetahApp(
       preferences: preferences,

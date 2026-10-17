@@ -40,7 +40,9 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await container.read(startupGateProvider.notifier).start();
+    await container
+        .read(startupGateProvider.notifier)
+        .start(minimumSplashDuration: Duration.zero);
 
     final intent = container.read(authNavigationProvider).single;
     expect(intent.destination, AuthDestination.login);

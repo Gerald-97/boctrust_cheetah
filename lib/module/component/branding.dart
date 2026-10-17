@@ -5,13 +5,26 @@ part of '../app_flow/app_ui.dart';
 class BocBrandMark extends StatelessWidget {
   const BocBrandMark({required this.size, this.semanticLabel, super.key});
 
+  static const _loader = SvgAssetLoader('assets/branding/cheetah_app_icon.svg');
+
+  /// Encodes the mark into flutter_svg's byte cache before the first frame.
+  /// A cache hit and the image-free decode both return synchronous futures,
+  /// so the startup splash paints the mark in its first frame instead of a
+  /// blank gold one. Never throws or stalls startup; on failure the mark
+  /// simply loads as usual.
+  static Future<void> precache() async {
+    try {
+      await _loader.loadBytes(null).timeout(const Duration(seconds: 2));
+    } catch (_) {}
+  }
+
   final double size;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      'assets/branding/cheetah_app_icon.svg',
+    return SvgPicture(
+      _loader,
       width: size,
       height: size,
       fit: BoxFit.contain,
@@ -22,10 +35,11 @@ class BocBrandMark extends StatelessWidget {
 }
 
 /// The app's name, Cheetah, with its "by BocTrust" tagline beside the brand
-/// mark: stacked on the startup screen, in one row in the home header.
+/// mark: stacked on the sign-in, sign-up and recovery pages and the
+/// post-login loading screen, in one row in the home header.
 class CheetahBrand extends StatelessWidget {
-  /// Stacked, for the startup, onboarding and sign-in screens; the words
-  /// scale with [markSize].
+  /// Stacked, for the auth pages and the post-login loading and error
+  /// screen; the words scale with [markSize].
   const CheetahBrand.launch({this.markSize = 72, super.key}) : _compact = false;
 
   /// One row, sized for an app bar title.
@@ -36,34 +50,12 @@ class CheetahBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final ratio = markSize / 72;
     // Like the BOCTRUST wordmark, the lockup ignores text scaling and only
     // shrinks when the space is too narrow.
-    // The tagline sits under the name, aligned to its right edge.
-    final words = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          'Cheetah',
-          textScaler: TextScaler.noScaling,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: _compact ? 18 : 34 * ratio,
-            height: 1.1,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          'by BocTrust',
-          textScaler: TextScaler.noScaling,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: _compact ? 11 : 15 * ratio,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
+    final words = _compact
+        ? const CheetahBrandWords._header()
+        : CheetahBrandWords(markSize: markSize);
     return Semantics(
       label: 'Cheetah by BocTrust',
       excludeSemantics: true,
@@ -91,128 +83,93 @@ class CheetahBrand extends StatelessWidget {
   }
 }
 
-class OnboardingIllustration extends StatelessWidget {
-  const OnboardingIllustration({required this.icon, super.key});
+/// The lockup's words, `Cheetah` over `by BocTrust`, sized to sit under a
+/// brand mark of [markSize]. [color], when given, paints both words (navy on
+/// the gold splash); otherwise they follow the theme.
+class CheetahBrandWords extends StatelessWidget {
+  const CheetahBrandWords({
+    required this.markSize,
+    this.titleOpacity = 1,
+    this.bylineOpacity = 1,
+    this.color,
+    super.key,
+  }) : _compact = false;
 
-  final IconData icon;
+  /// The smaller, fixed-size words of the one-row header lockup.
+  const CheetahBrandWords._header()
+    : markSize = 30,
+      titleOpacity = 1,
+      bylineOpacity = 1,
+      color = null,
+      _compact = true;
+
+  final double markSize;
+  final double titleOpacity;
+  final double bylineOpacity;
+  final Color? color;
+  final bool _compact;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 170,
-      height: 170,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: context.bocColors.goldPale.withValues(alpha: 0.55),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            bottom: 30,
-            child: Container(
-              width: 94,
-              height: 12,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(20),
-              ),
+    final theme = Theme.of(context);
+    final ratio = markSize / 72;
+    // The tagline sits under the name, aligned to its right edge.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Opacity(
+          opacity: titleOpacity,
+          child: Text(
+            'Cheetah',
+            textScaler: TextScaler.noScaling,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: _compact ? 18 : 34 * ratio,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
-          Container(
-            width: 98,
-            height: 68,
-            decoration: BoxDecoration(
-              color: BocColors.goldLight,
-              borderRadius: BorderRadius.circular(34),
+        ),
+        Opacity(
+          opacity: bylineOpacity,
+          child: Text(
+            'by BocTrust',
+            textScaler: TextScaler.noScaling,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: _compact ? 11 : 15 * ratio,
+              color: color ?? theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Positioned(
-            left: 44,
-            top: 77,
-            child: Container(
-              width: 28,
-              height: 24,
-              decoration: BoxDecoration(
-                color: BocColors.gold,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(radius: 2, backgroundColor: BocColors.navy),
-                  SizedBox(width: 6),
-                  CircleAvatar(radius: 2, backgroundColor: BocColors.navy),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 72,
-            child: Container(
-              width: 24,
-              height: 7,
-              decoration: BoxDecoration(
-                color: BocColors.navy,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          const Positioned(
-            right: 55,
-            top: 78,
-            child: Icon(
-              IconsaxPlusLinear.trend_up,
-              color: BocColors.green,
-              size: 22,
-            ),
-          ),
-          Positioned(
-            right: 42,
-            top: 44,
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: BocColors.blue,
-              foregroundColor: Colors.white,
-              child: Icon(icon, size: 20),
-            ),
-          ),
-          Positioned(
-            left: 77,
-            bottom: 39,
-            child: Container(
-              width: 8,
-              height: 18,
-              decoration: BoxDecoration(
-                color: BocColors.gold,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 69,
-            bottom: 39,
-            child: Container(
-              width: 8,
-              height: 18,
-              decoration: BoxDecoration(
-                color: BocColors.gold,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class RegulatoryBadge extends StatelessWidget {
-  const RegulatoryBadge({super.key});
+  const RegulatoryBadge({super.key}) : _splash = false;
+
+  /// The same copy as a plain navy line, for the gold startup screen.
+  const RegulatoryBadge.splash({super.key}) : _splash = true;
+
+  final bool _splash;
+
+  static const _copy = 'Licensed by the CBN · Deposits insured by the NDIC';
 
   @override
   Widget build(BuildContext context) {
+    if (_splash) {
+      return const Text(
+        _copy,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: BocColors.navy,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
@@ -227,7 +184,7 @@ class RegulatoryBadge extends StatelessWidget {
           SizedBox(width: 5),
           Flexible(
             child: Text(
-              'Licensed by the CBN · Deposits insured by the NDIC',
+              _copy,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
             ),

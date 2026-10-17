@@ -70,7 +70,8 @@ void main() {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'dark'});
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(CheetahTestApp(preferences: preferences));
-    await tester.pump(const Duration(milliseconds: 250));
+    // Past the cold-launch splash hold.
+    await tester.pump(const Duration(seconds: 3));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
@@ -82,7 +83,8 @@ void main() {
     SharedPreferences.setMockInitialValues({themePreferenceKey: 'invalid'});
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(CheetahTestApp(preferences: preferences));
-    await tester.pump(const Duration(milliseconds: 250));
+    // Past the cold-launch splash hold.
+    await tester.pump(const Duration(seconds: 3));
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.system);
