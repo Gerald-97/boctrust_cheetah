@@ -372,6 +372,7 @@ enum FundingSource {
 /// Core's tenor, in days, for each term the wizard offers. Core rejects a
 /// tenor with no rate band for the product, and that message is shown.
 const tenorDaysForMonths = {3: 90, 6: 180, 9: 270, 12: 365};
+const maximumSavingsTenorDays = 365;
 
 int minimumSavingsTenorDays(SavingsProductType type) => switch (type) {
   SavingsProductType.smartSave => 90,
@@ -541,7 +542,11 @@ class SavingsPlanDraft extends Equatable {
     final days = customDate == null
         ? tenorDaysForMonths[durationMonths]
         : daysUntilSavingsDate(today, customDate);
-    return days != null && days >= minimumSavingsTenorDays(type) ? days : null;
+    return days != null &&
+            days >= minimumSavingsTenorDays(type) &&
+            days <= maximumSavingsTenorDays
+        ? days
+        : null;
   }
 
   CreateSavingsPlanRequest? toCreateRequest({DateTime? today}) {
@@ -551,6 +556,17 @@ class SavingsPlanDraft extends Equatable {
     final planName = name.trim().isEmpty ? null : name.trim();
     switch (type) {
       case SavingsProductType.fixed:
+        if (autoSave) {
+          final recurring = savingsPlanNaira(recurringAmount);
+          if (frequency == null || recurring == null) return null;
+          return CreateSavingsPlanRequest(
+            productCode: code,
+            tenorDays: tenor,
+            planName: planName,
+            saveFrequency: frequency,
+            recurringAmount: recurring,
+          );
+        }
         return CreateSavingsPlanRequest(
           productCode: code,
           tenorDays: tenor,

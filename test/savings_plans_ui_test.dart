@@ -612,6 +612,42 @@ void main() {
     expect(_createdRequests.single.planName, 'School fees 🎓');
   });
 
+  testWidgets('Fixed Deposit can review and create recurring payments', (
+    tester,
+  ) async {
+    _createdRequests.clear();
+    await _open(tester, AppRoutes.lockCreate, const _Plans(), create: true);
+
+    expect(
+      find.textContaining('Latest date: 1 year from today'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('3 months'));
+    await tester.pump();
+    await tester.tap(find.text('Set recurring payments'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('How often should we save?'), findsOneWidget);
+    await tester.tap(find.text('Weekly'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '1,500');
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('Review your deposit'), findsOneWidget);
+    expect(find.text('Recurring payments'), findsOneWidget);
+    expect(find.text('₦1,500.00 weekly'), findsOneWidget);
+    await tester.tap(find.text('Create deposit'));
+    await tester.pump();
+    await tester.tap(find.text('Confirm and create'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_createdRequests.single.saveFrequency, SavingsFrequency.weekly);
+    expect(_createdRequests.single.recurringAmount, '1500.00');
+  });
+
   testWidgets('Fixed Deposit accepts a custom date from day 30', (
     tester,
   ) async {

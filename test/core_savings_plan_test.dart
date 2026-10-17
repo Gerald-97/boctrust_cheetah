@@ -117,6 +117,10 @@ void main() {
     );
     expect(deposit(29).toCreateRequest(today: today), isNull);
     expect(deposit(30).toCreateRequest(today: today)?.tenorDays, 30);
+    expect(goal(365).toCreateRequest(today: today)?.tenorDays, 365);
+    expect(deposit(365).toCreateRequest(today: today)?.tenorDays, 365);
+    expect(goal(366).toCreateRequest(today: today), isNull);
+    expect(deposit(366).toCreateRequest(today: today), isNull);
     expect(
       deposit(45).toCreateRequest(today: today)?.toJson()['tenorDays'],
       45,
@@ -314,6 +318,31 @@ void main() {
     expect(draft.toCreateRequest()!.toJson(), {
       'productCode': 'boctrustFixedDeposit',
       'tenorDays': 90,
+    });
+  });
+
+  test('a Fixed Deposit draft sends its recurring schedule when enabled', () {
+    const draft = SavingsPlanDraft(
+      type: SavingsProductType.fixed,
+      name: 'School fees',
+      durationMonths: 12,
+      autoSave: true,
+      frequency: SavingsFrequency.weekly,
+      recurringAmount: '1,500',
+    );
+
+    expect(draft.toCreateRequest()!.toJson(), {
+      'productCode': 'boctrustFixedDeposit',
+      'tenorDays': 365,
+      'planName': 'School fees',
+      'saveFrequency': 'weekly',
+      'recurringAmount': '1500.00',
+    });
+    expect(draft.copyWith(recurringAmount: '').toCreateRequest(), isNull);
+    expect(draft.copyWith(autoSave: false).toCreateRequest()!.toJson(), {
+      'productCode': 'boctrustFixedDeposit',
+      'tenorDays': 365,
+      'planName': 'School fees',
     });
   });
 

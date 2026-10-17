@@ -675,7 +675,11 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       if (_draft.autoSave) _WizardStep.days,
       _WizardStep.confirm,
     ],
-    SavingsProductType.fixed => [_WizardStep.schedule, _WizardStep.confirm],
+    SavingsProductType.fixed => [
+      _WizardStep.schedule,
+      if (_draft.autoSave) _WizardStep.days,
+      _WizardStep.confirm,
+    ],
     SavingsProductType.padi => [
       _WizardStep.padiGroup,
       _WizardStep.days,
@@ -725,12 +729,20 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
     final today = DateTime.now();
     final minimum = minimumSavingsTenorDays(widget.type);
     final firstDate = DateTime(today.year, today.month, today.day + minimum);
+    final lastDate = DateTime(
+      today.year,
+      today.month,
+      today.day + maximumSavingsTenorDays,
+    );
     final selected = _draft.customMaturityDate;
     final picked = await showDatePicker(
       context: context,
       firstDate: firstDate,
-      lastDate: DateTime(today.year + 100, today.month, today.day),
-      initialDate: selected != null && !selected.isBefore(firstDate)
+      lastDate: lastDate,
+      initialDate:
+          selected != null &&
+              !selected.isBefore(firstDate) &&
+              !selected.isAfter(lastDate)
           ? selected
           : firstDate,
     );
@@ -833,8 +845,8 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Choose a date at least '
-            '${minimumSavingsTenorDays(widget.type)} days from today.',
+            'Choose a date between '
+            '${minimumSavingsTenorDays(widget.type)} days and 1 year from today.',
           ),
         ),
       );
@@ -1123,18 +1135,23 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
           const SizedBox(height: BocSpace.xs),
           Text(
             'Earliest date: '
-            '${minimumSavingsTenorDays(widget.type)} days from today.',
+            '${minimumSavingsTenorDays(widget.type)} days from today. '
+            'Latest date: 1 year from today.',
             style: theme.textTheme.bodySmall,
           ),
-          if (widget.type == SavingsProductType.smartSave) ...[
+          if (_createsInCore) ...[
             const SizedBox(height: BocSpace.md),
             SettingsGroup(
               padding: EdgeInsets.zero,
               children: [
                 SettingsTile.toggle(
                   icon: IconsaxPlusLinear.repeat,
-                  title: 'Auto-save',
-                  subtitle: 'Save automatically on a schedule',
+                  title: widget.type == SavingsProductType.fixed
+                      ? 'Set recurring payments'
+                      : 'Auto-save',
+                  subtitle: widget.type == SavingsProductType.fixed
+                      ? 'Add money to this deposit automatically'
+                      : 'Save automatically on a schedule',
                   value: _draft.autoSave,
                   onChanged: (value) =>
                       _update(_draft.copyWith(autoSave: value)),
@@ -1307,11 +1324,7 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
         ];
       case _WizardStep.confirm:
         final fixed = widget.type == SavingsProductType.fixed;
-        // SmartSave keeps a schedule only while auto-save is on.
-        final frequency =
-            widget.type != SavingsProductType.smartSave || _draft.autoSave
-            ? _draft.frequency
-            : null;
+        final frequency = _draft.autoSave ? _draft.frequency : null;
         if (widget.type == SavingsProductType.smartSave || fixed) {
           final months = _draft.durationMonths;
           final customDate = _draft.customMaturityDate;
@@ -1385,7 +1398,14 @@ class _SavingsPlanWizardState extends ConsumerState<_SavingsPlanWizard> {
                     value: DateFormat('d MMM yyyy').format(customDate),
                   ),
                 ],
-                if (!fixed)
+                if (fixed)
+                  (
+                    label: 'Recurring payments',
+                    value: frequency != null && recurring != null
+                        ? '$recurring ${frequency.label.toLowerCase()}'
+                        : 'Not set',
+                  )
+                else
                   (
                     label: 'Auto-save',
                     value: frequency != null && recurring != null
