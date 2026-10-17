@@ -19,6 +19,7 @@ import '../kyc/screens/kyc_screens.dart';
 import '../home/screens/home_screen.dart';
 import '../account/screens/account_screens.dart';
 import '../account/screens/transaction_limits_screen.dart';
+import '../core_banking/screens/account_freeze_screen.dart';
 import '../core_banking/screens/bank_account_detail_screen.dart';
 import '../core_banking/screens/beneficiaries_screen.dart';
 import '../notifications/screens/notifications_screen.dart';

@@ -209,6 +209,7 @@ const appRouteDefinitions = <String, AppRouteDefinition>{
   AppRoutes.securitySettings: AppRouteDefinition.page(
     AccountScreen.securityCenter,
   ),
+  AppRoutes.accountFreeze: AppRouteDefinition.page(AccountFreezeScreen.new),
   AppRoutes.deleteAccount: AppRouteDefinition.page(AccountScreen.deleteAccount),
   AppRoutes.accountStatement: AppRouteDefinition.page(
     AccountScreen.accountStatement,

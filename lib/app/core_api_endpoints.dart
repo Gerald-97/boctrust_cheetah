@@ -9,6 +9,7 @@ abstract final class CoreApiEndpoints {
   /// One of the caller's accounts; [accountNumber] is one path segment.
   static String bankAccount(String accountNumber) =>
       '$bankAccounts/${Uri.encodeComponent(accountNumber)}';
+  static const bankAccountTemplate = '$bankAccounts/{accountNumber}';
 
   /// Live summary of one of the caller's accounts.
   static String bankAccountSummary(String accountNumber) =>

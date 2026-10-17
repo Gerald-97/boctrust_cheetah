@@ -7,12 +7,9 @@ extension _AccountControlScreens on _AccountPageState {
 
   Widget _securityCenterScreen() {
     final profile = ref.watch(userProfileProvider).data;
-    // Freeze is a shell until it is built; switching its capability on
-    // without a real handler fails fast in debug.
-    assertPlaceholderFor(
-      FeatureCapability.freezeAccount,
-      FeatureAvailability.unavailable,
-    );
+    final canFreeze = ref
+        .watch(featureAvailabilityProvider(FeatureCapability.freezeAccount))
+        .isAvailable;
     return AppScaffold(
       title: 'Security Center',
       activeSection: AppSection.account,
@@ -61,13 +58,12 @@ extension _AccountControlScreens on _AccountPageState {
           SettingsGroup(
             caption: 'Account protection',
             children: [
-              SettingsTile.toggle(
+              SettingsTile(
                 icon: IconsaxPlusLinear.pause_circle,
-                title: 'Freeze account',
-                subtitle: 'Temporarily block all transactions',
-                value: false,
-                onChanged: null,
-                trailing: _notAvailableTag(),
+                title: 'Freeze an account',
+                subtitle: 'Stop money leaving an account until you unfreeze it',
+                trailing: canFreeze ? null : _notAvailableTag(),
+                onTap: canFreeze ? () => go(AppRoutes.accountFreeze) : null,
               ),
             ],
           ),

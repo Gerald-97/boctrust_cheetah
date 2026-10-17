@@ -72,6 +72,7 @@ class AppRoutes {
   static const manageBeneficiaries = '/account/beneficiaries';
   static const linkedBanks = '/account/linked-banks';
   static const securitySettings = '/account/security';
+  static const accountFreeze = '/account/security/freeze';
   static const deleteAccount = '/account/delete';
   static const accountStatement = '/account/statement';
   static const myProfile = '/account/profile';
