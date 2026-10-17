@@ -12,6 +12,8 @@ import '../model/interbank_models.dart';
 import '../service/core_beneficiary_service.dart';
 import '../service/core_bill_service.dart';
 import '../service/core_transfer_service.dart';
+import 'core_account_activity_providers.dart';
+import 'core_account_providers.dart';
 import 'core_submission_notifier.dart';
 
 // Reads.
@@ -144,6 +146,14 @@ final billPaymentProvider =
     >(BillPaymentNotifier.new);
 
 class BillPaymentNotifier extends CoreSubmissionNotifier<BillPaymentDraft> {
+  @override
+  void onSettled(CoreSubmissionOutcome outcome) {
+    if (outcome is AcceptedSubmission || outcome is UnknownSubmission) {
+      unawaited(ref.read(refreshFlexTransactionHistoryProvider)());
+      unawaited(ref.read(customerBankAccountsProvider.notifier).load());
+    }
+  }
+
   @override
   Future<ServiceResponse<CoreTransferAck>> send(
     BillPaymentDraft draft, {

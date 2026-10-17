@@ -1,9 +1,13 @@
+import 'package:boctrust_savings_loan/module/core_banking/model/bill_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/core_submission_models.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_account_transactions.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_activity_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_payments_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_account_service.dart';
+import 'package:boctrust_savings_loan/module/core_banking/service/core_bill_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,7 +59,46 @@ class _History extends CoreAccountService {
   }
 }
 
+class _BillPayment extends CoreBillService {
+  _BillPayment() : super(null);
+
+  @override
+  Future<ServiceResponse<CoreTransferAck>> pay(
+    BillPaymentDraft draft, {
+    required String transactionPin,
+  }) async => const ServiceResponse.success(
+    CoreTransferAck(responseCode: '00', status: 'Successful'),
+  );
+}
+
 void main() {
+  test('a settled bill payment refreshes account transactions', () async {
+    final history = _History();
+    final container = ProviderContainer(
+      overrides: [
+        authSessionProvider.overrideWith(SavingsSession.new),
+        customerBankAccountsProvider.overrideWith(_Accounts.new),
+        coreAccountServiceProvider.overrideWithValue(history),
+        coreBillServiceProvider.overrideWithValue(_BillPayment()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(billPaymentProvider.notifier)
+        .submit(
+          const BillPaymentDraft(
+            billerId: 'biller',
+            paymentItemId: 'item',
+            customerId: '1234567890',
+            amountNaira: '100.00',
+          ),
+          transactionPin: '0007',
+        );
+
+    expect(history.requests, [('1100927896', CoreHistoryRange.last30Days)]);
+  });
+
   test('refresh calls Core even when history is not on screen', () async {
     final service = _History();
     final container = ProviderContainer(

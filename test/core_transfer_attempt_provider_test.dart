@@ -10,6 +10,7 @@ import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_re
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_activity_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
@@ -158,6 +159,29 @@ Future<int> _initiate(ProviderContainer container) async {
 }
 
 void main() {
+  test('a settled transfer refreshes transaction history once', () async {
+    final transfers = _Transfers();
+    var refreshes = 0;
+    final container = ProviderContainer(
+      overrides: [
+        authSessionProvider.overrideWith(SavingsSession.new),
+        transferAuthorizationReadyProvider.overrideWithValue(true),
+        coreTransferServiceProvider.overrideWithValue(transfers),
+        customerBankAccountsProvider.overrideWith(_Accounts.new),
+        refreshFlexTransactionHistoryProvider.overrideWithValue(() async {
+          refreshes++;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(coreTransferAttemptProvider.notifier);
+    final id = await _initiate(container);
+    await notifier.verifyPin(id, '0007');
+    transfers.reply.complete(_accepted);
+    await Future.wait([notifier.finalize(id), notifier.finalize(id)]);
+    expect(refreshes, 1);
+  });
+
   test('PIN only: verify the PIN, then one bodyless finalize', () async {
     final (:container, :transfers) = _setUp();
     final notifier = container.read(coreTransferAttemptProvider.notifier);
@@ -316,10 +340,7 @@ void main() {
 
     expect(
       _current(container)?.outcome,
-      const RejectedSubmission(
-        CoreRejection.accountRestricted,
-        detail: reason,
-      ),
+      const RejectedSubmission(CoreRejection.accountRestricted, detail: reason),
     );
   });
 

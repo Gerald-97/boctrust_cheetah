@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_activity_providers.dart';
 import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_action_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/provider/savings_plan_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -409,10 +410,14 @@ void main() {
       final reply = Completer<NotifierState<SavingsPlanActionResult>>();
       final service = _SlowFund(reply);
       _Accounts.loads = 0;
+      var historyRefreshes = 0;
       final container = ProviderContainer(
         overrides: [
           coreSavingsPlanServiceProvider.overrideWithValue(service),
           customerBankAccountsProvider.overrideWith(_Accounts.new),
+          refreshFlexTransactionHistoryProvider.overrideWithValue(() async {
+            historyRefreshes++;
+          }),
         ],
       );
       addTearDown(container.dispose);
@@ -439,6 +444,7 @@ void main() {
 
       expect(service.reads, 2);
       expect(_Accounts.loads, 1);
+      expect(historyRefreshes, 1);
     },
   );
 

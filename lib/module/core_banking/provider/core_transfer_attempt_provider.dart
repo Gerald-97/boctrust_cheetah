@@ -487,6 +487,10 @@ class CoreTransferAttemptNotifier extends Notifier<CoreTransferAttemptState> {
         outcome: outcome,
       ),
     );
+    if (outcome is AcceptedSubmission || outcome is UnknownSubmission) {
+      ref.read(refreshFlexTransactionHistoryProvider)().ignore();
+      ref.read(customerBankAccountsProvider.notifier).load().ignore();
+    }
   }
 
   /// Clears a resolved attempt (rejected or final) so a new one can start.

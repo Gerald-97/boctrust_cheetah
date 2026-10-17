@@ -12,7 +12,6 @@ import '../model/core_transfer_requery_models.dart';
 import '../model/interbank_models.dart';
 import '../model/intrabank_models.dart';
 import '../provider/core_account_providers.dart';
-import '../provider/core_account_activity_providers.dart';
 import '../provider/core_payments_providers.dart';
 import '../provider/core_transfer_attempt_provider.dart';
 import '../service/transaction_authorizer.dart';
@@ -36,8 +35,6 @@ Future<void> authorizeStagedTransfer(
   // Held directly: the screen, and its `ref`, may be gone by the time a
   // reply arrives.
   final notifier = ref.read(coreTransferAttemptProvider.notifier);
-  final accounts = ref.read(customerBankAccountsProvider.notifier);
-  final refreshHistory = ref.read(refreshFlexTransactionHistoryProvider);
   final id = notifier.beginReview(draft);
   if (id == null) {
     if (!ref.read(transferAuthorizationReadyProvider)) {
@@ -84,14 +81,6 @@ Future<void> authorizeStagedTransfer(
   }
 
   if (at(CoreTransferPhase.readyToFinalize)) await notifier.finalize(id);
-  // Balances come from Core only; never subtract locally.
-  unawaited(accounts.load());
-  final outcome = notifier.current?.outcome;
-  if (notifier.current?.id == id &&
-      notifier.current?.phase == CoreTransferPhase.settled &&
-      (outcome is AcceptedSubmission || outcome is UnknownSubmission)) {
-    unawaited(refreshHistory());
-  }
 }
 
 /// Every transfer screen shows the session's current attempt in place of its

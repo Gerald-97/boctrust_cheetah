@@ -57,7 +57,12 @@ abstract class CoreSubmissionNotifier<D extends Object>
     }
     if (!isCurrent(token)) return;
     state = CoreSubmissionState<D>(draft: draft, outcome: outcome);
+    onSettled(outcome);
   }
+
+  /// Called once for a submitted request whose result still belongs to this
+  /// session. Subclasses can refresh related reads after a money movement.
+  void onSettled(CoreSubmissionOutcome outcome) {}
 
   /// Lets the customer try again after a definite rejection.
   void reset() {

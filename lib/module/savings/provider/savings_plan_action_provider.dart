@@ -189,9 +189,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
   void _refresh(String? planId) {
     ref.invalidate(savingsPlansProvider);
     if (planId != null) ref.invalidate(savingsPlanDetailProvider(planId));
-    final refreshHistory = ref.read(refreshFlexTransactionHistoryProvider);
-    ref.read(customerBankAccountsProvider.notifier).load().then((accounts) {
-      if (accounts.data?.activeFlexAccount != null) return refreshHistory();
-    }).ignore();
+    ref.read(refreshFlexTransactionHistoryProvider)().ignore();
+    ref.read(customerBankAccountsProvider.notifier).load().ignore();
   }
 }
