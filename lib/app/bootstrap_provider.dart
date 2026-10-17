@@ -23,9 +23,16 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
   NotifierState<StartupGateData> build() =>
       const NotifierState.idle(data: StartupGateData());
 
-  Future<void> start() async {
+  /// Cold launch only. Routing waits at least [minimumSplashDuration] so the
+  /// brand sequence can finish; slower cleanup holds its final frame.
+  Future<void> start({
+    Duration minimumSplashDuration = const Duration(milliseconds: 1350),
+  }) async {
     if (_started) return;
     _started = true;
+    final splashHeld = minimumSplashDuration > Duration.zero
+        ? Future<void>.delayed(minimumSplashDuration)
+        : null;
     state = const NotifierState.loading(
       data: StartupGateData(stage: StartupGateStage.clearingSession),
     );
@@ -39,6 +46,7 @@ class StartupGateNotifier extends Notifier<NotifierState<StartupGateData>> {
     } catch (_) {
       // Routing below is the same either way.
     }
+    await splashHeld;
     final hasSeen =
         ref.read(sharedPreferencesProvider).getBool(hasSeenOnboardingKey) ??
         false;

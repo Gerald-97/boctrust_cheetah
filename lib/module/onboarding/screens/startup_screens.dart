@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
@@ -10,6 +11,7 @@ import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/auth_flow_models.dart';
 import 'auth_widgets.dart';
+import 'startup_brand_sequence.dart';
 
 /// Restores the session and loads the profile before routing onwards.
 class BootstrapScreen extends ConsumerWidget {
@@ -18,8 +20,40 @@ class BootstrapScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(startupGateProvider);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (state.status == ServiceStatus.idle) {
-      Future<void>.microtask(ref.read(startupGateProvider.notifier).start);
+      final gate = ref.read(startupGateProvider.notifier);
+      Future<void>.microtask(
+        reduceMotion
+            ? () => gate.start(minimumSplashDuration: Duration.zero)
+            : gate.start,
+      );
+    }
+    final showsSplash = switch (state.data?.stage) {
+      StartupGateStage.idle || StartupGateStage.clearingSession => true,
+      // A cold launch keeps its final frame while the route changes. The
+      // post-login load never routes to login or onboarding.
+      StartupGateStage.complete => const {
+        AuthDestination.login,
+        AuthDestination.onboarding,
+      }.contains(state.data?.destination),
+      _ => false,
+    };
+    if (showsSplash) {
+      return AuthBackScope(
+        exitsApp: true,
+        builder: (context, _) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.dark.copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: BocColors.goldLight,
+            systemNavigationBarIconBrightness: Brightness.dark,
+          ),
+          child: Scaffold(
+            backgroundColor: BocColors.goldLight,
+            body: StartupBrandSequence(reduceMotion: reduceMotion),
+          ),
+        ),
+      );
     }
     final hasError = state.status == ServiceStatus.error;
     return AuthBackScope(
