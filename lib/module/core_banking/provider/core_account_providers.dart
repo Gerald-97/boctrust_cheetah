@@ -30,11 +30,12 @@ class CustomerBankAccountsNotifier
 
   /// Refreshes one account's live balance in place, so every screen reading
   /// the list sees it. A failed or stale refresh leaves the list unchanged.
-  Future<void> refreshAccount(String accountNumber) async {
+  /// Returns whether the fresh account was applied.
+  Future<bool> refreshAccount(String accountNumber) async {
     final accessToken = ref.read(authSessionProvider)?.accessToken;
     final before = state.data;
     // A full load already refreshes every balance; never compete with it.
-    if (before == null || accessToken == null || isLoadInFlight) return;
+    if (before == null || accessToken == null || isLoadInFlight) return false;
     final result = await ref
         .read(coreAccountServiceProvider)
         .getBankAccount(accountNumber);
@@ -45,9 +46,10 @@ class CustomerBankAccountsNotifier
         account == null ||
         !identical(state.data, before) ||
         ref.read(authSessionProvider)?.accessToken != accessToken) {
-      return;
+      return false;
     }
     state = NotifierState.done(before.withAccount(account));
+    return true;
   }
 }
 
