@@ -93,11 +93,11 @@ class SmallPill extends StatelessWidget {
   }
 }
 
-/// Avatar backed by a profile HTTPS URL or a signed private-image URL.
+/// Avatar backed by the user's signed private-image URL, with the profile's
+/// HTTPS URL available until the signed URL arrives.
 ///
-/// Falls back to initials while loading, when no image exists, and on any load
-/// failure. An image problem is always local to the avatar — it never surfaces
-/// as a page-level error.
+/// Falls back to initials when no image exists or an image load fails. An
+/// image problem stays local to the avatar rather than the page.
 class ProfileAvatar extends ConsumerStatefulWidget {
   const ProfileAvatar({
     required this.displayName,
@@ -133,6 +133,7 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
 
   @override
   Widget build(BuildContext context) {
+    final hasSession = ref.watch(authSessionProvider) != null;
     final signedState = ref.watch(profileImageSignedUrlProvider);
     final signed = signedState.data;
     final reference = widget.imageUrl?.trim();
@@ -141,11 +142,12 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
         ? reference
         : null;
     final directUrl = profileUrl == _failedDirectUrl ? null : profileUrl;
-    final hasImage = reference != null && reference.isNotEmpty;
 
-    if (hasImage && directUrl == null) {
-      // Scheduled rather than called during build: ensureLoaded mutates
-      // provider state.
+    if (hasSession &&
+        (signedState.status == ServiceStatus.idle ||
+            (signed != null && signed.isExpired))) {
+      // The signed endpoint is the source of the account photo even when the
+      // profile has no imageUrl. Schedule the provider mutation after build.
       Future<void>.microtask(
         ref.read(profileImageSignedUrlProvider.notifier).ensureLoaded,
       );
@@ -168,11 +170,9 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
             ),
     );
 
-    final displayUrl =
-        directUrl ??
-        (hasImage && signed != null && !signed.isExpired
-            ? signed.imageUrl
-            : null);
+    final displayUrl = signed != null && !signed.isExpired
+        ? signed.imageUrl
+        : directUrl;
     if (displayUrl == null) {
       return Semantics(label: 'Profile photo', child: fallback);
     }
@@ -188,7 +188,7 @@ class _ProfileAvatarState extends ConsumerState<ProfileAvatar> {
           loadingBuilder: (context, child, progress) =>
               progress == null ? child : fallback,
           errorBuilder: (context, error, stackTrace) {
-            if (directUrl != null) {
+            if (displayUrl == directUrl && directUrl != null) {
               // The profile may hold a private URL that needs a fresh
               // signature. Try the signed endpoint after a direct load fails.
               Future<void>.microtask(() {
