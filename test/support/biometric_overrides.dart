@@ -1,6 +1,7 @@
 import 'package:boctrust_savings_loan/helper/app_open_recency.dart';
 import 'package:boctrust_savings_loan/helper/biometric_auth_service.dart';
 import 'package:boctrust_savings_loan/helper/biometric_login_storage.dart';
+import 'package:boctrust_savings_loan/helper/biometric_transfer_storage.dart';
 import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 
 import 'memory_secure_storage.dart';
@@ -26,7 +27,11 @@ List<dynamic> biometricTestOverrides() {
   final biometrics = BiometricLoginStorage(secure);
   // The test binding never reports a foreground lifecycle state, so record
   // the foreground launch the app would otherwise wait for.
-  final recency = AppOpenRecency(secure, biometrics)..recordColdLaunch();
+  final recency = AppOpenRecency(
+    secure,
+    biometrics,
+    BiometricTransferStorage(secure),
+  )..recordColdLaunch();
   return [
     biometricAuthGatewayProvider.overrideWithValue(
       UnsupportedBiometricGateway(),

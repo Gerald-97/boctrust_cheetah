@@ -8,6 +8,7 @@ import '../../../app/services.dart';
 import '../../../helper/fcm_service.dart';
 import '../../../utils/auth_input.dart';
 import '../../account/provider/user_providers.dart';
+import '../../core_banking/provider/biometric_transfer_provider.dart';
 import '../model/auth_requests.dart';
 import '../model/auth_responses.dart';
 import '../service/auth_service.dart';
@@ -127,9 +128,14 @@ class ChangePinNotifier extends Notifier<NotifierState<EmptyData>> {
       return;
     }
     state = const NotifierState.loading();
-    state = await ref
+    final result = await ref
         .read(authServiceProvider)
         .changePin(ChangePinRequest(currentPin: currentPin, newPin: newPin));
+    // The saved biometric approval PIN is now stale; the new one is not saved.
+    if (result.isDone) {
+      await ref.read(biometricApprovalProvider.notifier).wipe();
+    }
+    state = result;
   }
 }
 

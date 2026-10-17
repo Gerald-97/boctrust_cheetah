@@ -7,6 +7,7 @@ import '../helper/app_open_recency.dart';
 import '../helper/fcm_service.dart';
 import '../helper/local_notification_service.dart';
 import '../helper/notification_navigator.dart';
+import '../module/core_banking/provider/biometric_transfer_provider.dart';
 import '../module/onboarding/provider/auth_session_provider.dart';
 import '../module/onboarding/provider/biometric_login_provider.dart';
 import '../module/onboarding/provider/fcm_token_provider.dart';
@@ -71,12 +72,13 @@ class _AuthFlowListenerState extends ConsumerState<AuthFlowListener>
     final result = await ref
         .read(appOpenRecencyProvider)
         .recordForegroundOpen();
-    if (!mounted ||
-        result == AppOpenRecencyResult.eligible ||
-        !ref.exists(biometricLoginProvider)) {
-      return;
-    }
-    await ref.read(biometricLoginProvider.notifier).revokeForRecency();
+    if (!mounted || result == AppOpenRecencyResult.eligible) return;
+    await Future.wait([
+      if (ref.exists(biometricLoginProvider))
+        ref.read(biometricLoginProvider.notifier).revokeForRecency(),
+      if (ref.exists(biometricApprovalProvider))
+        ref.read(biometricApprovalProvider.notifier).revokeForRecency(),
+    ]);
   }
 
   @override

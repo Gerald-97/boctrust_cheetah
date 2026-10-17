@@ -7,6 +7,7 @@ import '../../../utils/auth_input.dart';
 import '../model/auth_enums.dart';
 import '../model/auth_flow_models.dart';
 import '../model/auth_requests.dart';
+import '../../core_banking/provider/biometric_transfer_provider.dart';
 import '../service/auth_service.dart';
 import 'biometric_login_provider.dart';
 import 'test_otp_provider.dart';
@@ -211,6 +212,9 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
       phoneVerificationChannel: channel,
     );
     state = NotifierState.loading(data: context);
+    // A PIN reset retires the saved biometric approval PIN.
+    await ref.read(biometricApprovalProvider.notifier).wipe();
+    if (operationId != _operationId) return;
     final request = type == IdentifierType.phoneNumber
         ? ForgotRequest.phone(identifier, channel!)
         : ForgotRequest.email(identifier);
@@ -292,6 +296,9 @@ class PinRecoveryNotifier extends Notifier<NotifierState<PinRecoveryFlowData>> {
     }
     _resetToken = null;
     ref.read(testOtpProvider.notifier).clear(TestOtpFlow.pinRecovery);
+    // Clear anything saved since the reset began; the new PIN is not saved.
+    await ref.read(biometricApprovalProvider.notifier).wipe();
+    if (operationId != _operationId) return;
     state = NotifierState.done(
       context.copyWith(stage: RecoveryFlowStage.completed),
       message: response.message,

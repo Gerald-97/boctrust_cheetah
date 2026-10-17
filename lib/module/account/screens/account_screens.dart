@@ -18,6 +18,7 @@ import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../component/password_strength_component.dart';
 import '../../component/text_fields.dart';
+import '../../core_banking/provider/biometric_transfer_provider.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/model/auth_enums.dart';
 import '../../onboarding/model/auth_flow_models.dart';

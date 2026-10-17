@@ -1,5 +1,6 @@
 import 'package:boctrust_savings_loan/helper/app_open_recency.dart';
 import 'package:boctrust_savings_loan/helper/biometric_login_storage.dart';
+import 'package:boctrust_savings_loan/helper/biometric_transfer_storage.dart';
 import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_enums.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/remembered_biometric_profile.dart';
@@ -25,7 +26,11 @@ void main() {
     memory = MemorySecureStorage();
     secure = SecureStorage(storage: memory);
     biometrics = BiometricLoginStorage(secure);
-    recency = AppOpenRecency(secure, biometrics);
+    recency = AppOpenRecency(
+      secure,
+      biometrics,
+      BiometricTransferStorage(secure),
+    );
     await biometrics.enable(
       profile: _profile,
       identifier: _profile.identifier,

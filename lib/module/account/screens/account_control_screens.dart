@@ -332,7 +332,9 @@ extension _AccountControlScreens on _AccountPageState {
     }
     // A deleted account must not stay remembered on this device. The
     // deletion notifier is still a stub, so this is its only success path.
+    final approval = ref.read(biometricApprovalProvider.notifier);
     await ref.read(biometricLoginProvider.notifier).forgetEnrollment();
+    await approval.wipe();
     if (!mounted) return;
     await ref.read(logoutProvider.notifier).logout();
   }

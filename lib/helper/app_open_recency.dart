@@ -4,18 +4,20 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'biometric_login_storage.dart';
+import 'biometric_transfer_storage.dart';
 import 'secure_storage.dart';
 
 final appOpenRecencyProvider = Provider<AppOpenRecency>(
   (ref) => AppOpenRecency(
     ref.watch(secureStorageProvider),
     ref.watch(biometricLoginStorageProvider),
+    ref.watch(biometricTransferStorageProvider),
   ),
 );
 
 enum AppOpenRecencyResult { eligible, passwordRequired }
 
-/// Biometric login stays usable only while the app was last opened no more
+/// Biometric login and transfer approval stay usable only while the app was last opened no more
 /// than six calendar months ago.
 abstract final class BiometricRecencyPolicy {
   static const months = 6;
@@ -44,14 +46,19 @@ abstract final class BiometricRecencyPolicy {
 }
 
 /// Records each app open (a foreground cold launch or a return from the
-/// background) and clears biometric enrollment when the previous open was not
-/// recent. A background launch, such as for a push, is not an open.
+/// background) and clears both biometric enrollments (login and transfer
+/// approval) when the previous open was not recent. A background launch, such as for a push, is not an open.
 class AppOpenRecency {
-  AppOpenRecency(this._storage, this._biometrics, {DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now;
+  AppOpenRecency(
+    this._storage,
+    this._biometrics,
+    this._transfers, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final SecureStorage _storage;
   final BiometricLoginStorage _biometrics;
+  final BiometricTransferStorage _transfers;
   final DateTime Function() _clock;
 
   Future<AppOpenRecencyResult>? _latest;
@@ -59,9 +66,10 @@ class AppOpenRecency {
   bool _cleanupFailed = false;
   bool _readFailed = false;
 
-  /// True while a stale enrollment could not be deleted, or for the rest of
-  /// the process once the last-open time could not be read. A failed cleanup
-  /// keeps the old last-open time stale until a later cleanup succeeds.
+  /// Blocks both biometric features. True while a stale enrollment could not
+  /// be deleted, or for the rest of the process once the last-open time could
+  /// not be read. A failed cleanup keeps the old last-open time stale until a
+  /// later cleanup succeeds.
   bool get biometricsBlocked => _cleanupFailed || _readFailed;
 
   /// Records the cold launch unless this process already recorded an open.
@@ -102,7 +110,11 @@ class AppOpenRecency {
           lastOpen != null &&
           lastOpen.isUtc &&
           BiometricRecencyPolicy.isRecent(lastOpen, nowUtc);
-      enrolled = await _storage.hasBiometricValue(BiometricStorageKey.enabled);
+      enrolled =
+          await _storage.hasBiometricValue(BiometricStorageKey.enabled) ||
+          await _storage.hasBiometricTransferValue(
+            BiometricTransferStorageKey.enabled,
+          );
     } catch (_) {
       // Recency is unknown (for example, a locked keychain): block biometrics
       // for this process but keep a possibly recent enrollment.
@@ -111,8 +123,9 @@ class AppOpenRecency {
     }
     final invalidated = !recent || _cleanupFailed;
     if (invalidated) {
-      final cleanup = await _biometrics.clearEnrollment();
-      _cleanupFailed = !cleanup.isComplete;
+      final login = await _biometrics.clearEnrollment();
+      final transfer = await _transfers.clearEnrollment();
+      _cleanupFailed = !login.isComplete || !transfer.isComplete;
       // Keep the old time so the next open still sees it as stale.
       if (_cleanupFailed) return AppOpenRecencyResult.passwordRequired;
     }

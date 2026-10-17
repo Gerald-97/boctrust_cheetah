@@ -87,9 +87,14 @@ void main() {
     transfers = _Transfers();
     final secure = SecureStorage(storage: MemorySecureStorage());
     storage = BiometricTransferStorage(secure);
+    final recency = AppOpenRecency(
+      secure,
+      BiometricLoginStorage(secure),
+      storage,
+    );
+    // A first open clears any enrollment, so enroll after it.
+    await recency.recordColdLaunch();
     await storage.enable(userId: savingsSession().userId, pin: '0007');
-    final recency = AppOpenRecency(secure, BiometricLoginStorage(secure))
-      ..recordColdLaunch();
     container = ProviderContainer(
       overrides: [
         authSessionProvider.overrideWith(SavingsSession.new),

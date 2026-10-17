@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boctrust_savings_loan/helper/app_open_recency.dart';
 import 'package:boctrust_savings_loan/helper/biometric_auth_service.dart';
 import 'package:boctrust_savings_loan/helper/biometric_login_storage.dart';
+import 'package:boctrust_savings_loan/helper/biometric_transfer_storage.dart';
 import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_enums.dart';
 import 'package:boctrust_savings_loan/module/onboarding/model/auth_flow_models.dart';
@@ -65,7 +66,11 @@ void main() {
       final memory = MemorySecureStorage();
       final secure = SecureStorage(storage: memory);
       final biometrics = BiometricLoginStorage(secure);
-      final recency = AppOpenRecency(secure, biometrics);
+      final recency = AppOpenRecency(
+        secure,
+        biometrics,
+        BiometricTransferStorage(secure),
+      );
       final gateway = _PendingPromptGateway();
       await biometrics.enable(
         profile: _profile,
@@ -105,6 +110,51 @@ void main() {
       expect(_submitted, isEmpty);
       expect(container.read(authSessionProvider), isNull);
       expect(container.read(biometricLoginProvider).isEnabled, isFalse);
+    },
+  );
+
+  test(
+    'recency clears both enrollments, and a failed transfer cleanup blocks both features',
+    () async {
+      final memory = MemorySecureStorage();
+      final secure = SecureStorage(storage: memory);
+      final logins = BiometricLoginStorage(secure);
+      final transfers = BiometricTransferStorage(secure);
+      final recency = AppOpenRecency(secure, logins, transfers);
+      Future<void> enrollBoth() async {
+        await logins.enable(
+          profile: _profile,
+          identifier: _profile.identifier,
+          password: 'Secret#123',
+        );
+        await transfers.enable(userId: _profile.userId, pin: '0007');
+      }
+
+      await enrollBoth();
+      memory.values[secure.lastOpenKey] = DateTime.utc(
+        2026,
+        1,
+        1,
+      ).toIso8601String();
+      expect(
+        await recency.recordOpen(DateTime.utc(2026, 8, 1)),
+        AppOpenRecencyResult.passwordRequired,
+      );
+      expect(await logins.loadValidEnrollment(), isNull);
+      expect(await transfers.loadValidEnrollment(), isNull);
+      expect(recency.biometricsBlocked, isFalse);
+
+      await enrollBoth();
+      memory.failDeletes.add(
+        secure.biometricTransferKey(BiometricTransferStorageKey.pin),
+      );
+      expect(
+        await recency.recordOpen(DateTime.utc(2027, 3, 1)),
+        AppOpenRecencyResult.passwordRequired,
+      );
+      expect(recency.biometricsBlocked, isTrue);
+      // The stale time stays, so the next open retries the cleanup.
+      expect(memory.values[secure.lastOpenKey], startsWith('2026-08-01'));
     },
   );
 }
