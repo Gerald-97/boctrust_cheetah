@@ -13,6 +13,9 @@ enum StoredSessionStatus { absent, valid, invalid, expired }
 /// The four keys that make up one biometric enrollment.
 enum BiometricStorageKey { enabled, profile, identifier, password }
 
+/// Separate key set for biometric transfer approval; never shared with login.
+enum BiometricTransferStorageKey { enabled, userId, pin }
+
 typedef StoredSessionResult = ({
   StoredSessionStatus status,
   AuthSession? session,
@@ -134,6 +137,36 @@ class SecureStorage {
 
   Future<void> deleteBiometricValue(BiometricStorageKey key) =>
       _storage.delete(key: biometricKey(key), iOptions: _biometricAppleOptions);
+
+  String biometricTransferKey(BiometricTransferStorageKey key) =>
+      '$_prefix.biometric_transfer.v1.${key.name}';
+
+  Future<String?> readBiometricTransferValue(BiometricTransferStorageKey key) =>
+      _storage.read(
+        key: biometricTransferKey(key),
+        iOptions: _biometricAppleOptions,
+      );
+
+  Future<bool> hasBiometricTransferValue(BiometricTransferStorageKey key) =>
+      _storage.containsKey(
+        key: biometricTransferKey(key),
+        iOptions: _biometricAppleOptions,
+      );
+
+  Future<void> writeBiometricTransferValue(
+    BiometricTransferStorageKey key,
+    String value,
+  ) => _storage.write(
+    key: biometricTransferKey(key),
+    value: value,
+    iOptions: _biometricAppleOptions,
+  );
+
+  Future<void> deleteBiometricTransferValue(BiometricTransferStorageKey key) =>
+      _storage.delete(
+        key: biometricTransferKey(key),
+        iOptions: _biometricAppleOptions,
+      );
 
   // Shares the enrollment's accessibility so it never outlives or travels
   // further than the enrollment it vouches for.
