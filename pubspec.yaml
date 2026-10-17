@@ -55,6 +55,7 @@ flutter:
     - assets/svg/
     - assets/svg/nav/
     - assets/img/
+    - assets/img/onboarding/
     - assets/font/
     - assets/png/
     - assets/json/
