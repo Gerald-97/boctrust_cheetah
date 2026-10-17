@@ -37,6 +37,12 @@ abstract class CoreSubmissionNotifier<D extends Object>
     return CoreSubmissionState<D>();
   }
 
+  bool _lastSendBlocked = false;
+
+  /// Whether the last [submit] that reached [send] was blocked before any
+  /// request left the device (Core not configured), so nothing was judged.
+  bool get lastSendBlocked => _lastSendBlocked;
+
   /// [transactionPin] is passed only to [send], never retained in [state].
   Future<void> submit(D draft, {String? transactionPin}) async {
     if (state.inFlight) return;
@@ -47,11 +53,12 @@ abstract class CoreSubmissionNotifier<D extends Object>
     }
     final token = beginRequest();
     state = CoreSubmissionState<D>(draft: draft, inFlight: true);
+    _lastSendBlocked = false;
     CoreSubmissionOutcome outcome;
     try {
-      outcome = mapCoreSubmission(
-        await send(draft, transactionPin: transactionPin),
-      );
+      final response = await send(draft, transactionPin: transactionPin);
+      _lastSendBlocked = response.status == ServiceStatus.blocked;
+      outcome = mapCoreSubmission(response);
     } catch (_) {
       outcome = const UnknownSubmission();
     }
