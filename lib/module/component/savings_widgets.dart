@@ -160,7 +160,7 @@ class OwnedSavingsTile extends StatelessWidget {
     required this.title,
     required this.balance,
     required this.hidden,
-    required this.accountNumber,
+    this.accountNumber,
     required this.status,
     required this.icon,
     required this.accent,
@@ -176,7 +176,7 @@ class OwnedSavingsTile extends StatelessWidget {
   final String title;
   final String? balance;
   final bool hidden;
-  final String accountNumber;
+  final String? accountNumber;
   final String status;
   final IconData icon;
   final Color accent;
@@ -191,9 +191,8 @@ class OwnedSavingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.bocColors;
     final theme = Theme.of(context);
-    final suffix = accountNumber.substring(
-      accountNumber.length > 4 ? accountNumber.length - 4 : 0,
-    );
+    final number = accountNumber;
+    final suffix = number?.substring(number.length > 4 ? number.length - 4 : 0);
     return SurfaceCard(
       onTap: onTap,
       child: Column(
@@ -234,12 +233,13 @@ class OwnedSavingsTile extends StatelessWidget {
             runSpacing: BocSpace.xs,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                'Account •••• $suffix',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colors.textSecondary,
+              if (suffix != null)
+                Text(
+                  'Account •••• $suffix',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
-              ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

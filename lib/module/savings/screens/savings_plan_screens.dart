@@ -114,38 +114,11 @@ extension SavingsPlanScreens on FlowPageState {
   Widget _savingsPlansScreen(SavingsProductType type, String title) {
     final state = ref.watch(savingsPlansProvider(type));
     final theme = Theme.of(context);
-    // A product can hold many plans; the empty state offers the first one.
-    final hasPlans = switch (state) {
-      AsyncData(:final value) =>
-        value.data
-                ?.where((group) => group.type == type)
-                .firstOrNull
-                ?.plans
-                .isNotEmpty ??
-            false,
-      _ => false,
-    };
     return AppScaffold(
       title: title,
       activeSection: AppSection.save,
       onBack: back,
       onSectionSelected: goSection,
-      actions: [
-        if (hasPlans && _canCreatePlan(type))
-          IconButton(
-            onPressed: () => _startPlanCreation(type),
-            tooltip: type == SavingsProductType.fixed
-                ? 'New deposit'
-                : 'New goal',
-            style: IconButton.styleFrom(
-              backgroundColor: context.bocColors.surface,
-              foregroundColor: context.bocColors.textPrimary,
-              shape: const CircleBorder(),
-            ),
-            icon: const Icon(IconsaxPlusLinear.add),
-          ),
-        SizedBox(width: 10),
-      ],
       body: _plansList(
         type,
         state,
@@ -177,7 +150,7 @@ extension SavingsPlanScreens on FlowPageState {
             switch (value.data
                 ?.where((group) => group.type == type)
                 .firstOrNull) {
-              final group? when group.plans.isNotEmpty => [
+              final group? => [
                 SurfaceCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,44 +201,49 @@ extension SavingsPlanScreens on FlowPageState {
                         ),
                         semanticsLabel: 'Product balance',
                       ),
-                      if (group.rate != null ||
-                          group.accountNumber != null) ...[
+                      if (group.rate != null) ...[
                         const SizedBox(height: BocSpace.xs),
-                        Wrap(
-                          spacing: BocSpace.sm,
-                          runSpacing: BocSpace.xxs,
-                          children: [
-                            if (group.rate case final rate?)
-                              Text(
-                                '$rate% p.a.',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: _productAccent(type),
-                                ),
-                              ),
-                            if (group.accountNumber case final number?)
-                              Text(
-                                'Account •••• ${number.substring(number.length > 4 ? number.length - 4 : 0)}',
-                                style: theme.textTheme.labelMedium,
-                              ),
-                          ],
+                        Text(
+                          '${group.rate}% p.a.',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: _productAccent(type),
+                          ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: BocSpace.lg),
-                Semantics(
-                  header: true,
-                  child: Text(
-                    type == SavingsProductType.fixed
-                        ? 'Your deposits (${group.plans.length})'
-                        : 'Your goals (${group.plans.length})',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                for (final plan in group.plans) ...[
+                if (_canCreatePlan(type)) ...[
                   const SizedBox(height: BocSpace.sm),
-                  _planTile(plan),
+                  PrimaryButton(
+                    label: type == SavingsProductType.fixed
+                        ? 'Create a new deposit'
+                        : 'Create a new goal',
+                    icon: IconsaxPlusLinear.add,
+                    onPressed: () => _startPlanCreation(type),
+                  ),
+                ],
+                const SizedBox(height: BocSpace.lg),
+                if (group.plans.isEmpty)
+                  const ApiStateCard(
+                    title: 'No plans yet',
+                    message: 'Plans you create will appear here.',
+                    tone: ApiStateTone.info,
+                  )
+                else ...[
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      type == SavingsProductType.fixed
+                          ? 'Your deposits (${group.plans.length})'
+                          : 'Your goals (${group.plans.length})',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  for (final plan in group.plans) ...[
+                    const SizedBox(height: BocSpace.sm),
+                    _planTile(plan),
+                  ],
                 ],
               ],
               _ => [

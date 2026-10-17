@@ -65,6 +65,7 @@ class LayoutHome extends UserHomeNotifier {
         'bankName': 'Example Merchant Bank',
         'accountNumber': '0123456789',
         'accountName': 'Alexandria Chinwendu Nwachukwu',
+        'provider': 'Example Processor',
       },
     }),
   );

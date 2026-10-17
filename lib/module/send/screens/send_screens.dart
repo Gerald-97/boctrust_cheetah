@@ -164,6 +164,8 @@ extension SendScreens on FlowPageState {
               ),
             ],
           ),
+          const SizedBox(height: BocSpace.lg),
+          const RegulatoryBadge(),
         ],
       ),
     );

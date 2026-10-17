@@ -112,6 +112,8 @@ void main() {
     await open(tester, AppRoutes.addMoney);
     expect(find.text('0123456789'), findsOneWidget);
     expect(find.text('Example Merchant Bank'), findsOneWidget);
+    expect(find.text('Provider'), findsNothing);
+    expect(find.text('Example Processor'), findsNothing);
     expect(find.byType(MoneyKeypad), findsNothing);
     expect(find.text('Continue'), findsNothing);
     final copy = tester.widget<TextButton>(

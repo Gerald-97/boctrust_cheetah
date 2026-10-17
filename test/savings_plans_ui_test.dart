@@ -130,6 +130,22 @@ class _Plans extends CoreSavingsPlanService {
   }
 }
 
+class _FixedPlans extends _Plans {
+  const _FixedPlans();
+
+  @override
+  Future<NotifierState<List<SavingsProductGroup>>> getPlans(
+    SavingsProductType product,
+  ) async => const NotifierState.done([
+    SavingsProductGroup(
+      type: SavingsProductType.fixed,
+      productName: 'Boc Fixed Deposit',
+      accountNumber: '0000000003',
+      plans: [],
+    ),
+  ]);
+}
+
 /// Flex plus the SmartSave account Core opened with the first plan.
 class _SmartSaveAccounts extends CustomerBankAccountsNotifier {
   @override
@@ -212,6 +228,7 @@ void main() {
     // The product balance is the account's, as the account list reports it.
     expect(find.text('₦125.00'), findsOneWidget);
     expect(find.text('Rent'), findsOneWidget);
+    expect(find.textContaining('Account ••••'), findsNothing);
 
     await tester.tap(find.text('Rent'));
     for (var i = 0; i < 3; i++) {
@@ -225,12 +242,32 @@ void main() {
   testWidgets('a product with plans still offers another', (tester) async {
     await _open(tester, AppRoutes.targetSave, const _Plans(), create: true);
 
-    await tester.tap(find.byTooltip('New goal'));
+    final balanceY = tester.getTopLeft(find.text('Available balance')).dy;
+    final buttonY = tester.getTopLeft(find.text('Create a new goal')).dy;
+    final goalsY = tester.getTopLeft(find.text('Your goals (1)')).dy;
+    expect(balanceY, lessThan(buttonY));
+    expect(buttonY, lessThan(goalsY));
+
+    await tester.tap(find.text('Create a new goal'));
     for (var i = 0; i < 3; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
     expect(find.text('What are you saving for?'), findsOneWidget);
+  });
+
+  testWidgets('an empty deposit account offers creation below its balance', (
+    tester,
+  ) async {
+    await _open(tester, AppRoutes.lockSave, const _FixedPlans(), create: true);
+
+    expect(find.textContaining('Account ••••'), findsNothing);
+    expect(find.text('Create a new deposit'), findsOneWidget);
+    await tester.tap(find.text('Create a new deposit'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('Choose a term'), findsOneWidget);
   });
 
   testWidgets('a plan above its target says so', (tester) async {

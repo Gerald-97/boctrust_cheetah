@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/feature_capability.dart';
@@ -94,7 +95,10 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
                   tone: ApiStateTone.info,
                 )
               else ...[
-                for (final row in history.rows) _row(row),
+                for (final row in history.rows) ...[
+                  _row(row),
+                  const SizedBox(height: BocSpace.sm),
+                ],
                 PagedRowsFooter(rows: history, onShowMore: notifier.loadMore),
               ],
             ],
@@ -112,18 +116,66 @@ class _InterestHistoryScreenState extends FlowPageState<InterestHistoryScreen> {
     final total = money(row.cumulativeInterest);
     final date = row.date;
     final rate = row.ratePercent;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        date == null ? 'Interest' : DateFormat('d MMM yyyy').format(date),
+    final theme = Theme.of(context);
+    final colors = context.bocColors;
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              RoundedIcon(
+                icon: IconsaxPlusLinear.percentage_circle,
+                color: colors.successText,
+                size: 40,
+              ),
+              const SizedBox(width: BocSpace.sm),
+              Expanded(
+                child: Text(
+                  date == null
+                      ? 'Interest'
+                      : DateFormat('d MMM yyyy').format(date),
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: BocSpace.md),
+          Text('Interest earned', style: theme.textTheme.bodySmall),
+          const SizedBox(height: BocSpace.xxs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              interest ?? 'Unavailable',
+              style: theme.textTheme.headlineSmall?.figures.copyWith(
+                color: colors.successText,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (rate != null || total != null) ...[
+            const SizedBox(height: BocSpace.md),
+            Divider(height: 1, color: colors.border),
+            const SizedBox(height: BocSpace.sm),
+            Wrap(
+              spacing: BocSpace.sm,
+              runSpacing: BocSpace.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (rate != null) SmallPill(text: '$rate% p.a.'),
+                if (total != null)
+                  Text(
+                    'Earned so far: $total',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
       ),
-      subtitle: Text(
-        [
-          if (rate != null) '$rate% p.a.',
-          if (total != null) 'So far: $total',
-        ].join(' · '),
-      ),
-      trailing: Text(interest ?? 'Unavailable'),
     );
   }
 }

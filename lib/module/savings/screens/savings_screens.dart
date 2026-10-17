@@ -318,7 +318,11 @@ extension SavingsScreens on FlowPageState {
       title: account.productName,
       balance: balance,
       hidden: hidden,
-      accountNumber: account.accountNumber,
+      accountNumber:
+          type == SavingsProductType.smartSave ||
+              type == SavingsProductType.fixed
+          ? null
+          : account.accountNumber,
       status: _accountStatusLabel(account.status),
       icon: switch (type) {
         SavingsProductType.smartSave => IconsaxPlusLinear.flag,
@@ -530,6 +534,8 @@ extension SavingsScreens on FlowPageState {
                 _bankProductCard(product),
               ],
             ],
+            const SizedBox(height: BocSpace.lg),
+            const RegulatoryBadge(),
           ],
         ),
       ),

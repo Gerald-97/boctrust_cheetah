@@ -6,6 +6,7 @@ import 'package:boctrust_savings_loan/app/feature_capability.dart';
 import 'package:boctrust_savings_loan/app/network.dart';
 import 'package:boctrust_savings_loan/app/route_arguments.dart';
 import 'package:boctrust_savings_loan/app/services.dart';
+import 'package:boctrust_savings_loan/module/app_flow/app_ui.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_page.dart';
 import 'package:boctrust_savings_loan/module/onboarding/provider/auth_session_provider.dart';
 import 'package:boctrust_savings_loan/module/savings/model/interest_accrual_models.dart';
@@ -13,6 +14,7 @@ import 'package:boctrust_savings_loan/module/savings/service/core_flex_interest_
 import 'package:boctrust_savings_loan/module/savings/service/core_savings_plan_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart' show Text;
 
 import 'support/flow_harness.dart';
 import 'support/savings_fixtures.dart';
@@ -132,6 +134,13 @@ void main() {
     expect(find.text('Flex interest history'), findsOneWidget);
     expect(find.text('₦34.25'), findsOneWidget);
     expect(find.text('11 Oct 2026'), findsOneWidget);
+    expect(find.text('Interest earned'), findsOneWidget);
+    expect(find.text('Earned so far: ₦342.50'), findsOneWidget);
+    expect(find.byType(SurfaceCard), findsWidgets);
+    expect(
+      tester.widget<Text>(find.text('₦34.25')).style!.fontSize,
+      greaterThanOrEqualTo(24),
+    );
 
     await tester.ensureVisible(find.text('Show more'));
     await tester.tap(find.text('Show more'));

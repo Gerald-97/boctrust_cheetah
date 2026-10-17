@@ -379,6 +379,7 @@ void main() {
     expect(find.text('Regular Savings'), findsOneWidget);
     expect(find.text('Frozen'), findsOneWidget);
     expect(find.text('Your savings'), findsOneWidget);
+    expect(find.textContaining('Licensed by the CBN'), findsOneWidget);
     expect(find.text('Account •••• 0001'), findsOneWidget);
     expect(find.text('Account •••• 0002'), findsOneWidget);
     expect(find.text('2.5% p.a.'), findsOneWidget);
@@ -389,6 +390,34 @@ void main() {
     expect(find.text('Savings products'), findsOneWidget);
     expect(find.byType(BankProductCard), findsNWidgets(3));
     expect(find.text('Choose a plan'), findsNothing);
+  });
+
+  testWidgets('Save omits SmartSave and Fixed Deposit account numbers', (
+    tester,
+  ) async {
+    final accounts = CustomerBankAccountsData.fromJson({
+      'products': [
+        _account('bocFlex', 'Boc Flex', '0000000001', '7654.30'),
+        _account('bocSmartSave', 'Boc SmartSave', '0000000002', '5000.00'),
+        _account(
+          'boctrustFixedDeposit',
+          'Boc Fixed Deposit',
+          '0000000003',
+          '1000.00',
+        ),
+      ],
+    });
+    await _pump(
+      tester,
+      AppRoutes.savingsHub,
+      accounts: NotifierState.done(accounts),
+    );
+
+    expect(find.text('Boc SmartSave'), findsOneWidget);
+    expect(find.text('Boc Fixed Deposit'), findsOneWidget);
+    expect(find.text('Account •••• 0001'), findsOneWidget);
+    expect(find.text('Account •••• 0002'), findsNothing);
+    expect(find.text('Account •••• 0003'), findsNothing);
   });
 
   testWidgets('Save shows all four published products with only Flex owned', (

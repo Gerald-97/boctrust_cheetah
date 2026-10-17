@@ -645,8 +645,6 @@ extension HomeScreenParts on FlowPageState {
           ReceiptRow(label: 'Account number', value: accountNumber),
           if (account.accountName != null)
             ReceiptRow(label: 'Account name', value: account.accountName!),
-          if (account.provider != null)
-            ReceiptRow(label: 'Provider', value: account.provider!),
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,

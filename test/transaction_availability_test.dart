@@ -151,6 +151,7 @@ void main() {
     expect(find.text('To a BOCTRUST account'), findsOneWidget);
     expect(find.text('To another bank'), findsOneWidget);
     expect(find.text('Scan to pay'), findsOneWidget);
+    expect(find.textContaining('Licensed by the CBN'), findsOneWidget);
     expectNothingFabricated();
 
     await tester.ensureVisible(find.text('To another bank'));
