@@ -124,6 +124,11 @@ enum CoreRejection {
   checksUnsupported(
     "This transfer needs a check the app can't do yet. Try a smaller amount.",
   ),
+
+  /// Boc Flex is frozen or its status could not be confirmed; nothing was
+  /// sent.
+  sourcePaused('Transfers paused while Boc Flex is frozen'),
+  billSourcePaused('Payments paused while Boc Flex is frozen'),
   other('This request was declined.');
 
   const CoreRejection(this.message);

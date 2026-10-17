@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/services.dart';
 import '../../core_banking/provider/core_account_providers.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
+import '../../core_banking/provider/flex_source_check.dart';
 import '../model/savings_plan_models.dart';
 import '../service/core_savings_plan_service.dart';
 import 'savings_plan_provider.dart';
@@ -87,6 +88,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     () =>
         ref.read(coreSavingsPlanServiceProvider).fundPlan(planId, amountNaira),
     _withResult,
+    debitsFlex: true,
   );
 
   /// Withdraws [planId] early into Boc Flex.
@@ -105,6 +107,7 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     null,
     () => ref.read(coreSavingsPlanServiceProvider).createPlan(request),
     (planId) => (planId, null),
+    debitsFlex: true,
   );
 
   static (String?, SavingsPlanActionResult?) _withResult(
@@ -117,13 +120,14 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     Future<NotifierState<T>> Function() call,
     (String?, SavingsPlanActionResult?) Function(T data) done, {
     String? forbidden,
+    bool debitsFlex = false,
   }) async {
     if (state.phase == SavingsPlanActionPhase.sending) return;
     // The sheet can close mid-request; stay alive so the reply still
     // refreshes the plan and the balance.
     final link = ref.keepAlive();
     try {
-      await _send(action, planId, call, done, forbidden);
+      await _send(action, planId, call, done, forbidden, debitsFlex);
     } finally {
       link.close();
     }
@@ -135,12 +139,28 @@ class SavingsPlanActionNotifier extends Notifier<SavingsPlanActionState> {
     Future<NotifierState<T>> Function() call,
     (String?, SavingsPlanActionResult?) Function(T data) done,
     String? forbidden,
+    bool debitsFlex,
   ) async {
     state = SavingsPlanActionState(
       phase: SavingsPlanActionPhase.sending,
       action: action,
       requestedPlanId: planId,
     );
+    // Core documents no frozen rejection here, so a frozen or unconfirmed
+    // Boc Flex stops the request before it is sent.
+    if (debitsFlex) {
+      final canDebit = await ref.read(freshFlexDebitCheckProvider)();
+      if (!ref.mounted) return;
+      if (!canDebit) {
+        state = SavingsPlanActionState(
+          phase: SavingsPlanActionPhase.failed,
+          action: action,
+          requestedPlanId: planId,
+          message: kSavingsPausedMessage,
+        );
+        return;
+      }
+    }
     final reply = await call();
     if (!ref.mounted) return;
 

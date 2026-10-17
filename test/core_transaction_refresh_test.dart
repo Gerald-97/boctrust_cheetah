@@ -28,6 +28,9 @@ class _Accounts extends CustomerBankAccountsNotifier {
       ],
     }),
   );
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
 }
 
 class _History extends CoreAccountService {

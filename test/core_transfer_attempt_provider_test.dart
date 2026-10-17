@@ -69,12 +69,16 @@ class _Transfers extends CoreTransferService {
   final otps = <String>[];
   var resends = 0;
   var finalized = 0;
+  var initiated = 0;
   final live = <NotifierState<CoreLiveTransferStatus>>[];
 
   @override
   Future<NotifierState<CoreTransferInitiation>> initiateBoctrust(
     BoctrustTransferDraft draft,
-  ) async => initiation;
+  ) async {
+    initiated++;
+    return initiation;
+  }
 
   @override
   Future<NotifierState<CoreCheckProgress>> verifyTransferPin(
@@ -120,16 +124,35 @@ class _Transfers extends CoreTransferService {
   ) async => live.removeAt(0);
 }
 
+/// Boc Flex with [status]; a single-account read confirms what it holds.
 class _Accounts extends CustomerBankAccountsNotifier {
+  _Accounts([this.status = CoreAccountStatus.active]);
+  final CoreAccountStatus status;
+
   @override
-  NotifierState<CustomerBankAccountsData> build() => const NotifierState.idle();
+  NotifierState<CustomerBankAccountsData> build() => NotifierState.done(
+    CustomerBankAccountsData(
+      accounts: [
+        CustomerBankAccount(
+          productCode: kFlexProductCode,
+          productName: 'Boc Flex',
+          accountNumber: '1100012345',
+          status: status,
+        ),
+      ],
+    ),
+  );
 
   @override
   Future<NotifierState<CustomerBankAccountsData>> load() async => state;
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
 }
 
 ({ProviderContainer container, _Transfers transfers}) _setUp({
   bool ready = true,
+  CoreAccountStatus flex = CoreAccountStatus.active,
 }) {
   final transfers = _Transfers();
   final container = ProviderContainer(
@@ -137,7 +160,7 @@ class _Accounts extends CustomerBankAccountsNotifier {
       authSessionProvider.overrideWith(SavingsSession.new),
       transferAuthorizationReadyProvider.overrideWithValue(ready),
       coreTransferServiceProvider.overrideWithValue(transfers),
-      customerBankAccountsProvider.overrideWith(_Accounts.new),
+      customerBankAccountsProvider.overrideWith(() => _Accounts(flex)),
     ],
   );
   addTearDown(container.dispose);
@@ -159,6 +182,15 @@ Future<int> _initiate(ProviderContainer container) async {
 }
 
 void main() {
+  test('a frozen Boc Flex account sends no initiate', () async {
+    final (:container, :transfers) = _setUp(flex: CoreAccountStatus.frozen);
+    await _initiate(container);
+
+    expect(transfers.initiated, 0);
+    final outcome = _current(container)!.outcome as RejectedSubmission;
+    expect(outcome.reason, CoreRejection.sourcePaused);
+  });
+
   test('a settled transfer refreshes transaction history once', () async {
     final transfers = _Transfers();
     var refreshes = 0;

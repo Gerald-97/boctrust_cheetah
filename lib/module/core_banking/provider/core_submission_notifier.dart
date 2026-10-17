@@ -56,9 +56,14 @@ abstract class CoreSubmissionNotifier<D extends Object>
     _lastSendBlocked = false;
     CoreSubmissionOutcome outcome;
     try {
-      final response = await send(draft, transactionPin: transactionPin);
-      _lastSendBlocked = response.status == ServiceStatus.blocked;
-      outcome = mapCoreSubmission(response);
+      final stopped = await precheck(draft);
+      if (stopped != null) {
+        outcome = RejectedSubmission(stopped);
+      } else {
+        final response = await send(draft, transactionPin: transactionPin);
+        _lastSendBlocked = response.status == ServiceStatus.blocked;
+        outcome = mapCoreSubmission(response);
+      }
     } catch (_) {
       outcome = const UnknownSubmission();
     }
@@ -66,6 +71,10 @@ abstract class CoreSubmissionNotifier<D extends Object>
     state = CoreSubmissionState<D>(draft: draft, outcome: outcome);
     onSettled(outcome);
   }
+
+  /// Why [draft] must not be sent at all, or null to send it. Runs before
+  /// [send]; nothing has left the device when it returns a reason.
+  Future<CoreRejection?> precheck(D draft) async => null;
 
   /// Called once for a submitted request whose result still belongs to this
   /// session. Subclasses can refresh related reads after a money movement.

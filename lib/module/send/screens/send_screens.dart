@@ -12,6 +12,7 @@ import '../../app_flow/app_ui.dart';
 import '../../app_flow/flow_page.dart';
 import '../../core_banking/provider/core_account_providers.dart';
 import '../../core_banking/screens/core_account_history_list.dart';
+import '../../core_banking/screens/core_flow_widgets.dart';
 import '../../core_banking/screens/interbank_transfer_screen.dart';
 import '../../core_banking/screens/snap_to_pay_page.dart';
 import '../model/transaction_models.dart';
@@ -137,7 +138,11 @@ extension SendScreens on FlowPageState {
                 subtitle: boctrustAvailable
                     ? 'Send instantly to another BOCTRUST customer'
                     : 'Not available yet',
-                onTap: () => go(AppRoutes.sendBeneficiary),
+                onTap: () {
+                  if (!transfersPaused(context, ref)) {
+                    go(AppRoutes.sendBeneficiary);
+                  }
+                },
               ),
               SettingsTile(
                 icon: IconsaxPlusLinear.bank,
@@ -145,7 +150,11 @@ extension SendScreens on FlowPageState {
                 subtitle: interbankAvailable
                     ? 'Send to any Nigerian bank account'
                     : 'Not available yet',
-                onTap: () => go(AppRoutes.sendOtherBank),
+                onTap: () {
+                  if (!transfersPaused(context, ref)) {
+                    go(AppRoutes.sendOtherBank);
+                  }
+                },
               ),
             ],
           ),
@@ -198,6 +207,7 @@ extension SendScreens on FlowPageState {
   /// Camera access is settled before the page opens, so the system prompt
   /// never covers the viewfinder.
   Future<void> _openScanToPay() async {
+    if (transfersPaused(context, ref)) return;
     if (ref
         .read(featureAvailabilityProvider(FeatureCapability.scanToPay))
         .isAvailable) {

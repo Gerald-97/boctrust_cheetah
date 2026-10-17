@@ -8,7 +8,9 @@ import 'package:boctrust_savings_loan/helper/secure_storage.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_check_progress.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_initiation.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/core_transfer_requery_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/model/customer_bank_account_models.dart';
 import 'package:boctrust_savings_loan/module/core_banking/model/intrabank_models.dart';
+import 'package:boctrust_savings_loan/module/core_banking/provider/core_account_providers.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/biometric_transfer_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/provider/core_transfer_attempt_provider.dart';
 import 'package:boctrust_savings_loan/module/core_banking/service/core_transfer_service.dart';
@@ -75,6 +77,25 @@ class _Transfers extends CoreTransferService {
   }
 }
 
+class _Accounts extends CustomerBankAccountsNotifier {
+  @override
+  NotifierState<CustomerBankAccountsData> build() => const NotifierState.done(
+    CustomerBankAccountsData(
+      accounts: [
+        CustomerBankAccount(
+          productCode: kFlexProductCode,
+          productName: 'Boc Flex',
+          accountNumber: '1100012345',
+          status: CoreAccountStatus.active,
+        ),
+      ],
+    ),
+  );
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized().handleAppLifecycleStateChanged(
     AppLifecycleState.resumed,
@@ -103,6 +124,7 @@ void main() {
         authSessionProvider.overrideWith(SavingsSession.new),
         transferAuthorizationReadyProvider.overrideWithValue(true),
         coreTransferServiceProvider.overrideWithValue(transfers),
+        customerBankAccountsProvider.overrideWith(_Accounts.new),
         biometricAuthGatewayProvider.overrideWithValue(gateway),
         biometricTransferStorageProvider.overrideWithValue(storage),
         appOpenRecencyProvider.overrideWithValue(recency),

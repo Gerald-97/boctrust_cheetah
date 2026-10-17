@@ -58,6 +58,9 @@ class _Accounts extends CustomerBankAccountsNotifier {
 
   @override
   Future<NotifierState<CustomerBankAccountsData>> load() async => state;
+
+  @override
+  Future<bool> refreshAccount(String accountNumber) async => true;
 }
 
 class _Transfers extends CoreTransferService {

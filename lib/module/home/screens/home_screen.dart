@@ -23,6 +23,7 @@ import '../../core_banking/provider/account_freeze_provider.dart';
 import '../../core_banking/provider/core_account_activity_providers.dart';
 import '../../core_banking/provider/core_account_providers.dart';
 import '../../core_banking/screens/account_freeze_flow.dart';
+import '../../core_banking/screens/core_flow_widgets.dart';
 import '../../core_banking/screens/core_transaction_detail_sheet.dart';
 import '../../kyc/model/kyc_contact_requirement.dart';
 import '../../onboarding/provider/auth_session_provider.dart';
@@ -212,7 +213,13 @@ extension HomeScreenParts on FlowPageState {
                         foreground: theme.brightness == Brightness.dark
                             ? colors.textPrimary
                             : BocColors.navy,
-                        onTap: () => go(screen),
+                        onTap: () {
+                          if (screen == AppRoutes.sendHub &&
+                              transfersPaused(context, ref)) {
+                            return;
+                          }
+                          go(screen);
+                        },
                       ),
                     ),
                 ],
