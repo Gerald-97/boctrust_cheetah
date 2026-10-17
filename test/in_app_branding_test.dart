@@ -141,7 +141,6 @@ void main() {
   group('app identity surfaces', () {
     for (final (screen, populated) in [
       (AppRoutes.bootstrap, false),
-      (AppRoutes.onboarding, false),
       (AppRoutes.login, false),
       (AppRoutes.home, true),
     ]) {

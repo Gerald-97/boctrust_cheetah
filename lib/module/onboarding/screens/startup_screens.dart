@@ -4,13 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 
 import '../../../app/auth_navigation_provider.dart';
-import '../../../app/boc_icons.dart';
 import '../../../app/bootstrap_provider.dart';
 import '../../../app/services.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 import '../model/auth_flow_models.dart';
 import 'auth_widgets.dart';
+import 'onboarding_slide_view.dart';
 import 'startup_brand_sequence.dart';
 
 /// Restores the session and loads the profile before routing onwards.
@@ -124,21 +124,21 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  static const _slides = <({IconData icon, String title, String description})>[
+  static const _slides = <({String art, String title, String description})>[
     (
-      icon: BocIcons.savings,
+      art: 'save',
       title: 'Save without thinking about it',
       description:
           'Boc Flex Savings grows every day with no lock-in. SmartSave, Fixed Deposit and Padi help you commit to a goal, on your terms.',
     ),
     (
-      icon: IconsaxPlusLinear.flag,
+      art: 'goals',
       title: 'Reach any goal, your way',
       description:
           'Save toward a goal, lock in a fixed term for a higher rate, or save together with friends — pick whichever fits.',
     ),
     (
-      icon: IconsaxPlusLinear.send_2,
+      art: 'pay',
       title: 'Send and pay, instantly',
       description:
           'Move money between your BOCTRUST accounts, send to friends and family, or pay bills — all in one place.',
@@ -160,88 +160,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final slide = _slides[_index];
     return AuthBackScope(
       exitsApp: true,
-      builder: (context, _) => Scaffold(
-        body: SafeArea(
-          child: ResponsiveContent(
-            maxWidth: 560,
-            child: ScrollableFill(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => openAuthDestination(
-                          ref,
-                          AuthDestination.verificationMethod,
-                        ),
-                        child: const Text('Skip'),
-                      ),
-                    ),
-                    const CheetahBrand.launch(markSize: 52),
-                    const Spacer(),
-                    OnboardingIllustration(icon: slide.icon),
-                    const SizedBox(height: 30),
-                    Text(
-                      slide.title,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineSmall?.copyWith(fontSize: 23),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      slide.description,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _slides.length,
-                        (index) => GestureDetector(
-                          onTap: () => setState(() => _index = index),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: index == _index ? 22 : 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: index == _index
-                                  ? BocColors.gold
-                                  : Theme.of(context).dividerColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    const SizedBox(height: 5),
-                    const RegulatoryBadge(),
-                    const SizedBox(height: 14),
-                    PrimaryButton(
-                      label: _index == _slides.length - 1
-                          ? 'Get started'
-                          : 'Next',
-                      onPressed: _advance,
-                    ),
-                    TextButton(
-                      onPressed: () => openAuthDestination(
-                        ref,
-                        AuthDestination.login,
-                        mode: AuthNavigationMode.clearStack,
-                      ),
-                      child: const Text('I already have an account'),
-                    ),
-                  ],
-                ),
-              ),
+      builder: (context, _) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: BocColors.card,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+        child: Scaffold(
+          backgroundColor: BocColors.paper,
+          body: OnboardingSlideView(
+            gifAsset: 'assets/img/onboarding/${slide.art}.gif',
+            stillAsset: 'assets/img/onboarding/${slide.art}-still.png',
+            title: slide.title,
+            description: slide.description,
+            index: _index,
+            slideCount: _slides.length,
+            onNext: _advance,
+            onSelect: (index) => setState(() => _index = index),
+            onLogin: () => openAuthDestination(
+              ref,
+              AuthDestination.login,
+              mode: AuthNavigationMode.clearStack,
             ),
           ),
         ),
