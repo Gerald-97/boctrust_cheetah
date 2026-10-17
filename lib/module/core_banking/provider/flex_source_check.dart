@@ -36,12 +36,14 @@ final freshFlexDebitCheckProvider = Provider<Future<FlexDebitCheck> Function()>(
 final freshAccountDebitCheckProvider =
     Provider<Future<FlexDebitCheck> Function(String? accountNumber)>(
       (ref) =>
-          (accountNumber) => _freshDebitCheck(
-            ref,
-            (data) => data.accounts
-                .where((account) => account.accountNumber == accountNumber)
-                .firstOrNull,
-          ),
+          (accountNumber) => accountNumber == null
+          ? Future.value(FlexDebitCheck.allowed)
+          : _freshDebitCheck(
+              ref,
+              (data) => data.accounts
+                  .where((account) => account.accountNumber == accountNumber)
+                  .firstOrNull,
+            ),
     );
 
 Future<FlexDebitCheck> _freshDebitCheck(
