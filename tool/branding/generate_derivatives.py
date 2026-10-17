@@ -93,8 +93,9 @@ def main() -> None:
     # 120dp icon) by flutter_native_splash.
     centred(icon, 800, 480).save(OUT / "cheetah_splash.png", optimize=True)
     # Android 12+: the icon is shown inside a circle of 2/3 the canvas
-    # (768 px); a 528 px square keeps its corners inside (max 768 x 0.707).
-    centred(icon, 1152, 528).save(OUT / "cheetah_splash_android12.png", optimize=True)
+    # (768 px); a 480 px square keeps its corners inside (max 768 x 0.707) and
+    # shows the same 120dp mark as the other splash (1152 px = 288dp canvas).
+    centred(icon, 1152, 480).save(OUT / "cheetah_splash_android12.png", optimize=True)
     # Notification small icons (24dp at each density).
     res = ROOT / "android/app/src/main/res"
     for density, size in (("mdpi", 24), ("hdpi", 36), ("xhdpi", 48), ("xxhdpi", 72), ("xxxhdpi", 96)):
