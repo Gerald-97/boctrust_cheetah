@@ -144,17 +144,25 @@ void main() {
       expect(await transfers.loadValidEnrollment(), isNull);
       expect(recency.biometricsBlocked, isFalse);
 
+      // Login was never on, so there is no login message to show.
+      await transfers.enable(userId: _profile.userId, pin: '0007');
+      expect(
+        await recency.recordOpen(DateTime.utc(2027, 3, 1)),
+        AppOpenRecencyResult.eligible,
+      );
+      expect(await transfers.loadValidEnrollment(), isNull);
+
       await enrollBoth();
       memory.failDeletes.add(
         secure.biometricTransferKey(BiometricTransferStorageKey.pin),
       );
       expect(
-        await recency.recordOpen(DateTime.utc(2027, 3, 1)),
+        await recency.recordOpen(DateTime.utc(2027, 10, 1)),
         AppOpenRecencyResult.passwordRequired,
       );
       expect(recency.biometricsBlocked, isTrue);
       // The stale time stays, so the next open retries the cleanup.
-      expect(memory.values[secure.lastOpenKey], startsWith('2026-08-01'));
+      expect(memory.values[secure.lastOpenKey], startsWith('2027-03-01'));
     },
   );
 }

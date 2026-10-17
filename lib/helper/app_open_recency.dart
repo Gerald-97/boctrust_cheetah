@@ -17,8 +17,8 @@ final appOpenRecencyProvider = Provider<AppOpenRecency>(
 
 enum AppOpenRecencyResult { eligible, passwordRequired }
 
-/// Biometric login and transfer approval stay usable only while the app was last opened no more
-/// than six calendar months ago.
+/// Biometric login and transfer approval stay usable only while the app was
+/// last opened no more than six calendar months ago.
 abstract final class BiometricRecencyPolicy {
   static const months = 6;
 
@@ -47,7 +47,8 @@ abstract final class BiometricRecencyPolicy {
 
 /// Records each app open (a foreground cold launch or a return from the
 /// background) and clears both biometric enrollments (login and transfer
-/// approval) when the previous open was not recent. A background launch, such as for a push, is not an open.
+/// approval) when the previous open was not recent. A background launch, such
+/// as for a push, is not an open.
 class AppOpenRecency {
   AppOpenRecency(
     this._storage,
@@ -103,18 +104,16 @@ class AppOpenRecency {
 
   Future<AppOpenRecencyResult> _record(DateTime nowUtc) async {
     var recent = false;
-    var enrolled = true;
+    var loginEnrolled = true;
     try {
       final lastOpen = DateTime.tryParse(await _storage.readLastOpen() ?? '');
       recent =
           lastOpen != null &&
           lastOpen.isUtc &&
           BiometricRecencyPolicy.isRecent(lastOpen, nowUtc);
-      enrolled =
-          await _storage.hasBiometricValue(BiometricStorageKey.enabled) ||
-          await _storage.hasBiometricTransferValue(
-            BiometricTransferStorageKey.enabled,
-          );
+      loginEnrolled = await _storage.hasBiometricValue(
+        BiometricStorageKey.enabled,
+      );
     } catch (_) {
       // Recency is unknown (for example, a locked keychain): block biometrics
       // for this process but keep a possibly recent enrollment.
@@ -134,8 +133,10 @@ class AppOpenRecency {
     } catch (_) {
       // The older time stays: later opens are judged more strictly, not less.
     }
-    // A first open with nothing enrolled has nothing to explain.
-    return invalidated && enrolled
+    // The result drives the login message only: an open with no biometric
+    // login enrolled has nothing to explain, even if transfer approval was
+    // cleared.
+    return invalidated && loginEnrolled
         ? AppOpenRecencyResult.passwordRequired
         : AppOpenRecencyResult.eligible;
   }

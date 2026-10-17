@@ -27,16 +27,15 @@ List<dynamic> biometricTestOverrides() {
   final biometrics = BiometricLoginStorage(secure);
   // The test binding never reports a foreground lifecycle state, so record
   // the foreground launch the app would otherwise wait for.
-  final recency = AppOpenRecency(
-    secure,
-    biometrics,
-    BiometricTransferStorage(secure),
-  )..recordColdLaunch();
+  final transfers = BiometricTransferStorage(secure);
+  final recency = AppOpenRecency(secure, biometrics, transfers)
+    ..recordColdLaunch();
   return [
     biometricAuthGatewayProvider.overrideWithValue(
       UnsupportedBiometricGateway(),
     ),
     biometricLoginStorageProvider.overrideWithValue(biometrics),
+    biometricTransferStorageProvider.overrideWithValue(transfers),
     appOpenRecencyProvider.overrideWithValue(recency),
   ];
 }
