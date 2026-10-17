@@ -65,6 +65,8 @@ class FrozenAccountBanner extends ConsumerWidget {
         ) ==
         FeatureAvailability.available;
     final useSupport = bankFrozen || !canUnfreeze;
+    // Sending the code and submitting the unfreeze both spin the button.
+    final busy = ref.watch(accountFreezeProvider(accountNumber)).isBusy;
     return Padding(
       padding: const EdgeInsets.only(top: BocSpace.xs),
       child: Container(
@@ -95,6 +97,7 @@ class FrozenAccountBanner extends ConsumerWidget {
             const SizedBox(height: BocSpace.xs),
             SecondaryButton(
               label: useSupport ? 'Contact support' : 'Unfreeze account',
+              isLoading: !useSupport && busy,
               onPressed: useSupport
                   ? () => Navigator.of(context).pushNamed(AppRoutes.support)
                   : () => onUnfreeze(accountNumber),
