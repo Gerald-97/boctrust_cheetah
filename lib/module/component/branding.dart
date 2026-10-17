@@ -36,34 +36,12 @@ class CheetahBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final ratio = markSize / 72;
     // Like the BOCTRUST wordmark, the lockup ignores text scaling and only
     // shrinks when the space is too narrow.
-    // The tagline sits under the name, aligned to its right edge.
-    final words = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          'Cheetah',
-          textScaler: TextScaler.noScaling,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: _compact ? 18 : 34 * ratio,
-            height: 1.1,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          'by BocTrust',
-          textScaler: TextScaler.noScaling,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: _compact ? 11 : 15 * ratio,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
+    final words = _compact
+        ? const CheetahBrandWords._header()
+        : CheetahBrandWords(markSize: markSize);
     return Semantics(
       label: 'Cheetah by BocTrust',
       excludeSemantics: true,
@@ -87,6 +65,70 @@ class CheetahBrand extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// The lockup's words, `Cheetah` over `by BocTrust`, sized to sit under a
+/// brand mark of [markSize]. [color], when given, paints both words (navy on
+/// the gold splash); otherwise they follow the theme.
+class CheetahBrandWords extends StatelessWidget {
+  const CheetahBrandWords({
+    required this.markSize,
+    this.titleOpacity = 1,
+    this.bylineOpacity = 1,
+    this.color,
+    super.key,
+  }) : _compact = false;
+
+  /// The smaller, fixed-size words of the one-row header lockup.
+  const CheetahBrandWords._header()
+    : markSize = 30,
+      titleOpacity = 1,
+      bylineOpacity = 1,
+      color = null,
+      _compact = true;
+
+  final double markSize;
+  final double titleOpacity;
+  final double bylineOpacity;
+  final Color? color;
+  final bool _compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ratio = markSize / 72;
+    // The tagline sits under the name, aligned to its right edge.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Opacity(
+          opacity: titleOpacity,
+          child: Text(
+            'Cheetah',
+            textScaler: TextScaler.noScaling,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: _compact ? 18 : 34 * ratio,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ),
+        Opacity(
+          opacity: bylineOpacity,
+          child: Text(
+            'by BocTrust',
+            textScaler: TextScaler.noScaling,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: _compact ? 11 : 15 * ratio,
+              color: color ?? theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -209,10 +251,28 @@ class OnboardingIllustration extends StatelessWidget {
 }
 
 class RegulatoryBadge extends StatelessWidget {
-  const RegulatoryBadge({super.key});
+  const RegulatoryBadge({super.key}) : _splash = false;
+
+  /// The same copy as a plain navy line, for the gold startup screen.
+  const RegulatoryBadge.splash({super.key}) : _splash = true;
+
+  final bool _splash;
+
+  static const _copy = 'Licensed by the CBN · Deposits insured by the NDIC';
 
   @override
   Widget build(BuildContext context) {
+    if (_splash) {
+      return const Text(
+        _copy,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: BocColors.navy,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
@@ -227,7 +287,7 @@ class RegulatoryBadge extends StatelessWidget {
           SizedBox(width: 5),
           Flexible(
             child: Text(
-              'Licensed by the CBN · Deposits insured by the NDIC',
+              _copy,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
             ),
