@@ -145,6 +145,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
   ];
 
+  static final _art = [
+    for (final slide in _slides)
+      (
+        gif: 'assets/img/onboarding/${slide.art}.gif',
+        still: 'assets/img/onboarding/${slide.art}-still.png',
+      ),
+  ];
+
   int _index = 0;
 
   void _advance() {
@@ -169,12 +177,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Scaffold(
           backgroundColor: BocColors.paper,
           body: OnboardingSlideView(
-            gifAsset: 'assets/img/onboarding/${slide.art}.gif',
-            stillAsset: 'assets/img/onboarding/${slide.art}-still.png',
+            art: _art,
             title: slide.title,
             description: slide.description,
             index: _index,
-            slideCount: _slides.length,
             onNext: _advance,
             onSelect: (index) => setState(() => _index = index),
             onLogin: () => openAuthDestination(

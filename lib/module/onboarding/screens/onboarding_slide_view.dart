@@ -3,19 +3,24 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../../app_flow/app_ui.dart';
 
-/// One onboarding slide: animated art on paper above a white panel holding the
-/// copy, progress and actions.
+/// One onboarding slide's art: the animated GIF and the still shown until it
+/// decodes, if it fails, or under reduced motion.
+typedef OnboardingArt = ({String gif, String still});
+
+/// The onboarding carousel: swipeable animated art on paper above a white
+/// panel holding the current slide's copy, progress and actions.
+///
+/// [index] is the current slide. Swiping the art reports the new slide
+/// through [onSelect]; changing [index] (Next or a dot) slides the art there.
 ///
 /// Stays light in a dark system theme: the GIFs carry a baked-in paper
 /// background, so the view pins the light theme and uses explicit colours.
-class OnboardingSlideView extends StatelessWidget {
+class OnboardingSlideView extends StatefulWidget {
   const OnboardingSlideView({
-    required this.gifAsset,
-    required this.stillAsset,
+    required this.art,
     required this.title,
     required this.description,
     required this.index,
-    required this.slideCount,
     required this.onNext,
     required this.onLogin,
     required this.onSelect,
@@ -25,20 +30,62 @@ class OnboardingSlideView extends StatelessWidget {
   @visibleForTesting
   static const arcsKey = ValueKey('onboarding-arcs');
 
-  final String gifAsset;
-  final String stillAsset;
+  final List<OnboardingArt> art;
   final String title;
   final String description;
   final int index;
-  final int slideCount;
   final VoidCallback onNext;
   final VoidCallback onLogin;
   final ValueChanged<int> onSelect;
 
   @override
+  State<OnboardingSlideView> createState() => _OnboardingSlideViewState();
+}
+
+class _OnboardingSlideViewState extends State<OnboardingSlideView> {
+  late final _pages = PageController(initialPage: widget.index);
+
+  // The slide the art is showing or sliding to.
+  late int _page = widget.index;
+
+  @override
+  void didUpdateWidget(OnboardingSlideView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index == _page || !_pages.hasClients) return;
+    _page = widget.index;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pages.jumpToPage(_page);
+    } else {
+      _pages.animateToPage(
+        _page,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  // Reports a swipe once the art settles, so the copy changes with the art
+  // it describes and a slide's own animation never reports itself back.
+  bool _onScrollEnd(ScrollEndNotification notification) {
+    final page = _pages.page?.round();
+    if (notification.depth == 0 && page != null && page != _page) {
+      _page = page;
+      widget.onSelect(page);
+    }
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = CheetahTheme.lightTheme;
     final text = theme.textTheme;
+    final slideCount = widget.art.length;
     return Theme(
       data: theme,
       child: Material(
@@ -47,10 +94,9 @@ class OnboardingSlideView extends StatelessWidget {
           builder: (context, constraints) => Column(
             children: [
               Expanded(
-                child: _Illustration(
-                  gifAsset: gifAsset,
-                  stillAsset: stillAsset,
-                  index: index,
+                child: NotificationListener<ScrollEndNotification>(
+                  onNotification: _onScrollEnd,
+                  child: _Illustrations(art: widget.art, controller: _pages),
                 ),
               ),
               // Sized to its copy; on short screens or large text it stops at
@@ -76,7 +122,7 @@ class OnboardingSlideView extends StatelessWidget {
                           child: Column(
                             children: [
                               Text(
-                                title,
+                                widget.title,
                                 textAlign: TextAlign.center,
                                 style: text.headlineSmall?.copyWith(
                                   fontSize: 23,
@@ -85,7 +131,7 @@ class OnboardingSlideView extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                description,
+                                widget.description,
                                 textAlign: TextAlign.center,
                                 style: text.bodyMedium?.copyWith(
                                   color: BocColors.inkSoft,
@@ -94,20 +140,20 @@ class OnboardingSlideView extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               _ProgressDots(
-                                index: index,
+                                index: widget.index,
                                 count: slideCount,
-                                onSelect: onSelect,
+                                onSelect: widget.onSelect,
                               ),
                               const SizedBox(height: 16),
                               PrimaryButton(
-                                label: index == slideCount - 1
+                                label: widget.index == slideCount - 1
                                     ? 'Get started'
                                     : 'Next',
-                                onPressed: onNext,
+                                onPressed: widget.onNext,
                               ),
                               const SizedBox(height: 4),
                               TextButton(
-                                onPressed: onLogin,
+                                onPressed: widget.onLogin,
                                 child: const Text('I already have an account'),
                               ),
                             ],
@@ -126,24 +172,17 @@ class OnboardingSlideView extends StatelessWidget {
   }
 }
 
-class _Illustration extends StatelessWidget {
-  const _Illustration({
-    required this.gifAsset,
-    required this.stillAsset,
-    required this.index,
-  });
+/// The slides' art in a pager over fixed arcs. Off-screen pages are disposed,
+/// so a slide's GIF starts afresh each time it slides back in.
+class _Illustrations extends StatelessWidget {
+  const _Illustrations({required this.art, required this.controller});
 
-  final String gifAsset;
-  final String stillAsset;
-  final int index;
+  final List<OnboardingArt> art;
+  final PageController controller;
 
   @override
   Widget build(BuildContext context) {
-    final still = Image.asset(stillAsset, fit: BoxFit.contain);
-    final art = MediaQuery.disableAnimationsOf(context)
-        ? still
-        // Keyed per slide so each visit gets a fresh state and a fresh loop.
-        : _SlideGif(key: ValueKey(index), asset: gifAsset, still: still);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
@@ -151,12 +190,24 @@ class _Illustration extends StatelessWidget {
           const CustomPaint(key: OnboardingSlideView.arcsKey, painter: _Arcs()),
           SafeArea(
             bottom: false,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final side = constraints.biggest.shortestSide;
-                return Align(
-                  alignment: Alignment.bottomCenter,
-                  child: SizedBox.square(dimension: side, child: art),
+            child: PageView.builder(
+              controller: controller,
+              itemCount: art.length,
+              itemBuilder: (context, index) {
+                final still = Image.asset(
+                  art[index].still,
+                  fit: BoxFit.contain,
+                );
+                return LayoutBuilder(
+                  builder: (context, constraints) => Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox.square(
+                      dimension: constraints.biggest.shortestSide,
+                      child: reduceMotion
+                          ? still
+                          : _SlideGif(asset: art[index].gif, still: still),
+                    ),
+                  ),
                 );
               },
             ),
@@ -173,7 +224,7 @@ class _Illustration extends StatelessWidget {
 /// mid-loop when its slide returns. Each visit resolves under its own cache
 /// key instead, and evicts that key when it ends so visits don't accumulate.
 class _SlideGif extends StatefulWidget {
-  const _SlideGif({required this.asset, required this.still, super.key});
+  const _SlideGif({required this.asset, required this.still});
 
   final String asset;
   final Widget still;

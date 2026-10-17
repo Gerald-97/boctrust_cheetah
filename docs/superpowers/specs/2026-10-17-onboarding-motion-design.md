@@ -17,6 +17,7 @@ The three intro slides use the supplied `Onboarding - 1.png`, `Onboarding - 2.pn
 ## Carousel behavior
 
 - Render each approved GIF in the upper illustration area on `BocColors.paper` (`#F6F4EE`), with the pale arc background from the supplied screens. Use a white rounded lower panel for heading, description, progress dots, and the navy `PrimaryButton` (`Next` or `Get started`).
+- The illustrations sit in a horizontal pager: swiping slides the art to the next or previous slide and the panel copy follows once it settles; `Next` and the dots slide the art to their slide (an instant jump under reduced motion).
 - Keep the existing three titles and descriptions in `OnboardingScreen`; the supplied screen text is visual reference, not a product-copy change. Remove the current top Cheetah lockup, Skip action, and regulatory card from the carousel to follow the reference layout.
 - Use the 600 × 600 source artwork in a square display box sized to the available viewport, with contain sizing and no clipping. Show its matching still PNG until the GIF's first frame is decoded and if decoding fails. Switching slides restarts the selected GIF; reduced-motion devices show the still PNG only.
 - Preserve navigation to sign-in with a visible `I already have an account` action below the primary button, and preserve the current `Get started` destination. Make progress dots accessible tap targets even when their visible marks are small.

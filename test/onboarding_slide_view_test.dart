@@ -25,12 +25,17 @@ Widget _app({
       ).copyWith(disableAnimations: disableAnimations),
       child: Scaffold(
         body: OnboardingSlideView(
-          gifAsset: gifAsset,
-          stillAsset: _still,
+          art: [
+            (gif: gifAsset, still: _still),
+            for (final name in ['goals', 'pay'])
+              (
+                gif: 'assets/img/onboarding/$name.gif',
+                still: 'assets/img/onboarding/$name-still.png',
+              ),
+          ],
           title: 'Save without thinking about it',
           description: 'Boc Flex Savings grows every day with no lock-in.',
           index: index,
-          slideCount: 3,
           onNext: onNext ?? () {},
           onLogin: onLogin ?? () {},
           onSelect: onSelect ?? (_) {},
@@ -144,7 +149,9 @@ void main() {
     expect(gif(), same(first));
 
     await tester.pumpWidget(_app(index: 1));
+    await tester.pumpAndSettle();
     await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
     expect(gif(), isNot(same(first)));
   });
 

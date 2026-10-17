@@ -57,6 +57,18 @@ void main() {
       BocColors.paper,
     );
 
+    // Swiping slides the art and its copy follows once it settles.
+    await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text(_slides[1].$1), findsOneWidget);
+    expect(
+      find.image(const AssetImage('assets/img/onboarding/goals-still.png')),
+      findsOneWidget,
+    );
+    await tester.fling(find.byType(PageView), const Offset(300, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text(_slides[0].$1), findsOneWidget);
+
     for (final (i, (title, description, name)) in _slides.indexed) {
       expect(find.text(title), findsOneWidget);
       expect(find.textContaining(description), findsOneWidget);
@@ -67,17 +79,17 @@ void main() {
       expect(find.bySemanticsLabel('Slide ${i + 1} of 3'), findsOneWidget);
       if (i < 2) {
         await tester.tap(find.text('Next'));
-        await tester.pump();
+        await tester.pumpAndSettle();
       }
     }
     expect(find.text('Next'), findsNothing);
 
     // Dots jump straight to a slide.
     await tester.tap(find.bySemanticsLabel('Slide 1 of 3'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text(_slides[0].$1), findsOneWidget);
     await tester.tap(find.bySemanticsLabel('Slide 3 of 3'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Get started'), findsOneWidget);
 
     await tester.tap(find.text('Get started'));
